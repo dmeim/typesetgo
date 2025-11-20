@@ -549,7 +549,7 @@ export default function TypingPractice({
     }
 
     // Infinite words generation for other modes
-    if (settings.mode !== "words" && settings.mode !== "quote" && settings.mode !== "preset") {
+    if (settings.mode === "time" || settings.mode === "zen") {
       const currentWords = value.trim().split(/\s+/).length;
       const totalWords = words.split(" ").length;
 
