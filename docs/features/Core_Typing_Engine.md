@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Core Typing Engine is the heart of ClickClack, encapsulated primarily within the `TypingPractice.tsx` component. It handles user input, text generation, validation, statistics calculation (WPM, Accuracy), and renders the visual typing interface.
+The Core Typing Engine is the heart of TypeSetGo, encapsulated primarily within the `TypingPractice.tsx` component. It handles user input, text generation, validation, statistics calculation (WPM, Accuracy), and renders the visual typing interface.
 
 It is designed to be flexible, supporting standalone practice modes as well as being driven remotely for the "Connect" multiplayer mode.
 

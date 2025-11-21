@@ -2,7 +2,7 @@
 
 ## Overview
 
-ClickClack manages its typing content (words and quotes) via static JSON files located in the `public/` directory. This simple, file-based approach allows for easy addition of new content without database migrations.
+TypeSetGo manages its typing content (words and quotes) via static JSON files located in the `public/` directory. This simple, file-based approach allows for easy addition of new content without database migrations.
 
 ## Word Lists
 

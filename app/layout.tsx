@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ClickClack - Typing Test",
+  title: "TypeSetGo - Typing Test",
   description:
     "A minimalistic typing test inspired by Monkeytype.",
 };

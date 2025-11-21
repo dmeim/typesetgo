@@ -6,7 +6,7 @@ The "Connect" feature allows multiple users to join a room and type together in 
 
 ## Architecture
 
-ClickClack uses a **Client-Server** architecture powered by **Socket.IO**.
+TypeSetGo uses a **Client-Server** architecture powered by **Socket.IO**.
 
 -   **Server**: A custom Node.js server (`server.js`) integrated with Next.js. It manages room state (`rooms` Map) and broadcasts events.
 -   **Host Client**: Creates the room, owns the "truth" for settings, and controls the test lifecycle (Start/Stop/Reset).

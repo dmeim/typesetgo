@@ -1,6 +1,6 @@
 # Docker Deployment Guide
 
-This guide will help you containerize and deploy the **ClickClack** application using Docker.
+This guide will help you containerize and deploy the **TypeSetGo** application using Docker.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ This guide will help you containerize and deploy the **ClickClack** application 
 Run the following command in the root directory of your project:
 
 ```bash
-docker build -t clickclack-app .
+docker build -t typesetgo-app .
 ```
 
 ## 2. Automated Builds & Tagging Strategy
@@ -45,20 +45,20 @@ When deploying to a server, you can choose which version to use based on your ne
 Use this if you always want the absolute newest code, even if it hasn't been "released" yet.
 ```bash
 # These are equivalent:
-docker pull ghcr.io/dmeim/clickclack
-docker pull ghcr.io/dmeim/clickclack:latest
+docker pull ghcr.io/dmeim/typesetgo
+docker pull ghcr.io/dmeim/typesetgo:latest
 ```
 
 ### Option B: The Stable Release
 Use this for production servers where you only want code you have explicitly released.
 ```bash
-docker pull ghcr.io/dmeim/clickclack:stable
+docker pull ghcr.io/dmeim/typesetgo:stable
 ```
 
 ### Option C: A Specific Version
 Use this if you need to rollback or stick to a specific version.
 ```bash
-docker pull ghcr.io/dmeim/clickclack:v1.0.0
+docker pull ghcr.io/dmeim/typesetgo:v1.0.0
 ```
 
 ## 4. Running the Container
@@ -66,7 +66,7 @@ docker pull ghcr.io/dmeim/clickclack:v1.0.0
 Once pulled, run the container:
 
 ```bash
-docker run -d -p 3000:3000 --name clickclack ghcr.io/dmeim/clickclack:latest
+docker run -d -p 3000:3000 --name typesetgo ghcr.io/dmeim/typesetgo:latest
 ```
 
 *Replace `:latest` with `:stable` or `:v1.0.0` as needed.*
@@ -76,7 +76,7 @@ docker run -d -p 3000:3000 --name clickclack ghcr.io/dmeim/clickclack:latest
 ### "Port already in use"
 ```bash
 # Maps localhost:4000 -> container:3000
-docker run -p 4000:3000 ghcr.io/dmeim/clickclack:latest
+docker run -p 4000:3000 ghcr.io/dmeim/typesetgo:latest
 ```
 
 ### Login to Registry

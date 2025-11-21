@@ -1,6 +1,6 @@
-# ClickClack Documentation
+# TypeSetGo Documentation
 
-Welcome to the ClickClack technical documentation. This folder contains detailed guides on the project's core features, architecture, and content management systems.
+Welcome to the TypeSetGo technical documentation. This folder contains detailed guides on the project's core features, architecture, and content management systems.
 
 ## Feature Guides
 
