@@ -943,21 +943,39 @@ export default function TypingPractice({
 
       {/* Live stats (moved to top) */}
       {isRunning && !isFinished && settings.mode !== "zen" && (
-        <div className="fixed top-[20%] left-0 w-full flex justify-center gap-6 text-xl text-yellow-500 font-medium">
-          <div>
-            {Math.round(wpm)} <span className="text-sm text-gray-500">wpm</span>
+        <div className="fixed top-[20%] left-0 w-full flex justify-center gap-4 pointer-events-none select-none z-10 transition-all duration-300">
+          
+          {/* WPM Pill */}
+          <div className="flex items-baseline gap-2 px-6 py-3 bg-[#2c2e31]/90 backdrop-blur-md rounded-full shadow-lg border border-gray-700/50 min-w-[100px] justify-center">
+            <span className="text-3xl font-bold text-yellow-500 tabular-nums leading-none">{Math.round(wpm)}</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">wpm</span>
           </div>
-          <div>
-            {Math.round(accuracy)}% <span className="text-sm text-gray-500">acc</span>
+
+          {/* Accuracy Pill */}
+          <div className="flex items-baseline gap-2 px-6 py-3 bg-[#2c2e31]/90 backdrop-blur-md rounded-full shadow-lg border border-gray-700/50 min-w-[100px] justify-center">
+            <span className="text-3xl font-bold text-yellow-500 tabular-nums leading-none">{Math.round(accuracy)}%</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">acc</span>
           </div>
+
+          {/* Timer / Word Counter Pill */}
           {(settings.mode === "time" || (settings.mode === "preset" && settings.presetModeType === "time")) && (
-            <div>
-              {Math.max(0, settings.duration - Math.floor(elapsedMs / 1000))}s
+            <div className="flex items-baseline gap-2 px-6 py-3 bg-[#2c2e31]/90 backdrop-blur-md rounded-full shadow-lg border border-gray-700/50 min-w-[100px] justify-center">
+              <span className={`text-3xl font-bold tabular-nums leading-none ${Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) < 10 ? "text-red-500" : "text-gray-200"}`}>
+                {Math.max(0, settings.duration - Math.floor(elapsedMs / 1000))}
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">sec</span>
             </div>
           )}
+          
           {settings.mode === "words" && (
-             <div>
-               {Math.min(typedText.trim() === "" ? 0 : typedText.trim().split(/\s+/).length, settings.wordTarget)}/{settings.wordTarget}
+             <div className="flex items-baseline gap-2 px-6 py-3 bg-[#2c2e31]/90 backdrop-blur-md rounded-full shadow-lg border border-gray-700/50 min-w-[100px] justify-center">
+               <span className="text-3xl font-bold text-gray-200 tabular-nums leading-none">
+                 {Math.min(typedText.trim() === "" ? 0 : typedText.trim().split(/\s+/).length, settings.wordTarget)}
+               </span>
+               <span className="text-sm text-gray-500 font-medium">/</span>
+               <span className="text-xl font-semibold text-gray-500 tabular-nums leading-none">
+                 {settings.wordTarget}
+               </span>
              </div>
           )}
         </div>
@@ -1107,61 +1125,81 @@ export default function TypingPractice({
           </div>
         ) : (
           // Results screen
-          <div className="space-y-8 text-center">
-            <div className="space-y-4">
-              {/* Row 1: WPM and Accuracy */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-lg bg-[#2c2e31] p-8">
-                  <div className="text-6xl font-bold text-yellow-500">{Math.round(wpm)}</div>
-                  <div className="mt-2 text-xl text-gray-500">wpm</div>
+          <div className="w-full max-w-4xl mx-auto animate-fade-in">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Primary Stats */}
+              <div className="relative overflow-hidden rounded-2xl bg-[#2c2e31] p-10 flex flex-col items-center justify-center group border border-gray-800 hover:border-gray-700 transition-colors">
+                <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Words Per Minute</div>
+                <div className="text-8xl font-black text-yellow-500 tabular-nums leading-none tracking-tight">
+                  {Math.round(wpm)}
                 </div>
-                <div className="rounded-lg bg-[#2c2e31] p-8">
-                  <div className="text-6xl font-bold text-yellow-500">{Math.round(accuracy)}%</div>
-                  <div className="mt-2 text-xl text-gray-500">accuracy</div>
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
               </div>
 
-              {/* Row 2: Character Stats */}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="rounded-lg bg-[#2c2e31] p-4">
-                  <div className="text-2xl font-bold text-gray-200">{stats.correct}</div>
-                  <div className="mt-1 text-sm text-gray-500">correct</div>
+              <div className="relative overflow-hidden rounded-2xl bg-[#2c2e31] p-10 flex flex-col items-center justify-center group border border-gray-800 hover:border-gray-700 transition-colors">
+                <div className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Accuracy</div>
+                <div className="text-8xl font-black text-yellow-500 tabular-nums leading-none tracking-tight">
+                  {Math.round(accuracy)}<span className="text-4xl align-top ml-1 opacity-50">%</span>
                 </div>
-                <div className="rounded-lg bg-[#2c2e31] p-4">
-                  <div className="text-2xl font-bold text-red-500">{stats.incorrect}</div>
-                  <div className="mt-1 text-sm text-gray-500">incorrect</div>
-                </div>
-                <div className="rounded-lg bg-[#2c2e31] p-4">
-                  <div className="text-2xl font-bold text-gray-400">{stats.missed}</div>
-                  <div className="mt-1 text-sm text-gray-500">missed</div>
-                </div>
-                <div className="rounded-lg bg-[#2c2e31] p-4">
-                  <div className="text-2xl font-bold text-gray-400">{stats.extra}</div>
-                  <div className="mt-1 text-sm text-gray-500">extra</div>
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4 justify-center mt-8">
-            {!connectMode && (
-            <button
-              type="button"
-              onClick={() => generateTest()}
-              className="rounded px-6 py-2 text-sm text-gray-400 transition hover:text-gray-200"
-            >
-              next test
-            </button>
-            )}
-            {connectMode && onLeave && (
+            {/* Secondary Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+              <div className="bg-[#2c2e31]/50 rounded-xl p-4 border border-gray-800/50 flex flex-col items-center">
+                <div className="text-3xl font-bold text-gray-200 mb-1">{stats.correct}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Correct</div>
+              </div>
+              <div className="bg-[#2c2e31]/50 rounded-xl p-4 border border-gray-800/50 flex flex-col items-center">
+                <div className="text-3xl font-bold text-red-500 mb-1">{stats.incorrect}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Errors</div>
+              </div>
+              <div className="bg-[#2c2e31]/50 rounded-xl p-4 border border-gray-800/50 flex flex-col items-center">
+                <div className="text-3xl font-bold text-gray-400 mb-1">{stats.missed}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Missed</div>
+              </div>
+              <div className="bg-[#2c2e31]/50 rounded-xl p-4 border border-gray-800/50 flex flex-col items-center">
+                <div className="text-3xl font-bold text-gray-400 mb-1">{stats.extra}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Extra</div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-4 justify-center">
+              {!connectMode && (
                 <button
-                type="button"
-                onClick={onLeave}
-                className="rounded px-6 py-2 text-sm text-red-400 transition hover:text-red-200"
-              >
-                leave room
-              </button>
-            )}
+                  type="button"
+                  onClick={() => generateTest()}
+                  className="group relative inline-flex items-center justify-center px-8 py-3 font-medium text-white transition-all duration-200 bg-gray-700 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  <span className="mr-2 transition-transform group-hover:rotate-180">↻</span>
+                  Next Test
+                  <div className="absolute bottom-0 left-0 h-1 w-full scale-x-0 bg-yellow-500 transition-transform duration-200 group-hover:scale-x-100 rounded-b-lg"></div>
+                </button>
+              )}
+              
+              {connectMode && onLeave && (
+                <button
+                  type="button"
+                  onClick={onLeave}
+                  className="px-8 py-3 font-medium text-red-400 transition-all duration-200 bg-red-900/20 border border-red-900/50 rounded-lg hover:bg-red-900/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Leave Room
+                </button>
+              )}
             </div>
+            
+            {!connectMode && (
+                <div className="mt-6 text-center text-sm text-gray-600">
+                    Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> + <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Enter</kbd> to restart quickly
+                </div>
+            )}
           </div>
         )}
       </div>
@@ -1176,7 +1214,7 @@ export default function TypingPractice({
             <div className="mb-2 text-red-500 font-medium">REPEATED</div>
           )}
           <div>Click on the text area and start typing</div>
-          <div className="mt-1">Press Tab + Shift to restart</div>
+          <div className="mt-1">Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> + <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Shift</kbd> to restart</div>
         </div>
       )}
 
