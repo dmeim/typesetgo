@@ -31,7 +31,7 @@ Challenge friends or colleagues in real-time.
 
 ## 📸 Screenshots
 
-![Interface Preview](/public/assets/showcase-main.png)
+![Interface Preview](/public/assets/showcase-typing.png)
 *The clean, focused typing interface.*
 
 ![Multiplayer Preview](/public/assets/showcase-connect-hostpanel.png)
