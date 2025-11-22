@@ -7,46 +7,64 @@
 
 ---
 
+## 📸 Showcase
+
+### Distraction-Free Typing
+![Interface Preview](/public/assets/showcase-typing.png)
+*Focus entirely on your speed with a minimal, responsive interface.*
+
+### Analytics
+![Results Analysis](/public/assets/showcase-result.png)
+*Analyze your performance with cards for WPM, accuracy, and consistency metrics.*
+
+### Real-Time Multiplayer
+![Connect Lobby](/public/assets/showcase-connect.png)
+*Seamlessly join or host rooms in the Connect lobby.*
+
+![Host Control](/public/assets/showcase-connect-hostpanel.png)
+*Full control for hosts: manage participants with drag-and-drop sorting and customize typing settings.*
+
+---
+
 ## ✨ Features
 
 ### 🚀 Core Typing Experience
 Master your keyboard with a highly responsive engine.
-- **Versatile Modes**: Practice with **Time** (15s/30s/60s), **Word counts**, **Quotes** (Short to XL), or go infinite with **Zen** mode.
+- **Versatile Modes**: Practice with **Time**, **Word counts**, **Quotes** (Short to XL), **Zen** mode, or **Custom Text**.
 - **Ghost Writer**: Race against a ghost cursor set to your target WPM to push your limits.
 - **Deep Statistics**: Track your progress with real-time charts for WPM, Accuracy, Raw vs. Net speed, and consistency.
+- **Smart Content**: Adaptive word lists ranging from "Beginner" to "Extreme" difficulty.
 
 ### 🌐 Connect (Multiplayer)
 Challenge friends or colleagues in real-time.
 - **Live Racing**: Create a room and race simultaneously.
-- **Host Control**: Hosts have full control over the test settings (difficulty, duration, etc.).
+- **Host Control**: Hosts have full control over test settings.
+- **Drag-and-Drop Management**: Easily organize race participants directly from the host panel.
 - **Real-time Dashboard**: Watch everyone's progress bar, WPM, and accuracy update live as they type.
-- **Fair Play**: Synchronized start timers ensure every race is fair.
+- **Fair Play**: Synchronized start timers ensure every race is strictly fair.
 
-### 🎨 Customization
-- **Themes**: Toggle between different visual themes to find your perfect contrast.
-- **Sound Effects**: Optional mechanical keyboard sounds for auditory feedback.
-- **Content**: A rich library of quotes and word lists ranging from "Beginner" to "Extreme".
-
----
-
-## 📸 Screenshots
-
-![Interface Preview](/public/assets/showcase-typing.png)
-*The clean, focused typing interface.*
-
-![Multiplayer Preview](/public/assets/showcase-connect-hostpanel.png)
-*Real-time multiplayer dashboard.*
+### 🎨 Customization & Tech
+- **Themes**: Visual themes for perfect contrast.
+- **Sound Effects**: Optional mechanical keyboard sounds.
+- **Modern Stack**: Built with **Next.js 16**, **React 19**, **Tailwind CSS v4**, and **Socket.IO**.
+- **Data & Auth**: Integrated with **Supabase** for robust data handling.
 
 ---
 
 ## 🛠 Getting Started
 
 ### 🐳 Quick Start (Docker)
-The fastest way to run TypeSetGo is with Docker.
+The fastest way to run TypeSetGo is with Docker. You can pull the pre-built image directly:
 
 ```bash
-docker build -t typesetgo-app .
-docker run -d -p 3000:3000 --name typesetgo typesetgo-app
+docker run -d -p 3000:3000 --name typesetgo ghcr.io/dmeim/typesetgo:latest
+```
+
+Alternatively, you can build it from source:
+
+```bash
+docker build -t typesetgo .
+docker run -d -p 3000:3000 typesetgo
 ```
 Visit `http://localhost:3000` to start typing!
 
@@ -67,12 +85,19 @@ If you want to contribute or run it locally without Docker:
     npm install
     ```
 
-3.  **Run the dev server**
+3.  **Configure Environment**
+    Create a `.env.local` file (optional for basic features, required for Auth/Supabase):
+    ```bash
+    NEXT_PUBLIC_SUPABASE_URL=your_url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
+    ```
+
+4.  **Run the dev server**
     ```bash
     npm run dev
     ```
 
-4.  **Open your browser**
+5.  **Open your browser**
     Navigate to [http://localhost:3000](http://localhost:3000).
 
 ---
