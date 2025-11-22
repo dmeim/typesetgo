@@ -6,6 +6,7 @@ import { io, Socket } from "socket.io-client";
 import Link from "next/link";
 import { SettingsState, Mode, Difficulty, QuoteLength, Theme, DEFAULT_THEME } from "@/components/TypingPractice";
 import { GLOBAL_COLORS } from "@/lib/colors";
+import HostCard from "@/components/connect/HostCard";
 
 let socket: Socket;
 
@@ -28,10 +29,7 @@ const WORD_PRESETS = [10, 25, 50, 100, 200];
 
 const MAX_PRESET_LENGTH = 10000;
 
-function ConnectHostContent() {
-  const searchParams = useSearchParams();
-  const hostName = searchParams.get("name") || "Host";
-  
+function ActiveHostSession({ hostName }: { hostName: string }) {
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<Partial<SettingsState>>({
@@ -975,6 +973,31 @@ function ConnectHostContent() {
       </div>
     </div>
   );
+}
+
+function ConnectHostContent() {
+  const searchParams = useSearchParams();
+  const nameParam = searchParams.get("name");
+
+  if (!nameParam) {
+      return (
+        <div 
+            className="min-h-screen flex items-center justify-center font-mono px-4 transition-colors duration-300"
+            style={{ backgroundColor: GLOBAL_COLORS.background, color: GLOBAL_COLORS.text.primary }}
+        >
+            <div className="w-full max-w-md animate-fade-in">
+                <div className="text-center mb-8">
+                    <Link href="/connect" className="text-sm hover:text-white mb-4 inline-block" style={{ color: GLOBAL_COLORS.text.secondary }}>
+                        ← Back
+                    </Link>
+                </div>
+                <HostCard />
+            </div>
+        </div>
+      );
+  }
+
+  return <ActiveHostSession hostName={nameParam} />;
 }
 
 export default function ConnectHost() {
