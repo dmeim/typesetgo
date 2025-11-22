@@ -4,9 +4,26 @@ import { useEffect, useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Link from "next/link";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { SettingsState, Mode, Difficulty, QuoteLength, Theme, DEFAULT_THEME } from "@/components/TypingPractice";
 import { GLOBAL_COLORS } from "@/lib/colors";
 import HostCard from "@/components/connect/HostCard";
+import UserHostCard from "@/components/connect/UserHostCard";
 
 let socket: Socket;
 
@@ -55,14 +72,24 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
 
   // View Options
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
-  const [sortBy, setSortBy] = useState<"join" | "wpm" | "accuracy" | "progress" | "name">("join");
+  const [sortBy, setSortBy] = useState<"join" | "wpm" | "accuracy" | "progress" | "name" | "custom">("join");
   const [cardSize, setCardSize] = useState(1); // 0.5 to 2
+  const [customOrder, setCustomOrder] = useState<string[]>([]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const [showPresetInput, setShowPresetInput] = useState(false);
   const [tempPresetText, setTempPresetText] = useState("");
   
   const [showSettings, setShowSettings] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customValue, setCustomValue] = useState(0);
 
   // Derived theme for UI usage (defaulting if missing)
   const theme = settings.theme || DEFAULT_THEME;
@@ -194,11 +221,47 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   const sortedUsers = useMemo(() => {
       let sorted = [...users];
       if (sortBy === "wpm") sorted.sort((a, b) => (b.stats?.wpm || 0) - (a.stats?.wpm || 0));
-      if (sortBy === "accuracy") sorted.sort((a, b) => (b.stats?.accuracy || 0) - (a.stats?.accuracy || 0));
-      if (sortBy === "progress") sorted.sort((a, b) => (b.stats?.progress || 0) - (a.stats?.progress || 0));
-      if (sortBy === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
+      else if (sortBy === "accuracy") sorted.sort((a, b) => (b.stats?.accuracy || 0) - (a.stats?.accuracy || 0));
+      else if (sortBy === "progress") sorted.sort((a, b) => (b.stats?.progress || 0) - (a.stats?.progress || 0));
+      else if (sortBy === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
+      else if (sortBy === "custom") {
+          sorted.sort((a, b) => {
+              const indexA = customOrder.indexOf(a.id);
+              const indexB = customOrder.indexOf(b.id);
+              if (indexA === -1 && indexB === -1) return 0;
+              if (indexA === -1) return 1;
+              if (indexB === -1) return -1;
+              return indexA - indexB;
+          });
+      }
       return sorted;
-  }, [users, sortBy]);
+  }, [users, sortBy, customOrder]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      // If we weren't in custom mode, we initialize the order from the current view
+      const currentIds = sortedUsers.map(u => u.id);
+      
+      setCustomOrder((prev) => {
+        // If prev is empty or we weren't in custom mode, use current sorted list as base
+        const baseOrder = sortBy === "custom" && prev.length > 0 ? prev : currentIds;
+        
+        // Ensure all current users are in the base order (handle new joins)
+        const allUserIds = users.map(u => u.id);
+        const missingIds = allUserIds.filter(id => !baseOrder.includes(id));
+        const fullOrder = [...baseOrder, ...missingIds];
+
+        const oldIndex = fullOrder.indexOf(active.id as string);
+        const newIndex = fullOrder.indexOf(over.id as string);
+
+        return arrayMove(fullOrder, oldIndex, newIndex);
+      });
+      
+      setSortBy("custom");
+    }
+  };
 
   if (!roomCode) {
     return (
@@ -400,6 +463,16 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                                 {d}
                             </button>
                         ))}
+                        <button
+                            onClick={() => {
+                                setCustomValue(settings.duration || 0);
+                                setShowCustomModal(true);
+                            }}
+                            className={`px-3 py-1 rounded transition ${!TIME_PRESETS.includes(settings.duration || 0) ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
+                            style={{ color: !TIME_PRESETS.includes(settings.duration || 0) ? theme.buttonSelected : undefined }}
+                        >
+                            #
+                        </button>
                     </div>
                  )}
 
@@ -415,6 +488,16 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                                 {w}
                             </button>
                         ))}
+                        <button
+                            onClick={() => {
+                                setCustomValue(settings.wordTarget || 0);
+                                setShowCustomModal(true);
+                            }}
+                            className={`px-3 py-1 rounded transition ${!WORD_PRESETS.includes(settings.wordTarget || 0) ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
+                            style={{ color: !WORD_PRESETS.includes(settings.wordTarget || 0) ? theme.buttonSelected : undefined }}
+                        >
+                            #
+                        </button>
                     </div>
                  )}
 
@@ -492,6 +575,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                         <option value="accuracy">Accuracy</option>
                         <option value="progress">Progress</option>
                         <option value="name">Name</option>
+                        <option value="custom">Custom</option>
                     </select>
                 </div>
 
@@ -554,182 +638,40 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 </button>
             </div>
         ) : (
-            <div 
-                className={
-                    viewMode === "grid" 
-                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 content-start"
-                    : "flex flex-col gap-2"
-                }
-                style={viewMode === "grid" ? { 
-                    gridTemplateColumns: `repeat(auto-fill, minmax(${300 * cardSize}px, 1fr))`
-                } : {}}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
             >
-                {sortedUsers.map(user => {
-                    // Calculate specific progress
-                    let progressDisplay = <div className="w-full h-full bg-gray-700"></div>;
-                    let progressText = "";
-                    let isFinished = user.stats?.isFinished;
-
-                    // Logic for different modes
-                    if (settings.mode === "time" || (settings.mode === "preset" && settings.presetModeType === "time")) {
-                        const duration = settings.duration || 30;
-                        const elapsed = (user.stats?.timeElapsed || 0) / 1000;
-                        const remaining = Math.max(0, duration - elapsed);
-                        const progressPct = Math.min(100, (elapsed / duration) * 100);
-                        
-                        progressDisplay = (
-                            <div className="h-full bg-gray-700 overflow-hidden rounded-full relative">
-                                <div 
-                                    className="absolute top-0 left-0 h-full transition-all duration-500"
-                                    style={{ 
-                                      width: `${isFinished ? 100 : progressPct}%`, 
-                                      backgroundColor: isFinished ? GLOBAL_COLORS.text.success : theme.buttonSelected 
-                                    }}
-                                />
-                            </div>
-                        );
-                        progressText = isFinished ? "Done" : `${remaining.toFixed(0)}s`;
-
-                    } else if (settings.mode === "words") {
-                        const target = settings.wordTarget || 25;
-                        const typed = user.stats?.wordsTyped || 0; // Approx words
-                        const progressPct = Math.min(100, (typed / target) * 100);
-
-                        progressDisplay = (
-                            <div className="h-full bg-gray-700 overflow-hidden rounded-full relative">
-                                <div 
-                                    className="absolute top-0 left-0 h-full transition-all duration-500"
-                                    style={{ 
-                                      width: `${isFinished ? 100 : progressPct}%`, 
-                                      backgroundColor: isFinished ? GLOBAL_COLORS.text.success : theme.buttonSelected 
-                                    }}
-                                />
-                            </div>
-                        );
-                        progressText = isFinished ? "Done" : `${Math.floor(typed)}/${target}`;
-
-                    } else {
-                        // Quote, Preset (finish), Zen
-                        const progress = user.stats?.progress || 0;
-                         progressDisplay = (
-                            <div className="h-full bg-gray-700 overflow-hidden rounded-full relative">
-                                <div 
-                                    className="absolute top-0 left-0 h-full transition-all duration-500"
-                                    style={{ 
-                                      width: `${progress}%`, 
-                                      backgroundColor: isFinished ? GLOBAL_COLORS.text.success : theme.buttonSelected 
-                                    }}
-                                />
-                            </div>
-                        );
-                        progressText = isFinished ? "Done" : `${Math.round(progress)}%`;
-                    }
-
-                    if (viewMode === "list") {
-                        return (
-                            <div key={user.id} className="p-4 rounded flex items-center justify-between transition border-l-4 border-transparent hover:border-current group" style={{ backgroundColor: GLOBAL_COLORS.surface, color: theme.defaultText }}>
-                                <div className="flex items-center gap-4 w-1/3">
-                                    <div className="font-bold text-lg truncate">{user.name}</div>
-                                    <div className="text-xs opacity-70 font-mono">{user.id.slice(0, 4)}</div>
-                                </div>
-                                
-                                <div className="flex-1 px-4">
-                                     <div className="h-2 w-full rounded-full overflow-hidden bg-gray-800">
-                                        {progressDisplay}
-                                     </div>
-                                     <div className="text-xs text-right mt-1" style={{ color: GLOBAL_COLORS.text.secondary }}>{progressText}</div>
-                                </div>
-
-                                <div className="flex gap-4 w-1/3 justify-end items-center">
-                                    <div className="text-right w-16">
-                                        <div className="text-xl font-bold" style={{ color: theme.buttonSelected }}>{Math.round(user.stats?.wpm || 0)}</div>
-                                        <div className="text-xs" style={{ color: GLOBAL_COLORS.text.secondary }}>WPM</div>
-                                    </div>
-                                    <div className="text-right w-16">
-                                        <div className="text-xl font-bold opacity-80">{Math.round(user.stats?.accuracy || 0)}%</div>
-                                        <div className="text-xs" style={{ color: GLOBAL_COLORS.text.secondary }}>ACC</div>
-                                    </div>
-                                    
-                                    {/* Actions (Visible on Hover) */}
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={() => resetUser(user.id)}
-                                            className="p-1.5 rounded hover:bg-gray-600 transition"
-                                            style={{ color: GLOBAL_COLORS.brand.primary }}
-                                            title="Reset User"
-                                        >
-                                            ↺
-                                        </button>
-                                        <button 
-                                            onClick={() => kickUser(user.id)}
-                                            className="p-1.5 rounded hover:bg-gray-600 transition"
-                                            style={{ color: GLOBAL_COLORS.text.error }}
-                                            title="Kick User"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    }
-
-                    // Grid Card View
-                    return (
-                        <div 
-                            key={user.id} 
-                            className="rounded-lg p-6 flex flex-col gap-4 hover:shadow-lg transition border-t-4 border-transparent hover:border-current group relative"
-                            style={{ fontSize: `${cardSize}rem`, color: theme.defaultText, backgroundColor: GLOBAL_COLORS.surface }}
-                        >
-                            <div className="flex justify-between items-start">
-                                <div className="font-bold text-[1.2em] truncate w-3/4" title={user.name}>{user.name}</div>
-                                <div className="text-[0.6em] opacity-70 font-mono mt-1">{user.id.slice(0, 4)}</div>
-                            </div>
-
-                            {/* Actions (Absolute Top Right) */}
-                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                    onClick={() => resetUser(user.id)}
-                                    className="p-1 rounded hover:bg-gray-600 transition text-sm"
-                                    style={{ color: GLOBAL_COLORS.brand.primary }}
-                                    title="Reset User"
-                                >
-                                    ↺
-                                </button>
-                                <button 
-                                    onClick={() => kickUser(user.id)}
-                                    className="p-1 rounded hover:bg-gray-600 transition text-sm"
-                                    style={{ color: GLOBAL_COLORS.text.error }}
-                                    title="Kick User"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-[0.8em]" style={{ color: GLOBAL_COLORS.text.secondary }}>
-                                    <span>Progress</span>
-                                    <span>{progressText}</span>
-                                </div>
-                                <div className="h-3 w-full rounded-full overflow-hidden bg-gray-800">
-                                    {progressDisplay}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 mt-2">
-                                <div className="bg-gray-800 rounded p-3 text-center">
-                                    <div className="text-[1.5em] font-bold leading-none" style={{ color: theme.buttonSelected }}>{Math.round(user.stats?.wpm || 0)}</div>
-                                    <div className="text-[0.6em] mt-1" style={{ color: GLOBAL_COLORS.text.secondary }}>WPM</div>
-                                </div>
-                                <div className="bg-gray-800 rounded p-3 text-center">
-                                    <div className="text-[1.5em] font-bold opacity-80 leading-none">{Math.round(user.stats?.accuracy || 0)}%</div>
-                                    <div className="text-[0.6em] mt-1" style={{ color: GLOBAL_COLORS.text.secondary }}>Accuracy</div>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+                <SortableContext
+                    items={sortedUsers.map(u => u.id)}
+                    strategy={viewMode === "grid" ? rectSortingStrategy : verticalListSortingStrategy}
+                >
+                    <div
+                        className={
+                            viewMode === "grid"
+                            ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 content-start"
+                            : "flex flex-col gap-2"
+                        }
+                        style={viewMode === "grid" ? {
+                            gridTemplateColumns: `repeat(auto-fill, minmax(${300 * cardSize}px, 1fr))`
+                        } : {}}
+                    >
+                        {sortedUsers.map(user => (
+                            <UserHostCard
+                                key={user.id}
+                                user={user}
+                                settings={settings}
+                                viewMode={viewMode}
+                                theme={theme}
+                                cardSize={cardSize}
+                                onKick={kickUser}
+                                onReset={resetUser}
+                            />
+                        ))}
+                    </div>
+                </SortableContext>
+            </DndContext>
         )}
       </div>
 
@@ -882,6 +824,100 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
               >
                 Reset All Defaults
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Value Modal */}
+      {showCustomModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowCustomModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg p-6 shadow-xl"
+            style={{ backgroundColor: GLOBAL_COLORS.surface }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-200">
+                Custom {settings.mode === "time" ? "Duration" : "Word Amount"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowCustomModal(false)}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center gap-6">
+               <div className="flex items-center gap-4">
+                   {/* Decrement Buttons */}
+                   <div className="flex flex-col gap-1">
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => Math.max(0, v - 10))}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >---</button>
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => Math.max(0, v - 5))}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >--</button>
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => Math.max(0, v - 1))}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >-</button>
+                   </div>
+
+                   {/* Input */}
+                   <input
+                       type="number"
+                       value={customValue}
+                       onChange={(e) => setCustomValue(Math.max(0, parseInt(e.target.value) || 0))}
+                       className="w-24 text-center text-3xl font-bold bg-transparent border-b-2 focus:outline-none"
+                       style={{ borderColor: theme.buttonSelected, color: theme.buttonSelected }}
+                   />
+
+                   {/* Increment Buttons */}
+                   <div className="flex flex-col gap-1">
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => v + 10)}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >+++</button>
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => v + 5)}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >++</button>
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => v + 1)}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >+</button>
+                   </div>
+               </div>
+
+               <button
+                   type="button"
+                   onClick={() => {
+                       if (settings.mode === "time") {
+                           updateSettings({ duration: customValue });
+                       } else {
+                           updateSettings({ wordTarget: customValue });
+                       }
+                       setShowCustomModal(false);
+                   }}
+                   className="px-8 py-2 rounded font-medium text-gray-900 transition hover:opacity-90"
+                   style={{ backgroundColor: theme.buttonSelected }}
+               >
+                   Set
+               </button>
             </div>
           </div>
         </div>
