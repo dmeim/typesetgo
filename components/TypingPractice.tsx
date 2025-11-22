@@ -1222,12 +1222,12 @@ export default function TypingPractice({
             <div> 
               {!connectMode && (
                 <div className="mt-6 text-center text-sm text-gray-600">
-                    Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Enter</kbd> to start another test
-                </div>
-              )}
-              {!connectMode && (
-                <div className="mt-6 text-center text-sm text-gray-600">
-                    Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> + <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Enter</kbd> to repeat this test
+                    <div>
+                        Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Enter</kbd> to continue
+                    </div>
+                    <div className="mt-1">
+                        Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> to repeat this test
+                    </div>
                 </div>
               )}
             </div>
