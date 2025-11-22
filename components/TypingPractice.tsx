@@ -185,6 +185,20 @@ interface TypingPracticeProps {
   hostName?: string;
 }
 
+const formatTime = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  if (m > 0) {
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${s}s`;
+};
+
 export default function TypingPractice({
   connectMode = false,
   lockedSettings,
@@ -215,6 +229,8 @@ export default function TypingPractice({
 
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customValue, setCustomValue] = useState(0);
 
   const [linePreview, setLinePreview] = useState(3);
   const [showSettings, setShowSettings] = useState(false);
@@ -449,7 +465,7 @@ export default function TypingPractice({
 
     if (wordPool.length === 0) return;
 
-    const wordCount = settings.mode === "words" ? settings.wordTarget : 200;
+    const wordCount = (settings.mode === "words" && settings.wordTarget > 0) ? settings.wordTarget : 200;
     setWords(generateWords(wordCount, wordPool, {
       punctuation: settings.punctuation,
       numbers: settings.numbers
@@ -479,7 +495,7 @@ export default function TypingPractice({
       const nextElapsed = Date.now() - startTime;
       setElapsedMs(nextElapsed);
 
-      if ((settings.mode === "time" || (settings.mode === "preset" && settings.presetModeType === "time")) && nextElapsed >= settings.duration * 1000) {
+      if ((settings.mode === "time" || (settings.mode === "preset" && settings.presetModeType === "time")) && settings.duration > 0 && nextElapsed >= settings.duration * 1000) {
         finishSession();
       }
     }, 100);
@@ -552,7 +568,7 @@ export default function TypingPractice({
     }
 
     // Infinite words generation for other modes
-    if (settings.mode === "time" || settings.mode === "zen") {
+    if (settings.mode === "time" || settings.mode === "zen" || (settings.mode === "words" && settings.wordTarget === 0)) {
       const currentWords = value.trim().split(/\s+/).length;
       const totalWords = words.split(" ").length;
 
@@ -566,7 +582,7 @@ export default function TypingPractice({
     }
 
     // Check word mode completion
-    if (settings.mode === "words") {
+    if (settings.mode === "words" && settings.wordTarget > 0) {
       const typedWords = value.trim().split(/\s+/).length;
       if (value.endsWith(" ") && typedWords >= settings.wordTarget) {
         finishSession();
@@ -854,6 +870,17 @@ export default function TypingPractice({
                                 {d}
                             </button>
                         ))}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setCustomValue(settings.duration);
+                                setShowCustomModal(true);
+                            }}
+                            className={`px-3 py-1 rounded transition ${!TIME_PRESETS.includes(settings.duration) ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
+                            style={{ color: !TIME_PRESETS.includes(settings.duration) ? theme.buttonSelected : undefined }}
+                        >
+                            #
+                        </button>
                     </div>
                  )}
 
@@ -873,6 +900,17 @@ export default function TypingPractice({
                                 {w}
                             </button>
                         ))}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setCustomValue(settings.wordTarget);
+                                setShowCustomModal(true);
+                            }}
+                            className={`px-3 py-1 rounded transition ${!WORD_PRESETS.includes(settings.wordTarget) ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
+                            style={{ color: !WORD_PRESETS.includes(settings.wordTarget) ? theme.buttonSelected : undefined }}
+                        >
+                            #
+                        </button>
                     </div>
                  )}
 
@@ -975,10 +1013,12 @@ export default function TypingPractice({
               className="flex items-baseline gap-2 px-6 py-3 backdrop-blur-md rounded-full shadow-lg border border-gray-700/50 min-w-[100px] justify-center"
               style={{ backgroundColor: `${GLOBAL_COLORS.surface}E6` }}
             >
-              <span className={`text-3xl font-bold tabular-nums leading-none ${Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) < 10 ? "" : "text-gray-200"}`} style={{ color: Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) < 10 ? GLOBAL_COLORS.text.error : undefined }}>
-                {Math.max(0, settings.duration - Math.floor(elapsedMs / 1000))}
+              <span className={`text-3xl font-bold tabular-nums leading-none ${settings.duration > 0 && Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) < 10 ? "" : "text-gray-200"}`} style={{ color: settings.duration > 0 && Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) < 10 ? GLOBAL_COLORS.text.error : undefined }}>
+                {settings.duration === 0 
+                  ? formatTime(Math.floor(elapsedMs / 1000))
+                  : formatTime(Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)))
+                }
               </span>
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">sec</span>
             </div>
           )}
           
@@ -988,12 +1028,16 @@ export default function TypingPractice({
                 style={{ backgroundColor: `${GLOBAL_COLORS.surface}E6` }}
              >
                <span className="text-3xl font-bold text-gray-200 tabular-nums leading-none">
-                 {Math.min(typedText.trim() === "" ? 0 : typedText.trim().split(/\s+/).length, settings.wordTarget)}
+                 {Math.min(typedText.trim() === "" ? 0 : typedText.trim().split(/\s+/).length, settings.wordTarget === 0 ? Infinity : settings.wordTarget)}
                </span>
-               <span className="text-sm text-gray-500 font-medium">/</span>
-               <span className="text-xl font-semibold text-gray-500 tabular-nums leading-none">
-                 {settings.wordTarget}
-               </span>
+               {settings.wordTarget > 0 && (
+                 <>
+                   <span className="text-sm text-gray-500 font-medium">/</span>
+                   <span className="text-xl font-semibold text-gray-500 tabular-nums leading-none">
+                     {settings.wordTarget}
+                   </span>
+                 </>
+               )}
              </div>
           )}
         </div>
@@ -1596,6 +1640,100 @@ export default function TypingPractice({
                   </button>
 
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Value Modal */}
+      {showCustomModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowCustomModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg p-6 shadow-xl"
+            style={{ backgroundColor: GLOBAL_COLORS.surface }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-200">
+                Custom {settings.mode === "time" ? "Duration" : "Word Amount"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowCustomModal(false)}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center gap-6">
+               <div className="flex items-center gap-4">
+                   {/* Decrement Buttons */}
+                   <div className="flex flex-col gap-1">
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => Math.max(0, v - 10))}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >---</button>
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => Math.max(0, v - 5))}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >--</button>
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => Math.max(0, v - 1))}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >-</button>
+                   </div>
+
+                   {/* Input */}
+                   <input
+                       type="number"
+                       value={customValue}
+                       onChange={(e) => setCustomValue(Math.max(0, parseInt(e.target.value) || 0))}
+                       className="w-24 text-center text-3xl font-bold bg-transparent border-b-2 focus:outline-none"
+                       style={{ borderColor: theme.buttonSelected, color: theme.buttonSelected }}
+                   />
+
+                   {/* Increment Buttons */}
+                   <div className="flex flex-col gap-1">
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => v + 10)}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >+++</button>
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => v + 5)}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >++</button>
+                       <button
+                           type="button"
+                           onClick={() => setCustomValue(v => v + 1)}
+                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                       >+</button>
+                   </div>
+               </div>
+
+               <button
+                   type="button"
+                   onClick={() => {
+                       if (settings.mode === "time") {
+                           updateSettings({ duration: customValue });
+                       } else {
+                           updateSettings({ wordTarget: customValue });
+                       }
+                       setShowCustomModal(false);
+                   }}
+                   className="px-8 py-2 rounded font-medium text-gray-900 transition hover:opacity-90"
+                   style={{ backgroundColor: theme.buttonSelected }}
+               >
+                   Set
+               </button>
             </div>
           </div>
         </div>
