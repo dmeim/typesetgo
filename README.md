@@ -31,10 +31,10 @@ Challenge friends or colleagues in real-time.
 
 ## 📸 Screenshots
 
-![Interface Preview](/public/assets/preview-interface.png)
+![Interface Preview](/public/assets/showcase-main.png)
 *The clean, focused typing interface.*
 
-![Multiplayer Preview](/public/assets/preview-multiplayer.png)
+![Multiplayer Preview](/public/assets/showcase-connect-hostpanel.png)
 *Real-time multiplayer dashboard.*
 
 ---
