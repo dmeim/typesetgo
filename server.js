@@ -24,7 +24,9 @@ app.prepare().then(() => {
 
   const roomTimeouts = new Map(); // code -> Timeout
 
-  const io = new Server(httpServer);
+    const io = new Server(httpServer);
+
+    const getIp = (socket) => socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
     io.on('connection', (socket) => {
     // console.log('Client connected', socket.id);
@@ -48,6 +50,8 @@ app.prepare().then(() => {
       // So I need to change the client to emit `{ name }` and the server to receive it.
       
       const roomCode = generateRoomCode();
+      const ip = getIp(socket);
+      console.log(`[ROOM] User ${name || "Host"} created room ${roomCode} (IP: ${ip})`);
       rooms.set(roomCode, {
         hostId: socket.id,
         hostName: name || "Host", // Store host name
@@ -100,6 +104,9 @@ app.prepare().then(() => {
       // Notify host
       io.to(room.hostId).emit('user_joined', newUser);
       
+      const ip = getIp(socket);
+      console.log(`[ROOM] User ${name} joined room ${code} (IP: ${ip})`);
+
       // Send current state to joiner
       callback({ settings: room.settings, status: room.status, hostName: room.hostName });
       
@@ -145,6 +152,8 @@ app.prepare().then(() => {
         if (room && room.hostId === socket.id) {
             const index = room.users.findIndex(u => u.id === userId);
             if (index !== -1) {
+                const user = room.users[index];
+                console.log(`[ROOM] User ${user.name} (ID: ${userId}) left room ${code} (Kicked)`);
                 room.users.splice(index, 1);
                 // Notify the user they were kicked
                 io.to(userId).emit('kicked');
@@ -194,17 +203,19 @@ app.prepare().then(() => {
             if (room.hostId === socket.id) {
                 // Host left - set timeout to destroy room
                 // Give them 2 minutes to reconnect
+                console.log(`[ROOM] Host ${room.hostName} (ID: ${socket.id}) disconnected from room ${code}`);
                 const timeout = setTimeout(() => {
                     io.to(code).emit('host_disconnected');
                     rooms.delete(code);
                     roomTimeouts.delete(code);
-                    // console.log(`Room ${code} destroyed due to host inactivity`);
+                    console.log(`[ROOM] Room ${code} destroyed due to host inactivity`);
                 }, 2 * 60 * 1000);
                 roomTimeouts.set(code, timeout);
             } else {
                 const index = room.users.findIndex(u => u.id === socket.id);
                 if (index !== -1) {
                     const [removedUser] = room.users.splice(index, 1);
+                    console.log(`[ROOM] User ${removedUser.name} (ID: ${socket.id}) left room ${code}`);
                     io.to(room.hostId).emit('user_left', { userId: socket.id });
                 }
             }
