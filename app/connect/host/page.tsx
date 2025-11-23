@@ -639,7 +639,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 <div className="text-xl mb-2">Waiting for users to join...</div>
                 <button
                     onClick={() => {
-                        const link = `${window.location.origin}/connect/${roomCode}`;
+                        const link = `${window.location.origin}/connect/join?code=${roomCode}`;
                         navigator.clipboard.writeText(link);
                     }}
                     className="hover:opacity-80 transition-opacity cursor-pointer"

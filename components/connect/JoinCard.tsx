@@ -14,7 +14,7 @@ function JoinCardContent() {
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
     if (code.trim() && joinName.trim()) {
-      router.push(`/connect/${code.trim().toUpperCase()}?name=${encodeURIComponent(joinName.trim())}`);
+      router.push(`/connect/join?code=${code.trim().toUpperCase()}&name=${encodeURIComponent(joinName.trim())}`);
     }
   };
 

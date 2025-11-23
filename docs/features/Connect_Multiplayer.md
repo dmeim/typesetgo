@@ -65,7 +65,7 @@ Each room on the server is an object stored in a `Map`:
 -   Visualizes progress bars and live WPM/Accuracy for every user.
 -   Provides administrative controls: Kick User, Reset User.
 
-### Joiner (`app/connect/[code]/page.tsx`)
+### Joiner (`app/connect/join/page.tsx`)
 -   Wraps the `TypingPractice` component.
 -   Passes `lockedSettings` received from the socket to `TypingPractice`.
 -   Intercepts stats updates from `TypingPractice` via `onStatsUpdate` and forwards them to the socket.

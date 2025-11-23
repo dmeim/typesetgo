@@ -7,7 +7,7 @@
 *   **Routes**:
     *   `/connect`: The landing page (Host/Join).
     *   `/connect/host`: The Host's command center.
-    *   `/connect/[code]`: The Joiner's active room view.
+    *   `/connect/join`: The Joiner's active room view (with `?code=`).
 *   **Room Management** (Note: Terminology is "Room", not "Session"):
     *   Unique alphanumeric room codes (e.g., `TR4X9`).
     *   Real-time state synchronization (WebSockets or similar).
@@ -18,7 +18,7 @@
 *   **Connect Button**: Located in the top row of the main UI. Redirects to `/connect`.
 *   **Connect Page** (`/connect`):
     *   **Host Card**: "Start Hosting" button -> Redirects to `/connect/host`.
-    *   **Join Card**: Input field for code -> Redirects to `/connect/[code]`.
+    *   **Join Card**: Input field for code -> Redirects to `/connect/join?code=...`.
 
 ### 3.2. Host Experience (`/connect/host`)
 *   **Admin Panel**:
@@ -37,7 +37,7 @@
 *   **Flow Control**:
     *   Host starts the test (synchronized start) or allows async start.
 
-### 3.3. Joiner Experience (`/connect/[code]`)
+### 3.3. Joiner Experience (`/connect/join`)
 *   **Onboarding**:
     *   Enter Name OR "Skip" (generates random name like "Anonymous Axolotl").
 *   **Waiting Room**:
