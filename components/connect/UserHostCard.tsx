@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GLOBAL_COLORS } from "@/lib/colors";
-import { SettingsState } from "@/components/TypingPractice";
+import { SettingsState } from "@/lib/typing-constants";
 
 // Reusing the User type definition for now
 type User = {
@@ -14,6 +14,9 @@ type User = {
     wordsTyped: number;
     timeElapsed: number;
     isFinished: boolean;
+    planIndex?: number;
+    totalSteps?: number;
+    isZenWaiting?: boolean;
   };
 };
 
@@ -93,6 +96,30 @@ export default function UserHostCard({
       </div>
     );
     progressText = isFinished ? "Done" : `${Math.floor(typed)}/${target}`;
+
+  } else if (settings.mode === "plan") {
+    const planIndex = user.stats?.planIndex || 0;
+    const total = user.stats?.totalSteps || 1;
+    const isZen = user.stats?.isZenWaiting;
+    const currentStepProgress = user.stats?.progress || 0; // Progress within step
+
+    // Calculate overall progress? Or just show current step progress?
+    // Let's show current step progress bar, but text says "Step X/Y"
+    
+    const progressPct = isZen ? 100 : currentStepProgress;
+
+    progressDisplay = (
+      <div className="h-full bg-gray-700 overflow-hidden rounded-full relative">
+        <div
+          className={`absolute top-0 left-0 h-full transition-all duration-500 ${isZen ? "animate-pulse" : ""}`}
+          style={{
+            width: `${progressPct}%`,
+            backgroundColor: isZen ? GLOBAL_COLORS.brand.accent : (isFinished ? GLOBAL_COLORS.text.success : theme.buttonSelected)
+          }}
+        />
+      </div>
+    );
+    progressText = isZen ? "Waiting (Zen)" : `Step ${planIndex + 1}/${total}`;
 
   } else {
     // Quote, Preset (finish), Zen

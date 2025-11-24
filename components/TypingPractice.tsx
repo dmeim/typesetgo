@@ -3,63 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { GLOBAL_COLORS } from "@/lib/colors";
-
-export type Mode = "time" | "words" | "quote" | "zen" | "preset";
-export type Difficulty = "beginner" | "easy" | "medium" | "hard" | "extreme";
-
-export type Quote = {
-  quote: string;
-  author: string;
-  source: string;
-  context: string;
-  date: string;
-};
-
-export type QuoteLength = "all" | "short" | "medium" | "long" | "xl";
-
-export type SettingsState = {
-  mode: Mode;
-  duration: number;
-  wordTarget: number;
-  quoteLength: QuoteLength;
-  punctuation: boolean;
-  numbers: boolean;
-  typingFontSize: number;
-  iconFontSize: number;
-  helpFontSize: number;
-  difficulty: Difficulty;
-  textAlign: "left" | "center" | "right" | "justify";
-  ghostWriterSpeed: number;
-  ghostWriterEnabled: boolean;
-  soundEnabled: boolean;
-  presetText: string;
-  presetModeType: "time" | "finish";
-  theme?: Theme;
-};
-
-export type Theme = {
-  cursor: string;
-  defaultText: string;
-  upcomingText: string;
-  correctText: string;
-  incorrectText: string;
-  buttonUnselected: string;
-  buttonSelected: string;
-  backgroundColor: string;
-  ghostCursor: string;
-};
-
-export const DEFAULT_THEME: Theme = {
-  cursor: GLOBAL_COLORS.brand.primary,      // Sky Blue - Primary brand color
-  defaultText: GLOBAL_COLORS.text.secondary, // Muted Gray - Neutral text for upcoming words
-  upcomingText: GLOBAL_COLORS.text.secondary,// Muted Gray - Consistent with default text
-  correctText: GLOBAL_COLORS.text.primary,   // Light Gray - High contrast for correct inputs
-  incorrectText: GLOBAL_COLORS.text.error,   // Vibrant Red - distinct error state
-  buttonUnselected: GLOBAL_COLORS.brand.primary, // Sky Blue - Matches cursor for consistency
-  buttonSelected: GLOBAL_COLORS.brand.secondary, // Teal - distinct active state
-  backgroundColor: GLOBAL_COLORS.background,     // Deep Charcoal - Reduces eye strain
-  ghostCursor: GLOBAL_COLORS.brand.accent,       // Purple - Distinct from user cursor
-};
+import { Plan, PlanItem, PlanStepResult } from "@/types/plan";
+import { Mode, Difficulty, Quote, QuoteLength, SettingsState, Theme, DEFAULT_THEME } from "@/lib/typing-constants";
+import PlanBuilderModal from "./plan/PlanBuilderModal";
+import PlanSplash from "./plan/PlanSplash";
+import PlanNavigation from "./plan/PlanNavigation";
+import PlanResultsModal from "./plan/PlanResultsModal";
 
 const MAX_PRESET_LENGTH = 10000;
 
@@ -282,6 +231,54 @@ export default function TypingPractice({
   const [isFocused, setIsFocused] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Plan Mode State
+  const [plan, setPlan] = useState<Plan>([]);
+  const [planIndex, setPlanIndex] = useState(0);
+  const [isPlanActive, setIsPlanActive] = useState(false);
+  const [isPlanSplash, setIsPlanSplash] = useState(false);
+  const [showPlanBuilder, setShowPlanBuilder] = useState(false);
+  const [planResults, setPlanResults] = useState<Record<string, PlanStepResult>>({});
+  const [isZenWaiting, setIsZenWaiting] = useState(false);
+  const [nextStepReady, setNextStepReady] = useState(false); // For "Wait for All" toast/unlock
+  const [showPlanResultsModal, setShowPlanResultsModal] = useState(false);
+
+  // UI Visibility Logic (Focus Mode)
+  const [uiOpacity, setUiOpacity] = useState(1);
+
+  useEffect(() => {
+    if (!isRunning) {
+      setUiOpacity(1);
+      return;
+    }
+
+    // Immediately hide on start (or maybe after a short delay to let them see it started?)
+    // User said "auto hide when the test begins".
+    // Let's set it to 0 initially when running becomes true.
+    // But if we set it immediately, it might feel abrupt. Let's do it via the timeout mechanism or just set it.
+    // We'll start with a timeout to hide it quickly if no mouse move.
+    
+    let timeout: NodeJS.Timeout;
+    
+    const hideUI = () => {
+        setUiOpacity(0);
+    };
+
+    const showUI = () => {
+        setUiOpacity(1);
+        clearTimeout(timeout);
+        timeout = setTimeout(hideUI, 2000);
+    };
+
+    // Initial trigger when running starts
+    timeout = setTimeout(hideUI, 1500); // Give 1.5s grace period after start
+
+    window.addEventListener("mousemove", showUI);
+    return () => {
+        window.removeEventListener("mousemove", showUI);
+        clearTimeout(timeout);
+    };
+  }, [isRunning]);
+
   const finishSession = useCallback(() => {
     if (isFinished) return;
     setIsFinished(true);
@@ -295,6 +292,30 @@ export default function TypingPractice({
       setSettings((prev) => ({ ...prev, ...otherSettings }));
       if (lockedTheme) {
         setTheme(lockedTheme);
+      }
+      
+      // Sync Plan Data
+      if (otherSettings.mode === 'plan' && otherSettings.plan) {
+          setPlan(otherSettings.plan);
+          setIsPlanActive(true);
+          
+          if (typeof otherSettings.planIndex === 'number') {
+              const newIndex = otherSettings.planIndex;
+              // If we are in Zen Waiting and the index advances, notify user but don't force switch yet
+              if (isZenWaiting && newIndex > planIndex) {
+                  setNextStepReady(true);
+              } else {
+                  setPlanIndex(newIndex);
+                  setIsPlanSplash(true);
+                  setIsFinished(false);
+                  setIsRunning(false);
+                  setIsZenWaiting(false);
+                  setNextStepReady(false);
+              }
+          }
+      } else if (otherSettings.mode !== 'plan' && isPlanActive) {
+          // Exit plan mode if host changed mode
+          setIsPlanActive(false);
       }
     }
   }, [connectMode, lockedSettings]);
@@ -650,22 +671,7 @@ export default function TypingPractice({
     }
   };
 
-  // Handle Enter/Tab to restart/repeat when finished
-  useEffect(() => {
-    if (!isFinished) return;
 
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        generateTest();
-      } else if (e.key === "Tab" && settings.mode !== "zen") {
-        e.preventDefault();
-        resetSession(true);
-      }
-    };
-
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isFinished, generateTest, resetSession]);
 
   // Handle Escape to end test abruptly
   useEffect(() => {
@@ -700,7 +706,7 @@ export default function TypingPractice({
   }, [connectMode, onStatsUpdate, isRunning]);
 
   // Keep track of latest stats in a ref for the interval
-  const latestStatsRef = useRef({ wpm, accuracy, progress: 0, wordsTyped: 0, timeElapsed: 0, isFinished: false });
+  const latestStatsRef = useRef({ wpm, accuracy, progress: 0, wordsTyped: 0, timeElapsed: 0, isFinished: false, planIndex: 0, totalSteps: 0, isZenWaiting: false });
   useEffect(() => {
     latestStatsRef.current = { 
       wpm: wpm || 0, 
@@ -708,9 +714,12 @@ export default function TypingPractice({
       progress: words.length > 0 ? (typedText.length / words.length) * 100 : 0,
       wordsTyped: typedText.length / 5, // Standard word definition
       timeElapsed: elapsedMs,
-      isFinished: isFinished
+      isFinished: isFinished,
+      planIndex: isPlanActive ? planIndex : 0,
+      totalSteps: isPlanActive ? plan.length : 0,
+      isZenWaiting: isZenWaiting
     };
-  }, [wpm, accuracy, typedText.length, words.length, elapsedMs, isFinished]);
+  }, [wpm, accuracy, typedText.length, words.length, elapsedMs, isFinished, isPlanActive, planIndex, plan.length, isZenWaiting]);
 
   useEffect(() => {
     if (connectMode && onStatsUpdate && isRunning) {
@@ -726,6 +735,138 @@ export default function TypingPractice({
   const typedArray = typedText.split(" ");
   const currentWordIndex = typedArray.length - 1;
 
+  const applyPlanStep = useCallback((item: PlanItem) => {
+    // Merge plan item settings into current settings
+    // We need to ensure mode is set correctly
+    setSettings(prev => ({
+        ...prev,
+        ...item.settings,
+        mode: item.mode, // Ensure mode is set
+    }));
+  }, []);
+
+  const handleStartPlan = (newPlan: Plan) => {
+    if (newPlan.length === 0) return;
+    setPlan(newPlan);
+    setPlanIndex(0);
+    setIsPlanActive(true);
+    setIsPlanSplash(true);
+    setPlanResults({});
+    setIsZenWaiting(false);
+    setNextStepReady(false);
+    
+    // If in Connect mode and we are Host, we should emit PLAN_START here
+    // But for now handling local state
+  };
+
+  const handlePlanStepStart = useCallback(() => {
+    const item = plan[planIndex];
+    if (!item) return;
+
+    setIsPlanSplash(false);
+    applyPlanStep(item);
+    // Slight delay to allow settings to update before generating test
+    setTimeout(() => {
+        generateTest();
+    }, 0);
+  }, [plan, planIndex, applyPlanStep, generateTest]);
+
+  const handlePlanNext = useCallback(() => {
+    // If we are in Zen Waiting and it's locked, we can't move unless unlocked
+    // The button state should handle this, but logic check is good
+    
+    let nextIndex = planIndex + 1;
+    // If in connect mode, try to sync with host index if it's ahead
+    if (connectMode && lockedSettings && typeof lockedSettings.planIndex === 'number') {
+        if (lockedSettings.planIndex > planIndex) {
+            nextIndex = lockedSettings.planIndex;
+        }
+    }
+
+    if (nextIndex < plan.length) {
+      setPlanIndex(nextIndex);
+      setIsPlanSplash(true);
+      setIsFinished(false);
+      setIsRunning(false);
+      setIsZenWaiting(false);
+      setNextStepReady(false);
+    } else {
+      // Finished plan
+      // Show results
+      setShowPlanResultsModal(true);
+    }
+  }, [plan.length, planIndex, connectMode, lockedSettings]);
+
+  const handlePlanPrev = useCallback(() => {
+    if (planIndex > 0) {
+      setPlanIndex(prev => prev - 1);
+      setIsPlanSplash(true);
+      setIsFinished(false);
+      setIsRunning(false);
+      setIsZenWaiting(false);
+    }
+  }, [planIndex]);
+
+  const handleEnterZen = useCallback(() => {
+      setIsZenWaiting(true);
+      setIsPlanSplash(false);
+      // Set Zen mode settings temporarily
+      setSettings(prev => ({
+          ...prev,
+          mode: "zen",
+          // Zen specific overrides if needed
+      }));
+      setTimeout(() => {
+          generateTest();
+      }, 0);
+  }, [generateTest]);
+
+  // Handle Enter/Tab to restart/repeat when finished
+  useEffect(() => {
+    if (!isFinished) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        if (isPlanActive) {
+            handlePlanNext();
+        } else {
+            generateTest();
+        }
+      } else if (e.key === "Tab" && settings.mode !== "zen" && !isPlanActive) {
+        e.preventDefault();
+        resetSession(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [isFinished, generateTest, resetSession, isPlanActive, handlePlanNext, settings.mode]);
+
+  // Handle Plan Step Completion
+  useEffect(() => {
+    if (isFinished && isPlanActive && !isPlanSplash && !isZenWaiting) {
+        // Record results
+        const currentItem = plan[planIndex];
+        if (currentItem) {
+            const result: PlanStepResult = {
+                wpm: wpm,
+                accuracy: accuracy,
+                raw: raw,
+                consistency: 0, // Not calculated yet
+                time: elapsedMs / 1000,
+                date: Date.now(),
+                mode: currentItem.mode,
+                metadata: currentItem.metadata
+            };
+            
+            setPlanResults(prev => ({
+                ...prev,
+                [currentItem.id]: result
+            }));
+        }
+    }
+  }, [isFinished, isPlanActive, isPlanSplash, isZenWaiting, plan, planIndex, wpm, accuracy, raw, elapsedMs]);
+
   return (
     <div
       className={`relative flex min-h-[100dvh] flex-col items-center px-4 pb-8 transition-colors duration-300 
@@ -735,6 +876,21 @@ export default function TypingPractice({
         }`}
       style={{ backgroundColor: theme.backgroundColor }}
     >
+      {/* Plan Splash Screen */}
+      {isPlanActive && isPlanSplash && plan[planIndex] && (
+        <PlanSplash
+          item={plan[planIndex]}
+          progress={{ current: planIndex + 1, total: plan.length }}
+          onStart={handlePlanStepStart}
+          isLocked={plan[planIndex].syncSettings.waitForAll && connectMode && !nextStepReady} // Simple lock logic for now
+          canEnterZen={plan[planIndex].syncSettings.zenWaiting}
+          onEnterZen={handleEnterZen}
+        />
+      )}
+
+      {/* Main UI (Hidden during Plan Splash) */}
+      {!isPlanSplash && (
+        <>
       {/* Settings bar */}
       {!connectMode && !isRunning && !isFinished && (
         <div
@@ -836,11 +992,15 @@ export default function TypingPractice({
                  
                  {/* Mode */}
                  <div className="flex rounded-lg p-1" style={{ backgroundColor: GLOBAL_COLORS.surface }}>
-                    {(["time", "words", "quote", "zen", "preset"] as Mode[]).map((m) => (
+                    {(["time", "words", "quote", "zen", "preset", "plan"] as Mode[]).map((m) => (
                         <button
                             key={m}
                             type="button"
                             onClick={() => {
+                                if (m === "plan") {
+                                  setShowPlanBuilder(true);
+                                  return;
+                                }
                                 if (settings.mode === m) {
                                     if (m === "preset") {
                                         setShowPresetInput(true);
@@ -1023,7 +1183,7 @@ export default function TypingPractice({
 
       {/* Live stats (moved to top) */}
       {isRunning && !isFinished && settings.mode !== "zen" && (
-        <div className="fixed top-[80px] md:top-[20%] left-0 w-full flex flex-row flex-nowrap items-center justify-center gap-2 md:gap-4 pointer-events-none select-none z-10 transition-all duration-300">
+        <div className="fixed top-[80px] md:top-[20%] left-0 w-full flex flex-row flex-nowrap items-center justify-center gap-2 md:gap-4 select-none z-10 transition-opacity duration-500">
           
           {/* WPM Pill */}
           <div 
@@ -1092,7 +1252,10 @@ export default function TypingPractice({
 
       {/* Quote Info */}
       {settings.mode === "quote" && currentQuote && !isFinished && (
-        <div className={`mb-8 flex flex-col items-center text-center animate-fade-in transition-opacity duration-300 ${isFocused && isMobile ? "opacity-0 h-0 overflow-hidden mb-0" : "opacity-100"}`}>
+        <div 
+            className={`mb-8 flex flex-col items-center text-center animate-fade-in transition-opacity duration-500 ${isFocused && isMobile ? "opacity-0 h-0 overflow-hidden mb-0" : ""}`}
+            style={{ opacity: isFocused && isMobile ? 0 : uiOpacity }}
+        >
           <div className="text-xl font-medium" style={{ color: theme.buttonSelected }}>{currentQuote.author}</div>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-sm text-gray-400">{currentQuote.source}, {currentQuote.date}</span>
@@ -1112,6 +1275,29 @@ export default function TypingPractice({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Plan Metadata & Navigation */}
+      {isPlanActive && !isPlanSplash && plan[planIndex] && (
+        <div 
+            className="w-full max-w-4xl flex flex-col items-center mb-8 mt-24 animate-fade-in relative z-0 transition-opacity duration-500"
+            style={{ opacity: uiOpacity, pointerEvents: uiOpacity === 0 ? 'none' : 'auto' }}
+        >
+           <div className="text-center mb-6">
+              <div className="text-gray-500 text-xs uppercase tracking-wider mb-2">Step {planIndex + 1} / {plan.length}</div>
+              <h2 className="text-3xl font-bold text-gray-200 mb-2">{plan[planIndex].metadata.title}</h2>
+              <div className="text-lg text-gray-400">{plan[planIndex].metadata.subtitle}</div>
+           </div>
+           
+           <PlanNavigation
+             onNext={handlePlanNext}
+             onPrev={handlePlanPrev}
+             isNextDisabled={isZenWaiting && plan[planIndex].syncSettings.waitForAll && !nextStepReady}
+             isPrevDisabled={planIndex === 0}
+             showNext={true}
+             showPrev={true}
+           />
         </div>
       )}
 
@@ -1182,7 +1368,10 @@ export default function TypingPractice({
                             charColor = isCorrect ? theme.correctText : theme.incorrectText;
                           }
 
-                          return (
+
+
+  return (
+
                             <span
                               key={charIdx}
                               className="relative"
@@ -1289,7 +1478,7 @@ export default function TypingPractice({
 
             {/* Actions */}
             <div className="flex gap-4 justify-center">
-              {!connectMode && (
+              {!connectMode && !isPlanActive && (
                 <button
                   type="button"
                   onClick={() => generateTest()}
@@ -1314,14 +1503,16 @@ export default function TypingPractice({
             </div>
 
             <div> 
-              {!connectMode && (
+              {(!connectMode || isPlanActive) && (
                 <div className="mt-6 text-center text-sm text-gray-600">
                     <div>
-                        Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Enter</kbd> to continue
+                        Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Enter</kbd> to {isPlanActive ? "next step" : "continue"}
                     </div>
-                    <div className="mt-1">
-                        Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> to repeat this test
-                    </div>
+                    {!isPlanActive && (
+                        <div className="mt-1">
+                            Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> to repeat this test
+                        </div>
+                    )}
                 </div>
               )}
             </div>
@@ -1330,7 +1521,7 @@ export default function TypingPractice({
       </div>
 
       {/* Instructions */}
-      {!isRunning && !isFinished && (
+      {!isRunning && !isFinished && !isPlanActive && (
         <div
           className={`fixed bottom-[15%] left-0 w-full text-center text-gray-600 transition-opacity duration-300 ${settings.mode === "zen" && isZenUIHidden ? "opacity-0" : "opacity-100"}`}
           style={{ fontSize: `${settings.helpFontSize}rem` }}
@@ -1341,6 +1532,9 @@ export default function TypingPractice({
           <div className="mt-1">Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> + <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Shift</kbd> to restart</div>
           <div>Click on the text area and start typing</div>
         </div>
+      )}
+
+      </>
       )}
 
       {/* Waiting Overlay for Connect Mode */}
@@ -1787,6 +1981,41 @@ export default function TypingPractice({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Zen Ready Toast */}
+      {isZenWaiting && nextStepReady && (
+        <div className="fixed top-20 right-8 z-50 bg-sky-600 text-white px-6 py-4 rounded-lg shadow-xl animate-fade-in flex items-center gap-4">
+          <div>
+            <div className="font-bold">Step Ready!</div>
+            <div className="text-sm text-sky-100">Everyone has finished.</div>
+          </div>
+          <button 
+            onClick={handlePlanNext}
+            className="px-4 py-2 bg-white text-sky-700 font-bold rounded hover:bg-sky-50 transition"
+          >
+            Go
+          </button>
+        </div>
+      )}
+
+      {/* Plan Builder Modal */}
+      {showPlanBuilder && (
+        <PlanBuilderModal
+          onSave={handleStartPlan}
+          onClose={() => setShowPlanBuilder(false)}
+          isConnectMode={connectMode}
+        />
+      )}
+
+      {/* Plan Results Modal */}
+      {showPlanResultsModal && (
+        <PlanResultsModal
+          user={{ id: "local", name: "You" }}
+          plan={plan}
+          results={planResults}
+          onClose={() => setShowPlanResultsModal(false)}
+        />
       )}
 
     </div>

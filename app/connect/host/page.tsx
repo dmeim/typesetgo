@@ -20,8 +20,10 @@ import {
   rectSortingStrategy,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { SettingsState, Mode, Difficulty, QuoteLength, Theme, DEFAULT_THEME } from "@/components/TypingPractice";
+import { SettingsState, Mode, Difficulty, QuoteLength, Theme, DEFAULT_THEME } from "@/lib/typing-constants";
 import { GLOBAL_COLORS } from "@/lib/colors";
+import { Plan } from "@/types/plan";
+import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
 import HostCard from "@/components/connect/HostCard";
 import UserHostCard from "@/components/connect/UserHostCard";
 
@@ -37,6 +39,9 @@ type User = {
     wordsTyped: number;
     timeElapsed: number;
     isFinished: boolean;
+    planIndex?: number;
+    totalSteps?: number;
+    isZenWaiting?: boolean;
   };
 };
 
@@ -95,6 +100,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   );
 
   const [showPresetInput, setShowPresetInput] = useState(false);
+  const [showPlanBuilder, setShowPlanBuilder] = useState(false);
   const [tempPresetText, setTempPresetText] = useState("");
   
   const [showSettings, setShowSettings] = useState(false);
@@ -306,29 +312,71 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
               >
                   Reset
               </button>
-              {status === "waiting" ? (
-              <button
-                  onClick={startTest}
-                  className="px-4 md:px-8 py-2 font-bold rounded transition shadow-lg text-sm md:text-base"
-                  style={{ 
-                    backgroundColor: theme.buttonSelected, 
-                    color: theme.backgroundColor,
-                    boxShadow: `0 10px 15px -3px ${theme.buttonSelected}33`
-                  }}
-              >
-                  Start Test
-              </button>
+              
+              {settings.mode === "plan" ? (
+                  <>
+                    <button
+                        onClick={() => updateSettings({ planIndex: Math.max(0, (settings.planIndex || 0) - 1) })}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white transition font-medium"
+                    >
+                        ← Prev
+                    </button>
+                    <div className="flex items-center px-4 bg-gray-800 rounded text-gray-300 font-mono">
+                        Step {(settings.planIndex || 0) + 1}
+                    </div>
+                    <button
+                        onClick={() => updateSettings({ planIndex: (settings.planIndex || 0) + 1 })}
+                        className="px-4 py-2 bg-sky-700 hover:bg-sky-600 rounded text-white transition font-medium"
+                    >
+                        Next →
+                    </button>
+                    {status === "waiting" ? (
+                        <button
+                            onClick={startTest}
+                            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded text-white transition font-medium"
+                        >
+                            Resume
+                        </button>
+                    ) : (
+                        <button
+                            onClick={stopTest}
+                            className="px-4 py-2 bg-yellow-700 hover:bg-yellow-600 rounded text-white transition font-medium"
+                        >
+                            Pause
+                        </button>
+                    )}
+                    <button
+                        onClick={() => updateSettings({ mode: "time" })} // Exit plan mode
+                        className="px-4 py-2 bg-red-900/50 hover:bg-red-900/80 text-red-200 rounded transition font-medium"
+                    >
+                        Stop Plan
+                    </button>
+                  </>
               ) : (
-              <button
-                  onClick={stopTest}
-                  className="px-4 md:px-8 py-2 font-bold rounded transition shadow-lg text-white text-sm md:text-base"
-                  style={{ 
-                    backgroundColor: GLOBAL_COLORS.text.error,
-                    boxShadow: `0 10px 15px -3px ${GLOBAL_COLORS.text.error}33`
-                  }}
-              >
-                  Stop Test
-              </button>
+                  status === "waiting" ? (
+                  <button
+                      onClick={startTest}
+                      className="px-4 md:px-8 py-2 font-bold rounded transition shadow-lg text-sm md:text-base"
+                      style={{ 
+                        backgroundColor: theme.buttonSelected, 
+                        color: theme.backgroundColor,
+                        boxShadow: `0 10px 15px -3px ${theme.buttonSelected}33`
+                      }}
+                  >
+                      Start Test
+                  </button>
+                  ) : (
+                  <button
+                      onClick={stopTest}
+                      className="px-4 md:px-8 py-2 font-bold rounded transition shadow-lg text-white text-sm md:text-base"
+                      style={{ 
+                        backgroundColor: GLOBAL_COLORS.text.error,
+                        boxShadow: `0 10px 15px -3px ${GLOBAL_COLORS.text.error}33`
+                      }}
+                  >
+                      Stop Test
+                  </button>
+                  )
               )}
           </div>
 
@@ -415,10 +463,15 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
              {/* Top Row: Modes */}
              <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-400">
                  <div className="flex rounded-lg p-1" style={{ backgroundColor: GLOBAL_COLORS.surface }}>
-                    {(["time", "words", "quote", "zen", "preset"] as Mode[]).map((m) => (
+                    {(["time", "words", "quote", "zen", "preset", "plan"] as Mode[]).map((m) => (
                         <button
                             key={m}
                             onClick={() => {
+                                if (m === "plan") {
+                                    // Open Plan Builder
+                                    setShowPlanBuilder(true);
+                                    return;
+                                }
                                 if (settings.mode === m && m === "preset") {
                                     setShowPresetInput(true);
                                 } else {
@@ -685,6 +738,19 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             </DndContext>
         )}
       </div>
+
+      {/* Plan Builder Modal */}
+      {showPlanBuilder && (
+        <PlanBuilderModal
+          initialPlan={settings.plan}
+          onSave={(newPlan) => {
+              updateSettings({ mode: "plan", plan: newPlan });
+              setShowPlanBuilder(false);
+          }}
+          onClose={() => setShowPlanBuilder(false)}
+          isConnectMode={true}
+        />
+      )}
 
       {/* Settings Modal */}
       {showSettings && (

@@ -10,7 +10,7 @@ import {
   ComposedChart,
   Scatter,
 } from "recharts";
-import { Theme } from "./TypingPractice";
+import { Theme } from "@/lib/typing-constants";
 
 interface DataPoint {
   time: number;

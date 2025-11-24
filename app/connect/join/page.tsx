@@ -4,7 +4,8 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { io, Socket } from "socket.io-client";
 import Link from "next/link";
-import TypingPractice, { SettingsState } from "@/components/TypingPractice";
+import TypingPractice from "@/components/TypingPractice";
+import { SettingsState } from "@/lib/typing-constants";
 import { GLOBAL_COLORS } from "@/lib/colors";
 import JoinCard from "@/components/connect/JoinCard";
 
