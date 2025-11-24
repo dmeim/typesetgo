@@ -42,6 +42,9 @@ export type SettingsState = {
   ghostWriterSpeed: number;
   ghostWriterEnabled: boolean;
   soundEnabled: boolean;
+  typingSound: string;
+  warningSound: string;
+  errorSound: string;
   presetText: string;
   presetModeType: "time" | "finish";
   theme?: Theme;

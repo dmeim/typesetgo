@@ -9,6 +9,8 @@ import PlanBuilderModal from "./plan/PlanBuilderModal";
 import PlanSplash from "./plan/PlanSplash";
 import PlanNavigation from "./plan/PlanNavigation";
 import PlanResultsModal from "./plan/PlanResultsModal";
+import SoundSettingsModal from "./SoundSettingsModal";
+import { getRandomSoundUrl, SoundManifest, INITIAL_SOUND_MANIFEST } from "@/lib/sounds";
 
 const MAX_PRESET_LENGTH = 10000;
 
@@ -41,8 +43,6 @@ const generateWords = (count: number, pool: string[], options: { punctuation: bo
   }
   return words.join(" ");
 };
-
-
 
 const computeStats = (typed: string, reference: string) => {
   const typedWords = typed.split(" ");
@@ -157,6 +157,7 @@ export default function TypingPractice({
   sessionId,
   hostName,
 }: TypingPracticeProps) {
+  // --- State Declarations ---
   const [settings, setSettings] = useState<SettingsState>({
     mode: "time",
     duration: 30,
@@ -171,38 +172,17 @@ export default function TypingPractice({
     textAlign: "center",
     ghostWriterSpeed: 40,
     ghostWriterEnabled: false,
-    soundEnabled: false,
+    soundEnabled: true,
+    typingSound: "creamy",
+    warningSound: "clock",
+    errorSound: "",
     presetText: "",
     presetModeType: "finish",
   });
 
-  // Mobile detection for default settings
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) {
-        setSettings(prev => ({
-          ...prev,
-          typingFontSize: 1.75, // Smaller font for mobile
-          iconFontSize: 0.8,
-          helpFontSize: 0.8,
-        }));
-        // setLinePreview(2); // Reverted per user request: too little context
-      }
-    };
-    
-    // Only run on mount to set initial mobile state
-    // We don't want to constantly reset if user changes window size
-    handleResize();
-    
-    // Optional: listen for resize if we want to support orientation changes dynamically
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showSoundModal, setShowSoundModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customValue, setCustomValue] = useState(0);
 
@@ -219,9 +199,11 @@ export default function TypingPractice({
   const [isFinished, setIsFinished] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+  
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeWordRef = useRef<HTMLSpanElement | null>(null);
+  
   const [scrollOffset, setScrollOffset] = useState(0);
   const [isZenUIHidden, setIsZenUIHidden] = useState(false);
   const zenTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -230,6 +212,8 @@ export default function TypingPractice({
   const [ghostCharIndex, setGhostCharIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isWarningPlayed, setIsWarningPlayed] = useState(false);
+  const [soundManifest, setSoundManifest] = useState<SoundManifest>(INITIAL_SOUND_MANIFEST);
 
   // Plan Mode State
   const [plan, setPlan] = useState<Plan>([]);
@@ -245,187 +229,38 @@ export default function TypingPractice({
   // UI Visibility Logic (Focus Mode)
   const [uiOpacity, setUiOpacity] = useState(1);
 
-  useEffect(() => {
-    if (!isRunning) {
-      setUiOpacity(1);
-      return;
-    }
+  // --- Calculated Stats ---
+  const stats = useMemo(() => computeStats(typedText, words), [typedText, words]);
+  const accuracy = typedText.length > 0 ? (stats.correct / typedText.length) * 100 : 100;
+  const elapsedMinutes = elapsedMs / 60000 || 0.01;
+  const wpm = (typedText.length / 5) / elapsedMinutes;
+  const raw = wpm;
+  // const net = wpm * (accuracy / 100); // Unused but good to have
 
-    // Immediately hide on start (or maybe after a short delay to let them see it started?)
-    // User said "auto hide when the test begins".
-    // Let's set it to 0 initially when running becomes true.
-    // But if we set it immediately, it might feel abrupt. Let's do it via the timeout mechanism or just set it.
-    // We'll start with a timeout to hide it quickly if no mouse move.
-    
-    let timeout: NodeJS.Timeout;
-    
-    const hideUI = () => {
-        setUiOpacity(0);
+  // Ref for latest stats to be used in intervals/effects without dependency cycles
+  const latestStatsRef = useRef({ wpm, accuracy, progress: 0, wordsTyped: 0, timeElapsed: 0, isFinished: false, planIndex: 0, totalSteps: 0, isZenWaiting: false });
+  useEffect(() => {
+    latestStatsRef.current = { 
+      wpm: wpm || 0, 
+      accuracy: accuracy || 0, 
+      progress: words.length > 0 ? (typedText.length / words.length) * 100 : 0,
+      wordsTyped: typedText.length / 5, // Standard word definition
+      timeElapsed: elapsedMs,
+      isFinished: isFinished,
+      planIndex: isPlanActive ? planIndex : 0,
+      totalSteps: isPlanActive ? plan.length : 0,
+      isZenWaiting: isZenWaiting
     };
+  }, [wpm, accuracy, typedText.length, words.length, elapsedMs, isFinished, isPlanActive, planIndex, plan.length, isZenWaiting]);
 
-    const showUI = () => {
-        setUiOpacity(1);
-        clearTimeout(timeout);
-        timeout = setTimeout(hideUI, 2000);
-    };
+  // --- Callbacks & Helpers ---
 
-    // Initial trigger when running starts
-    timeout = setTimeout(hideUI, 1500); // Give 1.5s grace period after start
-
-    window.addEventListener("mousemove", showUI);
-    return () => {
-        window.removeEventListener("mousemove", showUI);
-        clearTimeout(timeout);
-    };
-  }, [isRunning]);
-
-  const finishSession = useCallback(() => {
-    if (isFinished) return;
-    setIsFinished(true);
-    setIsRunning(false);
-  }, [isFinished]);
-
-  // Connect Mode: Sync Settings
-  useEffect(() => {
-    if (connectMode && lockedSettings) {
-      const { theme: lockedTheme, ...otherSettings } = lockedSettings;
-      setSettings((prev) => ({ ...prev, ...otherSettings }));
-      if (lockedTheme) {
-        setTheme(lockedTheme);
-      }
-      
-      // Sync Plan Data
-      if (otherSettings.mode === 'plan' && otherSettings.plan) {
-          setPlan(otherSettings.plan);
-          setIsPlanActive(true);
-          
-          if (typeof otherSettings.planIndex === 'number') {
-              const newIndex = otherSettings.planIndex;
-              // If we are in Zen Waiting and the index advances, notify user but don't force switch yet
-              if (isZenWaiting && newIndex > planIndex) {
-                  setNextStepReady(true);
-              } else {
-                  setPlanIndex(newIndex);
-                  setIsPlanSplash(true);
-                  setIsFinished(false);
-                  setIsRunning(false);
-                  setIsZenWaiting(false);
-                  setNextStepReady(false);
-              }
-          }
-      } else if (otherSettings.mode !== 'plan' && isPlanActive) {
-          // Exit plan mode if host changed mode
-          setIsPlanActive(false);
-      }
-    }
-  }, [connectMode, lockedSettings]);
-
-  // Connect Mode: Handle Start/Stop
-  useEffect(() => {
-    if (!connectMode) return;
-
-    if (isTestActive && !isRunning && !isFinished) {
-      // Remote start signal received (or we are allowed to start)
-      // Actually, for synchronized start, we probably want to focus input and maybe countdown?
-      // For now, just allowing input is handled by the input check.
-      // But if we want to FORCE start (e.g. timer starts on server), we need to simulate start.
-      // However, usually typing tests start on first keystroke.
-      // If the Host starts the test, does it mean "users can now type" or "timer starts now"?
-      // PRD says "Host starts the test (synchronized start) or allows async start".
-      // If sync start, we might need to trigger start.
-      // For MVP, let's assume "isTestActive" just means "Input is unlocked".
-      // But if the host forces a reset, we need to handle that.
-      inputRef.current?.focus();
-    } else if (!isTestActive) {
-      // Remote stop/wait signal
-       if (isRunning) {
-           finishSession(); // Or just reset?
-       }
-    }
-  }, [connectMode, isTestActive, isRunning, isFinished]); // Dependencies might need tuning
-
-  // Connect Mode: Emit Stats
-  useEffect(() => {
-      if (connectMode && onStatsUpdate && isFinished) {
-           onStatsUpdate({
-              ...latestStatsRef.current,
-              isFinished: true
-           });
-      }
-  }, [connectMode, onStatsUpdate, isFinished]);
-
-  // Better Stats Emission:
-  // We calculate stats in the render loop (memoized). We can use a `useEffect` to emit them.
-  // We should throttle it.
-
-
-  useEffect(() => {
-    if (showPresetInput) {
-      setTempPresetText(settings.presetText);
-    }
-  }, [showPresetInput, settings.presetText]);
-
-  // Load word lists based on difficulty
-  useEffect(() => {
-    const loadWords = async () => {
-      const difficulties: Difficulty[] = ["beginner", "easy", "medium", "hard", "extreme"];
-      const targetIndex = difficulties.indexOf(settings.difficulty);
-      const filesToLoad = difficulties.slice(0, targetIndex + 1);
-
-      try {
-        const promises = filesToLoad.map(async (diff) => {
-          const res = await fetch(`/words/${diff}.json`);
-          if (!res.ok) {
-            console.error(`Failed to fetch /words/${diff}.json: ${res.status}`);
-            return [];
-          }
-          return res.json();
-        });
-        const results = await Promise.all(promises);
-        const combinedWords = results.flat();
-        if (combinedWords.length > 0) {
-          setWordPool(combinedWords);
-        }
-      } catch (error) {
-        console.error("Failed to load word lists:", error);
-      }
-    };
-
-    loadWords();
-  }, [settings.difficulty]);
-
-  // Load quotes
-  useEffect(() => {
-    if (settings.mode !== "quote") return;
-
-    const loadQuotes = async () => {
-      try {
-        let filesToLoad: QuoteLength[] = [];
-        if (settings.quoteLength === "all") {
-          filesToLoad = ["short", "medium", "long", "xl"];
-        } else {
-          filesToLoad = [settings.quoteLength];
-        }
-
-        const promises = filesToLoad.map(async (len) => {
-          const res = await fetch(`/quotes/${len}.json`);
-          if (!res.ok) {
-            console.error(`Failed to load quotes/${len}.json`);
-            return [];
-          }
-          return res.json();
-        });
-
-        const results = await Promise.all(promises);
-        const combinedQuotes = results.flat();
-        setQuotes(combinedQuotes);
-      } catch (error) {
-        console.error("Failed to load quotes:", error);
-      }
-    };
-
-    loadQuotes();
-  }, [settings.mode, settings.quoteLength]);
+  const updateSettings = useCallback(
+    (updates: Partial<SettingsState>) => {
+      setSettings((prev) => ({ ...prev, ...updates }));
+    },
+    []
+  );
 
   const resetSession = useCallback((isRepeat = false) => {
     setTypedText("");
@@ -433,58 +268,55 @@ export default function TypingPractice({
     setIsFinished(false);
     setStartTime(null);
     setElapsedMs(0);
-    setElapsedMs(0);
     setScrollOffset(0);
     setGhostCharIndex(0);
     setIsRepeated(isRepeat);
     setIsFocused(true); // Assuming reset means we want to type
+    setIsWarningPlayed(false);
     inputRef.current?.focus();
   }, []);
 
-  const sanitizeText = (text: string) => {
-    // Remove non-printable characters and excessive whitespace
-    return text.replace(/[^\x20-\x7E\n]/g, "").replace(/\s+/g, " ").trim();
-  };
+  const finishSession = useCallback(() => {
+    if (isFinished) return;
+    setIsFinished(true);
+    setIsRunning(false);
+  }, [isFinished]);
 
-  const handlePresetSubmit = (text: string) => {
-    const sanitized = sanitizeText(text);
-    if (sanitized.length > 0) {
-      if (sanitized.length > MAX_PRESET_LENGTH) {
-          alert(`Text exceeds ${MAX_PRESET_LENGTH} characters.`);
-          return;
-      }
-      updateSettings({ presetText: sanitized });
-      setShowPresetInput(false);
+  const playClickSound = useCallback(() => {
+    if (!settings.soundEnabled || !settings.typingSound) return;
+    try {
+      const soundUrl = getRandomSoundUrl(soundManifest, 'typing', settings.typingSound);
+      if (!soundUrl) return;
+
+      // Clone the audio to allow overlapping sounds for fast typing
+      const audio = new Audio(soundUrl);
+      audio.volume = 0.5;
+      audio.currentTime = 0;
+      audio.play().catch(() => {
+        // Ignore auto-play errors or missing file errors
+      });
+    } catch (e) {
+      console.error("Error playing sound:", e);
     }
-  };
+  }, [settings.soundEnabled, settings.typingSound, soundManifest]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const playWarningSound = useCallback(() => {
+    if (!settings.soundEnabled || !settings.warningSound) return;
+    try {
+        const soundUrl = getRandomSoundUrl(soundManifest, 'warning', settings.warningSound);
+        if (!soundUrl) return;
+        
+        const audio = new Audio(soundUrl);
+        audio.volume = 0.5;
+        audio.play().catch(() => {});
+    } catch (e) {
+        console.error("Error playing warning sound:", e);
+    }
+  }, [settings.soundEnabled, settings.warningSound, soundManifest]);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text.length > MAX_PRESET_LENGTH) {
-        alert(`File content exceeds ${MAX_PRESET_LENGTH} characters.`);
-        return;
-      }
-      setTempPresetText(text);
-    };
-    reader.readAsText(file);
-  };
-
-  // Generate words or select quote when settings change
   const generateTest = useCallback(() => {
     if (settings.mode === "quote") {
       if (quotes.length === 0) return;
-
-      // Since we now load only relevant quotes (or all), we don't need to filter by length again
-      // unless we want to be extra safe, but the file separation handles it.
-      // However, if 'all' is selected, we have all quotes, so no filtering needed.
-      // If specific length is selected, we only loaded those quotes.
-      // So we can just pick a random quote from the loaded 'quotes' array.
-
       const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
       if (randomQuote) {
         setCurrentQuote(randomQuote);
@@ -496,10 +328,8 @@ export default function TypingPractice({
     }
 
     if (settings.mode === "preset") {
-      // In connect mode, we wait for the host to provide text via settings
       if (connectMode) {
         if (!settings.presetText) {
-            // Wait for text...
             return;
         }
       } else if (!settings.presetText) {
@@ -521,71 +351,7 @@ export default function TypingPractice({
     }));
     resetSession(false);
     setScrollOffset(0);
-  }, [settings.mode, settings.duration, settings.wordTarget, settings.punctuation, settings.numbers, settings.quoteLength, settings.presetText, wordPool, quotes, resetSession]);
-
-  useEffect(() => {
-    generateTest();
-  }, [generateTest, sessionId]);
-
-
-
-  const updateSettings = useCallback(
-    (updates: Partial<SettingsState>) => {
-      setSettings((prev) => ({ ...prev, ...updates }));
-    },
-    []
-  );
-
-  // Timer effect
-  useEffect(() => {
-    if (!isRunning || !startTime) return;
-
-    const interval = window.setInterval(() => {
-      const nextElapsed = Date.now() - startTime;
-      setElapsedMs(nextElapsed);
-
-      if ((settings.mode === "time" || (settings.mode === "preset" && settings.presetModeType === "time")) && settings.duration > 0 && nextElapsed >= settings.duration * 1000) {
-        finishSession();
-      }
-    }, 100);
-
-    return () => window.clearInterval(interval);
-  }, [finishSession, isRunning, settings.mode, settings.duration, settings.presetModeType, startTime]);
-
-  // Ghost Writer effect
-  useEffect(() => {
-    if (!isRunning || !startTime || !settings.ghostWriterEnabled || settings.ghostWriterSpeed <= 0) return;
-
-    let animationFrameId: number;
-
-    const updateGhost = () => {
-      const elapsedMinutes = (Date.now() - startTime) / 60000;
-      // WPM = (chars / 5) / minutes
-      // chars = WPM * 5 * minutes
-      const targetChars = settings.ghostWriterSpeed * 5 * elapsedMinutes;
-      setGhostCharIndex(targetChars);
-      animationFrameId = requestAnimationFrame(updateGhost);
-    };
-
-    animationFrameId = requestAnimationFrame(updateGhost);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isRunning, startTime, settings.ghostWriterSpeed, settings.ghostWriterEnabled]);
-
-  const playClickSound = useCallback(() => {
-    if (!settings.soundEnabled) return;
-    try {
-      // Clone the audio to allow overlapping sounds for fast typing
-      const audio = new Audio("/sounds/click.wav");
-      audio.volume = 0.5;
-      audio.currentTime = 0;
-      audio.play().catch(() => {
-        // Ignore auto-play errors or missing file errors
-      });
-    } catch (e) {
-      console.error("Error playing sound:", e);
-    }
-  }, [settings.soundEnabled]);
+  }, [settings.mode, settings.duration, settings.wordTarget, settings.punctuation, settings.numbers, settings.quoteLength, settings.presetText, wordPool, quotes, resetSession, connectMode]);
 
   const handleInput = (value: string) => {
     if (isFinished) return;
@@ -639,28 +405,6 @@ export default function TypingPractice({
     }
   };
 
-  // Handle scrolling
-  useLayoutEffect(() => {
-    if (!containerRef.current || !activeWordRef.current) return;
-
-    const container = containerRef.current;
-    const activeWord = activeWordRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const wordRect = activeWord.getBoundingClientRect();
-
-    // Calculate relative position
-    const relativeTop = wordRect.top - containerRect.top;
-    const lineHeight = parseFloat(getComputedStyle(container).lineHeight || "0");
-
-    // If word is on 3rd line or below (index 2+), scroll up
-    // We want active line to be line 2 (index 1), unless we only have 1 line preview
-    const targetTop = linePreview === 1 ? 0 : lineHeight;
-
-    if (relativeTop > targetTop + 5) { // +5 for buffer/sub-pixel diffs
-      setScrollOffset(prev => prev + lineHeight);
-    }
-  }, [typedText, settings.typingFontSize, linePreview]);
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Prevent tab from leaving input
     if (e.key === "Tab") {
@@ -671,73 +415,8 @@ export default function TypingPractice({
     }
   };
 
-
-
-  // Handle Escape to end test abruptly
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isRunning) {
-        finishSession();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isRunning, finishSession]);
-
-  // Calculate stats
-  const stats = useMemo(() => computeStats(typedText, words), [typedText, words]);
-  const accuracy = typedText.length > 0 ? (stats.correct / typedText.length) * 100 : 100;
-  const elapsedMinutes = elapsedMs / 60000 || 0.01;
-  const wpm = (typedText.length / 5) / elapsedMinutes;
-  const raw = wpm;
-  const net = wpm * (accuracy / 100);
-
-  useEffect(() => {
-    if (connectMode && onStatsUpdate && isRunning) {
-      const interval = setInterval(() => {
-        // Use the latest values from the scope (closure capture might be an issue if dependencies aren't right)
-        // But we can't put everything in dependency array or we recreate interval constantly.
-        // Solution: Use a functional update or a ref for the callback, OR just rely on React 18's automatic batching / fast re-renders not being an issue?
-        // Better: Use a ref to store latest stats, update ref in render, read ref in interval.
-      }, 500);
-      return () => clearInterval(interval);
-    }
-  }, [connectMode, onStatsUpdate, isRunning]);
-
-  // Keep track of latest stats in a ref for the interval
-  const latestStatsRef = useRef({ wpm, accuracy, progress: 0, wordsTyped: 0, timeElapsed: 0, isFinished: false, planIndex: 0, totalSteps: 0, isZenWaiting: false });
-  useEffect(() => {
-    latestStatsRef.current = { 
-      wpm: wpm || 0, 
-      accuracy: accuracy || 0, 
-      progress: words.length > 0 ? (typedText.length / words.length) * 100 : 0,
-      wordsTyped: typedText.length / 5, // Standard word definition
-      timeElapsed: elapsedMs,
-      isFinished: isFinished,
-      planIndex: isPlanActive ? planIndex : 0,
-      totalSteps: isPlanActive ? plan.length : 0,
-      isZenWaiting: isZenWaiting
-    };
-  }, [wpm, accuracy, typedText.length, words.length, elapsedMs, isFinished, isPlanActive, planIndex, plan.length, isZenWaiting]);
-
-  useEffect(() => {
-    if (connectMode && onStatsUpdate && isRunning) {
-        const interval = setInterval(() => {
-             onStatsUpdate(latestStatsRef.current);
-        }, 500); // Update every 500ms
-        return () => clearInterval(interval);
-    }
-  }, [connectMode, onStatsUpdate, isRunning]);
-
-  // Split words into array for rendering
-  const wordArray = words.split(" ");
-  const typedArray = typedText.split(" ");
-  const currentWordIndex = typedArray.length - 1;
-
   const applyPlanStep = useCallback((item: PlanItem) => {
     // Merge plan item settings into current settings
-    // We need to ensure mode is set correctly
     setSettings(prev => ({
         ...prev,
         ...item.settings,
@@ -754,9 +433,6 @@ export default function TypingPractice({
     setPlanResults({});
     setIsZenWaiting(false);
     setNextStepReady(false);
-    
-    // If in Connect mode and we are Host, we should emit PLAN_START here
-    // But for now handling local state
   };
 
   const handlePlanStepStart = useCallback(() => {
@@ -772,9 +448,6 @@ export default function TypingPractice({
   }, [plan, planIndex, applyPlanStep, generateTest]);
 
   const handlePlanNext = useCallback(() => {
-    // If we are in Zen Waiting and it's locked, we can't move unless unlocked
-    // The button state should handle this, but logic check is good
-    
     let nextIndex = planIndex + 1;
     // If in connect mode, try to sync with host index if it's ahead
     if (connectMode && lockedSettings && typeof lockedSettings.planIndex === 'number') {
@@ -792,7 +465,6 @@ export default function TypingPractice({
       setNextStepReady(false);
     } else {
       // Finished plan
-      // Show results
       setShowPlanResultsModal(true);
     }
   }, [plan.length, planIndex, connectMode, lockedSettings]);
@@ -810,16 +482,307 @@ export default function TypingPractice({
   const handleEnterZen = useCallback(() => {
       setIsZenWaiting(true);
       setIsPlanSplash(false);
-      // Set Zen mode settings temporarily
       setSettings(prev => ({
           ...prev,
           mode: "zen",
-          // Zen specific overrides if needed
       }));
       setTimeout(() => {
           generateTest();
       }, 0);
   }, [generateTest]);
+
+  const sanitizeText = (text: string) => {
+    return text.replace(/[^\x20-\x7E\n]/g, "").replace(/\s+/g, " ").trim();
+  };
+
+  const handlePresetSubmit = (text: string) => {
+    const sanitized = sanitizeText(text);
+    if (sanitized.length > 0) {
+      if (sanitized.length > MAX_PRESET_LENGTH) {
+          alert(`Text exceeds ${MAX_PRESET_LENGTH} characters.`);
+          return;
+      }
+      updateSettings({ presetText: sanitized });
+      setShowPresetInput(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text.length > MAX_PRESET_LENGTH) {
+        alert(`File content exceeds ${MAX_PRESET_LENGTH} characters.`);
+        return;
+      }
+      setTempPresetText(text);
+    };
+    reader.readAsText(file);
+  };
+
+  // --- Effects ---
+
+  // Mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSettings(prev => ({
+          ...prev,
+          typingFontSize: 1.75, // Smaller font for mobile
+          iconFontSize: 0.8,
+          helpFontSize: 0.8,
+        }));
+      }
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Fetch sound manifest
+  useEffect(() => {
+    const fetchSounds = async () => {
+        try {
+            const res = await fetch('/api/sounds');
+            if (res.ok) {
+                const data = await res.json();
+                setSoundManifest(data);
+            }
+        } catch (e) {
+            console.error("Failed to fetch sound manifest", e);
+        }
+    };
+    fetchSounds();
+  }, []);
+
+  // UI Visibility
+  useEffect(() => {
+    if (!isRunning) {
+      setUiOpacity(1);
+      return;
+    }
+
+    let timeout: NodeJS.Timeout;
+    
+    const hideUI = () => {
+        setUiOpacity(0);
+    };
+
+    const showUI = () => {
+        setUiOpacity(1);
+        clearTimeout(timeout);
+        timeout = setTimeout(hideUI, 2000);
+    };
+
+    // Initial trigger when running starts
+    timeout = setTimeout(hideUI, 1500);
+
+    window.addEventListener("mousemove", showUI);
+    return () => {
+        window.removeEventListener("mousemove", showUI);
+        clearTimeout(timeout);
+    };
+  }, [isRunning]);
+
+  // Connect Mode: Sync Settings
+  useEffect(() => {
+    if (connectMode && lockedSettings) {
+      const { theme: lockedTheme, ...otherSettings } = lockedSettings;
+      setSettings((prev) => ({ ...prev, ...otherSettings }));
+      if (lockedTheme) {
+        setTheme(lockedTheme);
+      }
+      
+      // Sync Plan Data
+      if (otherSettings.mode === 'plan' && otherSettings.plan) {
+          setPlan(otherSettings.plan);
+          setIsPlanActive(true);
+          
+          if (typeof otherSettings.planIndex === 'number') {
+              const newIndex = otherSettings.planIndex;
+              if (isZenWaiting && newIndex > planIndex) {
+                  setNextStepReady(true);
+              } else {
+                  setPlanIndex(newIndex);
+                  setIsPlanSplash(true);
+                  setIsFinished(false);
+                  setIsRunning(false);
+                  setIsZenWaiting(false);
+                  setNextStepReady(false);
+              }
+          }
+      } else if (otherSettings.mode !== 'plan' && isPlanActive) {
+          setIsPlanActive(false);
+      }
+    }
+  }, [connectMode, lockedSettings, isPlanActive, planIndex, isZenWaiting]);
+
+  // Connect Mode: Handle Start/Stop
+  useEffect(() => {
+    if (!connectMode) return;
+
+    if (isTestActive && !isRunning && !isFinished) {
+      inputRef.current?.focus();
+    } else if (!isTestActive) {
+       if (isRunning) {
+           finishSession();
+       }
+    }
+  }, [connectMode, isTestActive, isRunning, isFinished, finishSession]);
+
+  // Connect Mode: Emit Stats
+  useEffect(() => {
+      if (connectMode && onStatsUpdate && isFinished) {
+           onStatsUpdate({
+              ...latestStatsRef.current,
+              isFinished: true
+           });
+      }
+  }, [connectMode, onStatsUpdate, isFinished]);
+
+  // Continuous Stats Update for Connect Mode
+  useEffect(() => {
+    if (connectMode && onStatsUpdate && isRunning) {
+        const interval = setInterval(() => {
+             onStatsUpdate(latestStatsRef.current);
+        }, 500);
+        return () => clearInterval(interval);
+    }
+  }, [connectMode, onStatsUpdate, isRunning]);
+
+  // Load word lists
+  useEffect(() => {
+    const loadWords = async () => {
+      const difficulties: Difficulty[] = ["beginner", "easy", "medium", "hard", "extreme"];
+      const targetIndex = difficulties.indexOf(settings.difficulty);
+      const filesToLoad = difficulties.slice(0, targetIndex + 1);
+
+      try {
+        const promises = filesToLoad.map(async (diff) => {
+          const res = await fetch(`/words/${diff}.json`);
+          if (!res.ok) {
+            return [];
+          }
+          return res.json();
+        });
+        const results = await Promise.all(promises);
+        const combinedWords = results.flat();
+        if (combinedWords.length > 0) {
+          setWordPool(combinedWords);
+        }
+      } catch (error) {
+        console.error("Failed to load word lists:", error);
+      }
+    };
+
+    loadWords();
+  }, [settings.difficulty]);
+
+  // Load quotes
+  useEffect(() => {
+    if (settings.mode !== "quote") return;
+
+    const loadQuotes = async () => {
+      try {
+        let filesToLoad: QuoteLength[] = [];
+        if (settings.quoteLength === "all") {
+          filesToLoad = ["short", "medium", "long", "xl"];
+        } else {
+          filesToLoad = [settings.quoteLength];
+        }
+
+        const promises = filesToLoad.map(async (len) => {
+          const res = await fetch(`/quotes/${len}.json`);
+          if (!res.ok) {
+            return [];
+          }
+          return res.json();
+        });
+
+        const results = await Promise.all(promises);
+        const combinedQuotes = results.flat();
+        setQuotes(combinedQuotes);
+      } catch (error) {
+        console.error("Failed to load quotes:", error);
+      }
+    };
+
+    loadQuotes();
+  }, [settings.mode, settings.quoteLength]);
+
+  // Preset Input Effect
+  useEffect(() => {
+    if (showPresetInput) {
+      setTempPresetText(settings.presetText);
+    }
+  }, [showPresetInput, settings.presetText]);
+
+  // Generate test on settings change
+  useEffect(() => {
+    generateTest();
+  }, [generateTest, sessionId]);
+
+  // Timer Effect
+  useEffect(() => {
+    if (!isRunning || !startTime) return;
+
+    const interval = window.setInterval(() => {
+      const nextElapsed = Date.now() - startTime;
+      setElapsedMs(nextElapsed);
+
+      if ((settings.mode === "time" || (settings.mode === "preset" && settings.presetModeType === "time")) && settings.duration > 0) {
+          const remainingMs = settings.duration * 1000 - nextElapsed;
+          
+          // Warning sound logic: Play once when 3 seconds remain
+          if (remainingMs <= 3000 && remainingMs > 0 && !isWarningPlayed) {
+              playWarningSound();
+              setIsWarningPlayed(true);
+          }
+
+          if (nextElapsed >= settings.duration * 1000) {
+            finishSession();
+          }
+      }
+    }, 100);
+
+    return () => window.clearInterval(interval);
+  }, [finishSession, isRunning, settings.mode, settings.duration, settings.presetModeType, startTime, isWarningPlayed, playWarningSound]);
+
+  // Ghost Writer Effect
+  useEffect(() => {
+    if (!isRunning || !startTime || !settings.ghostWriterEnabled || settings.ghostWriterSpeed <= 0) return;
+
+    let animationFrameId: number;
+
+    const updateGhost = () => {
+      const elapsedMinutes = (Date.now() - startTime) / 60000;
+      const targetChars = settings.ghostWriterSpeed * 5 * elapsedMinutes;
+      setGhostCharIndex(targetChars);
+      animationFrameId = requestAnimationFrame(updateGhost);
+    };
+
+    animationFrameId = requestAnimationFrame(updateGhost);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isRunning, startTime, settings.ghostWriterSpeed, settings.ghostWriterEnabled]);
+
+  // Handle Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isRunning) {
+        finishSession();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isRunning, finishSession]);
 
   // Handle Enter/Tab to restart/repeat when finished
   useEffect(() => {
@@ -867,6 +830,33 @@ export default function TypingPractice({
     }
   }, [isFinished, isPlanActive, isPlanSplash, isZenWaiting, plan, planIndex, wpm, accuracy, raw, elapsedMs]);
 
+  // Split words into array for rendering
+  const wordArray = words.split(" ");
+  const typedArray = typedText.split(" ");
+  const currentWordIndex = typedArray.length - 1;
+
+  // Handle scrolling
+  useLayoutEffect(() => {
+    if (!containerRef.current || !activeWordRef.current) return;
+
+    const container = containerRef.current;
+    const activeWord = activeWordRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const wordRect = activeWord.getBoundingClientRect();
+
+    // Calculate relative position
+    const relativeTop = wordRect.top - containerRect.top;
+    const lineHeight = parseFloat(getComputedStyle(container).lineHeight || "0");
+
+    // If word is on 3rd line or below (index 2+), scroll up
+    // We want active line to be line 2 (index 1), unless we only have 1 line preview
+    const targetTop = linePreview === 1 ? 0 : lineHeight;
+
+    if (relativeTop > targetTop + 5) { // +5 for buffer/sub-pixel diffs
+      setScrollOffset(prev => prev + lineHeight);
+    }
+  }, [typedText, settings.typingFontSize, linePreview]);
+
   return (
     <div
       className={`relative flex min-h-[100dvh] flex-col items-center px-4 pb-8 transition-colors duration-300 
@@ -882,7 +872,7 @@ export default function TypingPractice({
           item={plan[planIndex]}
           progress={{ current: planIndex + 1, total: plan.length }}
           onStart={handlePlanStepStart}
-          isLocked={plan[planIndex].syncSettings.waitForAll && connectMode && !nextStepReady} // Simple lock logic for now
+          isLocked={plan[planIndex].syncSettings.waitForAll && connectMode && !nextStepReady}
           canEnterZen={plan[planIndex].syncSettings.zenWaiting}
           onEnterZen={handleEnterZen}
         />
@@ -953,10 +943,10 @@ export default function TypingPractice({
 
             <button
               type="button"
-              onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
+              onClick={() => setShowSoundModal(true)}
               className="flex h-[1.5em] w-[1.5em] items-center justify-center rounded transition hover:opacity-75 hover:text-white"
               style={{ color: settings.soundEnabled ? theme.buttonSelected : theme.buttonUnselected }}
-              title="toggle sound"
+              title="sound settings"
             >
               {settings.soundEnabled ? (
                 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1368,10 +1358,7 @@ export default function TypingPractice({
                             charColor = isCorrect ? theme.correctText : theme.incorrectText;
                           }
 
-
-
-  return (
-
+                          return (
                             <span
                               key={charIdx}
                               className="relative"
@@ -1558,6 +1545,15 @@ export default function TypingPractice({
             </div>
         </div>
       )}
+
+      {/* Sound Settings Modal */}
+      <SoundSettingsModal
+        isOpen={showSoundModal}
+        onClose={() => setShowSoundModal(false)}
+        settings={settings}
+        onUpdateSettings={updateSettings}
+        soundManifest={soundManifest}
+      />
 
       {/* Settings Modal */}
       {showSettings && (
@@ -1791,15 +1787,9 @@ export default function TypingPractice({
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={() => {
-             // If no text is set and they click away, maybe go back to previous mode?
-             // For simplicity, we just close it if there is text, otherwise we might want to force a mode change or stay open.
              if (settings.presetText) {
                 setShowPresetInput(false);
              } else {
-                 // If cancelled without text, maybe revert mode?
-                 // For now, just close. generateTest will handle empty text by showing it again if needed.
-                 // Better: switch to default mode if cancelling initial setup?
-                 // Let's just close for now.
                  setShowPresetInput(false);
                  if (!settings.presetText) {
                      updateSettings({ mode: "time" }); // Fallback
@@ -1866,10 +1856,6 @@ export default function TypingPractice({
                     onClick={() => {
                         if (tempPresetText) {
                             handlePresetSubmit(tempPresetText);
-                            // generateTest will be triggered by dependency on settings.presetText or we can call it explicitly?
-                            // handlePresetSubmit updates settings.presetText.
-                            // generateTest depends on settings.presetText.
-                            // So it should trigger automatically.
                         }
                     }}
                     disabled={!tempPresetText}
