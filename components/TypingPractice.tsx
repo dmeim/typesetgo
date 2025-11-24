@@ -387,8 +387,8 @@ export default function TypingPractice({
       const currentWords = value.trim().split(/\s+/).length;
       const totalWords = words.split(" ").length;
 
-      if (totalWords - currentWords < 20) {
-        const newWords = generateWords(20, wordPool, {
+      if (totalWords - currentWords < 50) {
+        const newWords = generateWords(50, wordPool, {
           punctuation: settings.punctuation,
           numbers: settings.numbers
         });
@@ -831,9 +831,22 @@ export default function TypingPractice({
   }, [isFinished, isPlanActive, isPlanSplash, isZenWaiting, plan, planIndex, wpm, accuracy, raw, elapsedMs]);
 
   // Split words into array for rendering
-  const wordArray = words.split(" ");
-  const typedArray = typedText.split(" ");
+  const wordArray = useMemo(() => words.split(" "), [words]);
+  const typedArray = useMemo(() => typedText.split(" "), [typedText]);
   const currentWordIndex = typedArray.length - 1;
+
+  // Virtualization: Only render a window of words around the cursor to improve performance
+  const RENDER_WINDOW_START = Math.max(0, currentWordIndex - 30);
+  const RENDER_WINDOW_END = currentWordIndex + 100;
+  const visibleWords = wordArray.slice(RENDER_WINDOW_START, RENDER_WINDOW_END);
+
+  // Calculate starting character index for the visible window (for ghost cursor)
+  // We use useMemo to avoid recalculating this heavy reduction on every render if start index hasn't changed
+  const initialCharIndex = useMemo(() => {
+      if (RENDER_WINDOW_START === 0) return 0;
+      // Sum lengths of all words before the window + spaces
+      return wordArray.slice(0, RENDER_WINDOW_START).reduce((acc, w) => acc + w.length + 1, 0);
+  }, [wordArray, RENDER_WINDOW_START]);
 
   // Handle scrolling
   useLayoutEffect(() => {
@@ -852,8 +865,12 @@ export default function TypingPractice({
     // We want active line to be line 2 (index 1), unless we only have 1 line preview
     const targetTop = linePreview === 1 ? 0 : lineHeight;
 
-    if (relativeTop > targetTop + 5) { // +5 for buffer/sub-pixel diffs
-      setScrollOffset(prev => prev + lineHeight);
+    // Adjust scroll offset to keep the active word at the target position
+    // We use a threshold to prevent jitter
+    const diff = relativeTop - targetTop;
+    
+    if (Math.abs(diff) > 10) {
+       setScrollOffset(prev => Math.max(0, prev + diff));
     }
   }, [typedText, settings.typingFontSize, linePreview]);
 
@@ -1323,24 +1340,25 @@ export default function TypingPractice({
                 textAlign: settings.textAlign,
               }}
               onClick={() => inputRef.current?.focus()}
-            >
-              <div
-                style={{ transform: `translateY(-${scrollOffset}px)`, transition: 'transform 0.2s ease-out' }}
-                className=""
               >
-                {wordArray.reduce<{ nodes: React.ReactNode[]; currentIndex: number }>(
-                  (acc, word, wordIdx) => {
-                    const wordStartIndex = acc.currentIndex;
-                    const typedWord = typedArray[wordIdx] || "";
-                    const isCurrentWord = wordIdx === currentWordIndex;
-                    const isPastWord = wordIdx < currentWordIndex;
+                <div
+                  style={{ transform: `translateY(-${scrollOffset}px)`, transition: 'transform 0.1s ease-out' }}
+                  className=""
+                >
+                  {visibleWords.reduce<{ nodes: React.ReactNode[]; currentIndex: number }>(
+                    (acc, word, idx) => {
+                      const wordIdx = RENDER_WINDOW_START + idx;
+                      const wordStartIndex = acc.currentIndex;
+                      const typedWord = typedArray[wordIdx] || "";
+                      const isCurrentWord = wordIdx === currentWordIndex;
+                      const isPastWord = wordIdx < currentWordIndex;
 
-                    const wordNode = (
-                      <span
-                        key={wordIdx}
-                        ref={isCurrentWord ? activeWordRef : null}
-                        className="inline-block mr-[0.5em] relative"
-                      >
+                      const wordNode = (
+                        <span
+                          key={wordIdx}
+                          ref={isCurrentWord ? activeWordRef : null}
+                          className="inline-block mr-[0.5em] relative"
+                        >
                         {word.split("").map((char, charIdx) => {
                           const globalCharIndex = wordStartIndex + charIdx;
                           const typedChar = typedWord[charIdx];
@@ -1411,7 +1429,7 @@ export default function TypingPractice({
                     acc.currentIndex += word.length + 1; // +1 for space
                     return acc;
                   },
-                  { nodes: [], currentIndex: 0 }
+                  { nodes: [], currentIndex: initialCharIndex }
                 ).nodes}
               </div>
             </div>
