@@ -33,6 +33,8 @@ const DEFAULT_SETTINGS: Partial<SettingsState> = {
   quoteLength: "all",
   ghostWriterEnabled: false,
   ghostWriterSpeed: 40,
+  presetText: "",
+  presetModeType: "finish",
 };
 
 interface PlanBuilderModalProps {
@@ -286,7 +288,7 @@ export default function PlanBuilderModal({
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Test Mode</h4>
                 <div className="flex flex-wrap gap-2">
-                  {(["time", "words", "quote", "zen"] as Mode[]).map((m) => (
+                  {(["time", "words", "quote", "zen", "preset"] as Mode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => handleUpdateItem(selectedItem.id, { mode: m, settings: { ...selectedItem.settings, mode: m } })}
@@ -380,8 +382,79 @@ export default function PlanBuilderModal({
                    </div>
                  )}
 
+                 {/* Preset Mode Settings */}
+                 {selectedItem.mode === "preset" && (
+                   <div className="space-y-4">
+                     <div>
+                       <label className="block text-xs text-gray-500 mb-2">Preset Type</label>
+                       <div className="flex gap-2">
+                         {(["finish", "time"] as const).map(t => (
+                           <button
+                             key={t}
+                             onClick={() => handleUpdateItem(selectedItem.id, { settings: { ...selectedItem.settings, presetModeType: t } })}
+                             className={`px-3 py-1 rounded text-sm capitalize ${selectedItem.settings.presetModeType === t ? "bg-sky-600 text-white" : "bg-gray-700 text-gray-300"}`}
+                           >
+                             {t}
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+                     
+                     <div>
+                        <label className="block text-xs text-gray-500 mb-2">Custom Text</label>
+                        <textarea
+                            value={selectedItem.settings.presetText || ""}
+                            onChange={(e) => handleUpdateItem(selectedItem.id, { settings: { ...selectedItem.settings, presetText: e.target.value } })}
+                            className="w-full h-32 bg-gray-900 border border-gray-700 rounded p-2 text-sm text-gray-200 focus:border-sky-500 outline-none font-mono"
+                            placeholder="Paste your text here..."
+                        />
+                        <div className="mt-2">
+                            <input
+                                type="file"
+                                accept=".txt"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                            const text = ev.target?.result as string;
+                                            handleUpdateItem(selectedItem.id, { settings: { ...selectedItem.settings, presetText: text } });
+                                        };
+                                        reader.readAsText(file);
+                                    }
+                                }}
+                                className="block w-full text-xs text-gray-400 file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-gray-700 file:text-gray-300 hover:file:bg-gray-600"
+                            />
+                        </div>
+                     </div>
+
+                     {selectedItem.settings.presetModeType === "time" && (
+                       <div>
+                         <label className="block text-xs text-gray-500 mb-2">Duration (seconds)</label>
+                         <div className="flex gap-2">
+                           {[15, 30, 60, 120].map(d => (
+                             <button
+                               key={d}
+                               onClick={() => handleUpdateItem(selectedItem.id, { settings: { ...selectedItem.settings, duration: d } })}
+                               className={`px-3 py-1 rounded text-sm ${selectedItem.settings.duration === d ? "bg-sky-600 text-white" : "bg-gray-700 text-gray-300"}`}
+                             >
+                               {d}s
+                             </button>
+                           ))}
+                           <input
+                              type="number"
+                              value={selectedItem.settings.duration}
+                              onChange={(e) => handleUpdateItem(selectedItem.id, { settings: { ...selectedItem.settings, duration: parseInt(e.target.value) || 0 } })}
+                              className="w-20 bg-gray-900 border border-gray-700 rounded px-2 text-center text-gray-200"
+                           />
+                         </div>
+                       </div>
+                     )}
+                   </div>
+                 )}
+
                  {/* Common Toggles */}
-                 {selectedItem.mode !== "quote" && selectedItem.mode !== "zen" && (
+                 {selectedItem.mode !== "quote" && selectedItem.mode !== "zen" && selectedItem.mode !== "preset" && (
                    <div className="flex gap-4 pt-2">
                      <button
                        onClick={() => handleUpdateItem(selectedItem.id, { settings: { ...selectedItem.settings, punctuation: !selectedItem.settings.punctuation } })}
@@ -398,7 +471,7 @@ export default function PlanBuilderModal({
                    </div>
                  )}
                  
-                 {selectedItem.mode !== "quote" && selectedItem.mode !== "zen" && (
+                 {selectedItem.mode !== "quote" && selectedItem.mode !== "zen" && selectedItem.mode !== "preset" && (
                    <div>
                        <label className="block text-xs text-gray-500 mb-2 mt-4">Difficulty</label>
                        <div className="flex flex-wrap gap-2">
