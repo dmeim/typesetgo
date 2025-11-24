@@ -1009,6 +1009,15 @@ export default function TypingPractice({
                                   setShowPlanBuilder(true);
                                   return;
                                 }
+
+                                // Exit plan mode if active and not in connect mode
+                                if (isPlanActive && !connectMode) {
+                                    setIsPlanActive(false);
+                                    setPlanIndex(0);
+                                    setIsPlanSplash(false);
+                                    setPlanResults({});
+                                }
+
                                 if (settings.mode === m) {
                                     if (m === "preset") {
                                         setShowPresetInput(true);
@@ -2058,6 +2067,7 @@ export default function TypingPractice({
       {/* Plan Builder Modal */}
       {showPlanBuilder && (
         <PlanBuilderModal
+          initialPlan={plan}
           onSave={handleStartPlan}
           onClose={() => setShowPlanBuilder(false)}
           isConnectMode={connectMode}

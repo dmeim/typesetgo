@@ -111,11 +111,25 @@ export default function PlanBuilderModal({
   onClose,
   isConnectMode = false 
 }: PlanBuilderModalProps) {
-  const [items, setItems] = useState<Plan>(initialPlan.length > 0 ? initialPlan : []);
+  const [items, setItems] = useState<Plan>(() => {
+    // Deep clone and validate initial plan to prevent "ghost" items or reference issues
+    const raw = initialPlan.length > 0 ? initialPlan : [];
+    try {
+        const cloned = JSON.parse(JSON.stringify(raw));
+        return Array.isArray(cloned) ? cloned.filter((i: any) => i && typeof i.id === 'string' && i.id.length > 0) : [];
+    } catch (e) {
+        console.error("Failed to initialize plan", e);
+        return [];
+    }
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -180,7 +194,8 @@ export default function PlanBuilderModal({
   const selectedItem = items.find(i => i.id === selectedId);
 
   const handleSave = () => {
-    onSave(items);
+    const validItems = items.filter(i => i && typeof i.id === 'string' && i.id.length > 0);
+    onSave(validItems);
     onClose();
   };
 
