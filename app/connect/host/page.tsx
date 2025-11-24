@@ -107,6 +107,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customValue, setCustomValue] = useState(0);
+  const [customTime, setCustomTime] = useState({ h: 0, m: 0, s: 0 });
 
   // Derived theme for UI usage (defaulting if missing)
   const theme = settings.theme || DEFAULT_THEME;
@@ -529,7 +530,12 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                         ))}
                         <button
                             onClick={() => {
-                                setCustomValue(settings.duration || 0);
+                                const d = settings.duration || 0;
+                                setCustomTime({
+                                    h: Math.floor(d / 3600),
+                                    m: Math.floor((d % 3600) / 60),
+                                    s: d % 60
+                                });
                                 setShowCustomModal(true);
                             }}
                             className={`px-3 py-1 rounded transition ${!TIME_PRESETS.includes(settings.duration || 0) ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
@@ -931,60 +937,106 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             </div>
 
             <div className="flex flex-col items-center gap-6">
-               <div className="flex items-center gap-4">
-                   {/* Decrement Buttons */}
-                   <div className="flex flex-col gap-1">
-                       <button
-                           type="button"
-                           onClick={() => setCustomValue(v => Math.max(0, v - 10))}
-                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
-                       >---</button>
-                       <button
-                           type="button"
-                           onClick={() => setCustomValue(v => Math.max(0, v - 5))}
-                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
-                       >--</button>
-                       <button
-                           type="button"
-                           onClick={() => setCustomValue(v => Math.max(0, v - 1))}
-                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
-                       >-</button>
+               {settings.mode === "time" ? (
+                   <div className="flex items-center gap-4">
+                       {/* Hours */}
+                       <div className="flex flex-col items-center gap-1">
+                           <label className="text-xs text-gray-400">HH</label>
+                           <input
+                               type="number"
+                               min="0"
+                               value={customTime.h}
+                               onChange={(e) => setCustomTime(prev => ({ ...prev, h: Math.max(0, parseInt(e.target.value) || 0) }))}
+                               className="w-16 text-center text-2xl font-bold bg-transparent border-b-2 focus:outline-none"
+                               style={{ borderColor: theme.buttonSelected, color: theme.buttonSelected }}
+                           />
+                       </div>
+                       <span className="text-2xl font-bold text-gray-600">:</span>
+                       {/* Minutes */}
+                       <div className="flex flex-col items-center gap-1">
+                           <label className="text-xs text-gray-400">MM</label>
+                           <input
+                               type="number"
+                               min="0"
+                               max="59"
+                               value={customTime.m}
+                               onChange={(e) => setCustomTime(prev => ({ ...prev, m: Math.max(0, parseInt(e.target.value) || 0) }))}
+                               className="w-16 text-center text-2xl font-bold bg-transparent border-b-2 focus:outline-none"
+                               style={{ borderColor: theme.buttonSelected, color: theme.buttonSelected }}
+                           />
+                       </div>
+                       <span className="text-2xl font-bold text-gray-600">:</span>
+                       {/* Seconds */}
+                       <div className="flex flex-col items-center gap-1">
+                           <label className="text-xs text-gray-400">SS</label>
+                           <input
+                               type="number"
+                               min="0"
+                               max="59"
+                               value={customTime.s}
+                               onChange={(e) => setCustomTime(prev => ({ ...prev, s: Math.max(0, parseInt(e.target.value) || 0) }))}
+                               className="w-16 text-center text-2xl font-bold bg-transparent border-b-2 focus:outline-none"
+                               style={{ borderColor: theme.buttonSelected, color: theme.buttonSelected }}
+                           />
+                       </div>
                    </div>
+               ) : (
+                   <div className="flex items-center gap-4">
+                       {/* Decrement Buttons */}
+                       <div className="flex flex-col gap-1">
+                           <button
+                               type="button"
+                               onClick={() => setCustomValue(v => Math.max(0, v - 10))}
+                               className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                           >---</button>
+                           <button
+                               type="button"
+                               onClick={() => setCustomValue(v => Math.max(0, v - 5))}
+                               className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                           >--</button>
+                           <button
+                               type="button"
+                               onClick={() => setCustomValue(v => Math.max(0, v - 1))}
+                               className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                           >-</button>
+                       </div>
 
-                   {/* Input */}
-                   <input
-                       type="number"
-                       value={customValue}
-                       onChange={(e) => setCustomValue(Math.max(0, parseInt(e.target.value) || 0))}
-                       className="w-24 text-center text-3xl font-bold bg-transparent border-b-2 focus:outline-none"
-                       style={{ borderColor: theme.buttonSelected, color: theme.buttonSelected }}
-                   />
+                       {/* Input */}
+                       <input
+                           type="number"
+                           value={customValue}
+                           onChange={(e) => setCustomValue(Math.max(0, parseInt(e.target.value) || 0))}
+                           className="w-24 text-center text-3xl font-bold bg-transparent border-b-2 focus:outline-none"
+                           style={{ borderColor: theme.buttonSelected, color: theme.buttonSelected }}
+                       />
 
-                   {/* Increment Buttons */}
-                   <div className="flex flex-col gap-1">
-                       <button
-                           type="button"
-                           onClick={() => setCustomValue(v => v + 10)}
-                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
-                       >+++</button>
-                       <button
-                           type="button"
-                           onClick={() => setCustomValue(v => v + 5)}
-                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
-                       >++</button>
-                       <button
-                           type="button"
-                           onClick={() => setCustomValue(v => v + 1)}
-                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
-                       >+</button>
+                       {/* Increment Buttons */}
+                       <div className="flex flex-col gap-1">
+                           <button
+                               type="button"
+                               onClick={() => setCustomValue(v => v + 10)}
+                               className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                           >+++</button>
+                           <button
+                               type="button"
+                               onClick={() => setCustomValue(v => v + 5)}
+                               className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                           >++</button>
+                           <button
+                               type="button"
+                               onClick={() => setCustomValue(v => v + 1)}
+                               className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 text-xs text-gray-300"
+                           >+</button>
+                       </div>
                    </div>
-               </div>
+               )}
 
                <button
                    type="button"
                    onClick={() => {
                        if (settings.mode === "time") {
-                           updateSettings({ duration: customValue });
+                           const totalSeconds = (customTime.h * 3600) + (customTime.m * 60) + customTime.s;
+                           updateSettings({ duration: totalSeconds });
                        } else {
                            updateSettings({ wordTarget: customValue });
                        }
