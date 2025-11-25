@@ -26,6 +26,8 @@ import { Plan } from "@/types/plan";
 import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
 import HostCard from "@/components/connect/HostCard";
 import UserHostCard from "@/components/connect/UserHostCard";
+import SoundController from "@/components/SoundController";
+import { SoundManifest, INITIAL_SOUND_MANIFEST } from "@/lib/sounds";
 
 let socket: Socket;
 
@@ -109,9 +111,26 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customValue, setCustomValue] = useState(0);
   const [customTime, setCustomTime] = useState({ h: 0, m: 0, s: 0 });
+  const [soundManifest, setSoundManifest] = useState<SoundManifest>(INITIAL_SOUND_MANIFEST);
 
   // Derived theme for UI usage (defaulting if missing)
   const theme = settings.theme || DEFAULT_THEME;
+
+  // Fetch sound manifest
+  useEffect(() => {
+    const fetchSounds = async () => {
+        try {
+            const res = await fetch('/api/sounds');
+            if (res.ok) {
+                const data = await res.json();
+                setSoundManifest(data);
+            }
+        } catch (e) {
+            console.error("Failed to fetch sound manifest", e);
+        }
+    };
+    fetchSounds();
+  }, []);
 
   const createRoom = () => {
       socket.emit("create_room", { name: hostName }, ({ code }: { code: string }) => {
@@ -435,26 +454,12 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             <div className="w-px h-4 bg-gray-600"></div>
 
             {/* Sound Toggle */}
-            <button
-              type="button"
-              onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
-              className="flex h-[1.5em] w-[1.5em] items-center justify-center rounded transition hover:opacity-75 hover:text-white"
-              style={{ color: settings.soundEnabled ? theme.buttonSelected : theme.buttonUnselected }}
-              title="toggle sound"
-            >
-              {settings.soundEnabled ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                  <line x1="23" y1="9" x2="17" y2="15" />
-                  <line x1="17" y1="9" x2="23" y2="15" />
-                </svg>
-              )}
-            </button>
+            <SoundController 
+                settings={settings}
+                onUpdateSettings={updateSettings}
+                soundManifest={soundManifest}
+                theme={theme}
+            />
 
             {/* Ghost Toggle */}
             <button

@@ -1,4 +1,5 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { GLOBAL_COLORS } from "@/lib/colors";
 import { SettingsState } from "@/lib/typing-constants";
 import { getRandomSoundUrl, SoundManifest } from "@/lib/sounds";
@@ -18,7 +19,14 @@ export default function SoundSettingsModal({
   onUpdateSettings,
   soundManifest,
 }: SoundSettingsModalProps) {
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const playPreview = (category: string, pack: string) => {
     const soundUrl = getRandomSoundUrl(soundManifest, category, pack);
@@ -37,13 +45,13 @@ export default function SoundSettingsModal({
       return soundManifest[category] ? Object.keys(soundManifest[category]) : [];
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg p-6 shadow-xl mx-4 md:mx-0"
+        className="w-full max-w-md rounded-lg p-6 shadow-xl mx-4 md:mx-0 border border-gray-700"
         style={{ backgroundColor: GLOBAL_COLORS.surface }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -189,6 +197,7 @@ export default function SoundSettingsModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
