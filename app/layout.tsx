@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Image from "next/image";
+import Link from "next/link";
 import "./globals.css";
 import { GLOBAL_COLORS } from "@/lib/colors";
 
@@ -49,14 +50,16 @@ export default function RootLayout({
       >
         <header className="relative md:fixed top-0 left-0 w-full md:w-auto p-4 md:p-6 z-50 flex justify-center md:block">
           <div className="w-[200px] md:w-[400px]">
-            <Image
-              src="/assets/Banner-Color.svg"
-              alt="TypeSetGo"
-              width={400}
-              height={50}
-              priority
-              className="w-full h-auto"
-            />
+            <Link href="/">
+              <Image
+                src="/assets/Banner-Color.svg"
+                alt="TypeSetGo"
+                width={400}
+                height={50}
+                priority
+                className="w-full h-auto"
+              />
+            </Link>
           </div>
         </header>
         {children}
