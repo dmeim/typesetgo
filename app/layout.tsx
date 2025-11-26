@@ -48,7 +48,7 @@ export default function RootLayout({
           } as React.CSSProperties
         }
       >
-        <header className="relative md:fixed top-0 left-0 w-full md:w-auto p-4 md:p-6 z-50 flex justify-center md:block">
+        <header className="relative top-0 left-0 w-full md:w-auto p-4 md:p-6 z-50 flex justify-center md:block">
           <div className="w-[200px] md:w-[400px]">
             <Link href="/">
               <Image
