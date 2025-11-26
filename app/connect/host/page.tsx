@@ -27,6 +27,7 @@ import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
 import HostCard from "@/components/connect/HostCard";
 import UserHostCard from "@/components/connect/UserHostCard";
 import SoundController from "@/components/SoundController";
+import ColorPicker from "@/components/ColorPicker";
 import { SoundManifest, INITIAL_SOUND_MANIFEST } from "@/lib/sounds";
 
 type User = {
@@ -955,11 +956,10 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 <div key={key} className="flex items-center justify-between">
                   <label className="text-sm text-gray-400">{label}</label>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={(theme as any)[key]}
-                      onChange={(e) => updateTheme({ [key]: e.target.value })}
-                      className="h-8 w-14 cursor-pointer rounded bg-transparent p-0"
+                      onChange={(hex) => updateTheme({ [key]: hex })}
+                      className="cursor-pointer"
                     />
                     <button
                       type="button"

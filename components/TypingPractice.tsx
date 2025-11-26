@@ -10,6 +10,7 @@ import PlanSplash from "./plan/PlanSplash";
 import PlanNavigation from "./plan/PlanNavigation";
 import PlanResultsModal from "./plan/PlanResultsModal";
 import SoundController from "./SoundController";
+import ColorPicker from "./ColorPicker";
 import { getRandomSoundUrl, SoundManifest, INITIAL_SOUND_MANIFEST } from "@/lib/sounds";
 
 const MAX_PRESET_LENGTH = 10000;
@@ -1772,11 +1773,10 @@ export default function TypingPractice({
                 <div key={key} className="flex items-center justify-between">
                   <label className="text-sm text-gray-400">{label}</label>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="color"
+                    <ColorPicker
                       value={theme[key as keyof Theme]}
-                      onChange={(e) => setTheme((prev) => ({ ...prev, [key]: e.target.value }))}
-                      className="h-8 w-14 cursor-pointer rounded bg-transparent p-0"
+                      onChange={(hex) => setTheme((prev) => ({ ...prev, [key]: hex }))}
+                      className="cursor-pointer"
                     />
                     <button
                       type="button"
