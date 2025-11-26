@@ -1,4 +1,4 @@
-# TypeSetGo Master TODO
+# TypeSetGo Master TODO List
 
 > Last updated: November 2024
 > Use this file for planning and task distribution.
