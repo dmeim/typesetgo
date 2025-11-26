@@ -107,7 +107,15 @@ const computeStats = (typed: string, reference: string) => {
           incorrect++;
         }
       } else {
-        extra++;
+        // Allow one trailing space after the last word (common in 'words' mode)
+        // But punish multiple spaces or extra characters
+        const isSingleTrailingSpace = i === typedWords.length - 2 && typedWords[i + 1] === "";
+        
+        if (isSingleTrailingSpace) {
+          correct++;
+        } else {
+          extra++;
+        }
       }
     }
   }
