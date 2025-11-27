@@ -3,7 +3,7 @@ import { GLOBAL_COLORS } from "@/lib/colors";
 import { Plan } from "@/types/plan";
 
 export type Mode = "time" | "words" | "quote" | "zen" | "preset" | "plan";
-export type Difficulty = "beginner" | "easy" | "medium" | "hard" | "extreme";
+export type Difficulty = "beginner" | "easy" | "medium" | "hard" | "expert";
 
 export type Quote = {
   quote: string;

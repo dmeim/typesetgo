@@ -14,8 +14,7 @@ Files are categorized by difficulty:
 -   `easy.json`: Common words.
 -   `medium.json`: Standard vocabulary.
 -   `hard.json`: Complex words.
--   `extreme.json`: Very long, obscure, or technical words.
--   `expert.json` (mapped from extreme in UI): High complexity.
+-   `expert.json`: Very long, obscure, or technical words (formerly extreme).
 
 ### Format
 Each file is a simple JSON array of strings:

@@ -70,7 +70,7 @@
 - [ ] Host-side per-user results modal
 
 ### Content
-- [x] Static wordlists (beginner/easy/medium/hard/extreme)
+- [x] Static wordlists (beginner/easy/medium/hard/expert)
 - [x] Static quotes (short/medium/long/xl)
 - [x] Session text via Preset mode
 - [ ] Content packs (bundled wordlists + passages with metadata)

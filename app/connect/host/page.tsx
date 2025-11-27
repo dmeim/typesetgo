@@ -629,14 +629,14 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                  {/* Difficulty (Non-Quote/Preset) */}
                  {settings.mode !== "quote" && settings.mode !== "zen" && settings.mode !== "preset" && (
                     <div className="flex rounded-lg p-1 ml-2" style={{ backgroundColor: GLOBAL_COLORS.surface }}>
-                        {(["beginner", "easy", "medium", "hard", "extreme"] as Difficulty[]).map(d => (
+                        {(["beginner", "easy", "medium", "hard", "expert"] as Difficulty[]).map(d => (
                             <button
                                 key={d}
                                 onClick={() => updateSettings({ difficulty: d })}
                                 className={`px-3 py-1 rounded transition ${settings.difficulty === d ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
                                 style={{ color: settings.difficulty === d ? theme.buttonSelected : undefined }}
                             >
-                                {d === "extreme" ? "expert" : d}
+                                {d}
                             </button>
                         ))}
                     </div>

@@ -490,7 +490,7 @@ export default function PlanBuilderModal({
                    <div>
                        <label className="block text-xs text-gray-500 mb-2 mt-4">Difficulty</label>
                        <div className="flex flex-wrap gap-2">
-                         {(["beginner", "easy", "medium", "hard", "extreme"] as Difficulty[]).map(d => (
+                         {(["beginner", "easy", "medium", "hard", "expert"] as Difficulty[]).map(d => (
                            <button
                              key={d}
                              onClick={() => handleUpdateItem(selectedItem.id, { settings: { ...selectedItem.settings, difficulty: d } })}
