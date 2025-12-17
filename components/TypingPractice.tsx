@@ -14,6 +14,11 @@ import GhostWriterController from "./GhostWriterController";
 import ColorPicker from "./ColorPicker";
 import { getRandomSoundUrl, SoundManifest, INITIAL_SOUND_MANIFEST } from "@/lib/sounds";
 
+interface ThemePreset {
+  name: string;
+  colors: Theme;
+}
+
 const MAX_PRESET_LENGTH = 10000;
 
 const TIME_PRESETS = [15, 30, 60, 120, 300];
@@ -205,6 +210,10 @@ export default function TypingPractice({
 
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [themePresets, setThemePresets] = useState<ThemePreset[]>([]);
+  const [selectedThemeName, setSelectedThemeName] = useState<string>("Typesetgo");
+  const [isCustomThemeExpanded, setIsCustomThemeExpanded] = useState(false);
+  const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customValue, setCustomValue] = useState(0);
   const [customTime, setCustomTime] = useState({ h: 0, m: 0, s: 0 });
@@ -602,6 +611,22 @@ export default function TypingPractice({
         }
     };
     fetchSounds();
+  }, []);
+
+  // Fetch theme presets
+  useEffect(() => {
+    const fetchThemes = async () => {
+      try {
+        const res = await fetch("/api/themes");
+        if (res.ok) {
+          const data = await res.json();
+          setThemePresets(data.themes || []);
+        }
+      } catch (e) {
+        console.error("Failed to fetch theme presets", e);
+      }
+    };
+    fetchThemes();
   }, []);
 
   // UI Visibility
@@ -1753,7 +1778,10 @@ export default function TypingPractice({
       {showThemeModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowThemeModal(false)}
+          onClick={() => {
+            setShowThemeModal(false);
+            setIsThemeDropdownOpen(false);
+          }}
         >
           <div
             className="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-lg p-6 shadow-xl mx-4 md:mx-0"
@@ -1761,57 +1789,159 @@ export default function TypingPractice({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-200">Customize Theme</h2>
+              <h2 className="text-xl font-semibold text-gray-200">Theme</h2>
               <button
                 type="button"
-                onClick={() => setShowThemeModal(false)}
+                onClick={() => {
+                  setShowThemeModal(false);
+                  setIsThemeDropdownOpen(false);
+                }}
                 className="text-gray-400 hover:text-gray-200"
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-4">
-              {[
-                { key: "backgroundColor", label: "Background Color" },
-                { key: "cursor", label: "Cursor Color" },
-                { key: "ghostCursor", label: "Ghost Cursor Color" },
-                { key: "defaultText", label: "Default Text Color" },
-                { key: "upcomingText", label: "Upcoming Text Color" },
-                { key: "correctText", label: "Correct Text Color" },
-                { key: "incorrectText", label: "Incorrect Text Color" },
-                { key: "buttonUnselected", label: "Button Unselected" },
-                { key: "buttonSelected", label: "Button Selected" },
-              ].map(({ key, label }) => (
-                <div key={key} className="flex items-center justify-between">
-                  <label className="text-sm text-gray-400">{label}</label>
-                  <div className="flex items-center gap-2">
-                    <ColorPicker
-                      value={theme[key as keyof Theme]}
-                      onChange={(hex) => setTheme((prev) => ({ ...prev, [key]: hex }))}
-                      className="cursor-pointer"
-                    />
+            {/* Theme Preset Dropdown */}
+            <div className="mb-6 relative">
+              <button
+                type="button"
+                onClick={() => setIsThemeDropdownOpen(!isThemeDropdownOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-gray-600 bg-gray-700 text-gray-200 hover:border-gray-500 transition-colors"
+              >
+                <span>{selectedThemeName}</span>
+                <svg
+                  className={`w-5 h-5 transition-transform ${isThemeDropdownOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isThemeDropdownOpen && (
+                <div className="absolute z-10 mt-2 w-full rounded-lg border border-gray-600 bg-gray-800 shadow-xl max-h-64 overflow-y-auto">
+                  {themePresets.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => {
+                        setTheme(preset.colors);
+                        setSelectedThemeName(preset.name);
+                        setIsThemeDropdownOpen(false);
+                        setIsCustomThemeExpanded(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-4 py-3 hover:bg-gray-700 transition-colors ${
+                        selectedThemeName === preset.name ? "bg-gray-700" : ""
+                      }`}
+                    >
+                      <span className="text-gray-200">{preset.name}</span>
+                      <div className="flex items-center gap-1">
+                        <div
+                          className="w-4 h-4 rounded border border-gray-500"
+                          style={{ backgroundColor: preset.colors.backgroundColor }}
+                          title="Background"
+                        />
+                        <div
+                          className="w-4 h-4 rounded border border-gray-500"
+                          style={{ backgroundColor: preset.colors.cursor }}
+                          title="Cursor"
+                        />
+                        <div
+                          className="w-4 h-4 rounded border border-gray-500"
+                          style={{ backgroundColor: preset.colors.defaultText }}
+                          title="Default Text"
+                        />
+                        <div
+                          className="w-4 h-4 rounded border border-gray-500"
+                          style={{ backgroundColor: preset.colors.correctText }}
+                          title="Correct Text"
+                        />
+                        <div
+                          className="w-4 h-4 rounded border border-gray-500"
+                          style={{ backgroundColor: preset.colors.incorrectText }}
+                          title="Incorrect Text"
+                        />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Custom Theme Collapsible Section */}
+            <div className="border border-gray-600 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsCustomThemeExpanded(!isCustomThemeExpanded)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-700 hover:bg-gray-600 transition-colors"
+              >
+                <span className="text-sm font-medium text-gray-200">Custom Theme</span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transition-transform ${isCustomThemeExpanded ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              <div
+                className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                  isCustomThemeExpanded ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                <div className="p-4 space-y-4 bg-gray-800/50">
+                  {[
+                    { key: "backgroundColor", label: "Background Color" },
+                    { key: "cursor", label: "Cursor Color" },
+                    { key: "ghostCursor", label: "Ghost Cursor Color" },
+                    { key: "defaultText", label: "Default Text Color" },
+                    { key: "upcomingText", label: "Upcoming Text Color" },
+                    { key: "correctText", label: "Correct Text Color" },
+                    { key: "incorrectText", label: "Incorrect Text Color" },
+                    { key: "buttonUnselected", label: "Button Unselected" },
+                    { key: "buttonSelected", label: "Button Selected" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <label className="text-sm text-gray-400">{label}</label>
+                      <div className="flex items-center gap-2">
+                        <ColorPicker
+                          value={theme[key as keyof Theme]}
+                          onChange={(hex) => {
+                            setTheme((prev) => ({ ...prev, [key]: hex }));
+                            setSelectedThemeName("Custom");
+                          }}
+                          className="cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setTheme((prev) => ({ ...prev, [key]: DEFAULT_THEME[key as keyof Theme] }))}
+                          className="text-xs text-gray-500 hover:text-gray-300"
+                          title="Reset to default"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="pt-4 flex justify-end border-t border-gray-600">
                     <button
                       type="button"
-                      onClick={() => setTheme((prev) => ({ ...prev, [key]: DEFAULT_THEME[key as keyof Theme] }))}
-                      className="text-xs text-gray-500 hover:text-gray-300"
-                      title="Reset to default"
+                      onClick={() => {
+                        setTheme(DEFAULT_THEME);
+                        setSelectedThemeName("Typesetgo");
+                      }}
+                      className="text-sm text-red-400 hover:text-red-300"
                     >
-                      Reset
+                      Reset All Defaults
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setTheme(DEFAULT_THEME)}
-                className="text-sm text-red-400 hover:text-red-300"
-              >
-                Reset All Defaults
-              </button>
+              </div>
             </div>
           </div>
         </div>
