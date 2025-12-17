@@ -1031,39 +1031,43 @@ export default function TypingPractice({
                  
                  {/* Mode */}
                  <div className="flex rounded-lg p-1" style={{ backgroundColor: GLOBAL_COLORS.surface }}>
-                    {(["time", "words", "quote", "zen", "preset", "plan"] as Mode[]).map((m) => (
-                        <button
-                            key={m}
-                            type="button"
-                            onClick={() => {
-                                if (m === "plan") {
-                                  setShowPlanBuilder(true);
-                                  return;
-                                }
-
-                                // Exit plan mode if active and not in connect mode
-                                if (isPlanActive && !connectMode) {
-                                    setIsPlanActive(false);
-                                    setPlanIndex(0);
-                                    setIsPlanSplash(false);
-                                    setPlanResults({});
-                                }
-
-                                if (settings.mode === m) {
-                                    if (m === "preset") {
-                                        setShowPresetInput(true);
-                                    } else {
-                                        generateTest();
+                    {(["time", "words", "quote", "zen", "preset", "plan"] as Mode[]).map((m, idx) => (
+                        <span key={m} className="flex items-center">
+                            {m === "preset" && (
+                                <span className="w-px h-4 bg-gray-600 mx-1"></span>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (m === "plan") {
+                                      setShowPlanBuilder(true);
+                                      return;
                                     }
-                                } else {
-                                    updateSettings({ mode: m });
-                                }
-                            }}
-                            className={`px-3 py-1 rounded transition ${settings.mode === m ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                            style={{ color: settings.mode === m ? theme.buttonSelected : undefined }}
-                        >
-                            {m}
-                        </button>
+
+                                    // Exit plan mode if active and not in connect mode
+                                    if (isPlanActive && !connectMode) {
+                                        setIsPlanActive(false);
+                                        setPlanIndex(0);
+                                        setIsPlanSplash(false);
+                                        setPlanResults({});
+                                    }
+
+                                    if (settings.mode === m) {
+                                        if (m === "preset") {
+                                            setShowPresetInput(true);
+                                        } else {
+                                            generateTest();
+                                        }
+                                    } else {
+                                        updateSettings({ mode: m });
+                                    }
+                                }}
+                                className={`px-3 py-1 rounded transition ${settings.mode === m ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
+                                style={{ color: settings.mode === m ? theme.buttonSelected : undefined }}
+                            >
+                                {m}
+                            </button>
+                        </span>
                     ))}
                  </div>
 
