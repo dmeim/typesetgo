@@ -684,17 +684,20 @@ export default function TypingPractice({
     const containerRect = containerRef.current.getBoundingClientRect();
     const wordRect = activeWordRef.current.getBoundingClientRect();
     const lineHeight = settings.typingFontSize * LINE_HEIGHT * 16;
-    const maxVisibleLines = linePreview;
 
-    const relativeTop = wordRect.top - containerRect.top + scrollOffset;
-    const currentLine = Math.floor(relativeTop / lineHeight);
+    // Calculate the VISUAL position of the word within the container
+    // This is where the word appears on screen, not its logical position in the document
+    const wordVisualTop = wordRect.top - containerRect.top;
 
-    if (currentLine >= maxVisibleLines - 1) {
-      requestAnimationFrame(() => {
-        setScrollOffset((prev) => prev + lineHeight);
-      });
+    // Calculate which visual line the word is on (0-indexed)
+    const visualLine = Math.floor(wordVisualTop / lineHeight);
+
+    // Scroll when the word reaches the last visible line
+    // Guard against negative values (word above container) which shouldn't happen
+    if (visualLine >= linePreview - 1 && wordVisualTop >= 0) {
+      setScrollOffset((prev) => prev + lineHeight);
     }
-  }, [typedText, settings.typingFontSize, linePreview, scrollOffset]);
+  }, [typedText, settings.typingFontSize, linePreview]);
 
   // --- Render Typing Area ---
   const renderTypingArea = () => {
