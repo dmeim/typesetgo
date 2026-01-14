@@ -28,6 +28,7 @@
 | Phase 6: TypingPractice | ✅ COMPLETE | TypingPractice component fully migrated |
 | Phase 7: Docker | ✅ COMPLETE | Dockerfile, nginx, docker-compose created |
 | Phase 8: Cleanup | 🔶 PARTIAL | README updated, verification passed, pending commit |
+| Phase 9: Plan Mode | ✅ COMPLETE | Plan components + TypingPractice integration |
 
 ---
 
@@ -1548,10 +1549,50 @@ git commit -m "Complete migration to Bun + Vite + Convex
 - [x] Sound effects
 - [x] Theme customization
 - [x] Settings persistence
-- [ ] Plan mode (not yet migrated)
+- [x] Plan mode (components + TypingPractice integration)
 - [x] Connect/Multiplayer (pages migrated, pending manual test)
 
 ---
 
-*Last updated: January 14, 2026 (TypingPractice migration complete)*
+# PHASE 9: Plan Mode Migration (Added)
+
+## Task 9.1: Install dnd-kit Dependencies
+- [x] **TASK 9.1 COMPLETE**: Installed @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities
+
+## Task 9.2: Create Plan Types
+- [x] **TASK 9.2 COMPLETE**: `src/types/plan.ts` already existed with correct types
+
+## Task 9.3: Migrate Plan Components
+- [x] Created `src/components/plan/PlanBuilderModal.tsx` - Main plan builder with drag-and-drop
+- [x] Created `src/components/plan/PlanNavigation.tsx` - Navigation buttons
+- [x] Created `src/components/plan/PlanResultsModal.tsx` - Results display
+- [x] Created `src/components/plan/PlanSplash.tsx` - Splash screen before each step
+- [x] Created `src/components/plan/index.ts` - Barrel export
+- [x] Fixed type import (DragEndEvent must be type-only import)
+- [x] **TASK 9.3 COMPLETE**: All Plan components migrated
+
+## Task 9.4: Integrate Plan Mode into TypingPractice
+- [x] Added Plan mode state variables
+- [x] Added Plan mode handlers (handleStartPlan, handlePlanStepStart, handlePlanNext, etc.)
+- [x] Added Plan button to toolbar
+- [x] Added PlanBuilderModal, PlanSplash, PlanResultsModal renders
+- [x] Added plan navigation buttons when step is complete
+- [x] Fixed lint error (setState in effect → ref-based pattern)
+- [x] **TASK 9.4 COMPLETE**: Plan mode integrated into TypingPractice
+
+## Task 9.5: Fix Lint Warnings
+- [x] Fixed unused eslint-disable directives in TypingPractice.tsx
+- [x] Added missing `generateTest` to useEffect dependency array
+- [x] **TASK 9.5 COMPLETE**: All lint warnings resolved
+
+## Phase 9 Complete Checklist
+- [x] Task 9.1: dnd-kit installed
+- [x] Task 9.2: Plan types verified
+- [x] Task 9.3: Plan components migrated
+- [x] Task 9.4: Plan mode integrated into TypingPractice
+- [x] Task 9.5: Lint warnings fixed
+
+---
+
+*Last updated: January 14, 2026 (Plan mode migration complete)*
 *Current branch: migration/bun-vite-convex*

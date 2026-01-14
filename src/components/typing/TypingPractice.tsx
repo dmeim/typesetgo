@@ -16,6 +16,10 @@ import {
 } from "@/lib/storage-utils";
 import SoundController from "./SoundController";
 import GhostWriterController from "./GhostWriterController";
+import type { Plan, PlanItem, PlanStepResult } from "@/types/plan";
+import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
+import PlanSplash from "@/components/plan/PlanSplash";
+import PlanResultsModal from "@/components/plan/PlanResultsModal";
 
 // Constants
 const TIME_PRESETS = [15, 30, 60, 120, 300];
@@ -206,6 +210,15 @@ export default function TypingPractice({
   const [isWarningPlayed, setIsWarningPlayed] = useState(false);
   const [uiOpacity, setUiOpacity] = useState(1);
 
+  // Plan Mode State
+  const [plan, setPlan] = useState<Plan>([]);
+  const [planIndex, setPlanIndex] = useState(0);
+  const [isPlanActive, setIsPlanActive] = useState(false);
+  const [isPlanSplash, setIsPlanSplash] = useState(false);
+  const [showPlanBuilder, setShowPlanBuilder] = useState(false);
+  const [planResults, setPlanResults] = useState<Record<string, PlanStepResult>>({});
+  const [showPlanResultsModal, setShowPlanResultsModal] = useState(false);
+
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeWordRef = useRef<HTMLSpanElement | null>(null);
@@ -337,12 +350,53 @@ export default function TypingPractice({
     inputRef.current?.focus();
   }, []);
 
+  // Ref to store pending plan result
+  const pendingPlanResultRef = useRef<{
+    itemId: string;
+    result: PlanStepResult;
+  } | null>(null);
+
   const finishSession = useCallback(() => {
     if (isFinished) return;
+
+    // If in plan mode, prepare the result to be recorded
+    if (isPlanActive && !isPlanSplash) {
+      const currentItem = plan[planIndex];
+      if (currentItem && !planResults[currentItem.id]) {
+        const currentWpm = (typedText.length / 5) / (elapsedMs / 60000 || 0.01);
+        const currentStats = computeStats(typedText, words);
+        const currentAccuracy = typedText.length > 0 ? (currentStats.correct / typedText.length) * 100 : 100;
+
+        pendingPlanResultRef.current = {
+          itemId: currentItem.id,
+          result: {
+            wpm: Math.round(currentWpm) || 0,
+            accuracy: currentAccuracy || 100,
+            raw: Math.round(currentWpm) || 0,
+            consistency: 0,
+            time: elapsedMs,
+            date: Date.now(),
+            mode: currentItem.mode,
+            metadata: currentItem.metadata,
+          },
+        };
+      }
+    }
+
     setIsFinished(true);
     setIsRunning(false);
     setUiOpacity(1);
-  }, [isFinished]);
+
+    // Record plan result synchronously after state updates
+    if (pendingPlanResultRef.current) {
+      const { itemId, result } = pendingPlanResultRef.current;
+      setPlanResults((prev) => ({
+        ...prev,
+        [itemId]: result,
+      }));
+      pendingPlanResultRef.current = null;
+    }
+  }, [isFinished, isPlanActive, isPlanSplash, plan, planIndex, planResults, typedText, words, elapsedMs]);
 
   const playClickSound = useCallback(() => {
     if (!settings.soundEnabled || !settings.typingSound) return;
@@ -414,14 +468,13 @@ export default function TypingPractice({
   ]);
 
   // Generate test on mode/difficulty change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (wordPool.length > 0 || settings.mode === "quote" || settings.mode === "preset") {
       requestAnimationFrame(() => {
         generateTest();
       });
     }
-  }, [settings.mode, settings.difficulty, wordPool.length]);
+  }, [settings.mode, settings.difficulty, wordPool.length, generateTest]);
 
   // --- Timer ---
   useEffect(() => {
@@ -562,8 +615,69 @@ export default function TypingPractice({
     }
   };
 
+  // --- Plan Mode Handlers ---
+  const applyPlanStep = useCallback((item: PlanItem) => {
+    // Merge plan item settings into current settings
+    setSettings((prev) => ({
+      ...prev,
+      ...item.settings,
+      mode: item.mode,
+    }));
+  }, []);
+
+  const handleStartPlan = (newPlan: Plan) => {
+    if (newPlan.length === 0) return;
+    setPlan(newPlan);
+    setPlanIndex(0);
+    setIsPlanActive(true);
+    setIsPlanSplash(true);
+    setPlanResults({});
+  };
+
+  const handlePlanStepStart = useCallback(() => {
+    const item = plan[planIndex];
+    if (!item) return;
+
+    setIsPlanSplash(false);
+    applyPlanStep(item);
+    // Slight delay to allow settings to update before generating test
+    setTimeout(() => {
+      generateTest();
+    }, 0);
+  }, [plan, planIndex, applyPlanStep, generateTest]);
+
+  const handlePlanNext = useCallback(() => {
+    const nextIndex = planIndex + 1;
+
+    if (nextIndex < plan.length) {
+      setPlanIndex(nextIndex);
+      setIsPlanSplash(true);
+      setIsFinished(false);
+      setIsRunning(false);
+    } else {
+      // Finished plan
+      setShowPlanResultsModal(true);
+    }
+  }, [plan.length, planIndex]);
+
+  const handlePlanPrev = useCallback(() => {
+    if (planIndex > 0) {
+      setPlanIndex(planIndex - 1);
+      setIsPlanSplash(true);
+      setIsFinished(false);
+      setIsRunning(false);
+    }
+  }, [planIndex]);
+
+  const exitPlanMode = useCallback(() => {
+    setIsPlanActive(false);
+    setIsPlanSplash(false);
+    setPlan([]);
+    setPlanIndex(0);
+    setPlanResults({});
+  }, []);
+
   // --- Scroll handling ---
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!activeWordRef.current || !containerRef.current) return;
 
@@ -718,6 +832,24 @@ export default function TypingPractice({
                 <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" />
                 <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" />
                 <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+              </svg>
+            </button>
+
+            {/* Plan Mode Icon */}
+            <button
+              type="button"
+              onClick={() => setShowPlanBuilder(true)}
+              className={`flex h-[1.5em] w-[1.5em] items-center justify-center rounded transition hover:opacity-75 hover:text-white ${isPlanActive ? "ring-2 ring-sky-500" : ""}`}
+              style={{ color: isPlanActive ? theme.buttonSelected : theme.buttonUnselected }}
+              title="Plan Mode"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" />
+                <line x1="3" y1="12" x2="3.01" y2="12" />
+                <line x1="3" y1="18" x2="3.01" y2="18" />
               </svg>
             </button>
 
@@ -1304,6 +1436,67 @@ export default function TypingPractice({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Plan Builder Modal */}
+      {showPlanBuilder && (
+        <PlanBuilderModal
+          initialPlan={plan}
+          onSave={handleStartPlan}
+          onClose={() => setShowPlanBuilder(false)}
+        />
+      )}
+
+      {/* Plan Splash Screen */}
+      {isPlanActive && isPlanSplash && plan[planIndex] && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: GLOBAL_COLORS.background }}>
+          <div className="absolute top-4 right-4">
+            <button
+              onClick={exitPlanMode}
+              className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+            >
+              Exit Plan
+            </button>
+          </div>
+          <PlanSplash
+            item={plan[planIndex]}
+            progress={{ current: planIndex + 1, total: plan.length }}
+            onStart={handlePlanStepStart}
+          />
+        </div>
+      )}
+
+      {/* Plan Results Modal */}
+      {showPlanResultsModal && (
+        <PlanResultsModal
+          user={{ id: "local", name: "You" }}
+          plan={plan}
+          results={planResults}
+          onClose={() => {
+            setShowPlanResultsModal(false);
+            exitPlanMode();
+          }}
+        />
+      )}
+
+      {/* Plan Navigation (shown when in plan mode and finished a step) */}
+      {isPlanActive && !isPlanSplash && isFinished && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-4">
+          {planIndex > 0 && (
+            <button
+              onClick={handlePlanPrev}
+              className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+            >
+              ← Previous
+            </button>
+          )}
+          <button
+            onClick={handlePlanNext}
+            className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-medium transition-colors"
+          >
+            {planIndex < plan.length - 1 ? "Next →" : "View Results"}
+          </button>
         </div>
       )}
     </div>
