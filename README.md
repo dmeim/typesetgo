@@ -46,25 +46,26 @@ Challenge friends or colleagues in real-time.
 ### 🎨 Customization & Tech
 - **Themes**: Visual themes for perfect contrast.
 - **Sound Effects**: Optional mechanical keyboard sounds.
-- **Modern Stack**: Built with **Next.js 16**, **React 19**, **Tailwind CSS v4**, and **Socket.IO**.
-- **Data & Auth**: Integrated with **Supabase** for robust data handling.
+- **Modern Stack**: Built with **Bun**, **Vite**, **React 19**, **Tailwind CSS v4**, and **Convex** for real-time backend.
+- **Type Safety**: Full TypeScript with Zod validation and react-hook-form.
 
 ---
 
 ## 🛠 Getting Started
 
 ### 🐳 Quick Start (Docker)
-The fastest way to run TypeSetGo is with Docker. You can pull the pre-built image directly:
+The fastest way to run TypeSetGo is with Docker:
 
 ```bash
-docker run -d -p 3000:3000 --name typesetgo ghcr.io/dmeim/typesetgo:latest
+cd docker
+VITE_CONVEX_URL=https://your-project.convex.cloud docker-compose up -d
 ```
 
-Alternatively, you can build it from source:
+Or build and run manually:
 
 ```bash
-docker build -t typesetgo .
-docker run -d -p 3000:3000 typesetgo
+docker build -f docker/Dockerfile --build-arg VITE_CONVEX_URL=https://your-project.convex.cloud -t typesetgo .
+docker run -d -p 3000:80 typesetgo
 ```
 Visit `http://localhost:3000` to start typing!
 
@@ -72,7 +73,9 @@ Visit `http://localhost:3000` to start typing!
 
 If you want to contribute or run it locally without Docker:
 
-**Prerequisites**: Node.js 18+
+**Prerequisites**: 
+- [Bun](https://bun.sh) v1.0+
+- [Convex](https://convex.dev) account (free tier available)
 
 1.  **Clone the repo**
     ```bash
@@ -82,23 +85,33 @@ If you want to contribute or run it locally without Docker:
 
 2.  **Install dependencies**
     ```bash
-    npm install
+    bun install
     ```
 
-3.  **Configure Environment**
-    Create a `.env.local` file (optional for basic features, required for Auth/Supabase):
+3.  **Initialize Convex**
     ```bash
-    NEXT_PUBLIC_SUPABASE_URL=your_url
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
+    bunx convex dev
     ```
+    Follow the prompts to log in and create a project. This will create `.env.local` with your `VITE_CONVEX_URL`.
 
-4.  **Run the dev server**
+4.  **Run the dev server** (in a separate terminal)
     ```bash
-    npm run dev
+    bun run dev
     ```
 
 5.  **Open your browser**
     Navigate to [http://localhost:3000](http://localhost:3000).
+
+### 📋 Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start dev server (port 3000) |
+| `bun run build` | Production build |
+| `bun run test` | Run tests in watch mode |
+| `bun run test:run` | Run tests once |
+| `bun run lint` | Run ESLint |
+| `bunx convex dev` | Start Convex dev server |
 
 ---
 

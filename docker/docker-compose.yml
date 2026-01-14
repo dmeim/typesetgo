@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  typesetgo:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        VITE_CONVEX_URL: ${VITE_CONVEX_URL}
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production

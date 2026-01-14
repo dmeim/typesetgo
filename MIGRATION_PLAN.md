@@ -25,9 +25,9 @@
 | Phase 3: Routing | ✅ COMPLETE | Pages with forms implemented |
 | Phase 4: Convex | ✅ COMPLETE | Schema, functions, and initialization done |
 | Phase 5: Components | ✅ COMPLETE | Hooks, schemas, and pages migrated |
-| Phase 6: TypingPractice | ⬜ NOT STARTED | Main typing component pending |
-| Phase 7: Docker | ⬜ NOT STARTED | |
-| Phase 8: Cleanup | 🔶 PARTIAL | Files merged, docs pending |
+| Phase 6: TypingPractice | ✅ COMPLETE | TypingPractice component fully migrated |
+| Phase 7: Docker | ✅ COMPLETE | Dockerfile, nginx, docker-compose created |
+| Phase 8: Cleanup | 🔶 PARTIAL | README updated, verification passed, pending commit |
 
 ---
 
@@ -1234,7 +1234,7 @@ git show main:components/TypingPractice.tsx
 ```
 
 ### Checkbox
-- [ ] **TASK 6.1 COMPLETE**: Retrieved old TypingPractice source
+- [x] **TASK 6.1 COMPLETE**: Retrieved old TypingPractice source (via `git show main:components/TypingPractice.tsx`)
 
 ---
 
@@ -1250,33 +1250,41 @@ git show main:components/TypingPractice.tsx
 5. Use `@/components/ui/*` for Shadcn components
 
 ### Migration Checklist
-- [ ] Remove `"use client"`
-- [ ] Import `Link` from `react-router-dom`
-- [ ] Import `useSearchParams` from `react-router-dom`
-- [ ] Replace `fetch("/api/sounds")` with `SOUND_MANIFEST` from `@/lib/sounds`
-- [ ] Replace `fetch("/api/themes")` with `THEME_MANIFEST` from `@/lib/themes`
-- [ ] Update any `next/navigation` router usage
+- [x] Remove `"use client"`
+- [x] Import `Link` from `react-router-dom`
+- [x] Import `useSearchParams` from `react-router-dom` (not needed for TypingPractice)
+- [x] Replace `fetch("/api/sounds")` with `SOUND_MANIFEST` from `@/lib/sounds`
+- [x] Replace `fetch("/api/themes")` with `THEME_MANIFEST` from `@/lib/themes`
+- [x] Update any `next/navigation` router usage
 
 ### Checkbox
-- [ ] **TASK 6.2 COMPLETE**: TypingPractice component migrated
+- [x] **TASK 6.2 COMPLETE**: TypingPractice component migrated
 
 ---
 
 ## Task 6.3: Create Remaining Modal Components
 
 ### Files to Create
-- [ ] `src/components/settings/SoundSettingsModal.tsx`
-- [ ] `src/components/settings/GhostWriterSettingsModal.tsx`
-- [ ] `src/components/settings/ThemeSettingsModal.tsx`
+- [x] `src/components/settings/SoundSettingsModal.tsx`
+- [x] `src/components/settings/GhostWriterSettingsModal.tsx`
+- [x] `src/components/settings/ThemeSettingsModal.tsx` (integrated into TypingPractice component)
+
+### Additional Components Created
+- [x] `src/components/typing/SoundController.tsx`
+- [x] `src/components/typing/GhostWriterController.tsx`
+- [x] `src/components/typing/ColorPicker.tsx`
+- [x] `src/components/typing/TypingPractice.tsx`
 
 ### For Each Modal
 1. Get source from `git show main:components/[Name].tsx`
 2. Remove `"use client"`
 3. Replace Shadcn imports if needed
-4. Save to new location
+4. Fix type imports (use `import type`)
+5. Fix lint errors (use `useSyncExternalStore` instead of `useEffect` for mounted state)
+6. Save to new location
 
 ### Checkbox
-- [ ] **TASK 6.3 COMPLETE**: Modal components migrated
+- [x] **TASK 6.3 COMPLETE**: Sound and GhostWriter modals + controllers migrated, Theme modal integrated
 
 ---
 
@@ -1316,15 +1324,15 @@ export default function Home() {
 ```
 
 ### Checkbox
-- [ ] **TASK 6.4 COMPLETE**: Home page updated
+- [x] **TASK 6.4 COMPLETE**: Home page updated
 
 ---
 
 ## Phase 6 Complete Checklist
-- [ ] Task 6.1: Old source retrieved
-- [ ] Task 6.2: TypingPractice migrated
-- [ ] Task 6.3: Modal components migrated
-- [ ] Task 6.4: Home page updated
+- [x] Task 6.1: Old source retrieved (via git show)
+- [x] Task 6.2: TypingPractice migrated
+- [x] Task 6.3: Modal components migrated (Sound + GhostWriter + Theme integrated)
+- [x] Task 6.4: Home page updated
 
 ---
 
@@ -1353,7 +1361,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ```
 
 ### Checkbox
-- [ ] **TASK 7.1 COMPLETE**: Dockerfile created
+- [x] **TASK 7.1 COMPLETE**: Dockerfile created
 
 ---
 
@@ -1387,7 +1395,7 @@ server {
 ```
 
 ### Checkbox
-- [ ] **TASK 7.2 COMPLETE**: nginx.conf created
+- [x] **TASK 7.2 COMPLETE**: nginx.conf created
 
 ---
 
@@ -1412,7 +1420,14 @@ services:
 ```
 
 ### Checkbox
-- [ ] **TASK 7.3 COMPLETE**: docker-compose.yml created
+- [x] **TASK 7.3 COMPLETE**: docker-compose.yml created
+
+---
+
+## Task 7.3b: Create .dockerignore (Added)
+
+### Checkbox
+- [x] **TASK 7.3b COMPLETE**: .dockerignore created for optimized builds
 
 ---
 
@@ -1471,7 +1486,7 @@ VITE_CONVEX_URL=https://your-project.convex.cloud docker-compose up -d
 ```
 
 ### Checkbox
-- [ ] **TASK 8.1 COMPLETE**: README updated
+- [x] **TASK 8.1 COMPLETE**: README updated with new stack (Bun, Vite, Convex)
 
 ---
 
@@ -1485,12 +1500,12 @@ bun run build
 ```
 
 ### Verification
-- [ ] Lint passes (or only minor warnings)
-- [ ] All tests pass
-- [ ] Build succeeds
+- [x] Lint passes (only minor warnings)
+- [x] All tests pass (12 tests)
+- [x] Build succeeds
 
 ### Checkbox
-- [ ] **TASK 8.2 COMPLETE**: Final verification passed
+- [x] **TASK 8.2 COMPLETE**: Final verification passed
 
 ---
 
@@ -1523,20 +1538,20 @@ git commit -m "Complete migration to Bun + Vite + Convex
 - [x] Phase 3: Routing
 - [x] Phase 4: Convex Setup
 - [x] Phase 5: Component Migration
-- [ ] Phase 6: TypingPractice Migration
-- [ ] Phase 7: Docker Setup
-- [ ] Phase 8: Final Cleanup
+- [x] Phase 6: TypingPractice Migration
+- [x] Phase 7: Docker Setup
+- [x] Phase 8: Final Cleanup (pending commit only)
 
 ## Feature Parity
-- [ ] Typing practice (all modes)
-- [ ] Ghost writer
-- [x] Sound effects (hook created)
-- [ ] Theme customization
-- [ ] Settings persistence
-- [ ] Plan mode
+- [x] Typing practice (time, words, quote, preset modes)
+- [x] Ghost writer
+- [x] Sound effects
+- [x] Theme customization
+- [x] Settings persistence
+- [ ] Plan mode (not yet migrated)
 - [x] Connect/Multiplayer (pages migrated, pending manual test)
 
 ---
 
-*Last updated: January 14, 2026*
+*Last updated: January 14, 2026 (TypingPractice migration complete)*
 *Current branch: migration/bun-vite-convex*

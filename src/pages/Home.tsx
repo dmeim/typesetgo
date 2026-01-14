@@ -1,26 +1,27 @@
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import TypingPractice from "@/components/typing/TypingPractice";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
-      <h1 className="text-4xl font-bold mb-4 text-[var(--text-primary)]">
-        TypeSetGo
-      </h1>
-      <p className="text-lg mb-8 text-[var(--text-secondary)]">
-        Practice typing, improve your speed
-      </p>
+    <div
+      className="min-h-screen relative"
+      style={{ backgroundColor: "var(--bg-primary)" }}
+    >
+      {/* Header - absolute positioned like the original */}
+      <header className="absolute top-0 left-0 w-full md:w-auto p-4 md:p-6 z-50 flex justify-center md:block">
+        <div className="w-[200px] md:w-[400px]">
+          <Link to="/">
+            <img
+              src="/assets/Banner-Color.svg"
+              alt="TypeSetGo"
+              className="w-full h-auto"
+            />
+          </Link>
+        </div>
+      </header>
 
-      {/* Placeholder for TypingPractice component */}
-      <div className="w-full max-w-4xl p-8 rounded-lg bg-[var(--surface)] mb-8">
-        <p className="text-center text-[var(--text-secondary)]">
-          TypingPractice component will go here
-        </p>
-      </div>
-
-      <Link to="/connect">
-        <Button variant="outline">Connect / Multiplayer</Button>
-      </Link>
+      {/* Main Content - TypingPractice fills the page */}
+      <TypingPractice />
     </div>
   );
 }
