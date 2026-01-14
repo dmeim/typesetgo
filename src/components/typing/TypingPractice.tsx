@@ -166,7 +166,7 @@ export default function TypingPractice({
 }: TypingPracticeProps) {
   // --- State ---
   const [settings, setSettings] = useState<SettingsState>({
-    mode: "time",
+    mode: "zen",
     duration: 30,
     wordTarget: 25,
     punctuation: false,

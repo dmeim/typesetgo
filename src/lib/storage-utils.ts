@@ -13,7 +13,7 @@ export const DEFAULT_SETTINGS: Omit<
   SettingsState,
   "presetText" | "plan" | "planIndex" | "theme"
 > = {
-  mode: "time",
+  mode: "zen",
   duration: 30,
   wordTarget: 25,
   punctuation: false,
