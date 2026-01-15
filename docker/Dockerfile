@@ -2,6 +2,10 @@
 FROM oven/bun:1 AS builder
 WORKDIR /app
 
+# Accept Convex URL as build argument
+ARG VITE_CONVEX_URL
+ENV VITE_CONVEX_URL=$VITE_CONVEX_URL
+
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
