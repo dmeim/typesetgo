@@ -1,12 +1,43 @@
 import type { Theme } from "@/lib/typing-constants";
 
+export type ThemeCategory =
+  | "default"
+  | "editor"
+  | "holiday"
+  | "nature"
+  | "time"
+  | "retro"
+  | "aesthetic"
+  | "utility"
+  | "fun";
+
 export type ThemeDefinition = Theme & {
   name: string;
+  category?: ThemeCategory;
 };
 
 export type ThemeManifest = {
   themes: string[];
   default: string;
+};
+
+export type GroupedThemes = {
+  category: ThemeCategory;
+  displayName: string;
+  themes: ThemeDefinition[];
+};
+
+// Category display order and names
+export const CATEGORY_CONFIG: Record<ThemeCategory, { displayName: string; order: number }> = {
+  default: { displayName: "TypeSetGo", order: 0 },
+  editor: { displayName: "Editor/IDE", order: 1 },
+  holiday: { displayName: "Holiday", order: 2 },
+  nature: { displayName: "Nature", order: 3 },
+  time: { displayName: "Time of Day", order: 4 },
+  retro: { displayName: "Retro/Tech", order: 5 },
+  aesthetic: { displayName: "Aesthetic", order: 6 },
+  utility: { displayName: "Utility", order: 7 },
+  fun: { displayName: "Fun", order: 8 },
 };
 
 // Cache for loaded data
@@ -90,6 +121,54 @@ export async function fetchAllThemes(): Promise<ThemeDefinition[]> {
       if (b.name.toLowerCase() === "typesetgo") return 1;
       return a.name.localeCompare(b.name);
     });
+}
+
+// Group themes by category
+export function groupThemesByCategory(themes: ThemeDefinition[]): GroupedThemes[] {
+  const groups: Record<ThemeCategory, ThemeDefinition[]> = {
+    default: [],
+    editor: [],
+    holiday: [],
+    nature: [],
+    time: [],
+    retro: [],
+    aesthetic: [],
+    utility: [],
+    fun: [],
+  };
+
+  // Group themes
+  for (const theme of themes) {
+    const category = theme.category || "default";
+    if (groups[category]) {
+      groups[category].push(theme);
+    } else {
+      groups.default.push(theme);
+    }
+  }
+
+  // Sort themes within each category alphabetically
+  for (const category of Object.keys(groups) as ThemeCategory[]) {
+    groups[category].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Build sorted grouped array
+  const result: GroupedThemes[] = [];
+  const sortedCategories = (Object.keys(CATEGORY_CONFIG) as ThemeCategory[]).sort(
+    (a, b) => CATEGORY_CONFIG[a].order - CATEGORY_CONFIG[b].order
+  );
+
+  for (const category of sortedCategories) {
+    if (groups[category].length > 0) {
+      result.push({
+        category,
+        displayName: CATEGORY_CONFIG[category].displayName,
+        themes: groups[category],
+      });
+    }
+  }
+
+  return result;
 }
 
 // Get a theme synchronously from cache (returns null if not loaded yet)
