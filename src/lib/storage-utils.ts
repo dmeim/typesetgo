@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS: Omit<
   wordTarget: 25,
   punctuation: false,
   numbers: false,
-  typingFontSize: 3.25,
+  typingFontSize: 4,
   iconFontSize: 1,
   helpFontSize: 1,
   difficulty: "beginner",

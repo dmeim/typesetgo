@@ -25,6 +25,9 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { useUser, useClerk } from "@clerk/clerk-react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 // Constants
 const TIME_PRESETS = [15, 30, 60, 120, 300];
@@ -285,6 +288,38 @@ export default function TypingPractice({
   const [planResults, setPlanResults] = useState<Record<string, PlanStepResult>>({});
   const [showPlanResultsModal, setShowPlanResultsModal] = useState(false);
 
+  // Save Results State
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const pendingResultRef = useRef<{
+    wpm: number;
+    accuracy: number;
+    mode: string;
+    duration: number;
+    wordCount: number;
+    difficulty: string;
+    punctuation: boolean;
+    numbers: boolean;
+    wordsCorrect: number;
+    wordsIncorrect: number;
+    charsMissed: number;
+    charsExtra: number;
+  } | null>(null);
+
+  // Clerk auth hooks
+  const { isSignedIn, user } = useUser();
+  const { openSignIn } = useClerk();
+  const saveResultMutation = useMutation(api.testResults.saveResult);
+  const getOrCreateUser = useMutation(api.users.getOrCreateUser);
+
+  // Preferences sync
+  const dbPreferences = useQuery(
+    api.preferences.getPreferences,
+    user ? { clerkId: user.id } : "skip"
+  );
+  const savePreferencesMutation = useMutation(api.preferences.savePreferences);
+  const hasAppliedDbPrefs = useRef(false);
+  const prefsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeWordRef = useRef<HTMLSpanElement | null>(null);
@@ -356,6 +391,122 @@ export default function TypingPractice({
     saveThemeName(selectedThemeName);
   }, [theme, selectedThemeName]);
 
+  // --- Load Preferences from DB (for logged-in users) ---
+  useEffect(() => {
+    if (!dbPreferences || hasAppliedDbPrefs.current) return;
+    hasAppliedDbPrefs.current = true;
+
+    // Use requestAnimationFrame to defer state updates and avoid cascading renders
+    requestAnimationFrame(() => {
+      // Apply theme from DB
+      if (!externalTheme) {
+        if (dbPreferences.customTheme) {
+          setInternalTheme(dbPreferences.customTheme);
+        }
+        setInternalSelectedThemeName(dbPreferences.themeName);
+      }
+
+      // Apply settings from DB
+      setSettings((prev) => ({
+        ...prev,
+        mode: dbPreferences.defaultMode as typeof prev.mode,
+        duration: dbPreferences.defaultDuration,
+        wordTarget: dbPreferences.defaultWordTarget,
+        difficulty: dbPreferences.defaultDifficulty as typeof prev.difficulty,
+        quoteLength: dbPreferences.defaultQuoteLength as typeof prev.quoteLength,
+        punctuation: dbPreferences.defaultPunctuation,
+        numbers: dbPreferences.defaultNumbers,
+        soundEnabled: dbPreferences.soundEnabled,
+        typingSound: dbPreferences.typingSound,
+        warningSound: dbPreferences.warningSound,
+        errorSound: dbPreferences.errorSound,
+        ghostWriterEnabled: dbPreferences.ghostWriterEnabled,
+        ghostWriterSpeed: dbPreferences.ghostWriterSpeed,
+        typingFontSize: dbPreferences.typingFontSize,
+        iconFontSize: dbPreferences.iconFontSize,
+        helpFontSize: dbPreferences.helpFontSize,
+        textAlign: dbPreferences.textAlign as typeof prev.textAlign,
+      }));
+    });
+  }, [dbPreferences, externalTheme]);
+
+  // --- Save Preferences to DB (debounced, for logged-in users) ---
+  useEffect(() => {
+    if (!user || !hasLoadedFromStorage.current) return;
+
+    if (prefsDebounceRef.current) {
+      clearTimeout(prefsDebounceRef.current);
+    }
+
+    prefsDebounceRef.current = setTimeout(async () => {
+      try {
+        // Ensure user exists in Convex first
+        await getOrCreateUser({
+          clerkId: user.id,
+          email: user.primaryEmailAddress?.emailAddress ?? "",
+          username: user.username ?? user.firstName ?? "User",
+          avatarUrl: user.imageUrl,
+        });
+
+        await savePreferencesMutation({
+          clerkId: user.id,
+          preferences: {
+            themeName: selectedThemeName,
+            customTheme: selectedThemeName === "Custom" ? theme : undefined,
+            soundEnabled: settings.soundEnabled,
+            typingSound: settings.typingSound,
+            warningSound: settings.warningSound,
+            errorSound: settings.errorSound,
+            ghostWriterEnabled: settings.ghostWriterEnabled,
+            ghostWriterSpeed: settings.ghostWriterSpeed,
+            typingFontSize: settings.typingFontSize,
+            iconFontSize: settings.iconFontSize,
+            helpFontSize: settings.helpFontSize,
+            textAlign: settings.textAlign,
+            defaultMode: settings.mode,
+            defaultDuration: settings.duration,
+            defaultWordTarget: settings.wordTarget,
+            defaultDifficulty: settings.difficulty,
+            defaultQuoteLength: settings.quoteLength,
+            defaultPunctuation: settings.punctuation,
+            defaultNumbers: settings.numbers,
+          },
+        });
+      } catch (error) {
+        console.warn("Failed to save preferences to DB:", error);
+      }
+    }, 1000);
+
+    return () => {
+      if (prefsDebounceRef.current) {
+        clearTimeout(prefsDebounceRef.current);
+      }
+    };
+  }, [
+    user,
+    settings.mode,
+    settings.duration,
+    settings.wordTarget,
+    settings.difficulty,
+    settings.quoteLength,
+    settings.punctuation,
+    settings.numbers,
+    settings.soundEnabled,
+    settings.typingSound,
+    settings.warningSound,
+    settings.errorSound,
+    settings.ghostWriterEnabled,
+    settings.ghostWriterSpeed,
+    settings.typingFontSize,
+    settings.iconFontSize,
+    settings.helpFontSize,
+    settings.textAlign,
+    theme,
+    selectedThemeName,
+    getOrCreateUser,
+    savePreferencesMutation,
+  ]);
+
   // --- Load available themes ---
   useEffect(() => {
     fetchAllThemes().then((themes) => {
@@ -420,6 +571,7 @@ export default function TypingPractice({
     setIsFocused(true);
     setIsWarningPlayed(false);
     setUiOpacity(1);
+    setSaveState("idle");
     inputRef.current?.focus();
   }, []);
 
@@ -496,6 +648,62 @@ export default function TypingPractice({
       // Ignore errors
     }
   }, [settings.soundEnabled, settings.warningSound, soundManifest]);
+
+  // Save results to Convex
+  const saveResults = useCallback(async (resultData?: typeof pendingResultRef.current) => {
+    const dataToSave = resultData || {
+      wpm: Math.round(wpm),
+      accuracy: Math.round(accuracy * 10) / 10,
+      mode: settings.mode,
+      duration: elapsedMs,
+      wordCount: Math.floor(typedText.length / 5),
+      difficulty: settings.difficulty,
+      punctuation: settings.punctuation,
+      numbers: settings.numbers,
+      wordsCorrect: wordResults.correctWords.length,
+      wordsIncorrect: wordResults.incorrectWords.length,
+      charsMissed: stats.missed,
+      charsExtra: stats.extra,
+    };
+
+    if (!user) {
+      // Store result and open sign-in
+      pendingResultRef.current = dataToSave;
+      openSignIn();
+      return;
+    }
+
+    setSaveState("saving");
+    try {
+      // Ensure user exists in Convex
+      await getOrCreateUser({
+        clerkId: user.id,
+        email: user.primaryEmailAddress?.emailAddress ?? "",
+        username: user.username ?? user.firstName ?? "User",
+        avatarUrl: user.imageUrl,
+      });
+
+      // Save the result
+      await saveResultMutation({
+        clerkId: user.id,
+        ...dataToSave,
+      });
+      setSaveState("saved");
+      pendingResultRef.current = null;
+    } catch (error) {
+      console.error("Failed to save result:", error);
+      setSaveState("error");
+    }
+  }, [user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, elapsedMs, typedText.length, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation]);
+
+  // Effect to save pending result after sign-in
+  useEffect(() => {
+    if (isSignedIn && user && pendingResultRef.current) {
+      const pending = pendingResultRef.current;
+      pendingResultRef.current = null;
+      saveResults(pending);
+    }
+  }, [isSignedIn, user, saveResults]);
 
   const generateTest = useCallback(() => {
     if (settings.mode === "quote") {
@@ -695,11 +903,16 @@ export default function TypingPractice({
         e.preventDefault();
         resetSession(true);
       }
+      // Spacebar to save results (only if not already saved/saving and not in connect mode)
+      if (e.key === " " && !connectMode && saveState !== "saving" && saveState !== "saved") {
+        e.preventDefault();
+        saveResults();
+      }
     };
 
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isFinished, generateTest, resetSession]);
+  }, [isFinished, generateTest, resetSession, connectMode, saveState, saveResults]);
 
   const handlePresetSubmit = (text: string) => {
     const sanitized = text.replace(/[^\x20-\x7E\n]/g, "").replace(/\s+/g, " ").trim();
@@ -1415,6 +1628,90 @@ export default function TypingPractice({
 
             {/* Actions */}
             <div className="flex gap-4 justify-center">
+              {/* Save Results Button */}
+              {!connectMode && (
+                <button
+                  type="button"
+                  onClick={() => saveResults()}
+                  disabled={saveState === "saving" || saveState === "saved"}
+                  className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                  style={{ 
+                    backgroundColor: saveState === "saved" ? `${theme.correctText}20` : saveState === "error" ? `${theme.incorrectText}20` : theme.buttonSelected, 
+                    color: saveState === "saved" ? theme.correctText : saveState === "error" ? theme.incorrectText : theme.backgroundColor 
+                  }}
+                >
+                  {saveState === "idle" && (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                      </svg>
+                      Save Results
+                    </>
+                  )}
+                  {saveState === "saving" && (
+                    <>
+                      <div
+                        className="h-4 w-4 rounded-full border-2 border-t-transparent animate-spin mr-2"
+                        style={{ borderColor: "currentColor", borderTopColor: "transparent" }}
+                      />
+                      Saving...
+                    </>
+                  )}
+                  {saveState === "saved" && (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      Saved
+                    </>
+                  )}
+                  {saveState === "error" && (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mr-2"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      Error - Try Again
+                    </>
+                  )}
+                </button>
+              )}
               {!connectMode && (
                 <button
                   type="button"
@@ -1441,7 +1738,9 @@ export default function TypingPractice({
 
             <div className="mt-6 text-center text-sm" style={{ color: theme.defaultText }}>
               <div>
-                Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: theme.surfaceColor, color: theme.correctText }}>Enter</kbd> to continue
+                Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: theme.surfaceColor, color: theme.correctText }}>Space</kbd> to save
+                {" · "}
+                <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: theme.surfaceColor, color: theme.correctText }}>Enter</kbd> to continue
               </div>
               <div className="mt-1">
                 Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: theme.surfaceColor, color: theme.correctText }}>Tab</kbd> to repeat this test

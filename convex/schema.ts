@@ -3,6 +3,39 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Users for authentication
+  users: defineTable({
+    clerkId: v.string(),
+    email: v.string(),
+    username: v.string(),
+    avatarUrl: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_email", ["email"]),
+
+  // Test results for saving typing stats
+  testResults: defineTable({
+    userId: v.id("users"),
+    wpm: v.number(),
+    accuracy: v.number(),
+    mode: v.string(),
+    duration: v.number(),
+    wordCount: v.number(),
+    difficulty: v.string(),
+    punctuation: v.boolean(),
+    numbers: v.boolean(),
+    // Additional stats (optional for backwards compatibility with existing data)
+    wordsCorrect: v.optional(v.number()),
+    wordsIncorrect: v.optional(v.number()),
+    charsMissed: v.optional(v.number()),
+    charsExtra: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_date", ["userId", "createdAt"]),
+
   // Rooms for multiplayer Connect mode
   rooms: defineTable({
     code: v.string(),
@@ -55,4 +88,53 @@ export default defineSchema({
   })
     .index("by_room", ["roomId"])
     .index("by_session", ["sessionId"]),
+
+  // User preferences for syncing settings across devices
+  userPreferences: defineTable({
+    userId: v.id("users"),
+
+    // Theme
+    themeName: v.string(),
+    customTheme: v.optional(
+      v.object({
+        backgroundColor: v.string(),
+        surfaceColor: v.string(),
+        cursor: v.string(),
+        ghostCursor: v.string(),
+        defaultText: v.string(),
+        upcomingText: v.string(),
+        correctText: v.string(),
+        incorrectText: v.string(),
+        buttonSelected: v.string(),
+        buttonUnselected: v.string(),
+      })
+    ),
+
+    // Sound settings
+    soundEnabled: v.boolean(),
+    typingSound: v.string(),
+    warningSound: v.string(),
+    errorSound: v.string(),
+
+    // Ghost writer
+    ghostWriterEnabled: v.boolean(),
+    ghostWriterSpeed: v.number(),
+
+    // Display settings
+    typingFontSize: v.number(),
+    iconFontSize: v.number(),
+    helpFontSize: v.number(),
+    textAlign: v.string(),
+
+    // Test defaults
+    defaultMode: v.string(),
+    defaultDuration: v.number(),
+    defaultWordTarget: v.number(),
+    defaultDifficulty: v.string(),
+    defaultQuoteLength: v.string(),
+    defaultPunctuation: v.boolean(),
+    defaultNumbers: v.boolean(),
+
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
 });

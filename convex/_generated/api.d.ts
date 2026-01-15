@@ -9,7 +9,10 @@
  */
 
 import type * as participants from "../participants.js";
+import type * as preferences from "../preferences.js";
 import type * as rooms from "../rooms.js";
+import type * as testResults from "../testResults.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -19,7 +22,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   participants: typeof participants;
+  preferences: typeof preferences;
   rooms: typeof rooms;
+  testResults: typeof testResults;
+  users: typeof users;
 }>;
 
 /**
