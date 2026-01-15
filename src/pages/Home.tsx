@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import TypingPractice from "@/components/typing/TypingPractice";
 import Header from "@/components/layout/Header";
 import { StatsModal } from "@/components/auth";
@@ -56,6 +57,21 @@ export default function Home() {
       {showStatsModal && (
         <StatsModal theme={theme} onClose={() => setShowStatsModal(false)} />
       )}
+
+      {/* Footer with legal links */}
+      <footer
+        className={`fixed bottom-4 left-0 right-0 flex justify-center gap-4 text-xs transition-opacity duration-300 ${
+          isTyping ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+        style={{ color: theme.defaultText }}
+      >
+        <Link to="/privacy" className="hover:underline opacity-50 hover:opacity-100 transition-opacity">
+          Privacy
+        </Link>
+        <Link to="/tos" className="hover:underline opacity-50 hover:opacity-100 transition-opacity">
+          TOS
+        </Link>
+      </footer>
     </div>
   );
 }
