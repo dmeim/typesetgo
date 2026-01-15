@@ -20,6 +20,11 @@ import type { Plan, PlanItem, PlanStepResult } from "@/types/plan";
 import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
 import PlanSplash from "@/components/plan/PlanSplash";
 import PlanResultsModal from "@/components/plan/PlanResultsModal";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 // Constants
 const TIME_PRESETS = [15, 30, 60, 120, 300];
@@ -122,6 +127,28 @@ const computeStats = (typed: string, reference: string) => {
   }
 
   return { correct, incorrect, missed, extra };
+};
+
+// Word-level results computation
+const computeWordResults = (typed: string, reference: string) => {
+  const typedWords = typed.trim().split(" ").filter(w => w.length > 0);
+  const referenceWords = reference.split(" ");
+  
+  const correctWords: string[] = [];
+  const incorrectWords: { typed: string; expected: string }[] = [];
+  
+  for (let i = 0; i < typedWords.length; i++) {
+    const typedWord = typedWords[i];
+    const refWord = referenceWords[i] || "";
+    
+    if (typedWord === refWord) {
+      correctWords.push(typedWord);
+    } else if (refWord) {
+      incorrectWords.push({ typed: typedWord, expected: refWord });
+    }
+  }
+  
+  return { correctWords, incorrectWords };
 };
 
 const formatTime = (seconds: number) => {
@@ -227,6 +254,7 @@ export default function TypingPractice({
 
   // --- Calculated Stats ---
   const stats = useMemo(() => computeStats(typedText, words), [typedText, words]);
+  const wordResults = useMemo(() => computeWordResults(typedText, words), [typedText, words]);
   const accuracy = typedText.length > 0 ? (stats.correct / typedText.length) * 100 : 100;
   const elapsedMinutes = elapsedMs / 60000 || 0.01;
   const wpm = (typedText.length / 5) / elapsedMinutes;
@@ -1232,14 +1260,81 @@ export default function TypingPractice({
               <div className="flex-1 rounded-xl border border-gray-800/50 p-4" style={{ backgroundColor: `${GLOBAL_COLORS.surface}80` }}>
                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 text-center mb-3">Words</div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="text-3xl font-bold text-gray-200 mb-1">{stats.correct}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Correct</div>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="text-3xl font-bold mb-1" style={{ color: GLOBAL_COLORS.text.error }}>{stats.incorrect}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Incorrect</div>
-                  </div>
+                  {/* Correct Words with Hover */}
+                  <HoverCard openDelay={100} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <div className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
+                        <div className="text-3xl font-bold text-gray-200 mb-1">{wordResults.correctWords.length}</div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Correct</div>
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent 
+                      className="w-56 p-0 border-gray-700"
+                      style={{ backgroundColor: GLOBAL_COLORS.surface }}
+                    >
+                      <div className="p-3 border-b border-gray-700">
+                        <div className="text-sm font-semibold text-gray-200">Correct Words</div>
+                        <div className="text-xs text-gray-500">{wordResults.correctWords.length} words</div>
+                      </div>
+                      <div className="max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
+                        {wordResults.correctWords.length > 0 ? (
+                          <div className="p-2 flex flex-wrap gap-1.5">
+                            {wordResults.correctWords.map((word, idx) => (
+                              <span 
+                                key={idx}
+                                className="px-2 py-0.5 bg-green-900/30 text-green-400 text-xs rounded-md font-mono"
+                              >
+                                {word}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-3 text-center text-gray-500 text-sm">
+                            No correct words
+                          </div>
+                        )}
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+
+                  {/* Incorrect Words with Hover */}
+                  <HoverCard openDelay={100} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <div className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
+                        <div className="text-3xl font-bold mb-1" style={{ color: GLOBAL_COLORS.text.error }}>{wordResults.incorrectWords.length}</div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Incorrect</div>
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent 
+                      className="w-64 p-0 border-gray-700"
+                      style={{ backgroundColor: GLOBAL_COLORS.surface }}
+                    >
+                      <div className="p-3 border-b border-gray-700">
+                        <div className="text-sm font-semibold text-gray-200">Incorrect Words</div>
+                        <div className="text-xs text-gray-500">{wordResults.incorrectWords.length} mistakes</div>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
+                        {wordResults.incorrectWords.length > 0 ? (
+                          <div className="p-2 space-y-1.5">
+                            {wordResults.incorrectWords.map((item, idx) => (
+                              <div 
+                                key={idx}
+                                className="flex items-center gap-2 px-2 py-1 bg-gray-800/50 rounded text-xs font-mono"
+                              >
+                                <span className="text-red-400">{item.typed}</span>
+                                <span className="text-gray-500">→</span>
+                                <span className="text-green-400">{item.expected}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-3 text-center text-gray-500 text-sm">
+                            No mistakes - perfect!
+                          </div>
+                        )}
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
                 </div>
               </div>
 
