@@ -16,6 +16,7 @@ export const THEME_MANIFEST: Record<string, ThemeDefinition> = {
     buttonUnselected: "#3cb5ee",
     buttonSelected: "#0097b2",
     backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
     ghostCursor: "#a855f7",
   },
   christmas: {
@@ -28,6 +29,7 @@ export const THEME_MANIFEST: Record<string, ThemeDefinition> = {
     buttonUnselected: "#c41e3a",
     buttonSelected: "#165b33",
     backgroundColor: "#1a1a1a",
+    surfaceColor: "#141414",
     ghostCursor: "#ffd700",
   },
   easter: {
@@ -40,6 +42,7 @@ export const THEME_MANIFEST: Record<string, ThemeDefinition> = {
     buttonUnselected: "#ffb6c1",
     buttonSelected: "#dda0dd",
     backgroundColor: "#2d2d44",
+    surfaceColor: "#252538",
     ghostCursor: "#ffeaa7",
   },
   ocean: {
@@ -52,6 +55,7 @@ export const THEME_MANIFEST: Record<string, ThemeDefinition> = {
     buttonUnselected: "#00bcd4",
     buttonSelected: "#0097a7",
     backgroundColor: "#1a237e",
+    surfaceColor: "#151c6a",
     ghostCursor: "#64ffda",
   },
   sunset: {
@@ -64,6 +68,7 @@ export const THEME_MANIFEST: Record<string, ThemeDefinition> = {
     buttonUnselected: "#ff7043",
     buttonSelected: "#ff5722",
     backgroundColor: "#3e2723",
+    surfaceColor: "#33201c",
     ghostCursor: "#ffc107",
   },
   thanksgiving: {
@@ -76,6 +81,7 @@ export const THEME_MANIFEST: Record<string, ThemeDefinition> = {
     buttonUnselected: "#d2691e",
     buttonSelected: "#a0522d",
     backgroundColor: "#2f1810",
+    surfaceColor: "#26130c",
     ghostCursor: "#daa520",
   },
 };

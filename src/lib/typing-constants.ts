@@ -23,6 +23,7 @@ export type Theme = {
   buttonUnselected: string;
   buttonSelected: string;
   backgroundColor: string;
+  surfaceColor: string;
   ghostCursor: string;
 };
 
@@ -60,5 +61,6 @@ export const DEFAULT_THEME: Theme = {
   buttonUnselected: GLOBAL_COLORS.brand.primary, // Sky Blue
   buttonSelected: GLOBAL_COLORS.brand.secondary, // Teal
   backgroundColor: GLOBAL_COLORS.background, // Deep Charcoal
+  surfaceColor: GLOBAL_COLORS.surface, // Darker Charcoal - Cards, Modals
   ghostCursor: GLOBAL_COLORS.brand.accent, // Purple
 };
