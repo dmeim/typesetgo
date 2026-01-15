@@ -4,6 +4,9 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      args:
+        - VITE_CONVEX_URL=${VITE_CONVEX_URL}
+        - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
     ports:
       - "3000:80"
     restart: unless-stopped
