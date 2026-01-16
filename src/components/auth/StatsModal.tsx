@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -11,6 +11,10 @@ interface StatsModalProps {
   theme: Theme;
   onClose: () => void;
 }
+
+// Sort types for the test history table
+type SortColumn = "date" | "wpm" | "accuracy";
+type SortDirection = "asc" | "desc";
 
 // Type for test result from DB (new stats are optional for backwards compatibility)
 interface TestResult {
@@ -114,6 +118,57 @@ function TestTypeChips({
         </span>
       ))}
     </div>
+  );
+}
+
+// Sortable Header Component
+function SortableHeader({
+  label,
+  column,
+  currentColumn,
+  currentDirection,
+  onSort,
+  theme,
+  align = "left",
+}: {
+  label: string;
+  column: SortColumn;
+  currentColumn: SortColumn;
+  currentDirection: SortDirection;
+  onSort: (column: SortColumn) => void;
+  theme: Theme;
+  align?: "left" | "right";
+}) {
+  const isActive = currentColumn === column;
+  
+  return (
+    <button
+      onClick={() => onSort(column)}
+      className={`flex items-center gap-1 hover:opacity-80 transition-opacity ${
+        align === "right" ? "justify-end ml-auto" : ""
+      }`}
+      style={{ color: isActive ? theme.buttonSelected : theme.defaultText }}
+    >
+      <span>{label}</span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ 
+          opacity: isActive ? 1 : 0.4,
+          transform: isActive && currentDirection === "asc" ? "rotate(180deg)" : "none",
+          transition: "transform 0.15s ease"
+        }}
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </button>
   );
 }
 
@@ -379,8 +434,40 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
     user ? { clerkId: user.id } : "skip"
   );
   const [selectedTest, setSelectedTest] = useState<TestResult | null>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const isLoading = stats === undefined;
+
+  // Sort results based on current sort state
+  const sortedResults = useMemo(() => {
+    if (!stats?.allResults) return [];
+    return [...stats.allResults].sort((a, b) => {
+      let comparison = 0;
+      switch (sortColumn) {
+        case "date":
+          comparison = a.createdAt - b.createdAt;
+          break;
+        case "wpm":
+          comparison = a.wpm - b.wpm;
+          break;
+        case "accuracy":
+          comparison = a.accuracy - b.accuracy;
+          break;
+      }
+      return sortDirection === "desc" ? -comparison : comparison;
+    });
+  }, [stats?.allResults, sortColumn, sortDirection]);
+
+  // Handle sort column click - toggle direction if same column, otherwise set new column with desc
+  const handleSort = (column: SortColumn) => {
+    if (column === sortColumn) {
+      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
 
   return (
     <div
@@ -552,16 +639,39 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
                     gridTemplateColumns: "80px 1fr 50px 55px"
                   }}
                 >
-                  <div>Date</div>
+                  <SortableHeader
+                    label="Date"
+                    column="date"
+                    currentColumn={sortColumn}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    theme={theme}
+                  />
                   <div className="pl-2">Test Type</div>
-                  <div className="text-right">WPM</div>
-                  <div className="text-right">Acc</div>
+                  <SortableHeader
+                    label="WPM"
+                    column="wpm"
+                    currentColumn={sortColumn}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    theme={theme}
+                    align="right"
+                  />
+                  <SortableHeader
+                    label="Acc"
+                    column="accuracy"
+                    currentColumn={sortColumn}
+                    currentDirection={sortDirection}
+                    onSort={handleSort}
+                    theme={theme}
+                    align="right"
+                  />
                 </div>
 
                 {/* Table Body - Scrollable */}
                 <div className="flex-1 overflow-y-auto">
-                  {stats.allResults.length > 0 ? (
-                    stats.allResults.map((result) => (
+                  {sortedResults.length > 0 ? (
+                    sortedResults.map((result) => (
                       <div
                         key={result._id}
                         className="grid gap-4 px-4 py-2.5 border-b last:border-b-0 hover:bg-white/10 transition-colors cursor-pointer items-center"
