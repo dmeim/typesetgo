@@ -4,7 +4,6 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { Theme } from "@/lib/typing-constants";
-import StreakCard from "./StreakCard";
 import AchievementsGrid from "./AchievementsGrid";
 
 interface StatsModalProps {
@@ -475,7 +474,7 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl rounded-lg p-6 shadow-xl mx-4 max-h-[90vh] flex flex-col"
+        className="w-full max-w-4xl rounded-lg p-6 shadow-xl mx-4 max-h-[90vh] flex flex-col"
         style={{ backgroundColor: theme.surfaceColor }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -586,8 +585,30 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
 
             {/* Right Column - Additional Stats + History */}
             <div className="flex-1 flex flex-col gap-4 min-h-0">
-              {/* Top Row - 3 Cards */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Top Row - 4 Cards */}
+              <div className="grid grid-cols-4 gap-3">
+                {/* Streak Card */}
+                <div
+                  className="p-3 rounded-xl"
+                  style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                >
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.defaultText }}>
+                    Day Streak
+                  </div>
+                  <div className="text-lg font-bold flex items-center gap-1" style={{ color: theme.buttonSelected }}>
+                    {streak?.currentStreak ?? 0}
+                    <span
+                      className="text-lg"
+                      style={{
+                        filter: (streak?.currentStreak ?? 0) > 0 ? "none" : "grayscale(100%)",
+                        opacity: (streak?.currentStreak ?? 0) > 0 ? 1 : 0.5,
+                      }}
+                    >
+                      🔥
+                    </span>
+                  </div>
+                </div>
+
                 <div
                   className="p-3 rounded-xl"
                   style={{ backgroundColor: `${theme.backgroundColor}80` }}
@@ -708,25 +729,13 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
           </div>
         )}
 
-        {/* Streak & Achievements Section */}
+        {/* Achievements Section */}
         {!isLoading && stats && stats.totalTests > 0 && (
-          <div className="mt-6 flex gap-4" style={{ minHeight: "160px" }}>
-            {/* Left - Streak Card (1/4 width) */}
-            <div className="w-36 flex-shrink-0">
-              <StreakCard
-                currentStreak={streak?.currentStreak ?? 0}
-                longestStreak={streak?.longestStreak ?? 0}
-                theme={theme}
-              />
-            </div>
-
-            {/* Right - Achievements Grid (3/4 width) */}
-            <div className="flex-1 min-w-0">
+          <div className="mt-6" style={{ minHeight: "160px" }}>
               <AchievementsGrid
                 earnedAchievements={achievements ?? {}}
                 theme={theme}
               />
-            </div>
           </div>
         )}
 
