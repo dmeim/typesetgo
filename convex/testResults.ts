@@ -144,3 +144,88 @@ export const getUserStats = query({
     };
   },
 });
+
+// Get leaderboard data for top WPM scores
+export const getLeaderboard = query({
+  args: {
+    timeRange: v.union(
+      v.literal("all-time"),
+      v.literal("week"),
+      v.literal("today")
+    ),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 25;
+
+    // Calculate time cutoff based on range
+    const now = Date.now();
+    let timeCutoff = 0;
+
+    if (args.timeRange === "today") {
+      // Start of today (midnight UTC)
+      const today = new Date(now);
+      today.setUTCHours(0, 0, 0, 0);
+      timeCutoff = today.getTime();
+    } else if (args.timeRange === "week") {
+      // 7 days ago
+      timeCutoff = now - 7 * 24 * 60 * 60 * 1000;
+    }
+    // For "all-time", timeCutoff stays 0
+
+    // Fetch all test results (we'll filter and group in memory)
+    const allResults = await ctx.db.query("testResults").collect();
+
+    // Filter by time range
+    const filteredResults =
+      args.timeRange === "all-time"
+        ? allResults
+        : allResults.filter((r) => r.createdAt >= timeCutoff);
+
+    // Group by user and find best WPM for each user
+    // Use a Map keyed by the string representation of userId
+    const userBestMap = new Map<
+      string,
+      { wpm: number; createdAt: number; userId: typeof filteredResults[0]["userId"] }
+    >();
+
+    for (const result of filteredResults) {
+      const userIdStr = result.userId as unknown as string;
+      const existing = userBestMap.get(userIdStr);
+
+      if (!existing || result.wpm > existing.wpm) {
+        userBestMap.set(userIdStr, {
+          wpm: result.wpm,
+          createdAt: result.createdAt,
+          userId: result.userId,
+        });
+      }
+    }
+
+    // Convert to array and sort by WPM descending
+    const sortedBests = Array.from(userBestMap.values()).sort(
+      (a, b) => b.wpm - a.wpm
+    );
+
+    // Take top N
+    const topBests = sortedBests.slice(0, limit);
+
+    // Fetch user details for each entry
+    const leaderboard = await Promise.all(
+      topBests.map(async (entry, index) => {
+        // Get user by ID directly
+        const user = await ctx.db.get(entry.userId);
+
+        return {
+          rank: index + 1,
+          username: user?.username ?? "Unknown",
+          avatarUrl: user?.avatarUrl ?? null,
+          wpm: entry.wpm,
+          createdAt: entry.createdAt,
+        };
+      })
+    );
+
+    return leaderboard;
+  },
+});

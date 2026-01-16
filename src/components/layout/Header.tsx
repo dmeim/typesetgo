@@ -7,6 +7,7 @@ interface HeaderProps {
   onShowSettings: () => void;
   onShowTheme: () => void;
   onShowStats: () => void;
+  onShowLeaderboard: () => void;
   hidden?: boolean;
 }
 
@@ -15,6 +16,7 @@ export default function Header({
   onShowSettings,
   onShowTheme,
   onShowStats,
+  onShowLeaderboard,
   hidden = false,
 }: HeaderProps) {
   return (
@@ -57,6 +59,34 @@ export default function Header({
           </svg>
         </Link>
         */}
+
+        {/* Leaderboard */}
+        <button
+          type="button"
+          onClick={onShowLeaderboard}
+          className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
+          style={{ color: theme.buttonUnselected }}
+          title="Leaderboard"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 22h16" />
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+          </svg>
+        </button>
 
         {/* Theme */}
         <button
