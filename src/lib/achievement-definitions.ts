@@ -4,9 +4,7 @@
 import {
   type AchievementTier,
   type ProgressiveCategory,
-  PROGRESSIVE_THRESHOLDS,
   getAllThresholdsForCategory,
-  buildAchievementId,
 } from "./achievement-thresholds";
 
 export type { AchievementTier } from "./achievement-thresholds";
@@ -185,10 +183,10 @@ function generateFromThresholds(
  * Generate a default title based on value and tier
  */
 function generateDefaultTitle(
-  value: number,
+  _value: number,
   tier: AchievementTier,
   level: number,
-  category: AchievementCategory
+  _category: AchievementCategory
 ): string {
   const tierNames: Record<AchievementTier, string> = {
     copper: "Copper",
@@ -293,7 +291,7 @@ function generateAccuracyAchievements(): Achievement[] {
     progressiveGroup: "accuracy-streak",
     icon: "🎯",
     descriptionFn: (count) => `Get 100% accuracy on ${count} tests in a row`,
-    titleFn: (count, tier, level) => {
+    titleFn: (count, _tier, _level) => {
       if (count >= 50) return "Untouchable";
       if (count >= 25) return "Flawless Master";
       return `Flawless Streak x${count}`;
@@ -316,7 +314,7 @@ function generateTimeAchievements(): Achievement[] {
       }
       return `Spend ${minutes} minute${minutes !== 1 ? "s" : ""} typing total`;
     },
-    titleFn: (minutes, tier, level) => {
+    titleFn: (minutes, _tier, _level) => {
       // Special names for milestone times
       const specialNames: Record<number, string> = {
         10: "Ten Minutes",
@@ -343,7 +341,7 @@ function generateStreakAchievements(): Achievement[] {
     progressiveGroup: "streak",
     icon: "🔥",
     descriptionFn: (days) => `Maintain a ${days}-day typing streak`,
-    titleFn: (days, tier, level) => {
+    titleFn: (days, _tier, _level) => {
       // Special names for milestone streaks
       const specialNames: Record<number, string> = {
         3: "Three Day Streak",
@@ -369,7 +367,7 @@ function generateTestAchievements(): Achievement[] {
     icon: "🏆",
     descriptionFn: (count) =>
       `Complete ${count.toLocaleString()} typing test${count > 1 ? "s" : ""}`,
-    titleFn: (count, tier, level) => {
+    titleFn: (count, _tier, _level) => {
       // Special names for milestone test counts
       const specialNames: Record<number, string> = {
         1: "First Test",
