@@ -198,7 +198,7 @@ export const getLeaderboard = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit ?? 25;
+    const limit = args.limit ?? 20;
 
     // Calculate time cutoff based on range
     const now = Date.now();

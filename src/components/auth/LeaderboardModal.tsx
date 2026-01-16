@@ -10,12 +10,94 @@ interface LeaderboardModalProps {
 
 type TimeRange = "all-time" | "week" | "today";
 
+interface LeaderboardEntry {
+  rank: number;
+  username: string;
+  avatarUrl: string | null;
+  wpm: number;
+  createdAt: number;
+}
+
 function formatDate(timestamp: number): string {
   const date = new Date(timestamp);
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   const year = date.getFullYear();
   return `${month}/${day}/${year}`;
+}
+
+function getMedalEmoji(rank: number): string {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return "";
+}
+
+interface PodiumCardProps {
+  entry: LeaderboardEntry;
+  theme: Theme;
+  height: number;
+}
+
+function PodiumCard({ entry, theme, height }: PodiumCardProps) {
+  return (
+    <div
+      className="flex flex-col items-center rounded-t-xl px-5 pt-5 pb-3 w-40"
+      style={{
+        backgroundColor: `${theme.backgroundColor}90`,
+        height: `${height}px`,
+        border: `1px solid ${theme.defaultText}20`,
+        borderBottom: "none",
+      }}
+    >
+      {/* Row 1: Avatar + Medal */}
+      <div className="flex items-center gap-2 mb-3">
+        {entry.avatarUrl ? (
+          <img
+            src={entry.avatarUrl}
+            alt={entry.username}
+            className="h-14 w-14 rounded-full object-cover"
+          />
+        ) : (
+          <div
+            className="h-14 w-14 rounded-full flex items-center justify-center text-xl font-medium"
+            style={{
+              backgroundColor: theme.buttonSelected,
+              color: theme.backgroundColor,
+            }}
+          >
+            {entry.username.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <span className="text-3xl">{getMedalEmoji(entry.rank)}</span>
+      </div>
+
+      {/* Row 2: Username */}
+      <div
+        className="text-sm font-medium truncate w-full text-center mb-2"
+        style={{ color: theme.correctText }}
+        title={entry.username}
+      >
+        {entry.username}
+      </div>
+
+      {/* Row 3: WPM Stat */}
+      <div
+        className="text-xl font-bold mb-1"
+        style={{ color: theme.buttonSelected }}
+      >
+        {entry.wpm} <span className="text-xs font-normal">WPM</span>
+      </div>
+
+      {/* Row 4: Date */}
+      <div
+        className="text-xs"
+        style={{ color: theme.defaultText }}
+      >
+        {formatDate(entry.createdAt)}
+      </div>
+    </div>
+  );
 }
 
 export default function LeaderboardModal({
@@ -33,6 +115,15 @@ export default function LeaderboardModal({
     { value: "today", label: "Today" },
   ];
 
+  // Split leaderboard into top 3 and remaining
+  const top3 = leaderboard?.slice(0, 3) ?? [];
+  const remaining = leaderboard?.slice(3) ?? [];
+
+  // Get entries by position for podium arrangement (2nd, 1st, 3rd)
+  const first = top3.find((e) => e.rank === 1);
+  const second = top3.find((e) => e.rank === 2);
+  const third = top3.find((e) => e.rank === 3);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
@@ -44,7 +135,7 @@ export default function LeaderboardModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -95,7 +186,7 @@ export default function LeaderboardModal({
         </div>
 
         {/* Time Range Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-4">
           {timeRangeOptions.map((option) => (
             <button
               key={option.value}
@@ -130,102 +221,119 @@ export default function LeaderboardModal({
           </div>
         )}
 
-        {/* Leaderboard Table */}
+        {/* Leaderboard Content */}
         {!isLoading && leaderboard && leaderboard.length > 0 && (
-          <div
-            className="flex-1 rounded-xl overflow-hidden flex flex-col min-h-0"
-            style={{ backgroundColor: `${theme.backgroundColor}80` }}
-          >
-            {/* Table Header */}
-            <div
-              className="grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wide border-b"
-              style={{
-                color: theme.defaultText,
-                borderColor: `${theme.defaultText}20`,
-                gridTemplateColumns: "48px 1fr 80px 100px",
-              }}
-            >
-              <div className="text-center">User</div>
-              <div>Username</div>
-              <div className="text-right">WPM</div>
-              <div className="text-right">Date</div>
-            </div>
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Podium Section - Frozen at top */}
+            {top3.length > 0 && (
+              <div className="flex justify-center items-end gap-2 mb-4 px-4">
+                {/* 2nd Place - Left, Medium Height */}
+                {second && (
+                  <PodiumCard entry={second} theme={theme} height={220} />
+                )}
+                
+                {/* 1st Place - Center, Tallest */}
+                {first && (
+                  <PodiumCard entry={first} theme={theme} height={250} />
+                )}
+                
+                {/* 3rd Place - Right, Shortest */}
+                {third && (
+                  <PodiumCard entry={third} theme={theme} height={200} />
+                )}
+              </div>
+            )}
 
-            {/* Table Body - Scrollable */}
-            <div className="flex-1 overflow-y-auto">
-              {leaderboard.map((entry) => (
+            {/* Remaining List - Scrollable */}
+            {remaining.length > 0 && (
+              <div
+                className="flex-1 rounded-xl overflow-hidden flex flex-col min-h-0"
+                style={{ backgroundColor: `${theme.backgroundColor}80` }}
+              >
+                {/* List Header */}
                 <div
-                  key={`${entry.username}-${entry.rank}`}
-                  className="grid gap-4 px-4 py-3 border-b last:border-b-0 items-center"
+                  className="grid gap-4 px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b shrink-0"
                   style={{
-                    borderColor: `${theme.defaultText}10`,
-                    gridTemplateColumns: "48px 1fr 80px 100px",
+                    color: theme.defaultText,
+                    borderColor: `${theme.defaultText}20`,
+                    gridTemplateColumns: "32px 40px 1fr 70px 90px",
                   }}
                 >
-                  {/* Avatar */}
-                  <div className="flex justify-center">
-                    {entry.avatarUrl ? (
-                      <img
-                        src={entry.avatarUrl}
-                        alt={entry.username}
-                        className="h-8 w-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div
-                        className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium"
-                        style={{
-                          backgroundColor: theme.buttonSelected,
-                          color: theme.backgroundColor,
-                        }}
-                      >
-                        {entry.username.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Username */}
-                  <div className="flex items-center gap-2">
-                    {entry.rank <= 3 && (
-                      <span
-                        className="text-sm"
-                        style={{
-                          color:
-                            entry.rank === 1
-                              ? "#FFD700"
-                              : entry.rank === 2
-                                ? "#C0C0C0"
-                                : "#CD7F32",
-                        }}
-                      >
-                        {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : "🥉"}
-                      </span>
-                    )}
-                    <span
-                      className="font-medium truncate"
-                      style={{ color: theme.correctText }}
-                    >
-                      {entry.username}
-                    </span>
-                  </div>
-
-                  {/* WPM */}
-                  <div
-                    className="text-right font-bold"
-                    style={{ color: theme.buttonSelected }}
-                  >
-                    {entry.wpm}
-                  </div>
-
-                  {/* Date */}
-                  <div
-                    className="text-right text-sm"
-                    style={{ color: theme.defaultText }}
-                  >
-                    {formatDate(entry.createdAt)}
-                  </div>
+                  <div className="text-center">#</div>
+                  <div className="text-center">User</div>
+                  <div>Username</div>
+                  <div className="text-right">WPM</div>
+                  <div className="text-right">Date</div>
                 </div>
-              ))}
-            </div>
+
+                {/* List Body - Scrollable */}
+                <div className="flex-1 overflow-y-auto">
+                  {remaining.map((entry) => (
+                    <div
+                      key={`${entry.username}-${entry.rank}`}
+                      className="grid gap-4 px-4 py-2 border-b last:border-b-0 items-center"
+                      style={{
+                        borderColor: `${theme.defaultText}10`,
+                        gridTemplateColumns: "32px 40px 1fr 70px 90px",
+                      }}
+                    >
+                      {/* Rank */}
+                      <div
+                        className="text-center text-sm font-medium"
+                        style={{ color: theme.defaultText }}
+                      >
+                        {entry.rank}
+                      </div>
+
+                      {/* Avatar */}
+                      <div className="flex justify-center">
+                        {entry.avatarUrl ? (
+                          <img
+                            src={entry.avatarUrl}
+                            alt={entry.username}
+                            className="h-7 w-7 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium"
+                            style={{
+                              backgroundColor: theme.buttonSelected,
+                              color: theme.backgroundColor,
+                            }}
+                          >
+                            {entry.username.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Username */}
+                      <div
+                        className="font-medium truncate text-sm"
+                        style={{ color: theme.correctText }}
+                      >
+                        {entry.username}
+                      </div>
+
+                      {/* WPM */}
+                      <div
+                        className="text-right font-bold text-sm"
+                        style={{ color: theme.buttonSelected }}
+                      >
+                        {entry.wpm}
+                      </div>
+
+                      {/* Date */}
+                      <div
+                        className="text-right text-xs"
+                        style={{ color: theme.defaultText }}
+                      >
+                        {formatDate(entry.createdAt)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
