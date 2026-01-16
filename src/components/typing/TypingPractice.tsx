@@ -683,10 +683,20 @@ export default function TypingPractice({
         avatarUrl: user.imageUrl,
       });
 
-      // Save the result
+      // Get local date/time info for streak and achievement tracking
+      const now = new Date();
+      const localDate = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
+      const localHour = now.getHours(); // 0-23
+      const dayOfWeek = now.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday or Saturday
+
+      // Save the result with streak/achievement tracking info
       await saveResultMutation({
         clerkId: user.id,
         ...dataToSave,
+        localDate,
+        localHour,
+        isWeekend,
       });
       setSaveState("saved");
       pendingResultRef.current = null;

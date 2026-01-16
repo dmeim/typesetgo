@@ -3,6 +3,8 @@ import { useUser } from "@clerk/clerk-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Theme } from "@/lib/typing-constants";
+import StreakCard from "./StreakCard";
+import AchievementsGrid from "./AchievementsGrid";
 
 interface StatsModalProps {
   theme: Theme;
@@ -266,6 +268,14 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
     api.testResults.getUserStats,
     user ? { clerkId: user.id } : "skip"
   );
+  const streak = useQuery(
+    api.streaks.getUserStreak,
+    user ? { clerkId: user.id } : "skip"
+  );
+  const achievements = useQuery(
+    api.achievements.getUserAchievements,
+    user ? { clerkId: user.id } : "skip"
+  );
   const [selectedTest, setSelectedTest] = useState<TestResult | null>(null);
 
   const isLoading = stats === undefined;
@@ -482,6 +492,28 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Streak & Achievements Section */}
+        {!isLoading && stats && stats.totalTests > 0 && (
+          <div className="mt-6 flex gap-4" style={{ minHeight: "160px" }}>
+            {/* Left - Streak Card (1/4 width) */}
+            <div className="w-36 flex-shrink-0">
+              <StreakCard
+                currentStreak={streak?.currentStreak ?? 0}
+                longestStreak={streak?.longestStreak ?? 0}
+                theme={theme}
+              />
+            </div>
+
+            {/* Right - Achievements Grid (3/4 width) */}
+            <div className="flex-1 min-w-0">
+              <AchievementsGrid
+                earnedAchievements={achievements ?? {}}
+                theme={theme}
+              />
             </div>
           </div>
         )}

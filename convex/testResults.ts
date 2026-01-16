@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // Save a test result
 export const saveResult = mutation({
@@ -18,8 +20,12 @@ export const saveResult = mutation({
     wordsIncorrect: v.number(),
     charsMissed: v.number(),
     charsExtra: v.number(),
+    // For streak and achievement tracking
+    localDate: v.string(), // "YYYY-MM-DD" in user's local time
+    localHour: v.number(), // 0-23, user's local hour
+    isWeekend: v.boolean(), // Whether it's Saturday or Sunday
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ resultId: Id<"testResults">; newAchievements: string[] }> => {
     // Find the user by Clerk ID
     const user = await ctx.db
       .query("users")
@@ -29,6 +35,8 @@ export const saveResult = mutation({
     if (!user) {
       throw new Error("User not found. Please sign in first.");
     }
+
+    const createdAt = Date.now();
 
     // Insert the test result
     const resultId = await ctx.db.insert("testResults", {
@@ -45,10 +53,44 @@ export const saveResult = mutation({
       wordsIncorrect: args.wordsIncorrect,
       charsMissed: args.charsMissed,
       charsExtra: args.charsExtra,
-      createdAt: Date.now(),
+      createdAt,
     });
 
-    return resultId;
+    // Update streak (runs in same transaction)
+    await ctx.runMutation(internal.streaks.updateStreak, {
+      userId: user._id,
+      localDate: args.localDate,
+      duration: args.duration,
+      wordsCorrect: args.wordsCorrect,
+    });
+
+    // Check and award achievements (runs in same transaction)
+    const achievementResult: { newAchievements: string[]; totalAchievements: number } = await ctx.runMutation(
+      internal.achievements.checkAndAwardAchievements,
+      {
+        userId: user._id,
+        testResult: {
+          wpm: args.wpm,
+          accuracy: args.accuracy,
+          mode: args.mode,
+          duration: args.duration,
+          wordCount: args.wordCount,
+          difficulty: args.difficulty,
+          punctuation: args.punctuation,
+          numbers: args.numbers,
+          wordsCorrect: args.wordsCorrect,
+          wordsIncorrect: args.wordsIncorrect,
+          createdAt,
+        },
+        localHour: args.localHour,
+        isWeekend: args.isWeekend,
+      }
+    );
+
+    return {
+      resultId,
+      newAchievements: achievementResult.newAchievements,
+    };
   },
 });
 

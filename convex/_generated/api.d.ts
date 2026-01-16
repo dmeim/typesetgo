@@ -8,9 +8,11 @@
  * @module
  */
 
+import type * as achievements from "../achievements.js";
 import type * as participants from "../participants.js";
 import type * as preferences from "../preferences.js";
 import type * as rooms from "../rooms.js";
+import type * as streaks from "../streaks.js";
 import type * as testResults from "../testResults.js";
 import type * as users from "../users.js";
 
@@ -21,9 +23,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  achievements: typeof achievements;
   participants: typeof participants;
   preferences: typeof preferences;
   rooms: typeof rooms;
+  streaks: typeof streaks;
   testResults: typeof testResults;
   users: typeof users;
 }>;

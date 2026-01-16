@@ -137,4 +137,21 @@ export default defineSchema({
 
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
+
+  // User achievements tracking - one row per user
+  // achievements is a map from achievementId to earnedAt timestamp (0 = not earned)
+  userAchievements: defineTable({
+    userId: v.id("users"),
+    achievements: v.record(v.string(), v.number()), // { "wpm-40": 1234567890, "words-100": 1234567890, ... }
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // User streak tracking
+  userStreaks: defineTable({
+    userId: v.id("users"),
+    currentStreak: v.number(),
+    longestStreak: v.number(),
+    lastActivityDate: v.string(), // "YYYY-MM-DD" in user's local time
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
 });
