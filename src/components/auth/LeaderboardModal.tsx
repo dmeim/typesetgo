@@ -135,7 +135,7 @@ export default function LeaderboardModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -184,6 +184,14 @@ export default function LeaderboardModal({
             </svg>
           </button>
         </div>
+
+        {/* Requirements Info */}
+        <p
+          className="text-xs mb-4"
+          style={{ color: theme.defaultText }}
+        >
+          Tests must be at least 30 seconds or 50 words to qualify
+        </p>
 
         {/* Time Range Tabs */}
         <div className="flex gap-2 mb-4">
