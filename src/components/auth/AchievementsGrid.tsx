@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useUser } from "@clerk/clerk-react";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import type { Theme } from "@/lib/typing-constants";
 import {
   getAchievementById,
@@ -24,6 +27,10 @@ export default function AchievementsGrid({
   theme,
   maxVisibleRows,
 }: AchievementsGridProps) {
+  const { user } = useUser();
+  const recheckAchievements = useMutation(api.achievements.recheckAllAchievements);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // State now holds an array of achievements in the progressive group and the initial index
   const [selectedAchievements, setSelectedAchievements] = useState<{
     achievements: { achievement: Achievement; earnedAt: number }[];
@@ -32,6 +39,18 @@ export default function AchievementsGrid({
   
   // State for the full achievements board modal
   const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+
+  const handleRefresh = async () => {
+    if (!user || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await recheckAchievements({ clerkId: user.id });
+    } catch (error) {
+      console.error("Failed to refresh achievements:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Get all earned achievement IDs
   const earnedIds = Object.keys(earnedAchievements);
@@ -110,13 +129,41 @@ export default function AchievementsGrid({
           >
             Achievements
           </div>
-          <button
-            onClick={() => setShowAchievementsModal(true)}
-            className="text-xs font-medium hover:underline transition-all cursor-pointer"
-            style={{ color: theme.buttonSelected }}
-          >
-            {earnedIds.length} / {ALL_ACHIEVEMENTS.length}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || !user}
+              className="p-1 rounded transition-all hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: theme.defaultText }}
+              title="Refresh achievements"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={isRefreshing ? "animate-spin" : ""}
+                style={{ animationDirection: "reverse" }}
+              >
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 16h5v5" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setShowAchievementsModal(true)}
+              className="text-xs font-medium hover:underline transition-all cursor-pointer"
+              style={{ color: theme.buttonSelected }}
+            >
+              {earnedIds.length} / {ALL_ACHIEVEMENTS.length}
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content - Flat Grid */}

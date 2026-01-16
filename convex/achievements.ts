@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { getQualifyingAchievementIds } from "./achievementThresholds";
 import { qualifiesForAchievement } from "./streaks";
 
@@ -1069,5 +1069,326 @@ export const recheckAchievementsAfterDeletion = internalMutation({
     }
 
     return { removedAchievements };
+  },
+});
+
+/**
+ * Public mutation to recheck all achievements for a user
+ * Can be called from the frontend to force a full recheck
+ * Adds any missing achievements and removes ones the user no longer qualifies for
+ */
+export const recheckAllAchievements = mutation({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args): Promise<{ addedAchievements: string[]; removedAchievements: string[] }> => {
+    // Find the user by Clerk ID
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+
+    if (!user) {
+      return { addedAchievements: [], removedAchievements: [] };
+    }
+
+    // Get all test results for this user
+    const allResults = await ctx.db
+      .query("testResults")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    // Get user's streak
+    const streak = await ctx.db
+      .query("userStreaks")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+
+    // Get existing achievements
+    const existingAchievementRecord = await ctx.db
+      .query("userAchievements")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .first();
+
+    const existingAchievements = existingAchievementRecord?.achievements ?? {};
+
+    // Filter to only qualifying tests for non-exempt achievements
+    // Qualifying: 90%+ accuracy AND (30s+ duration OR 50+ words)
+    const qualifyingResults = allResults.filter(r => 
+      qualifiesForAchievement(r.duration, r.wordsCorrect ?? 0, r.accuracy)
+    );
+
+    // Compute current stats from QUALIFYING results only (for non-exempt achievements)
+    const totalQualifyingTests = qualifyingResults.length;
+    const totalWordsCorrect = qualifyingResults.reduce(
+      (sum, r) => sum + (r.wordsCorrect ?? 0),
+      0
+    );
+    const totalTimeTyped = qualifyingResults.reduce((sum, r) => sum + r.duration, 0);
+    const totalMinutesTyped = totalTimeTyped / (60 * 1000);
+
+    // Count qualifying tests with 95%+ accuracy
+    const testsWithHighAccuracy = qualifyingResults.filter(
+      (r) => r.accuracy >= 95
+    ).length;
+
+    // Best WPM from qualifying tests only
+    const bestWpm = qualifyingResults.length > 0 ? Math.max(...qualifyingResults.map(r => r.wpm)) : 0;
+
+    // Perfect accuracy streak (consecutive 100% from most recent qualifying tests)
+    const sortedQualifyingResults = [...qualifyingResults].sort((a, b) => b.createdAt - a.createdAt);
+    let perfectAccuracyStreak = 0;
+    for (const result of sortedQualifyingResults) {
+      if (result.accuracy === 100) {
+        perfectAccuracyStreak++;
+      } else {
+        break;
+      }
+    }
+
+    // Consecutive 90%+ accuracy streak (from qualifying tests)
+    let consecutiveHighAccuracyStreak = 0;
+    for (const result of sortedQualifyingResults) {
+      if (result.accuracy >= 90) {
+        consecutiveHighAccuracyStreak++;
+      } else {
+        break;
+      }
+    }
+
+    // WPM variance for consistency (from qualifying tests)
+    const last10QualifyingResults = sortedQualifyingResults.slice(0, 10);
+    let lowVarianceTestCount = 0;
+    if (last10QualifyingResults.length >= 5) {
+      const wpms = last10QualifyingResults.map((r) => r.wpm);
+      const mean = wpms.reduce((a, b) => a + b, 0) / wpms.length;
+      const variance = wpms.reduce((sum, wpm) => sum + Math.pow(wpm - mean, 2), 0) / wpms.length;
+      const stdDev = Math.sqrt(variance);
+      if (stdDev < 5) {
+        lowVarianceTestCount = last10QualifyingResults.length;
+      }
+    }
+
+    // PB improvement count (from qualifying tests only)
+    const oldestFirstQualifying = [...qualifyingResults].sort((a, b) => a.createdAt - b.createdAt);
+    let pbImprovementCount = 0;
+    let runningMax = 0;
+    for (const result of oldestFirstQualifying) {
+      if (result.wpm > runningMax) {
+        if (runningMax > 0) pbImprovementCount++;
+        runningMax = result.wpm;
+      }
+    }
+
+    // Qualifying tests today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const testsToday = qualifyingResults.filter((r) => r.createdAt >= todayStart.getTime()).length;
+
+    // Now determine which achievements the user should have
+    const shouldHave: Set<string> = new Set();
+
+    // Helper to add multiple IDs to set
+    const addAll = (ids: string[]) => ids.forEach(id => shouldHave.add(id));
+
+    // Progressive achievements - use thresholds (based on QUALIFYING tests)
+    addAll(getQualifyingAchievementIds("speed", bestWpm));
+    addAll(getQualifyingAchievementIds("words", totalWordsCorrect));
+    addAll(getQualifyingAchievementIds("time", totalMinutesTyped));
+    addAll(getQualifyingAchievementIds("streak", streak?.currentStreak ?? 0));
+    addAll(getQualifyingAchievementIds("tests", totalQualifyingTests));
+    addAll(getQualifyingAchievementIds("accuracy-95", testsWithHighAccuracy));
+    addAll(getQualifyingAchievementIds("accuracy-streak", perfectAccuracyStreak));
+    addAll(getQualifyingAchievementIds("consistency-90plus", consecutiveHighAccuracyStreak));
+    addAll(getQualifyingAchievementIds("consistency-variance", lowVarianceTestCount));
+    addAll(getQualifyingAchievementIds("improvement-pb", pbImprovementCount));
+    addAll(getQualifyingAchievementIds("endurance-daily", testsToday));
+
+    // Non-progressive achievements that depend on test data (qualifying tests only)
+    // Perfect accuracy on any qualifying test
+    if (qualifyingResults.some(r => r.accuracy === 100)) {
+      shouldHave.add("accuracy-perfect-1");
+    }
+
+    // Same WPM 3 times (from qualifying tests)
+    const wpmCounts = new Map<number, number>();
+    for (const result of qualifyingResults) {
+      const roundedWpm = Math.round(result.wpm);
+      wpmCounts.set(roundedWpm, (wpmCounts.get(roundedWpm) || 0) + 1);
+    }
+    if (Math.max(...Array.from(wpmCounts.values()), 0) >= 3) {
+      shouldHave.add("consistency-same-wpm-3");
+    }
+
+    // First test (EXEMPT - keep if they have any tests at all)
+    if (allResults.length >= 1) {
+      shouldHave.add("special-first-test");
+    }
+
+    // Endurance test durations
+    if (allResults.some(r => r.duration >= 120000)) {
+      shouldHave.add("special-marathon");
+    }
+    if (allResults.some(r => r.duration >= 180000)) {
+      shouldHave.add("endurance-180s-test");
+    }
+    if (allResults.some(r => r.duration >= 300000)) {
+      shouldHave.add("endurance-300s-test");
+    }
+    if (allResults.some(r => r.wordCount >= 500)) {
+      shouldHave.add("endurance-500-words-test");
+    }
+
+    // Explorer achievements (modes/features tried)
+    const modesCovered = new Set(allResults.map(r => r.mode));
+    if (modesCovered.has("time")) shouldHave.add("explorer-time-mode");
+    if (modesCovered.has("words")) shouldHave.add("explorer-words-mode");
+    if (modesCovered.has("quote")) shouldHave.add("explorer-quote-mode");
+    if (modesCovered.has("preset")) shouldHave.add("explorer-preset-mode");
+    if (allResults.some(r => r.punctuation)) shouldHave.add("explorer-punctuation");
+    if (allResults.some(r => r.numbers)) shouldHave.add("explorer-numbers");
+
+    const difficultiesCovered = new Set(allResults.map(r => r.difficulty));
+    if (difficultiesCovered.has("easy") && difficultiesCovered.has("medium") && difficultiesCovered.has("hard")) {
+      shouldHave.add("explorer-all-difficulties");
+    }
+
+    // Challenge mode achievements (from qualifying tests only)
+    const hardQualifyingTests = qualifyingResults.filter(r => r.difficulty === "hard");
+    if (hardQualifyingTests.some(r => r.punctuation)) shouldHave.add("challenge-hard-punctuation");
+    if (hardQualifyingTests.some(r => r.numbers)) shouldHave.add("challenge-hard-numbers");
+    if (hardQualifyingTests.some(r => r.punctuation && r.numbers)) shouldHave.add("challenge-hard-both");
+    if (hardQualifyingTests.some(r => r.wpm >= 80)) shouldHave.add("challenge-hard-80wpm");
+    if (hardQualifyingTests.some(r => r.punctuation && r.numbers && r.wpm >= 80)) shouldHave.add("challenge-hard-both-80wpm");
+    if (hardQualifyingTests.some(r => r.accuracy === 100)) shouldHave.add("challenge-hard-100-accuracy");
+
+    // Speed and precision (from qualifying tests)
+    if (qualifyingResults.some(r => r.wpm >= 100 && r.accuracy >= 95)) {
+      shouldHave.add("special-speed-accuracy");
+    }
+
+    // Milestone achievements (from qualifying tests only)
+    if (qualifyingResults.some(r => r.wpm >= 100 && r.accuracy === 100)) {
+      shouldHave.add("milestone-100wpm-100acc");
+    }
+    if (qualifyingResults.some(r => r.wpm >= 80 && r.accuracy >= 98)) {
+      shouldHave.add("milestone-80wpm-98acc");
+    }
+    if (hardQualifyingTests.some(r => r.wpm >= 50 && r.accuracy === 100)) {
+      shouldHave.add("milestone-50wpm-100acc-hard");
+    }
+    if (qualifyingResults.some(r => r.wpm >= 100 && r.wordCount >= 100 && r.duration >= 100000)) {
+      shouldHave.add("milestone-triple-digits");
+    }
+    if (qualifyingResults.some(r => r.wpm >= 80 && r.duration >= 120000)) {
+      shouldHave.add("milestone-speed-endurance");
+    }
+
+    // Average accuracy check (from qualifying tests)
+    const avgAccuracy = qualifyingResults.length > 0 
+      ? qualifyingResults.reduce((sum, r) => sum + r.accuracy, 0) / qualifyingResults.length 
+      : 0;
+    if (totalWordsCorrect >= 1000 && avgAccuracy >= 95) {
+      shouldHave.add("milestone-1000-words-95acc");
+    }
+
+    // Mode master (80+ WPM in multiple modes from qualifying tests)
+    const wpmByMode = new Map<string, number>();
+    for (const result of qualifyingResults) {
+      const current = wpmByMode.get(result.mode) || 0;
+      if (result.wpm > current) {
+        wpmByMode.set(result.mode, result.wpm);
+      }
+    }
+    if ((wpmByMode.get("time") || 0) >= 80 && 
+        (wpmByMode.get("words") || 0) >= 80 && 
+        (wpmByMode.get("quote") || 0) >= 80) {
+      shouldHave.add("milestone-all-modes-80wpm");
+    }
+
+    // Improvement achievements (standalone, from qualifying tests)
+    const firstQualifyingTestWpm = oldestFirstQualifying.length > 0 ? oldestFirstQualifying[0].wpm : 0;
+    if (firstQualifyingTestWpm > 0 && bestWpm >= firstQualifyingTestWpm * 2) {
+      shouldHave.add("improvement-double-wpm");
+    }
+
+    const first5Qualifying = oldestFirstQualifying.slice(0, 5);
+    const firstFiveAvgWpm = first5Qualifying.length > 0 
+      ? first5Qualifying.reduce((sum, r) => sum + r.wpm, 0) / first5Qualifying.length 
+      : 0;
+    const currentAvgWpm = qualifyingResults.length > 0 
+      ? qualifyingResults.reduce((sum, r) => sum + r.wpm, 0) / qualifyingResults.length 
+      : 0;
+    if (firstFiveAvgWpm > 0 && currentAvgWpm >= firstFiveAvgWpm + 20) {
+      shouldHave.add("improvement-avg-increase");
+    }
+
+    // Time-based achievements should be kept (they were earned at a specific time)
+    // These are permanent once earned: night-owl, early-bird, lunch, midnight, holidays, etc.
+    const permanentAchievements = [
+      "special-night-owl", "special-early-bird", "special-weekend-warrior",
+      "timebased-lunch", "timebased-midnight", "timebased-new-year",
+      "timebased-friday", "timebased-monday", "timebased-holiday",
+      "timebased-all-weekdays", "timebased-all-weekend",
+      "quirky-67", "quirky-lucky-7", "quirky-100-exact", "quirky-palindrome",
+      "quirky-42", "quirky-123", "quirky-pi",
+      "improvement-pb-by-10", "improvement-pb-by-20",
+      "milestone-week-streak-100wpm",
+    ];
+    for (const id of permanentAchievements) {
+      if (existingAchievements[id]) {
+        shouldHave.add(id);
+      }
+    }
+
+    // Collection achievements - recalculate based on what they should have
+    const projectedCount = shouldHave.size;
+    const collectionIds = getQualifyingAchievementIds("collection", projectedCount);
+    for (const id of collectionIds) {
+      shouldHave.add(id);
+    }
+
+    // Determine what to add and what to remove
+    const addedAchievements: string[] = [];
+    const removedAchievements: string[] = [];
+    const now = Date.now();
+
+    // Build the final achievements record
+    const finalAchievements: Record<string, number> = {};
+
+    // Keep achievements that should still be there
+    for (const [id, timestamp] of Object.entries(existingAchievements)) {
+      if (shouldHave.has(id)) {
+        finalAchievements[id] = timestamp;
+      } else {
+        removedAchievements.push(id);
+      }
+    }
+
+    // Add new achievements
+    for (const id of shouldHave) {
+      if (!existingAchievements[id]) {
+        finalAchievements[id] = now;
+        addedAchievements.push(id);
+      }
+    }
+
+    // Update the database if there are changes
+    if (addedAchievements.length > 0 || removedAchievements.length > 0) {
+      if (existingAchievementRecord) {
+        await ctx.db.patch(existingAchievementRecord._id, {
+          achievements: finalAchievements,
+          updatedAt: now,
+        });
+      } else if (Object.keys(finalAchievements).length > 0) {
+        await ctx.db.insert("userAchievements", {
+          userId: user._id,
+          achievements: finalAchievements,
+          updatedAt: now,
+        });
+      }
+    }
+
+    return { addedAchievements, removedAchievements };
   },
 });
