@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -418,6 +418,11 @@ function TestDetailModal({
   );
 }
 
+// Constants for table sizing
+const ROW_HEIGHT_PX = 44;
+const VISIBLE_ROWS = 7;
+const PEEK_PERCENTAGE = 0.3; // Show 30% of 8th row
+
 export default function StatsModal({ theme, onClose }: StatsModalProps) {
   const { user } = useUser();
   const stats = useQuery(
@@ -435,6 +440,18 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
   const [selectedTest, setSelectedTest] = useState<TestResult | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [isLargeScreen, setIsLargeScreen] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 768 : true
+  );
+
+  // Track screen size for responsive table height
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth >= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const isLoading = stats === undefined;
 
@@ -474,8 +491,12 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-4xl rounded-lg p-6 shadow-xl mx-4 max-h-[90vh] flex flex-col"
-        style={{ backgroundColor: theme.surfaceColor }}
+        className="w-full rounded-lg shadow-xl mx-4 max-h-[90vh] flex flex-col"
+        style={{ 
+          backgroundColor: theme.surfaceColor,
+          maxWidth: "clamp(320px, 85vw, 896px)",
+          padding: "clamp(1rem, 2vw, 1.5rem)"
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -648,7 +669,7 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
 
               {/* Test History Table */}
               <div
-                className="flex-1 rounded-xl overflow-hidden flex flex-col min-h-0"
+                className="flex-1 rounded-xl overflow-hidden flex flex-col min-h-0 relative"
                 style={{ backgroundColor: `${theme.backgroundColor}80` }}
               >
                 {/* Table Header */}
@@ -689,8 +710,14 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
                   />
                 </div>
 
-                {/* Table Body - Scrollable (shows 7 entries + 8th peeking) */}
-                <div className="overflow-y-auto" style={{ maxHeight: "calc(7.5 * 44px)" }}>
+                {/* Table Body - Scrollable (shows 7 entries + 8th peeking ~30% on large screens) */}
+                <div 
+                  className="overflow-y-auto flex-1"
+                  style={isLargeScreen ? { 
+                    maxHeight: `calc(${VISIBLE_ROWS + PEEK_PERCENTAGE} * ${ROW_HEIGHT_PX}px)`,
+                    flex: "none"
+                  } : undefined}
+                >
                   {sortedResults.length > 0 ? (
                     sortedResults.map((result) => (
                       <div
@@ -724,6 +751,16 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
                     </div>
                   )}
                 </div>
+                
+                {/* Fade overlay to indicate more content (only on large screens with peek effect) */}
+                {isLargeScreen && sortedResults.length > VISIBLE_ROWS && (
+                  <div 
+                    className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none rounded-b-xl"
+                    style={{ 
+                      background: `linear-gradient(transparent, ${theme.backgroundColor}80)` 
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
