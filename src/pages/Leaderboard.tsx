@@ -37,13 +37,12 @@ interface PodiumCardProps {
   entry: LeaderboardEntry;
   theme: Theme;
   height: number;
-  compact?: boolean;
 }
 
-function PodiumCard({ entry, theme, height, compact = false }: PodiumCardProps) {
+function PodiumCard({ entry, theme, height }: PodiumCardProps) {
   return (
     <div
-      className={`flex flex-col items-center rounded-t-xl pt-3 pb-2 ${compact ? "px-2 w-24" : "px-4 w-32"}`}
+      className="flex-1 flex flex-col items-center rounded-t-xl pt-4 pb-3 px-3"
       style={{
         backgroundColor: `${theme.backgroundColor}90`,
         height: `${height}px`,
@@ -52,16 +51,16 @@ function PodiumCard({ entry, theme, height, compact = false }: PodiumCardProps) 
       }}
     >
       {/* Row 1: Avatar + Medal */}
-      <div className={`flex items-center gap-1 ${compact ? "mb-1" : "mb-2"}`}>
+      <div className="flex items-center gap-2 mb-3">
         {entry.avatarUrl ? (
           <img
             src={entry.avatarUrl}
             alt={entry.username}
-            className={`${compact ? "h-8 w-8" : "h-10 w-10"} rounded-full object-cover`}
+            className="h-12 w-12 rounded-full object-cover"
           />
         ) : (
           <div
-            className={`${compact ? "h-8 w-8 text-sm" : "h-10 w-10 text-base"} rounded-full flex items-center justify-center font-medium`}
+            className="h-12 w-12 rounded-full flex items-center justify-center text-lg font-medium"
             style={{
               backgroundColor: theme.buttonSelected,
               color: theme.backgroundColor,
@@ -70,12 +69,12 @@ function PodiumCard({ entry, theme, height, compact = false }: PodiumCardProps) 
             {entry.username.charAt(0).toUpperCase()}
           </div>
         )}
-        <span className={compact ? "text-xl" : "text-2xl"}>{getMedalEmoji(entry.rank)}</span>
+        <span className="text-3xl">{getMedalEmoji(entry.rank)}</span>
       </div>
 
       {/* Row 2: Username */}
       <div
-        className={`${compact ? "text-xs" : "text-sm"} font-medium truncate w-full text-center mb-1`}
+        className="text-sm font-medium truncate w-full text-center mb-2"
         style={{ color: theme.correctText }}
         title={entry.username}
       >
@@ -84,15 +83,15 @@ function PodiumCard({ entry, theme, height, compact = false }: PodiumCardProps) 
 
       {/* Row 3: WPM Stat */}
       <div
-        className={`${compact ? "text-base" : "text-lg"} font-bold`}
+        className="text-xl font-bold mb-1"
         style={{ color: theme.buttonSelected }}
       >
-        {entry.wpm} <span className={`${compact ? "text-[10px]" : "text-xs"} font-normal`}>WPM</span>
+        {entry.wpm} <span className="text-xs font-normal">WPM</span>
       </div>
 
       {/* Row 4: Date */}
       <div
-        className={compact ? "text-[10px]" : "text-xs"}
+        className="text-xs"
         style={{ color: theme.defaultText }}
       >
         {formatDate(entry.createdAt)}
@@ -169,10 +168,10 @@ function LeaderboardColumn({
         <div className="flex-1 flex flex-col min-h-0">
           {/* Podium Section */}
           {top3.length > 0 && (
-            <div className="shrink-0 flex justify-center items-end gap-1 mb-3 px-2">
-              {second && <PodiumCard entry={second} theme={theme} height={140} compact />}
-              {first && <PodiumCard entry={first} theme={theme} height={160} compact />}
-              {third && <PodiumCard entry={third} theme={theme} height={125} compact />}
+            <div className="shrink-0 flex justify-center items-end gap-2 mb-4">
+              {second && <PodiumCard entry={second} theme={theme} height={180} />}
+              {first && <PodiumCard entry={first} theme={theme} height={210} />}
+              {third && <PodiumCard entry={third} theme={theme} height={160} />}
             </div>
           )}
 
@@ -290,44 +289,42 @@ export default function Leaderboard() {
       style={{ backgroundColor: theme.backgroundColor }}
     >
       {/* Header */}
-      <header className="shrink-0 px-4 py-4 md:px-6 md:py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link
-            to="/"
-            className="transition text-sm hover:opacity-100"
-            style={{ color: theme.defaultText, opacity: 0.7 }}
+      <header className="shrink-0 px-4 py-4 md:px-6 md:py-5 flex items-center justify-between">
+        <Link
+          to="/"
+          className="transition text-sm hover:opacity-100"
+          style={{ color: theme.defaultText, opacity: 0.7 }}
+        >
+          ← Back to Homepage
+        </Link>
+        <div className="flex items-center gap-3">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ color: theme.buttonSelected }}
           >
-            ← Back to Homepage
-          </Link>
-          <div className="flex items-center gap-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ color: theme.buttonSelected }}
-            >
-              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-              <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-              <path d="M4 22h16" />
-              <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-              <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-              <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-            </svg>
-            <h1
-              className="text-xl font-semibold"
-              style={{ color: theme.correctText }}
-            >
-              Leaderboard
-            </h1>
-          </div>
-          <div className="w-[120px]" /> {/* Spacer for centering */}
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 22h16" />
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+          </svg>
+          <h1
+            className="text-xl font-semibold"
+            style={{ color: theme.correctText }}
+          >
+            Leaderboard
+          </h1>
         </div>
+        <div className="w-[120px]" /> {/* Spacer for centering */}
       </header>
 
       {/* Requirements Info */}
@@ -342,7 +339,7 @@ export default function Leaderboard() {
 
       {/* Three Column Layout */}
       <div className="flex-1 min-h-0 px-4 pb-4 md:px-6 md:pb-6">
-        <div className="h-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* All Time Column */}
           <div
             className="rounded-xl p-4 flex flex-col min-h-0 lg:flex"
