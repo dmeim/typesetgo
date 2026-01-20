@@ -9,7 +9,13 @@ export type ThemeCategory =
   | "retro"
   | "aesthetic"
   | "utility"
-  | "fun";
+  | "fun"
+  | "color-theory"
+  | "cultural"
+  | "material"
+  | "brand"
+  | "weather"
+  | "productivity";
 
 export type ThemeDefinition = Theme & {
   name: string;
@@ -38,6 +44,12 @@ export const CATEGORY_CONFIG: Record<ThemeCategory, { displayName: string; order
   aesthetic: { displayName: "Aesthetic", order: 6 },
   utility: { displayName: "Utility", order: 7 },
   fun: { displayName: "Fun", order: 8 },
+  weather: { displayName: "Weather", order: 9 },
+  brand: { displayName: "Brand", order: 10 },
+  "color-theory": { displayName: "Color Theory", order: 11 },
+  cultural: { displayName: "Cultural", order: 12 },
+  material: { displayName: "Material Design", order: 13 },
+  productivity: { displayName: "Productivity", order: 14 },
 };
 
 // Cache for loaded data
@@ -135,6 +147,12 @@ export function groupThemesByCategory(themes: ThemeDefinition[]): GroupedThemes[
     aesthetic: [],
     utility: [],
     fun: [],
+    weather: [],
+    brand: [],
+    "color-theory": [],
+    cultural: [],
+    material: [],
+    productivity: [],
   };
 
   // Group themes
