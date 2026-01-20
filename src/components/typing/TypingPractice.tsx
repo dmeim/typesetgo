@@ -1444,7 +1444,7 @@ export default function TypingPractice({
           </div>
 
           {/* Row 3: Time/Word Count/Quote Length + Difficulty with labels */}
-          <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400 pointer-events-auto">
             {/* Time Duration */}
             {settings.mode === "time" && (
               <>
