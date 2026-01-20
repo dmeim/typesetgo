@@ -39,10 +39,19 @@ interface PodiumCardProps {
   height: number;
 }
 
+function getUsernameFontSize(username: string): string {
+  const len = username.length;
+  if (len <= 8) return "11px";
+  if (len <= 12) return "10px";
+  if (len <= 16) return "9px";
+  if (len <= 20) return "8px";
+  return "7px";
+}
+
 function PodiumCard({ entry, theme, height }: PodiumCardProps) {
   return (
     <div
-      className="flex-1 flex flex-col items-center rounded-t-xl pt-4 pb-3 px-3"
+      className="w-36 min-w-0 flex flex-col items-center rounded-t-xl pt-4 pb-3 px-2"
       style={{
         backgroundColor: `${theme.backgroundColor}90`,
         height: `${height}px`,
@@ -51,7 +60,7 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
       }}
     >
       {/* Row 1: Avatar + Medal */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-1.5 mb-2">
         {entry.avatarUrl ? (
           <img
             src={entry.avatarUrl}
@@ -60,7 +69,7 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
           />
         ) : (
           <div
-            className="h-12 w-12 rounded-full flex items-center justify-center text-lg font-medium"
+            className="h-12 w-12 rounded-full flex items-center justify-center text-base font-medium"
             style={{
               backgroundColor: theme.buttonSelected,
               color: theme.backgroundColor,
@@ -74,9 +83,11 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
 
       {/* Row 2: Username */}
       <div
-        className="text-sm font-medium truncate w-full text-center mb-2"
-        style={{ color: theme.correctText }}
-        title={entry.username}
+        className="font-medium w-full text-center mb-1.5 break-words leading-tight"
+        style={{ 
+          color: theme.correctText,
+          fontSize: getUsernameFontSize(entry.username),
+        }}
       >
         {entry.username}
       </div>

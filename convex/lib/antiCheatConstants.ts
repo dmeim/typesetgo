@@ -20,8 +20,23 @@ export const MIN_PROGRESS_EVENTS = 3;
 export const MIN_EVENTS_PER_DURATION = (duration: number) =>
   Math.max(MIN_PROGRESS_EVENTS, Math.floor(duration / 10));
 
-// Allow 2s network latency tolerance for time mode
-export const TIME_MODE_TOLERANCE_SEC = 2;
+// Base tolerance for network latency (seconds)
+// For short tests (<= 30s), use a percentage-based tolerance (15%)
+// For longer tests, use the base tolerance (3s)
+export const TIME_MODE_BASE_TOLERANCE_SEC = 3;
+export const TIME_MODE_SHORT_TEST_THRESHOLD = 30; // tests <= 30s use percentage
+export const TIME_MODE_SHORT_TEST_TOLERANCE_PERCENT = 0.15; // 15% tolerance for short tests
+
+// Calculate tolerance based on test duration
+export const getTimeModeTolerance = (durationSec: number): number => {
+  if (durationSec <= TIME_MODE_SHORT_TEST_THRESHOLD) {
+    // For short tests (15s, 30s), use 15% tolerance
+    // 15s test = 2.25s tolerance, 30s test = 4.5s tolerance
+    return Math.ceil(durationSec * TIME_MODE_SHORT_TEST_TOLERANCE_PERCENT);
+  }
+  // For longer tests (60s, 120s, 300s), use base 3s tolerance
+  return TIME_MODE_BASE_TOLERANCE_SEC;
+};
 
 // Max chars between progress events (detects paste)
 export const MAX_BURST_CHARS = 50;

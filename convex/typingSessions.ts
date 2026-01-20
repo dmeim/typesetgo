@@ -6,7 +6,7 @@ import {
   MAX_WPM,
   MAX_BURST_CHARS,
   MIN_PROGRESS_EVENTS,
-  TIME_MODE_TOLERANCE_SEC,
+  getTimeModeTolerance,
   SESSION_RESUME_GRACE_MS,
 } from "./lib/antiCheatConstants";
 import {
@@ -53,7 +53,9 @@ function validateSession(
   // 4. Mode-specific validation
   if (mode === "time" && duration) {
     const expectedMs = duration * 1000;
-    const toleranceMs = TIME_MODE_TOLERANCE_SEC * 1000;
+    // Use dynamic tolerance based on test duration
+    // Short tests (15s, 30s) need more tolerance due to session setup latency being a larger %
+    const toleranceMs = getTimeModeTolerance(duration) * 1000;
     if (serverElapsed < expectedMs - toleranceMs) {
       reasons.push(
         `Time mode completed too fast: ${serverElapsed}ms < ${expectedMs - toleranceMs}ms`
@@ -131,11 +133,14 @@ export const startSession = mutation({
     }
 
     // Create new session
+    // Set startedAt immediately to match frontend timer start
+    // This ensures server-side duration validation aligns with frontend timing
     const sessionId = await ctx.db.insert("typingSessions", {
       userId: user._id,
       settings: args.settings,
       targetText: args.targetText,
       createdAt: now,
+      startedAt: now, // Set immediately instead of waiting for first progress event
       lastEventAt: now,
       eventCount: 0,
       lastTypedLength: 0,
@@ -185,20 +190,14 @@ export const recordProgress = mutation({
     const burstCps = timeDeltaSec > 0 ? charsDelta / timeDeltaSec : 0;
 
     // Update session with metrics
-    const updates: Partial<Doc<"typingSessions">> = {
+    // Note: startedAt is now set at session creation time for accurate duration tracking
+    await ctx.db.patch(args.sessionId, {
       lastEventAt: now,
       eventCount: session.eventCount + 1,
       lastTypedLength: args.typedTextLength,
       maxCharsPerSecond: Math.max(session.maxCharsPerSecond, burstCps),
       maxBurstChars: Math.max(session.maxBurstChars, charsDelta),
-    };
-
-    // Set startedAt on first progress event
-    if (!session.startedAt) {
-      updates.startedAt = now;
-    }
-
-    await ctx.db.patch(args.sessionId, updates);
+    });
     return { success: true };
   },
 });
