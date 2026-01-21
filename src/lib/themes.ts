@@ -62,8 +62,64 @@ export const CATEGORY_CONFIG: Record<ThemeCategory, { displayName: string; order
 let cachedManifest: ThemeManifest | null = null;
 const themeCache: Record<string, ThemeDefinition> = {};
 
+// Display name overrides for themes that need special capitalization
+const THEME_DISPLAY_NAMES: Record<string, string> = {
+  // Brand/product names with specific capitalization
+  "typesetgo": "TypeSetGo",
+  "github-dark": "GitHub Dark",
+  "github-light": "GitHub Light",
+  "gitlab": "GitLab",
+  "youtube": "YouTube",
+  "webstorm": "WebStorm",
+  "jetbrains-darcula": "JetBrains Darcula",
+  "bioshock": "BioShock",
+  "linkedin": "LinkedIn",
+  "playstation": "PlayStation",
+  "stackoverflow": "Stack Overflow",
+  
+  // All-caps acronyms
+  "aws": "AWS",
+  "dos": "DOS",
+  "tron": "TRON",
+  "y2k": "Y2K",
+  "ibm": "IBM",
+  "html": "HTML",
+  "css": "CSS",
+  
+  // Roman numerals
+  "apple-ii": "Apple II",
+  
+  // Version numbers/letters that should be uppercase
+  "windows-xp": "Windows XP",
+  
+  // Hyphenated style
+  "lo-fi": "Lo-Fi",
+  
+  // Special characters (accent)
+  "pokemon": "Pokémon",
+  "rose-pine": "Rosé Pine",
+  
+  // Apostrophes and special formatting
+  "st-patricks": "St. Patrick's",
+  "new-years": "New Year's",
+  "valentines": "Valentine's",
+  "day-of-dead": "Day of the Dead",
+  
+  // Title case with lowercase articles/prepositions
+  "league-of-legends": "League of Legends",
+  "fourth-of-july": "Fourth of July",
+  "cinco-de-mayo": "Cinco de Mayo",
+  "shades-of-purple": "Shades of Purple",
+};
+
 // Format theme name for display (capitalize first letter of each word)
 const formatThemeName = (name: string): string => {
+  // Check for override first
+  if (THEME_DISPLAY_NAMES[name]) {
+    return THEME_DISPLAY_NAMES[name];
+  }
+  
+  // Default: capitalize first letter of each word
   return name
     .split(/[-_]/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
