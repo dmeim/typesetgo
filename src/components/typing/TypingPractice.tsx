@@ -3,7 +3,7 @@ import { Baby } from "lucide-react";
 import type { Quote, SettingsState, Theme } from "@/lib/typing-constants";
 import { DEFAULT_THEME } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
-import { fetchTheme, fetchAllThemes, groupThemesByCategory, type ThemeDefinition, type GroupedThemes } from "@/lib/themes";
+import { fetchTheme, fetchAllThemes, groupThemesByCategory, CATEGORY_CONFIG, type ThemeDefinition, type GroupedThemes, type ThemeCategory } from "@/lib/themes";
 import ColorPicker from "./ColorPicker";
 import { fetchWordsManifest, fetchWords, type WordsManifest } from "@/lib/words";
 import { fetchQuotesManifest, fetchQuotes, type QuotesManifest } from "@/lib/quotes";
@@ -272,6 +272,9 @@ export default function TypingPractice({
   const [isCustomThemeOpen, setIsCustomThemeOpen] = useState(false);
   const [availableThemes, setAvailableThemes] = useState<ThemeDefinition[]>([]);
   const [groupedThemes, setGroupedThemes] = useState<GroupedThemes[]>([]);
+  const [previewTheme, setPreviewTheme] = useState<ThemeDefinition | null>(null);
+  const [themeViewMode, setThemeViewMode] = useState<"all" | "categories">("all");
+  const [selectedCategory, setSelectedCategory] = useState<ThemeCategory | null>(null);
   const [soundManifest, setSoundManifest] = useState<SoundManifest | null>(null);
   const [wordsManifest, setWordsManifest] = useState<WordsManifest | null>(null);
   const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
@@ -2300,294 +2303,617 @@ export default function TypingPractice({
           onClick={() => {
             setShowThemeModal(false);
             setIsCustomThemeOpen(false);
+            setPreviewTheme(null);
+            setSelectedCategory(null);
           }}
         >
           <div
-            className="w-full max-w-3xl rounded-lg p-6 shadow-xl mx-4 max-h-[90vh] flex flex-col"
+            className="w-full max-w-6xl rounded-lg shadow-xl mx-4 max-h-[90vh] flex overflow-hidden"
             style={{ backgroundColor: theme.surfaceColor }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-200">Theme</h2>
-              <button
-                onClick={() => {
-                  setShowThemeModal(false);
-                  setIsCustomThemeOpen(false);
-                }}
-                className="text-gray-400 hover:text-gray-200"
-              >
-                ✕
-              </button>
-            </div>
+            {/* Left: Preview Panel (50%) - Realistic Homepage Preview */}
+            <div 
+              className="w-1/2 overflow-hidden relative"
+              style={{ backgroundColor: (previewTheme ?? theme).backgroundColor }}
+            >
+              {/* Mini Header - Absolute positioned at top */}
+              <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 z-10">
+                {/* Theme name */}
+                <div 
+                  className="text-lg font-semibold"
+                  style={{ color: (previewTheme ?? theme).buttonSelected }}
+                >
+                  {previewTheme?.name ?? selectedThemeName}
+                </div>
+                {/* Header icons */}
+                <div className="flex items-center gap-3">
+                  {/* Trophy icon */}
+                  <div 
+                    className="w-8 h-8 flex items-center justify-center rounded"
+                    style={{ color: (previewTheme ?? theme).buttonUnselected }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                      <path d="M4 22h16" />
+                      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                    </svg>
+                  </div>
+                  {/* User avatar placeholder */}
+                  <div 
+                    className="w-8 h-8 rounded-full"
+                    style={{ backgroundColor: (previewTheme ?? theme).surfaceColor, border: `2px solid ${(previewTheme ?? theme).defaultText}40` }}
+                  />
+                </div>
+              </div>
 
-            {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto pr-2">
-              {/* Grouped Themes Grid */}
-              {groupedThemes.map((group) => (
-                <div key={group.category} className="mb-6 last:mb-0">
-                  <h3 className="text-sm font-medium text-gray-400 mb-3 sticky top-0 py-1" style={{ backgroundColor: theme.surfaceColor }}>
-                    {group.displayName}
-                  </h3>
-                  <div className="grid grid-cols-4 gap-2">
-                    {group.themes.map((themeData) => (
-                      <button
-                        key={themeData.name}
-                        onClick={() => {
-                          handleThemeSelect(themeData.name);
+              {/* Settings Controls Area - Absolute positioned below header */}
+              <div className="absolute top-16 left-0 right-0 flex flex-col items-center gap-2 px-6 py-2 z-10">
+                {/* Row 1: Quick Settings Icons */}
+                <div 
+                  className="flex items-center gap-2 rounded-lg px-3 py-1.5"
+                  style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
+                >
+                  {/* Kid Mode (Baby) icon */}
+                  <div style={{ color: (previewTheme ?? theme).buttonUnselected }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 12h.01" />
+                      <path d="M15 12h.01" />
+                      <path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5" />
+                      <path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1" />
+                    </svg>
+                  </div>
+                  <div className="w-px h-3" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
+                  {/* Sound icon */}
+                  <div style={{ color: (previewTheme ?? theme).buttonUnselected }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    </svg>
+                  </div>
+                  <div className="w-px h-3" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
+                  {/* Ghost writer icon */}
+                  <div style={{ color: (previewTheme ?? theme).buttonSelected }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 10h.01" />
+                      <path d="M15 10h.01" />
+                      <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
+                    </svg>
+                  </div>
+                  <div className="w-px h-3" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
+                  {/* Theme palette icon */}
+                  <div style={{ color: (previewTheme ?? theme).buttonUnselected }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" />
+                      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" />
+                      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" />
+                      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" />
+                      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+                    </svg>
+                  </div>
+                  <div className="w-px h-3" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
+                  {/* Settings gear icon */}
+                  <div style={{ color: (previewTheme ?? theme).buttonUnselected }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Row 2: Mode Selector */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium" style={{ color: (previewTheme ?? theme).defaultText }}>Mode</span>
+                  <div 
+                    className="flex rounded-lg p-1"
+                    style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
+                  >
+                    {(["zen", "time", "words", "quote"] as const).map((m, idx) => (
+                      <span
+                        key={m}
+                        className="px-3 py-1 rounded text-xs"
+                        style={{ 
+                          color: idx === 0 ? (previewTheme ?? theme).buttonSelected : (previewTheme ?? theme).buttonUnselected,
+                          backgroundColor: idx === 0 ? (previewTheme ?? theme).backgroundColor : "transparent",
+                          fontWeight: idx === 0 ? 500 : 400
                         }}
-                        className={`p-2 rounded-lg border transition ${
-                          selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
-                            ? "border-gray-400 ring-1 ring-gray-400"
-                            : "border-gray-700 hover:border-gray-500"
-                        }`}
-                        style={{ backgroundColor: themeData.backgroundColor }}
                       >
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.cursor }} />
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.buttonSelected }} />
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.correctText }} />
-                        </div>
-                        <div className="text-xs truncate" style={{ color: themeData.correctText }}>
-                          {themeData.name}
-                        </div>
-                      </button>
+                        {m}
+                      </span>
                     ))}
                   </div>
                 </div>
-              ))}
 
-              {/* Separator */}
-              <div className="border-t border-gray-600 my-4" />
-
-              {/* Custom Theme Dropdown */}
-              <div className="border border-gray-600 rounded-lg overflow-hidden mb-4">
-              <button
-                type="button"
-                onClick={() => setIsCustomThemeOpen(!isCustomThemeOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-gray-700 hover:bg-gray-600 transition-colors"
-              >
-                <span className="text-sm font-medium text-gray-200">Custom Theme</span>
-                <svg
-                  className={`w-5 h-5 text-gray-400 transition-transform ${isCustomThemeOpen ? "rotate-180" : ""}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-
-              <div
-                className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                  isCustomThemeOpen
-                    ? "max-h-[500px] opacity-100"
-                    : "max-h-0 opacity-0"
-                }`}
-              >
-                <div className="p-4 bg-gray-800/50 space-y-3">
-                  {/* Color Picker Grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Background</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.backgroundColor}
-                          onChange={(color) => {
-                            setTheme({ ...theme, backgroundColor: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, backgroundColor: "#323437" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Surface</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.surfaceColor}
-                          onChange={(color) => {
-                            setTheme({ ...theme, surfaceColor: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, surfaceColor: "#2c2e31" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Cursor</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.cursor}
-                          onChange={(color) => {
-                            setTheme({ ...theme, cursor: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, cursor: "#3cb5ee" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Ghost Cursor</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.ghostCursor}
-                          onChange={(color) => {
-                            setTheme({ ...theme, ghostCursor: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, ghostCursor: "#a855f7" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Default Text</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.defaultText}
-                          onChange={(color) => {
-                            setTheme({ ...theme, defaultText: color, upcomingText: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, defaultText: "#4b5563", upcomingText: "#4b5563" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Correct Text</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.correctText}
-                          onChange={(color) => {
-                            setTheme({ ...theme, correctText: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, correctText: "#d1d5db" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Incorrect Text</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.incorrectText}
-                          onChange={(color) => {
-                            setTheme({ ...theme, incorrectText: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, incorrectText: "#ef4444" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Btn Selected</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.buttonSelected}
-                          onChange={(color) => {
-                            setTheme({ ...theme, buttonSelected: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, buttonSelected: "#0097b2" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Btn Unselected</span>
-                      <div className="flex items-center gap-2">
-                        <ColorPicker
-                          value={theme.buttonUnselected}
-                          onChange={(color) => {
-                            setTheme({ ...theme, buttonUnselected: color });
-                            setSelectedThemeName("Custom");
-                          }}
-                        />
-                        <button
-                          onClick={() => setTheme({ ...theme, buttonUnselected: "#3cb5ee" })}
-                          className="text-xs text-gray-500 hover:text-gray-300"
-                          title="Reset"
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Reset All Button */}
-                  <button
-                    onClick={() => {
-                      setTheme({
-                        backgroundColor: "#323437",
-                        surfaceColor: "#2c2e31",
-                        cursor: "#3cb5ee",
-                        ghostCursor: "#a855f7",
-                        defaultText: "#4b5563",
-                        upcomingText: "#4b5563",
-                        correctText: "#d1d5db",
-                        incorrectText: "#ef4444",
-                        buttonUnselected: "#3cb5ee",
-                        buttonSelected: "#0097b2",
-                      });
-                      setSelectedThemeName("TypeSetGo");
-                    }}
-                    className="w-full py-2 mt-2 text-sm text-gray-400 hover:text-gray-200 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+                {/* Row 3: Zen infinity + Difficulty */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium" style={{ color: (previewTheme ?? theme).defaultText }}>Duration</span>
+                  <div 
+                    className="flex rounded-lg px-4 py-1.5"
+                    style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
                   >
-                    Reset All to Defaults
-                  </button>
+                    <span className="text-base" style={{ color: (previewTheme ?? theme).buttonSelected }}>∞</span>
+                  </div>
+                  <div className="w-px h-4" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
+                  <span className="text-xs font-medium" style={{ color: (previewTheme ?? theme).defaultText }}>Difficulty</span>
+                  <div 
+                    className="flex rounded-lg p-1"
+                    style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
+                  >
+                    {["easy", "medium", "hard"].map((d, idx) => (
+                      <span
+                        key={d}
+                        className="px-3 py-1 rounded text-xs"
+                        style={{ 
+                          color: idx === 1 ? (previewTheme ?? theme).buttonSelected : (previewTheme ?? theme).buttonUnselected,
+                          backgroundColor: idx === 1 ? (previewTheme ?? theme).backgroundColor : "transparent",
+                          fontWeight: idx === 1 ? 500 : 400
+                        }}
+                      >
+                        {d}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              {/* Main Typing Area - Full height, vertically centered */}
+              <div className="absolute inset-0 flex items-center justify-center px-8">
+                {/* Sample Typing Text */}
+                <div className="text-2xl font-mono leading-loose text-center">
+                  {/* Line 1: correctly typed */}
+                  <span style={{ color: (previewTheme ?? theme).correctText }}>the quick brown fox </span>
+                  {/* Line 1: error */}
+                  <span style={{ color: (previewTheme ?? theme).incorrectText }}>jum</span>
+                  {/* Cursor */}
+                  <span 
+                    className="inline-block w-0.5 h-6 align-middle animate-pulse"
+                    style={{ backgroundColor: (previewTheme ?? theme).cursor }}
+                  />
+                  {/* Line 1: untyped */}
+                  <span style={{ color: (previewTheme ?? theme).defaultText }}>ps over</span>
+                  <br />
+                  {/* Line 2: all untyped */}
+                  <span style={{ color: (previewTheme ?? theme).defaultText }}>the lazy dog</span>
+                </div>
+              </div>
+
+              {/* Color Swatches - Absolute positioned at bottom */}
+              <div 
+                className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-4 px-6 py-4 border-t"
+                style={{ 
+                  backgroundColor: (previewTheme ?? theme).surfaceColor,
+                  borderColor: `${(previewTheme ?? theme).defaultText}20`
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).cursor }} />
+                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>cursor</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).correctText }} />
+                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>correct</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).incorrectText }} />
+                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>incorrect</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).defaultText }} />
+                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>untyped</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).buttonSelected }} />
+                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>selected</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right: Theme Browser (50%) */}
+            <div className="w-1/2 p-6 flex flex-col overflow-hidden border-l" style={{ borderColor: `${theme.defaultText}30` }}>
+              {/* Header with close button */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-200">Theme</h2>
+                <button
+                  onClick={() => {
+                    setShowThemeModal(false);
+                    setIsCustomThemeOpen(false);
+                    setPreviewTheme(null);
+                    setSelectedCategory(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-200"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* View Mode Toggle */}
+              <div className="flex rounded-lg p-1 mb-4" style={{ backgroundColor: theme.backgroundColor }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThemeViewMode("all");
+                    setSelectedCategory(null);
+                  }}
+                  className={`flex-1 px-3 py-1.5 rounded text-sm transition ${themeViewMode === "all" ? "font-medium" : ""}`}
+                  style={{ 
+                    color: themeViewMode === "all" ? theme.buttonSelected : theme.buttonUnselected,
+                    backgroundColor: themeViewMode === "all" ? theme.surfaceColor : "transparent"
+                  }}
+                >
+                  All Themes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThemeViewMode("categories");
+                    setSelectedCategory(null);
+                  }}
+                  className={`flex-1 px-3 py-1.5 rounded text-sm transition ${themeViewMode === "categories" ? "font-medium" : ""}`}
+                  style={{ 
+                    color: themeViewMode === "categories" ? theme.buttonSelected : theme.buttonUnselected,
+                    backgroundColor: themeViewMode === "categories" ? theme.surfaceColor : "transparent"
+                  }}
+                >
+                  Categories
+                </button>
+              </div>
+
+              {/* Scrollable Content Area */}
+              <div className="flex-1 overflow-y-auto pr-2">
+                {/* All Themes View */}
+                {themeViewMode === "all" && (
+                  <>
+                    {groupedThemes.map((group) => (
+                      <div key={group.category} className="mb-6 last:mb-0">
+                        <h3 className="text-sm font-medium text-gray-400 mb-3 sticky top-0 py-1" style={{ backgroundColor: theme.surfaceColor }}>
+                          {group.displayName}
+                        </h3>
+                        <div className="grid grid-cols-3 gap-2">
+                          {group.themes.map((themeData) => (
+                            <button
+                              key={themeData.name}
+                              onClick={() => {
+                                handleThemeSelect(themeData.name);
+                              }}
+                              onMouseEnter={() => setPreviewTheme(themeData)}
+                              onMouseLeave={() => setPreviewTheme(null)}
+                              className={`p-2 rounded-lg border transition ${
+                                selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
+                                  ? "border-gray-400 ring-1 ring-gray-400"
+                                  : "border-gray-700 hover:border-gray-500"
+                              }`}
+                              style={{ backgroundColor: themeData.backgroundColor }}
+                            >
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.cursor }} />
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.buttonSelected }} />
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.correctText }} />
+                              </div>
+                              <div className="text-xs truncate" style={{ color: themeData.correctText }}>
+                                {themeData.name}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Categories View */}
+                {themeViewMode === "categories" && !selectedCategory && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {groupedThemes.map((group) => (
+                      <button
+                        key={group.category}
+                        onClick={() => setSelectedCategory(group.category)}
+                        className="p-4 rounded-lg border border-gray-700 hover:border-gray-500 transition text-left"
+                        style={{ backgroundColor: theme.backgroundColor }}
+                      >
+                        <div className="text-sm font-medium text-gray-200 mb-1">
+                          {group.displayName}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {group.themes.length} theme{group.themes.length !== 1 ? "s" : ""}
+                        </div>
+                        {/* Preview colors from first theme in category */}
+                        {group.themes[0] && (
+                          <div className="flex items-center gap-1 mt-2">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].cursor }} />
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].buttonSelected }} />
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].correctText }} />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Single Category View */}
+                {themeViewMode === "categories" && selectedCategory && (
+                  <>
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200 mb-4 transition"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Back to Categories
+                    </button>
+                    <h3 className="text-sm font-medium text-gray-400 mb-3">
+                      {CATEGORY_CONFIG[selectedCategory].displayName}
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {groupedThemes
+                        .find((g) => g.category === selectedCategory)
+                        ?.themes.map((themeData) => (
+                          <button
+                            key={themeData.name}
+                            onClick={() => {
+                              handleThemeSelect(themeData.name);
+                            }}
+                            onMouseEnter={() => setPreviewTheme(themeData)}
+                            onMouseLeave={() => setPreviewTheme(null)}
+                            className={`p-2 rounded-lg border transition ${
+                              selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
+                                ? "border-gray-400 ring-1 ring-gray-400"
+                                : "border-gray-700 hover:border-gray-500"
+                            }`}
+                            style={{ backgroundColor: themeData.backgroundColor }}
+                          >
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.cursor }} />
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.buttonSelected }} />
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.correctText }} />
+                            </div>
+                            <div className="text-xs truncate" style={{ color: themeData.correctText }}>
+                              {themeData.name}
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Separator */}
+                <div className="border-t border-gray-600 my-4" />
+
+                {/* Custom Theme Dropdown */}
+                <div className="border border-gray-600 rounded-lg overflow-hidden mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomThemeOpen(!isCustomThemeOpen)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-gray-700 hover:bg-gray-600 transition-colors"
+                  >
+                    <span className="text-sm font-medium text-gray-200">Custom Theme</span>
+                    <svg
+                      className={`w-5 h-5 text-gray-400 transition-transform ${isCustomThemeOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  <div
+                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                      isCustomThemeOpen
+                        ? "max-h-[500px] opacity-100"
+                        : "max-h-0 opacity-0"
+                    }`}
+                  >
+                    <div className="p-4 bg-gray-800/50 space-y-3">
+                      {/* Color Picker Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Background</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.backgroundColor}
+                              onChange={(color) => {
+                                setTheme({ ...theme, backgroundColor: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, backgroundColor: "#323437" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Surface</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.surfaceColor}
+                              onChange={(color) => {
+                                setTheme({ ...theme, surfaceColor: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, surfaceColor: "#2c2e31" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Cursor</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.cursor}
+                              onChange={(color) => {
+                                setTheme({ ...theme, cursor: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, cursor: "#3cb5ee" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Ghost Cursor</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.ghostCursor}
+                              onChange={(color) => {
+                                setTheme({ ...theme, ghostCursor: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, ghostCursor: "#a855f7" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Default Text</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.defaultText}
+                              onChange={(color) => {
+                                setTheme({ ...theme, defaultText: color, upcomingText: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, defaultText: "#4b5563", upcomingText: "#4b5563" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Correct Text</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.correctText}
+                              onChange={(color) => {
+                                setTheme({ ...theme, correctText: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, correctText: "#d1d5db" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Incorrect Text</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.incorrectText}
+                              onChange={(color) => {
+                                setTheme({ ...theme, incorrectText: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, incorrectText: "#ef4444" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Btn Selected</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.buttonSelected}
+                              onChange={(color) => {
+                                setTheme({ ...theme, buttonSelected: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, buttonSelected: "#0097b2" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-300">Btn Unselected</span>
+                          <div className="flex items-center gap-2">
+                            <ColorPicker
+                              value={theme.buttonUnselected}
+                              onChange={(color) => {
+                                setTheme({ ...theme, buttonUnselected: color });
+                                setSelectedThemeName("Custom");
+                              }}
+                            />
+                            <button
+                              onClick={() => setTheme({ ...theme, buttonUnselected: "#3cb5ee" })}
+                              className="text-xs text-gray-500 hover:text-gray-300"
+                              title="Reset"
+                            >
+                              ↺
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reset All Button */}
+                      <button
+                        onClick={() => {
+                          setTheme({
+                            backgroundColor: "#323437",
+                            surfaceColor: "#2c2e31",
+                            cursor: "#3cb5ee",
+                            ghostCursor: "#a855f7",
+                            defaultText: "#4b5563",
+                            upcomingText: "#4b5563",
+                            correctText: "#d1d5db",
+                            incorrectText: "#ef4444",
+                            buttonUnselected: "#3cb5ee",
+                            buttonSelected: "#0097b2",
+                          });
+                          setSelectedThemeName("TypeSetGo");
+                        }}
+                        className="w-full py-2 mt-2 text-sm text-gray-400 hover:text-gray-200 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        Reset All to Defaults
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
