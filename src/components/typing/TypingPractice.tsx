@@ -827,7 +827,11 @@ export default function TypingPractice({
               duration: 5000,
               style: {
                 borderLeft: `4px solid ${tierColor}`,
+                backgroundColor: theme.surfaceColor,
+                color: theme.correctText,
+                borderColor: `${tierColor}40`,
               },
+              descriptionClassName: "!text-current opacity-70",
               action: {
                 label: "Ok",
                 onClick: () => {
