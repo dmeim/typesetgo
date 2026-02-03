@@ -458,19 +458,37 @@ export default function TypingPractice({
     return () => window.removeEventListener("resize", checkCompactMode);
   }, []);
 
+  // --- Reset DB prefs flag when user changes ---
+  useEffect(() => {
+    hasAppliedDbPrefs.current = false;
+  }, [user?.id]);
+
   // --- Load Preferences from DB (for logged-in users) ---
   useEffect(() => {
     if (!dbPreferences || hasAppliedDbPrefs.current) return;
     hasAppliedDbPrefs.current = true;
 
     // Use requestAnimationFrame to defer state updates and avoid cascading renders
-    requestAnimationFrame(() => {
-      // Apply theme from DB
-      if (!externalTheme) {
-        if (dbPreferences.customTheme) {
-          setInternalTheme(dbPreferences.customTheme);
+    requestAnimationFrame(async () => {
+      // Apply theme from DB - use external setters if available, otherwise internal
+      const applyTheme = externalSetTheme ?? setInternalTheme;
+      const applyThemeName = externalSetSelectedThemeName ?? setInternalSelectedThemeName;
+
+      if (dbPreferences.customTheme) {
+        // Custom theme: apply the stored colors directly
+        applyTheme(dbPreferences.customTheme);
+        applyThemeName(dbPreferences.themeName);
+      } else if (dbPreferences.themeName) {
+        // Named theme: fetch the theme colors and apply
+        const themeData = await fetchTheme(dbPreferences.themeName);
+        if (themeData) {
+          const { name, ...colors } = themeData;
+          applyTheme(colors);
+          applyThemeName(name);
+        } else {
+          // Theme not found, just set the name (fallback)
+          applyThemeName(dbPreferences.themeName);
         }
-        setInternalSelectedThemeName(dbPreferences.themeName);
       }
 
       // Apply settings from DB
@@ -496,7 +514,7 @@ export default function TypingPractice({
         textAlign: dbPreferences.textAlign as typeof prev.textAlign,
       }));
     });
-  }, [dbPreferences, externalTheme]);
+  }, [dbPreferences, externalSetTheme, externalSetSelectedThemeName, user?.id]);
 
   // --- Save Preferences to DB (debounced, for logged-in users) ---
   useEffect(() => {
