@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Baby } from "lucide-react";
+import { toast } from "sonner";
 import type { Quote, SettingsState, Theme } from "@/lib/typing-constants";
 import { DEFAULT_THEME } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
@@ -35,6 +36,8 @@ import {
   PROGRESS_INTERVAL_MS,
   PROGRESS_CHAR_THRESHOLD,
 } from "../../../convex/lib/antiCheatConstants";
+import { useNotifications } from "@/lib/notification-store";
+import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
 
 // Constants
 const TIME_PRESETS = [15, 30, 60, 120, 300];
@@ -355,6 +358,9 @@ export default function TypingPractice({
   const { openSignIn } = useClerk();
   const saveResultMutation = useMutation(api.testResults.saveResult);
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
+
+  // Notification store for achievement toasts
+  const { addNotification } = useNotifications();
 
   // Anti-cheat session mutations
   const startSessionMutation = useMutation(api.typingSessions.startSession);
@@ -796,6 +802,43 @@ export default function TypingPractice({
       const month = now.getMonth(); // 0-11
       const day = now.getDate(); // 1-31
 
+      // Helper function to show toasts for new achievements
+      const showAchievementToasts = (achievementIds: string[]) => {
+        for (const achievementId of achievementIds) {
+          const achievement = getAchievementById(achievementId);
+          if (achievement) {
+            const tierColor = TIER_COLORS[achievement.tier]?.bg || "#FFD700";
+            
+            // Add to notification store
+            addNotification({
+              type: "achievement",
+              title: achievement.title,
+              description: achievement.description,
+              metadata: {
+                achievementId: achievement.id,
+                achievementTier: achievement.tier,
+              },
+            });
+
+            // Show toast notification
+            toast.success(achievement.title, {
+              description: achievement.description,
+              icon: <span style={{ fontSize: "1.25rem" }}>{achievement.icon}</span>,
+              duration: 5000,
+              style: {
+                borderLeft: `4px solid ${tierColor}`,
+              },
+              action: {
+                label: "Ok",
+                onClick: () => {
+                  // Just dismisses the toast - user can view achievement details from notification tray
+                },
+              },
+            });
+          }
+        }
+      };
+
       // If we have a session, try the new finalize flow (server-authoritative)
       if (sessionId) {
         try {
@@ -815,6 +858,11 @@ export default function TypingPractice({
           setSessionId(null);
           setSaveState("saved");
           pendingResultRef.current = null;
+          
+          // Show toasts for new achievements
+          if (finalizeResult.newAchievements && finalizeResult.newAchievements.length > 0) {
+            showAchievementToasts(finalizeResult.newAchievements);
+          }
           return;
         } catch (finalizeError) {
           // Session may have been cancelled or expired - fall back to legacy save
@@ -824,7 +872,7 @@ export default function TypingPractice({
       }
 
       // Fall back to legacy save (no session or finalize failed) - result won't have server validation
-      await saveResultMutation({
+      const legacyResult = await saveResultMutation({
         clerkId: user.id,
         ...dataToSave,
         localDate,
@@ -836,11 +884,16 @@ export default function TypingPractice({
       });
       setSaveState("saved");
       pendingResultRef.current = null;
+      
+      // Show toasts for new achievements from legacy save
+      if (legacyResult.newAchievements && legacyResult.newAchievements.length > 0) {
+        showAchievementToasts(legacyResult.newAchievements);
+      }
     } catch (error) {
       console.error("Failed to save result:", error);
       setSaveState("error");
     }
-  }, [user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, sessionId, finalizeSessionMutation]);
+  }, [user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, sessionId, finalizeSessionMutation, addNotification]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {

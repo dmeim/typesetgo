@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Theme } from "@/lib/typing-constants";
 import { UserButton } from "@/components/auth";
+import NotificationCenter from "@/components/layout/NotificationCenter";
 
 interface HeaderProps {
   theme: Theme;
@@ -118,6 +119,9 @@ export default function Header({
             </svg>
           </Link>
         )}
+
+        {/* Notification Center */}
+        <NotificationCenter theme={theme} />
 
         {/* User Button - Sign In / Avatar Dropdown */}
         <UserButton theme={theme} />

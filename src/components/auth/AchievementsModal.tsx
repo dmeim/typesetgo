@@ -5,6 +5,7 @@ import {
   ACHIEVEMENT_CATEGORIES,
   TIER_COLORS,
   getAchievementsByCategory,
+  getAchievementById,
   type Achievement,
   type AchievementCategory,
 } from "@/lib/achievement-definitions";
@@ -15,6 +16,7 @@ interface AchievementsModalProps {
   theme: Theme;
   onClose: () => void;
   initialCategory?: AchievementCategory | null;
+  initialAchievementId?: string | null;
 }
 
 // Achievement card component
@@ -23,24 +25,35 @@ function AchievementCard({
   isEarned,
   theme,
   onClick,
+  isHighlighted,
+  cardRef,
 }: {
   achievement: Achievement;
   isEarned: boolean;
   theme: Theme;
   onClick: () => void;
+  isHighlighted?: boolean;
+  cardRef?: (el: HTMLButtonElement | null) => void;
 }) {
   const tierColors = TIER_COLORS[achievement.tier];
 
   if (isEarned) {
     return (
       <button
+        ref={cardRef}
         onClick={onClick}
-        className="flex flex-col items-center p-3 rounded-lg transition-all hover:scale-105 cursor-pointer"
+        className={`flex flex-col items-center p-3 rounded-lg transition-all hover:scale-105 cursor-pointer ${
+          isHighlighted ? "ring-2 ring-offset-2 animate-pulse" : ""
+        }`}
         style={{
           backgroundColor: `${tierColors.bg}20`,
           borderWidth: 2,
           borderColor: `${tierColors.border}60`,
-          boxShadow: `0 0 12px ${tierColors.bg}25`,
+          boxShadow: isHighlighted
+            ? `0 0 20px ${tierColors.bg}60`
+            : `0 0 12px ${tierColors.bg}25`,
+          // Use CSS custom property for ring color via inline style
+          ["--tw-ring-color" as string]: tierColors.bg,
         }}
         title={achievement.description}
       >
@@ -72,8 +85,11 @@ function AchievementCard({
   // Locked card
   return (
     <button
+      ref={cardRef}
       onClick={onClick}
-      className="flex flex-col items-center p-3 rounded-lg opacity-40 grayscale cursor-pointer hover:opacity-60 transition-opacity"
+      className={`flex flex-col items-center p-3 rounded-lg opacity-40 grayscale cursor-pointer hover:opacity-60 transition-opacity ${
+        isHighlighted ? "ring-2 ring-offset-2 animate-pulse" : ""
+      }`}
       style={{
         backgroundColor: `${theme.defaultText}10`,
         borderWidth: 2,
@@ -113,12 +129,16 @@ function CategorySection({
   theme,
   onAchievementClick,
   sectionRef,
+  highlightedAchievementId,
+  achievementRefs,
 }: {
   category: AchievementCategory;
   earnedIds: Set<string>;
   theme: Theme;
   onAchievementClick: (achievement: Achievement, index: number, allInCategory: Achievement[]) => void;
   sectionRef?: (el: HTMLDivElement | null) => void;
+  highlightedAchievementId?: string | null;
+  achievementRefs?: React.MutableRefObject<Map<string, HTMLButtonElement>>;
 }) {
   const categoryInfo = ACHIEVEMENT_CATEGORIES[category];
   const achievements = getAchievementsByCategory(category);
@@ -152,6 +172,12 @@ function CategorySection({
             isEarned={earnedIds.has(achievement.id)}
             theme={theme}
             onClick={() => onAchievementClick(achievement, index, achievements)}
+            isHighlighted={highlightedAchievementId === achievement.id}
+            cardRef={(el) => {
+              if (el && achievementRefs) {
+                achievementRefs.current.set(achievement.id, el);
+              }
+            }}
           />
         ))}
       </div>
@@ -164,6 +190,7 @@ export default function AchievementsModal({
   theme,
   onClose,
   initialCategory,
+  initialAchievementId,
 }: AchievementsModalProps) {
   const earnedIds = new Set(Object.keys(earnedAchievements));
   const totalEarned = earnedIds.size;
@@ -174,6 +201,11 @@ export default function AchievementsModal({
     achievements: { achievement: Achievement; earnedAt: number | null }[];
     initialIndex: number;
   } | null>(null);
+
+  // State for highlighted achievement (from notification click)
+  const [highlightedAchievementId, setHighlightedAchievementId] = useState<string | null>(
+    initialAchievementId || null
+  );
 
   // Category order
   const categories: AchievementCategory[] = [
@@ -197,11 +229,37 @@ export default function AchievementsModal({
 
   // Refs for category sections to enable scrolling to specific category
   const categoryRefs = useRef<Map<AchievementCategory, HTMLDivElement>>(new Map());
+  const achievementRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to initial category when modal opens
+  // Scroll to initial category or achievement when modal opens
   useEffect(() => {
-    if (initialCategory && scrollContainerRef.current) {
+    // Priority: specific achievement > category
+    if (initialAchievementId && scrollContainerRef.current) {
+      // Small delay to ensure refs are populated
+      setTimeout(() => {
+        const achievementElement = achievementRefs.current.get(initialAchievementId);
+        if (achievementElement && scrollContainerRef.current) {
+          achievementElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else {
+          // Fallback: find the achievement's category and scroll to it
+          const achievement = getAchievementById(initialAchievementId);
+          if (achievement) {
+            const categoryElement = categoryRefs.current.get(achievement.category);
+            if (categoryElement && scrollContainerRef.current) {
+              categoryElement.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }
+        }
+      }, 150);
+
+      // Clear highlight after 3 seconds
+      const highlightTimer = setTimeout(() => {
+        setHighlightedAchievementId(null);
+      }, 3000);
+
+      return () => clearTimeout(highlightTimer);
+    } else if (initialCategory && scrollContainerRef.current) {
       // Small delay to ensure refs are populated
       setTimeout(() => {
         const categoryElement = categoryRefs.current.get(initialCategory);
@@ -210,7 +268,7 @@ export default function AchievementsModal({
         }
       }, 100);
     }
-  }, [initialCategory]);
+  }, [initialCategory, initialAchievementId]);
 
   // Handle achievement card click - open carousel with all achievements in that category
   const handleAchievementClick = (
@@ -321,6 +379,8 @@ export default function AchievementsModal({
                     categoryRefs.current.set(category, el);
                   }
                 }}
+                highlightedAchievementId={highlightedAchievementId}
+                achievementRefs={achievementRefs}
               />
             ))}
           </div>

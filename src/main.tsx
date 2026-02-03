@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ClerkProvider } from "@clerk/clerk-react";
+import { Toaster } from "@/components/ui/sonner";
+import { NotificationProvider } from "@/lib/notification-store";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -23,17 +25,20 @@ if (!CLERK_PUBLISHABLE_KEY) {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ConvexProvider client={convex}>
-      {CLERK_PUBLISHABLE_KEY ? (
-        <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <NotificationProvider>
+        {CLERK_PUBLISHABLE_KEY ? (
+          <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </ClerkProvider>
+        ) : (
           <BrowserRouter>
             <App />
           </BrowserRouter>
-        </ClerkProvider>
-      ) : (
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      )}
+        )}
+        <Toaster position="top-center" richColors />
+      </NotificationProvider>
     </ConvexProvider>
   </StrictMode>
 );

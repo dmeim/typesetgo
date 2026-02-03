@@ -1,22 +1,23 @@
-"use client"
-
 import {
   CircleCheckIcon,
   InfoIcon,
   Loader2Icon,
   OctagonXIcon,
   TriangleAlertIcon,
-} from "lucide-react"
-import { useTheme } from "next-themes"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+  TrophyIcon,
+} from "lucide-react";
+import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+interface CustomToasterProps extends Omit<ToasterProps, "theme"> {
+  theme?: "light" | "dark" | "system";
+}
 
+const Toaster = ({ theme = "dark", ...props }: CustomToasterProps) => {
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={theme}
       className="toaster group"
+      visibleToasts={7}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
@@ -24,17 +25,25 @@ const Toaster = ({ ...props }: ToasterProps) => {
         error: <OctagonXIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
+      toastOptions={{
+        classNames: {
+          toast:
+            "group toast group-[.toaster]:bg-gray-900 group-[.toaster]:text-gray-100 group-[.toaster]:border-gray-700 group-[.toaster]:shadow-lg",
+          description: "group-[.toast]:text-gray-400",
+          actionButton:
+            "group-[.toast]:bg-gray-100 group-[.toast]:text-gray-900",
+          cancelButton:
+            "group-[.toast]:bg-gray-800 group-[.toast]:text-gray-400",
+        },
+      }}
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+// Custom icon for achievement toasts
+const AchievementIcon = ({ color }: { color?: string }) => (
+  <TrophyIcon className="size-4" style={{ color: color || "#FFD700" }} />
+);
+
+export { Toaster, AchievementIcon };
