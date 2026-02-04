@@ -12,28 +12,36 @@ export type { ThemeCategory, ThemeDefinition, ThemeManifest, ThemeColors, Groupe
 
 // Category display order and names
 export const CATEGORY_CONFIG: Record<ThemeCategory, CategoryConfig> = {
-  default: { displayName: "TypeSetGo", order: 0 },
+  // Featured
+  default: { displayName: "Featured", order: 0 },
+  // Technical/Developer
   editor: { displayName: "Editor/IDE", order: 1 },
-  holiday: { displayName: "Holiday", order: 2 },
-  nature: { displayName: "Nature", order: 3 },
-  time: { displayName: "Time of Day", order: 4 },
-  retro: { displayName: "Retro/Tech", order: 5 },
-  aesthetic: { displayName: "Aesthetic", order: 6 },
-  utility: { displayName: "Utility", order: 7 },
-  fun: { displayName: "Fun", order: 8 },
-  weather: { displayName: "Weather", order: 9 },
-  brand: { displayName: "Brand", order: 10 },
-  "color-theory": { displayName: "Color Theory", order: 11 },
+  brand: { displayName: "Brand", order: 2 },
+  // Productivity/Utility
+  productivity: { displayName: "Productivity", order: 3 },
+  utility: { displayName: "Utility", order: 4 },
+  // Design/Visual
+  aesthetic: { displayName: "Aesthetic", order: 5 },
+  "color-theory": { displayName: "Color Theory", order: 6 },
+  // Nature/Environment
+  nature: { displayName: "Nature", order: 7 },
+  weather: { displayName: "Weather", order: 8 },
+  space: { displayName: "Space", order: 9 },
+  time: { displayName: "Time of Day", order: 10 },
+  // Era/Culture
+  retro: { displayName: "Retro/Tech", order: 11 },
   cultural: { displayName: "Cultural", order: 12 },
-  productivity: { displayName: "Productivity", order: 13 },
-  gaming: { displayName: "Gaming", order: 14 },
-  music: { displayName: "Music", order: 15 },
-  food: { displayName: "Food", order: 16 },
-  space: { displayName: "Space", order: 17 },
+  // Entertainment/Media
+  gaming: { displayName: "Gaming", order: 13 },
+  movies: { displayName: "Movies", order: 14 },
+  "tv-shows": { displayName: "TV Shows", order: 15 },
+  anime: { displayName: "Anime", order: 16 },
+  // Lifestyle
+  music: { displayName: "Music", order: 17 },
   sports: { displayName: "Sports", order: 18 },
-  "tv-shows": { displayName: "TV Shows", order: 19 },
-  movies: { displayName: "Movies", order: 20 },
-  anime: { displayName: "Anime", order: 21 },
+  food: { displayName: "Food", order: 19 },
+  fun: { displayName: "Fun", order: 20 },
+  holiday: { displayName: "Holiday", order: 21 },
 };
 
 // Cache for loaded data
@@ -100,6 +108,9 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   // Movies
   "lord-of-the-rings": "Lord of the Rings",
   "harry-potter": "Harry Potter",
+  
+  // Retro
+  "nuclear-fallout": "Nuclear Fallout",
   
   // Anime
   "attack-on-titan": "Attack on Titan",
@@ -205,28 +216,36 @@ export async function fetchAllThemes(): Promise<ThemeDefinition[]> {
 // Group themes by category
 export function groupThemesByCategory(themes: ThemeDefinition[]): GroupedThemes[] {
   const groups: Record<ThemeCategory, ThemeDefinition[]> = {
+    // Featured
     default: [],
+    // Technical/Developer
     editor: [],
-    holiday: [],
-    nature: [],
-    time: [],
-    retro: [],
-    aesthetic: [],
-    utility: [],
-    fun: [],
-    weather: [],
     brand: [],
-    "color-theory": [],
-    cultural: [],
+    // Productivity/Utility
     productivity: [],
-    gaming: [],
-    music: [],
-    food: [],
+    utility: [],
+    // Design/Visual
+    aesthetic: [],
+    "color-theory": [],
+    // Nature/Environment
+    nature: [],
+    weather: [],
     space: [],
-    sports: [],
-    "tv-shows": [],
+    time: [],
+    // Era/Culture
+    retro: [],
+    cultural: [],
+    // Entertainment/Media
+    gaming: [],
     movies: [],
+    "tv-shows": [],
     anime: [],
+    // Lifestyle
+    music: [],
+    sports: [],
+    food: [],
+    fun: [],
+    holiday: [],
   };
 
   // Group themes
