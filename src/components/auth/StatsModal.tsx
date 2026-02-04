@@ -3,11 +3,14 @@ import { useUser } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { Theme } from "@/lib/typing-constants";
+import { useTheme } from "@/hooks/useTheme";
+import type { LegacyTheme } from "@/types/theme";
 import AchievementsGrid from "./AchievementsGrid";
 
+// Helper type for components that receive theme
+type Theme = LegacyTheme;
+
 interface StatsModalProps {
-  theme: Theme;
   onClose: () => void;
 }
 
@@ -489,8 +492,23 @@ const ROW_HEIGHT_PX = 44;
 const VISIBLE_ROWS = 7;
 const PEEK_PERCENTAGE = 0.3; // Show 30% of 8th row
 
-export default function StatsModal({ theme, onClose }: StatsModalProps) {
+export default function StatsModal({ onClose }: StatsModalProps) {
   const { user } = useUser();
+  const { legacyTheme } = useTheme();
+
+  // Fallback theme (complete)
+  const theme: LegacyTheme = legacyTheme ?? {
+    cursor: "#3cb5ee",
+    defaultText: "#4b5563",
+    upcomingText: "#4b5563",
+    correctText: "#d1d5db",
+    incorrectText: "#ef4444",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
+    ghostCursor: "#a855f7",
+  };
   const stats = useQuery(
     api.testResults.getUserStats,
     user ? { clerkId: user.id } : "skip"
@@ -839,7 +857,6 @@ export default function StatsModal({ theme, onClose }: StatsModalProps) {
           <div className="mt-6">
             <AchievementsGrid
               earnedAchievements={achievements ?? {}}
-              theme={theme}
               maxVisibleRows={2}
             />
           </div>

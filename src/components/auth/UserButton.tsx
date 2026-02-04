@@ -2,7 +2,7 @@ import { useUser, useClerk, SignInButton } from "@clerk/clerk-react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useEffect, useRef } from "react";
-import type { Theme } from "@/lib/typing-constants";
+import { useTheme } from "@/hooks/useTheme";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,15 +11,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface UserButtonProps {
-  theme: Theme;
-}
-
-export default function UserButton({ theme }: UserButtonProps) {
+export default function UserButton() {
   const { isSignedIn, user, isLoaded } = useUser();
   const { signOut, openUserProfile } = useClerk();
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const syncedUserIdRef = useRef<string | null>(null);
+  const { legacyTheme } = useTheme();
+
+  // Fallback theme for when context is loading
+  const theme = legacyTheme ?? {
+    surfaceColor: "#2c2e31",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    correctText: "#d1d5db",
+    defaultText: "#4b5563",
+    incorrectText: "#ef4444",
+  };
 
   // Sync user to Convex when they sign in
   useEffect(() => {

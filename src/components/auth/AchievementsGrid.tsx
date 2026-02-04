@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import type { Theme } from "@/lib/typing-constants";
+import { useTheme } from "@/hooks/useTheme";
 import {
   getAchievementById,
   TIER_COLORS,
@@ -17,17 +17,30 @@ import AchievementsModal from "./AchievementsModal";
 interface AchievementsGridProps {
   // Record of achievementId -> earnedAt timestamp
   earnedAchievements: Record<string, number>;
-  theme: Theme;
   // Maximum visible rows before scrolling (shows +0.5 to indicate more)
   maxVisibleRows?: number;
 }
 
 export default function AchievementsGrid({
   earnedAchievements,
-  theme,
   maxVisibleRows,
 }: AchievementsGridProps) {
   const { user } = useUser();
+  const { legacyTheme } = useTheme();
+  
+  // Fallback theme (complete)
+  const theme = legacyTheme ?? {
+    cursor: "#3cb5ee",
+    defaultText: "#4b5563",
+    upcomingText: "#4b5563",
+    correctText: "#d1d5db",
+    incorrectText: "#ef4444",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
+    ghostCursor: "#a855f7",
+  };
   const recheckAchievements = useMutation(api.achievements.recheckAllAchievements);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -219,7 +232,6 @@ export default function AchievementsGrid({
         <AchievementDetailModal
           achievements={selectedAchievements.achievements}
           initialIndex={selectedAchievements.initialIndex}
-          theme={theme}
           onClose={() => setSelectedAchievements(null)}
         />
       )}
@@ -228,7 +240,6 @@ export default function AchievementsGrid({
       {showAchievementsModal && (
         <AchievementsModal
           earnedAchievements={earnedAchievements}
-          theme={theme}
           onClose={() => setShowAchievementsModal(false)}
         />
       )}

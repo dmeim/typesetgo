@@ -1,20 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Baby } from "lucide-react";
+import { Baby, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
-import type { Quote, SettingsState, Theme } from "@/lib/typing-constants";
-import { DEFAULT_THEME } from "@/lib/typing-constants";
+import type { Quote, SettingsState } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
-import { fetchTheme, fetchAllThemes, groupThemesByCategory, CATEGORY_CONFIG, type ThemeDefinition, type GroupedThemes, type ThemeCategory } from "@/lib/themes";
-import ColorPicker from "./ColorPicker";
+import { fetchAllThemes, groupThemesByCategory, CATEGORY_CONFIG, type ThemeDefinition, type GroupedThemes, type ThemeCategory } from "@/lib/themes";
+import type { LegacyTheme, ThemeMode } from "@/types/theme";
+import { toLegacyTheme } from "@/types/theme";
+import { useTheme } from "@/hooks/useTheme";
 import { fetchWordsManifest, fetchWords, type WordsManifest } from "@/lib/words";
 import { fetchQuotesManifest, fetchQuotes, type QuotesManifest } from "@/lib/quotes";
 import {
   loadSettings,
   saveSettings,
-  loadTheme,
-  saveTheme,
-  loadThemeName,
-  saveThemeName,
 } from "@/lib/storage-utils";
 import SoundController from "./SoundController";
 import GhostWriterController from "./GhostWriterController";
@@ -200,11 +197,7 @@ interface TypingPracticeProps {
     targetText?: string
   ) => void;
   onLeave?: () => void;
-  // External theme and modal control (lifted state from Home.tsx)
-  theme?: Theme;
-  setTheme?: (theme: Theme) => void;
-  selectedThemeName?: string;
-  setSelectedThemeName?: (name: string) => void;
+  // External modal control (lifted state from Home.tsx)
   showSettings?: boolean;
   setShowSettings?: (show: boolean) => void;
   showThemeModal?: boolean;
@@ -220,16 +213,33 @@ export default function TypingPractice({
   onStatsUpdate,
   onLeave,
   // External state control (when used from Home.tsx)
-  theme: externalTheme,
-  setTheme: externalSetTheme,
-  selectedThemeName: externalSelectedThemeName,
-  setSelectedThemeName: externalSetSelectedThemeName,
   showSettings: externalShowSettings,
   setShowSettings: externalSetShowSettings,
   showThemeModal: externalShowThemeModal,
   setShowThemeModal: externalSetShowThemeModal,
   onTypingStateChange,
 }: TypingPracticeProps) {
+  // Theme context (replaces props and internal state)
+  const {
+    legacyTheme: contextTheme,
+    themeName: selectedThemeName,
+    setTheme: setThemeById,
+    setMode,
+  } = useTheme();
+
+  // Fallback theme for when context is loading
+  const theme: LegacyTheme = contextTheme ?? {
+    cursor: "#3cb5ee",
+    defaultText: "#4b5563",
+    upcomingText: "#4b5563",
+    correctText: "#d1d5db",
+    incorrectText: "#ef4444",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
+    ghostCursor: "#a855f7",
+  };
   // --- State ---
   const [settings, setSettings] = useState<SettingsState>({
     mode: "zen",
@@ -255,16 +265,10 @@ export default function TypingPractice({
   });
 
   // Use external state if provided, otherwise use internal state
-  const [internalTheme, setInternalTheme] = useState<Theme>(DEFAULT_THEME);
-  const [internalSelectedThemeName, setInternalSelectedThemeName] = useState("TypeSetGo");
   const [internalShowSettings, setInternalShowSettings] = useState(false);
   const [internalShowThemeModal, setInternalShowThemeModal] = useState(false);
 
   // Resolve to external or internal state
-  const theme = externalTheme ?? internalTheme;
-  const setTheme = externalSetTheme ?? setInternalTheme;
-  const selectedThemeName = externalSelectedThemeName ?? internalSelectedThemeName;
-  const setSelectedThemeName = externalSetSelectedThemeName ?? setInternalSelectedThemeName;
   const showSettings = externalShowSettings ?? internalShowSettings;
   const setShowSettings = externalSetShowSettings ?? setInternalShowSettings;
   const showThemeModal = externalShowThemeModal ?? internalShowThemeModal;
@@ -275,7 +279,26 @@ export default function TypingPractice({
   const [isCustomThemeOpen, setIsCustomThemeOpen] = useState(false);
   const [availableThemes, setAvailableThemes] = useState<ThemeDefinition[]>([]);
   const [groupedThemes, setGroupedThemes] = useState<GroupedThemes[]>([]);
-  const [previewTheme, setPreviewTheme] = useState<ThemeDefinition | null>(null);
+  const [previewThemeDef, setPreviewThemeDef] = useState<(ThemeDefinition & { previewMode?: ThemeMode }) | null>(null);
+  
+  // Helper to set preview theme with optional mode
+  const setPreviewTheme = useCallback((theme: ThemeDefinition | null, mode?: ThemeMode) => {
+    if (!theme) {
+      setPreviewThemeDef(null);
+    } else {
+      setPreviewThemeDef({ ...theme, previewMode: mode });
+    }
+  }, []);
+  
+  // Convert preview theme to legacy format for styling
+  const previewTheme: LegacyTheme | null = useMemo(() => {
+    if (!previewThemeDef) return null;
+    // Use preview mode if specified, otherwise default to dark
+    const colors = previewThemeDef.previewMode === "light" && previewThemeDef.light 
+      ? previewThemeDef.light 
+      : previewThemeDef.dark;
+    return toLegacyTheme(colors);
+  }, [previewThemeDef]);
   const [themeViewMode, setThemeViewMode] = useState<"all" | "categories">("all");
   const [selectedCategory, setSelectedCategory] = useState<ThemeCategory | null>(null);
   const [soundManifest, setSoundManifest] = useState<SoundManifest | null>(null);
@@ -408,20 +431,9 @@ export default function TypingPractice({
         }));
       }
 
-      // Only load theme from storage if not controlled externally
-      if (!externalTheme) {
-        const storedTheme = loadTheme();
-        if (storedTheme) {
-          setInternalTheme(storedTheme);
-        }
-
-        const storedThemeName = loadThemeName();
-        if (storedThemeName) {
-          setInternalSelectedThemeName(storedThemeName);
-        }
-      }
+      // Theme is now managed by ThemeContext, no need to load here
     });
-  }, [externalTheme]);
+  }, []);
 
   // --- Save Settings ---
   useEffect(() => {
@@ -441,12 +453,7 @@ export default function TypingPractice({
     };
   }, [settings]);
 
-  // --- Save Theme ---
-  useEffect(() => {
-    if (!hasLoadedFromStorage.current) return;
-    saveTheme(theme);
-    saveThemeName(selectedThemeName);
-  }, [theme, selectedThemeName]);
+  // Theme saving is now handled by ThemeContext
 
   // --- Compact Mode Detection (for zoomed/narrow viewports) ---
   useEffect(() => {
@@ -476,26 +483,13 @@ export default function TypingPractice({
 
     // Use requestAnimationFrame to defer state updates and avoid cascading renders
     requestAnimationFrame(async () => {
-      // Apply theme from DB - use external setters if available, otherwise internal
-      const applyTheme = externalSetTheme ?? setInternalTheme;
-      const applyThemeName = externalSetSelectedThemeName ?? setInternalSelectedThemeName;
-
-      if (dbPreferences.customTheme) {
-        // Custom theme: apply the stored colors directly
-        applyTheme(dbPreferences.customTheme);
-        applyThemeName(dbPreferences.themeName);
-      } else if (dbPreferences.themeName) {
-        // Named theme: fetch the theme colors and apply
-        const themeData = await fetchTheme(dbPreferences.themeName);
-        if (themeData) {
-          const { name, ...colors } = themeData;
-          applyTheme(colors);
-          applyThemeName(name);
-        } else {
-          // Theme not found, just set the name (fallback)
-          applyThemeName(dbPreferences.themeName);
-        }
+      // Apply theme from DB using the context
+      if (dbPreferences.themeName && !dbPreferences.customTheme) {
+        // Named theme: set via context (which handles loading and CSS variables)
+        await setThemeById(dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-"));
       }
+      // Note: Custom themes are not currently supported in the new theme system
+      // They would need to be stored as theme JSON files
 
       // Apply settings from DB
       setSettings((prev) => ({
@@ -520,7 +514,7 @@ export default function TypingPractice({
         textAlign: dbPreferences.textAlign as typeof prev.textAlign,
       }));
     });
-  }, [dbPreferences, externalSetTheme, externalSetSelectedThemeName, user?.id]);
+  }, [dbPreferences, setThemeById, user?.id]);
 
   // --- Save Preferences to DB (debounced, for logged-in users) ---
   useEffect(() => {
@@ -1196,23 +1190,23 @@ export default function TypingPractice({
     }
   };
 
-  const handleThemeSelect = async (themeName: string) => {
-    // First check if already loaded in availableThemes
-    const cached = availableThemes.find(
+  const handleThemeSelect = async (themeName: string, mode?: ThemeMode) => {
+    // Find the theme to get its ID
+    const themeData = availableThemes.find(
       (t) => t.name.toLowerCase() === themeName.toLowerCase()
     );
-    if (cached) {
-      const { name, ...colors } = cached;
-      setTheme(colors);
-      setSelectedThemeName(name);
-      return;
-    }
-    // Otherwise fetch it
-    const themeData = await fetchTheme(themeName);
     if (themeData) {
-      const { name, ...colors } = themeData;
-      setTheme(colors);
-      setSelectedThemeName(name);
+      // Use the theme ID (lowercase, hyphenated) for the context
+      await setThemeById(themeData.id);
+      // If a specific mode was requested and the theme supports it, set the mode
+      if (mode) {
+        // Only set light mode if the theme has a light variant
+        if (mode === "light" && themeData.light) {
+          setMode("light");
+        } else if (mode === "dark") {
+          setMode("dark");
+        }
+      }
     }
   };
 
@@ -2387,9 +2381,9 @@ export default function TypingPractice({
             style={{ backgroundColor: theme.surfaceColor }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Left: Preview Panel (50%) - Realistic Homepage Preview */}
+            {/* Left: Preview Panel (40%) - Realistic Homepage Preview */}
             <div 
-              className="w-1/2 overflow-hidden relative"
+              className="w-2/5 overflow-hidden relative"
               style={{ backgroundColor: (previewTheme ?? theme).backgroundColor }}
             >
               {/* Mini Header - Absolute positioned at top */}
@@ -2399,7 +2393,7 @@ export default function TypingPractice({
                   className="text-lg font-semibold"
                   style={{ color: (previewTheme ?? theme).buttonSelected }}
                 >
-                  {previewTheme?.name ?? selectedThemeName}
+                  {previewThemeDef?.name ?? selectedThemeName}
                 </div>
                 {/* Header icons */}
                 <div className="flex items-center gap-3">
@@ -2549,10 +2543,7 @@ export default function TypingPractice({
                     style={{ backgroundColor: (previewTheme ?? theme).cursor }}
                   />
                   {/* Line 1: untyped */}
-                  <span style={{ color: (previewTheme ?? theme).defaultText }}>ps over</span>
-                  <br />
-                  {/* Line 2: all untyped */}
-                  <span style={{ color: (previewTheme ?? theme).defaultText }}>the lazy dog</span>
+                  <span style={{ color: (previewTheme ?? theme).defaultText }}>ps over the lazy dog</span>
                 </div>
               </div>
 
@@ -2588,8 +2579,8 @@ export default function TypingPractice({
 
             </div>
 
-            {/* Right: Theme Browser (50%) */}
-            <div className="w-1/2 p-6 flex flex-col overflow-hidden border-l" style={{ borderColor: `${theme.defaultText}30` }}>
+            {/* Right: Theme Browser (60%) */}
+            <div className="w-3/5 p-6 flex flex-col overflow-hidden border-l" style={{ borderColor: `${theme.defaultText}30` }}>
               {/* Header with close button */}
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-200">Theme</h2>
@@ -2650,29 +2641,68 @@ export default function TypingPractice({
                         </h3>
                         <div className="grid grid-cols-3 gap-2">
                           {group.themes.map((themeData) => (
-                            <button
+                            <div
                               key={themeData.name}
-                              onClick={() => {
-                                handleThemeSelect(themeData.name);
-                              }}
-                              onMouseEnter={() => setPreviewTheme(themeData)}
-                              onMouseLeave={() => setPreviewTheme(null)}
-                              className={`p-2 rounded-lg border transition ${
+                              className={`flex rounded-lg border transition overflow-hidden min-h-[60px] ${
                                 selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
                                   ? "border-gray-400 ring-1 ring-gray-400"
                                   : "border-gray-700 hover:border-gray-500"
                               }`}
-                              style={{ backgroundColor: themeData.backgroundColor }}
+                              style={{ backgroundColor: themeData.dark.bg.base }}
                             >
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.cursor }} />
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.buttonSelected }} />
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.correctText }} />
+                              {/* Left column - theme info (80%) */}
+                              <button
+                                onClick={() => handleThemeSelect(themeData.name)}
+                                onMouseEnter={() => setPreviewTheme(themeData)}
+                                onMouseLeave={() => setPreviewTheme(null)}
+                                className="flex-[4] p-2 text-left"
+                              >
+                                <div className="flex items-center gap-1.5 mb-2">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.typing.cursor }} />
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.interactive.secondary.DEFAULT }} />
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.typing.correct }} />
+                                </div>
+                                <div className="text-xs truncate" style={{ color: themeData.dark.typing.correct }}>
+                                  {themeData.name}
+                                </div>
+                              </button>
+                              
+                              {/* Right column - mode toggles (10%) */}
+                              <div className="flex-1 flex flex-col border-l" style={{ borderColor: `${themeData.dark.typing.correct}30` }}>
+                                {/* Light mode button */}
+                                <button
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    if (themeData.light) handleThemeSelect(themeData.name, "light"); 
+                                  }}
+                                  onMouseEnter={() => themeData.light && setPreviewTheme(themeData, "light")}
+                                  onMouseLeave={() => setPreviewTheme(null)}
+                                  disabled={!themeData.light}
+                                  className={`flex-1 flex items-center justify-center transition-colors ${
+                                    !themeData.light 
+                                      ? "opacity-30 cursor-not-allowed" 
+                                      : "hover:bg-white/10 cursor-pointer"
+                                  }`}
+                                  title={themeData.light ? "Light mode" : "Light mode not available"}
+                                >
+                                  <Sun className="w-3 h-3" style={{ color: themeData.dark.typing.correct }} />
+                                </button>
+                                
+                                {/* Dark mode button */}
+                                <button
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    handleThemeSelect(themeData.name, "dark"); 
+                                  }}
+                                  onMouseEnter={() => setPreviewTheme(themeData, "dark")}
+                                  onMouseLeave={() => setPreviewTheme(null)}
+                                  className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
+                                  title="Dark mode"
+                                >
+                                  <Moon className="w-3 h-3" style={{ color: themeData.dark.typing.correct }} />
+                                </button>
                               </div>
-                              <div className="text-xs truncate" style={{ color: themeData.correctText }}>
-                                {themeData.name}
-                              </div>
-                            </button>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -2682,7 +2712,7 @@ export default function TypingPractice({
 
                 {/* Categories View */}
                 {themeViewMode === "categories" && !selectedCategory && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {groupedThemes.map((group) => (
                       <button
                         key={group.category}
@@ -2699,9 +2729,9 @@ export default function TypingPractice({
                         {/* Preview colors from first theme in category */}
                         {group.themes[0] && (
                           <div className="flex items-center gap-1 mt-2">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].cursor }} />
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].buttonSelected }} />
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].correctText }} />
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].dark.typing.cursor }} />
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].dark.interactive.secondary.DEFAULT }} />
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].dark.typing.correct }} />
                           </div>
                         )}
                       </button>
@@ -2728,29 +2758,68 @@ export default function TypingPractice({
                       {groupedThemes
                         .find((g) => g.category === selectedCategory)
                         ?.themes.map((themeData) => (
-                          <button
+                          <div
                             key={themeData.name}
-                            onClick={() => {
-                              handleThemeSelect(themeData.name);
-                            }}
-                            onMouseEnter={() => setPreviewTheme(themeData)}
-                            onMouseLeave={() => setPreviewTheme(null)}
-                            className={`p-2 rounded-lg border transition ${
+                            className={`flex rounded-lg border transition overflow-hidden min-h-[60px] ${
                               selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
                                 ? "border-gray-400 ring-1 ring-gray-400"
                                 : "border-gray-700 hover:border-gray-500"
                             }`}
-                            style={{ backgroundColor: themeData.backgroundColor }}
+                            style={{ backgroundColor: themeData.dark.bg.base }}
                           >
-                            <div className="flex items-center gap-1.5 mb-2">
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.cursor }} />
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.buttonSelected }} />
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.correctText }} />
+                            {/* Left column - theme info (80%) */}
+                            <button
+                              onClick={() => handleThemeSelect(themeData.name)}
+                              onMouseEnter={() => setPreviewTheme(themeData)}
+                              onMouseLeave={() => setPreviewTheme(null)}
+                              className="flex-[4] p-2 text-left"
+                            >
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.typing.cursor }} />
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.interactive.secondary.DEFAULT }} />
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.typing.correct }} />
+                              </div>
+                              <div className="text-xs truncate" style={{ color: themeData.dark.typing.correct }}>
+                                {themeData.name}
+                              </div>
+                            </button>
+                            
+                            {/* Right column - mode toggles (10%) */}
+                            <div className="flex-1 flex flex-col border-l" style={{ borderColor: `${themeData.dark.typing.correct}30` }}>
+                              {/* Light mode button */}
+                              <button
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  if (themeData.light) handleThemeSelect(themeData.name, "light"); 
+                                }}
+                                onMouseEnter={() => themeData.light && setPreviewTheme(themeData, "light")}
+                                onMouseLeave={() => setPreviewTheme(null)}
+                                disabled={!themeData.light}
+                                className={`flex-1 flex items-center justify-center transition-colors ${
+                                  !themeData.light 
+                                    ? "opacity-30 cursor-not-allowed" 
+                                    : "hover:bg-white/10 cursor-pointer"
+                                }`}
+                                title={themeData.light ? "Light mode" : "Light mode not available"}
+                              >
+                                <Sun className="w-3 h-3" style={{ color: themeData.dark.typing.correct }} />
+                              </button>
+                              
+                              {/* Dark mode button */}
+                              <button
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  handleThemeSelect(themeData.name, "dark"); 
+                                }}
+                                onMouseEnter={() => setPreviewTheme(themeData, "dark")}
+                                onMouseLeave={() => setPreviewTheme(null)}
+                                className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
+                                title="Dark mode"
+                              >
+                                <Moon className="w-3 h-3" style={{ color: themeData.dark.typing.correct }} />
+                              </button>
                             </div>
-                            <div className="text-xs truncate" style={{ color: themeData.correctText }}>
-                              {themeData.name}
-                            </div>
-                          </button>
+                          </div>
                         ))}
                     </div>
                   </>
@@ -2790,201 +2859,75 @@ export default function TypingPractice({
                     }`}
                   >
                     <div className="p-4 bg-gray-800/50 space-y-3">
-                      {/* Color Picker Grid */}
+                      {/* Current Theme Colors (Read-only preview) */}
+                      <p className="text-sm text-gray-400 text-center mb-4">
+                        Current theme colors (read-only)
+                      </p>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-300">Background</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.backgroundColor}
-                              onChange={(color) => {
-                                setTheme({ ...theme, backgroundColor: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, backgroundColor: "#323437" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
+                          <div
+                            className="w-8 h-8 rounded border border-gray-600"
+                            style={{ backgroundColor: theme.backgroundColor }}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-300">Surface</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.surfaceColor}
-                              onChange={(color) => {
-                                setTheme({ ...theme, surfaceColor: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, surfaceColor: "#2c2e31" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
+                          <div
+                            className="w-8 h-8 rounded border border-gray-600"
+                            style={{ backgroundColor: theme.surfaceColor }}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-300">Cursor</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.cursor}
-                              onChange={(color) => {
-                                setTheme({ ...theme, cursor: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, cursor: "#3cb5ee" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
+                          <div
+                            className="w-8 h-8 rounded border border-gray-600"
+                            style={{ backgroundColor: theme.cursor }}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-300">Ghost Cursor</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.ghostCursor}
-                              onChange={(color) => {
-                                setTheme({ ...theme, ghostCursor: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, ghostCursor: "#a855f7" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
+                          <div
+                            className="w-8 h-8 rounded border border-gray-600"
+                            style={{ backgroundColor: theme.ghostCursor }}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-300">Default Text</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.defaultText}
-                              onChange={(color) => {
-                                setTheme({ ...theme, defaultText: color, upcomingText: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, defaultText: "#4b5563", upcomingText: "#4b5563" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
+                          <div
+                            className="w-8 h-8 rounded border border-gray-600"
+                            style={{ backgroundColor: theme.defaultText }}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-300">Correct Text</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.correctText}
-                              onChange={(color) => {
-                                setTheme({ ...theme, correctText: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, correctText: "#d1d5db" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
+                          <div
+                            className="w-8 h-8 rounded border border-gray-600"
+                            style={{ backgroundColor: theme.correctText }}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-300">Incorrect Text</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.incorrectText}
-                              onChange={(color) => {
-                                setTheme({ ...theme, incorrectText: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, incorrectText: "#ef4444" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
+                          <div
+                            className="w-8 h-8 rounded border border-gray-600"
+                            style={{ backgroundColor: theme.incorrectText }}
+                          />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-300">Btn Selected</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.buttonSelected}
-                              onChange={(color) => {
-                                setTheme({ ...theme, buttonSelected: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, buttonSelected: "#0097b2" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-300">Btn Unselected</span>
-                          <div className="flex items-center gap-2">
-                            <ColorPicker
-                              value={theme.buttonUnselected}
-                              onChange={(color) => {
-                                setTheme({ ...theme, buttonUnselected: color });
-                                setSelectedThemeName("Custom");
-                              }}
-                            />
-                            <button
-                              onClick={() => setTheme({ ...theme, buttonUnselected: "#3cb5ee" })}
-                              className="text-xs text-gray-500 hover:text-gray-300"
-                              title="Reset"
-                            >
-                              ↺
-                            </button>
-                          </div>
+                          <div
+                            className="w-8 h-8 rounded border border-gray-600"
+                            style={{ backgroundColor: theme.buttonSelected }}
+                          />
                         </div>
                       </div>
 
-                      {/* Reset All Button */}
+                      {/* Reset to Default Button */}
                       <button
-                        onClick={() => {
-                          setTheme({
-                            backgroundColor: "#323437",
-                            surfaceColor: "#2c2e31",
-                            cursor: "#3cb5ee",
-                            ghostCursor: "#a855f7",
-                            defaultText: "#4b5563",
-                            upcomingText: "#4b5563",
-                            correctText: "#d1d5db",
-                            incorrectText: "#ef4444",
-                            buttonUnselected: "#3cb5ee",
-                            buttonSelected: "#0097b2",
-                          });
-                          setSelectedThemeName("TypeSetGo");
-                        }}
+                        onClick={() => setThemeById("typesetgo")}
                         className="w-full py-2 mt-2 text-sm text-gray-400 hover:text-gray-200 border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
                       >
-                        Reset All to Defaults
+                        Reset to TypeSetGo Theme
                       </button>
                     </div>
                   </div>

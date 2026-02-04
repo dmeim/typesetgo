@@ -2,27 +2,19 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import TypingPractice from "@/components/typing/TypingPractice";
 import Header from "@/components/layout/Header";
-import type { Theme } from "@/lib/typing-constants";
-import { DEFAULT_THEME } from "@/lib/typing-constants";
-import { loadTheme, loadThemeName } from "@/lib/storage-utils";
-
-// Initialize theme from storage (lazy initialization)
-const getInitialTheme = (): Theme => {
-  const stored = loadTheme();
-  return stored ?? DEFAULT_THEME;
-};
-
-const getInitialThemeName = (): string => {
-  const stored = loadThemeName();
-  return stored ?? "TypeSetGo";
-};
+import { useTheme } from "@/hooks/useTheme";
 
 export default function Home() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
-  const [selectedThemeName, setSelectedThemeName] = useState(getInitialThemeName);
+  const { legacyTheme } = useTheme();
   const [showSettings, setShowSettings] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+
+  // Fallback theme for when context is loading
+  const theme = legacyTheme ?? {
+    backgroundColor: "#323437",
+    defaultText: "#4b5563",
+  };
 
   return (
     <div
@@ -30,17 +22,10 @@ export default function Home() {
       style={{ backgroundColor: theme.backgroundColor }}
     >
       {/* Header with action buttons */}
-      <Header
-        theme={theme}
-        hidden={isTyping}
-      />
+      <Header hidden={isTyping} />
 
       {/* Main Content - TypingPractice fills the page */}
       <TypingPractice
-        theme={theme}
-        setTheme={setTheme}
-        selectedThemeName={selectedThemeName}
-        setSelectedThemeName={setSelectedThemeName}
         showSettings={showSettings}
         setShowSettings={setShowSettings}
         showThemeModal={showThemeModal}

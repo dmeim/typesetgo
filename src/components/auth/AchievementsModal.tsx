@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { Theme } from "@/lib/typing-constants";
+import { useTheme } from "@/hooks/useTheme";
+import type { LegacyTheme } from "@/types/theme";
 import {
   ALL_ACHIEVEMENTS,
   ACHIEVEMENT_CATEGORIES,
@@ -13,7 +14,6 @@ import AchievementDetailModal from "./AchievementDetailModal";
 
 interface AchievementsModalProps {
   earnedAchievements: Record<string, number>;
-  theme: Theme;
   onClose: () => void;
   initialCategory?: AchievementCategory | null;
   initialAchievementId?: string | null;
@@ -30,7 +30,7 @@ function AchievementCard({
 }: {
   achievement: Achievement;
   isEarned: boolean;
-  theme: Theme;
+  theme: LegacyTheme;
   onClick: () => void;
   isHighlighted?: boolean;
   cardRef?: (el: HTMLButtonElement | null) => void;
@@ -134,7 +134,7 @@ function CategorySection({
 }: {
   category: AchievementCategory;
   earnedIds: Set<string>;
-  theme: Theme;
+  theme: LegacyTheme;
   onAchievementClick: (achievement: Achievement, index: number, allInCategory: Achievement[]) => void;
   sectionRef?: (el: HTMLDivElement | null) => void;
   highlightedAchievementId?: string | null;
@@ -187,11 +187,26 @@ function CategorySection({
 
 export default function AchievementsModal({
   earnedAchievements,
-  theme,
   onClose,
   initialCategory,
   initialAchievementId,
 }: AchievementsModalProps) {
+  const { legacyTheme } = useTheme();
+  
+  // Fallback theme
+  const theme: LegacyTheme = legacyTheme ?? {
+    cursor: "#3cb5ee",
+    defaultText: "#4b5563",
+    upcomingText: "#4b5563",
+    correctText: "#d1d5db",
+    incorrectText: "#ef4444",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
+    ghostCursor: "#a855f7",
+  };
+
   const earnedIds = new Set(Object.keys(earnedAchievements));
   const totalEarned = earnedIds.size;
   const totalAchievements = ALL_ACHIEVEMENTS.length;
@@ -392,7 +407,6 @@ export default function AchievementsModal({
         <AchievementDetailModal
           achievements={selectedCarousel.achievements}
           initialIndex={selectedCarousel.initialIndex}
-          theme={theme}
           onClose={() => setSelectedCarousel(null)}
         />
       )}

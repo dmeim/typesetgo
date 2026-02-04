@@ -35,3 +35,4 @@
 - Use Shadcn/UI components from `@/components/ui/` when available.
 - Use react-router-dom's `<Link>` and `useSearchParams` for navigation.
 - **Git:** NEVER perform git operations (add, commit, push) unless explicitly requested by the user.
+- **Manifests:** Do NOT manually edit manifest files in `public/` (e.g., theme manifests, sound manifests). These are auto-generated at runtime by Vite plugins.

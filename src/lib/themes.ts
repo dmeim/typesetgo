@@ -1,47 +1,17 @@
-import type { Theme } from "@/lib/typing-constants";
+import type {
+  ThemeCategory,
+  ThemeDefinition,
+  ThemeManifest,
+  ThemeColors,
+  GroupedThemes,
+  CategoryConfig,
+} from "@/types/theme";
 
-export type ThemeCategory =
-  | "default"
-  | "editor"
-  | "holiday"
-  | "nature"
-  | "time"
-  | "retro"
-  | "aesthetic"
-  | "utility"
-  | "fun"
-  | "color-theory"
-  | "cultural"
-  | "brand"
-  | "weather"
-  | "productivity"
-  | "gaming"
-  | "music"
-  | "food"
-  | "space"
-  | "sports"
-  | "tv-shows"
-  | "movies"
-  | "anime";
-
-export type ThemeDefinition = Theme & {
-  name: string;
-  category?: ThemeCategory;
-};
-
-export type ThemeManifest = {
-  themes: string[];
-  default: string;
-};
-
-export type GroupedThemes = {
-  category: ThemeCategory;
-  displayName: string;
-  themes: ThemeDefinition[];
-};
+// Re-export types for convenience
+export type { ThemeCategory, ThemeDefinition, ThemeManifest, ThemeColors, GroupedThemes };
 
 // Category display order and names
-export const CATEGORY_CONFIG: Record<ThemeCategory, { displayName: string; order: number }> = {
+export const CATEGORY_CONFIG: Record<ThemeCategory, CategoryConfig> = {
   default: { displayName: "TypeSetGo", order: 0 },
   editor: { displayName: "Editor/IDE", order: 1 },
   holiday: { displayName: "Holiday", order: 2 },
@@ -74,9 +44,10 @@ const themeCache: Record<string, ThemeDefinition> = {};
 const THEME_DISPLAY_NAMES: Record<string, string> = {
   // Brand/product names with specific capitalization
   "typesetgo": "TypeSetGo",
-  "github-dark": "GitHub Dark",
-  "github-light": "GitHub Light",
+  "github": "GitHub",
   "gitlab": "GitLab",
+  "solarized": "Solarized",
+  "vim": "Vim",
   "youtube": "YouTube",
   "webstorm": "WebStorm",
   "jetbrains-darcula": "JetBrains Darcula",
@@ -193,10 +164,15 @@ export async function fetchTheme(themeName: string): Promise<ThemeDefinition | n
     const res = await fetch(`/themes/${key}.json`);
     if (!res.ok) return null;
     
-    const colors = await res.json();
+    const data = await res.json();
+    
+    // Parse the new theme format
     const theme: ThemeDefinition = {
+      id: key,
       name: formatThemeName(key),
-      ...colors,
+      category: data.category || "default",
+      dark: data.dark,
+      light: data.light || null,
     };
     
     // Cache the loaded theme
@@ -290,4 +266,75 @@ export function groupThemesByCategory(themes: ThemeDefinition[]): GroupedThemes[
 // Get a theme synchronously from cache (returns null if not loaded yet)
 export function getThemeFromCache(themeName: string): ThemeDefinition | null {
   return themeCache[themeName.toLowerCase()] || null;
+}
+
+// Default theme definition (TypeSetGo)
+export function getDefaultTheme(): ThemeDefinition {
+  return {
+    id: "typesetgo",
+    name: "TypeSetGo",
+    category: "default",
+    dark: {
+      bg: {
+        base: "#323437",
+        surface: "#2c2e31",
+        elevated: "#37383b",
+        overlay: "rgba(0, 0, 0, 0.5)",
+      },
+      text: {
+        primary: "#d1d5db",
+        secondary: "#4b5563",
+        muted: "rgba(75, 85, 99, 0.6)",
+        inverse: "#ffffff",
+      },
+      interactive: {
+        primary: {
+          DEFAULT: "#3cb5ee",
+          muted: "rgba(60, 181, 238, 0.3)",
+          subtle: "rgba(60, 181, 238, 0.1)",
+        },
+        secondary: {
+          DEFAULT: "#0097b2",
+          muted: "rgba(0, 151, 178, 0.3)",
+          subtle: "rgba(0, 151, 178, 0.1)",
+        },
+        accent: {
+          DEFAULT: "#a855f7",
+          muted: "rgba(168, 85, 247, 0.3)",
+          subtle: "rgba(168, 85, 247, 0.1)",
+        },
+      },
+      status: {
+        success: {
+          DEFAULT: "#22c55e",
+          muted: "rgba(34, 197, 94, 0.3)",
+          subtle: "rgba(34, 197, 94, 0.1)",
+        },
+        error: {
+          DEFAULT: "#ef4444",
+          muted: "rgba(239, 68, 68, 0.3)",
+          subtle: "rgba(239, 68, 68, 0.1)",
+        },
+        warning: {
+          DEFAULT: "#f59e0b",
+          muted: "rgba(245, 158, 11, 0.3)",
+          subtle: "rgba(245, 158, 11, 0.1)",
+        },
+      },
+      border: {
+        default: "rgba(75, 85, 99, 0.3)",
+        subtle: "rgba(75, 85, 99, 0.15)",
+        focus: "#3cb5ee",
+      },
+      typing: {
+        cursor: "#3cb5ee",
+        cursorGhost: "#a855f7",
+        correct: "#d1d5db",
+        incorrect: "#ef4444",
+        upcoming: "#4b5563",
+        default: "#4b5563",
+      },
+    },
+    light: null,
+  };
 }

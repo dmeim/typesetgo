@@ -2,20 +2,26 @@ import { Link } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import type { Theme } from "@/lib/typing-constants";
+import { useTheme } from "@/hooks/useTheme";
 import { UserButton } from "@/components/auth";
 import NotificationCenter from "@/components/layout/NotificationCenter";
+import { Sun, Moon } from "lucide-react";
 
 interface HeaderProps {
-  theme: Theme;
   hidden?: boolean;
 }
 
 export default function Header({
-  theme,
   hidden = false,
 }: HeaderProps) {
   const { user: clerkUser, isSignedIn } = useUser();
+  const { legacyTheme, mode, toggleMode, supportsLightMode } = useTheme();
+  
+  // Fallback theme for when context is loading
+  const theme = legacyTheme ?? {
+    buttonUnselected: "#3cb5ee",
+    defaultText: "#4b5563",
+  };
   
   // Fetch current user's Convex ID for stats link
   const convexUser = useQuery(
@@ -65,6 +71,27 @@ export default function Header({
           </svg>
         </Link>
         */}
+
+        {/* Light/Dark Mode Toggle */}
+        <button
+          onClick={supportsLightMode ? toggleMode : undefined}
+          className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
+            supportsLightMode ? "hover:bg-gray-800/50 cursor-pointer" : "opacity-40 cursor-not-allowed"
+          }`}
+          style={{ color: supportsLightMode ? theme.buttonUnselected : theme.defaultText }}
+          title={
+            supportsLightMode
+              ? `Switch to ${mode === "dark" ? "light" : "dark"} mode`
+              : "This theme doesn't support light mode"
+          }
+          disabled={!supportsLightMode}
+        >
+          {mode === "dark" ? (
+            <Sun className="w-5 h-5" />
+          ) : (
+            <Moon className="w-5 h-5" />
+          )}
+        </button>
 
         {/* Leaderboard */}
         <Link
@@ -121,10 +148,10 @@ export default function Header({
         )}
 
         {/* Notification Center */}
-        <NotificationCenter theme={theme} />
+        <NotificationCenter />
 
         {/* User Button - Sign In / Avatar Dropdown */}
-        <UserButton theme={theme} />
+        <UserButton />
       </div>
     </header>
   );

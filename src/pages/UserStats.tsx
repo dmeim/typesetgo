@@ -4,15 +4,12 @@ import { useUser } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import type { Theme } from "@/lib/typing-constants";
-import { DEFAULT_THEME } from "@/lib/typing-constants";
-import { loadTheme } from "@/lib/storage-utils";
+import { useTheme } from "@/hooks/useTheme";
+import type { LegacyTheme } from "@/types/theme";
 import AchievementsCategoryGrid from "@/components/auth/AchievementsCategoryGrid";
 
-const getTheme = (): Theme => {
-  const stored = loadTheme();
-  return stored ?? DEFAULT_THEME;
-};
+// Helper type for components that receive theme
+type Theme = LegacyTheme;
 
 // Sort types for the test history table
 type SortColumn = "date" | "wpm" | "accuracy";
@@ -518,8 +515,22 @@ function StatCard({
 }
 
 export default function UserStats() {
-  const theme = getTheme();
+  const { legacyTheme } = useTheme();
   const { userId } = useParams<{ userId: string }>();
+
+  // Fallback theme (complete)
+  const theme: LegacyTheme = legacyTheme ?? {
+    cursor: "#3cb5ee",
+    defaultText: "#4b5563",
+    upcomingText: "#4b5563",
+    correctText: "#d1d5db",
+    incorrectText: "#ef4444",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
+    ghostCursor: "#a855f7",
+  };
   const { user: clerkUser } = useUser();
 
   // Fetch the profile user's data by Convex user ID
@@ -677,7 +688,6 @@ export default function UserStats() {
             >
               <AchievementsCategoryGrid
                 earnedAchievements={achievements ?? {}}
-                theme={theme}
               />
             </div>
 

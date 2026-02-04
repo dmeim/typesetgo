@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Theme } from "@/lib/typing-constants";
+import { useTheme } from "@/hooks/useTheme";
+import type { LegacyTheme } from "@/types/theme";
 import {
   ACHIEVEMENT_CATEGORIES,
   TIER_COLORS,
@@ -16,7 +17,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface AchievementDetailModalProps {
   achievements: { achievement: Achievement; earnedAt: number | null }[];
   initialIndex: number;
-  theme: Theme;
   onClose: () => void;
 }
 
@@ -40,7 +40,7 @@ function AchievementSlide({
 }: {
   achievement: Achievement;
   earnedAt: number | null;
-  theme: Theme;
+  theme: LegacyTheme;
 }) {
   const category = ACHIEVEMENT_CATEGORIES[achievement.category];
   const tierColors = TIER_COLORS[achievement.tier];
@@ -128,9 +128,24 @@ function AchievementSlide({
 export default function AchievementDetailModal({
   achievements,
   initialIndex,
-  theme,
   onClose,
 }: AchievementDetailModalProps) {
+  const { legacyTheme } = useTheme();
+  
+  // Fallback theme
+  const theme: LegacyTheme = legacyTheme ?? {
+    cursor: "#3cb5ee",
+    defaultText: "#4b5563",
+    upcomingText: "#4b5563",
+    correctText: "#d1d5db",
+    incorrectText: "#ef4444",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
+    ghostCursor: "#a855f7",
+  };
+
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const hasMultiple = achievements.length > 1;

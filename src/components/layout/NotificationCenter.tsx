@@ -13,7 +13,7 @@ import {
 import { useUser } from "@clerk/clerk-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import type { Theme } from "@/lib/typing-constants";
+import { useTheme } from "@/hooks/useTheme";
 import {
   useNotifications,
   getRelativeTime,
@@ -30,10 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TIER_COLORS } from "@/lib/achievement-definitions";
 import AchievementsModal from "@/components/auth/AchievementsModal";
-
-interface NotificationCenterProps {
-  theme: Theme;
-}
 
 function getNotificationIcon(notification: Notification) {
   const color =
@@ -57,10 +53,17 @@ function getNotificationIcon(notification: Notification) {
   }
 }
 
-export default function NotificationCenter({
-  theme,
-}: NotificationCenterProps) {
+export default function NotificationCenter() {
   const { user: clerkUser, isSignedIn } = useUser();
+  const { legacyTheme } = useTheme();
+  
+  // Fallback theme for when context is loading
+  const theme = legacyTheme ?? {
+    buttonUnselected: "#3cb5ee",
+    surfaceColor: "#2c2e31",
+    defaultText: "#4b5563",
+    correctText: "#d1d5db",
+  };
   const {
     notifications,
     markAsRead,
@@ -249,7 +252,6 @@ export default function NotificationCenter({
       {showAchievementsModal && (
         <AchievementsModal
           earnedAchievements={earnedAchievements}
-          theme={theme}
           onClose={handleCloseModal}
           initialAchievementId={selectedAchievementId}
         />

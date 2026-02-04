@@ -1344,7 +1344,20 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                       key={preset.name}
                       type="button"
                       onClick={() => {
-                        updateSettings({ theme: preset });
+                        // Convert ThemeDefinition to legacy Theme format for settings
+                        const legacyTheme = {
+                          cursor: preset.dark.typing.cursor,
+                          defaultText: preset.dark.typing.default,
+                          upcomingText: preset.dark.typing.upcoming,
+                          correctText: preset.dark.typing.correct,
+                          incorrectText: preset.dark.typing.incorrect,
+                          buttonUnselected: preset.dark.interactive.primary.DEFAULT,
+                          buttonSelected: preset.dark.interactive.secondary.DEFAULT,
+                          backgroundColor: preset.dark.bg.base,
+                          surfaceColor: preset.dark.bg.surface,
+                          ghostCursor: preset.dark.typing.cursorGhost,
+                        };
+                        updateSettings({ theme: legacyTheme });
                         setSelectedThemeName(preset.name);
                         setIsCustomThemeExpanded(false);
                       }}
@@ -1358,27 +1371,27 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                       <div className="flex items-center gap-1">
                         <div
                           className="w-4 h-4 rounded border border-gray-500"
-                          style={{ backgroundColor: preset.backgroundColor }}
+                          style={{ backgroundColor: preset.dark.bg.base }}
                           title="Background"
                         />
                         <div
                           className="w-4 h-4 rounded border border-gray-500"
-                          style={{ backgroundColor: preset.cursor }}
+                          style={{ backgroundColor: preset.dark.typing.cursor }}
                           title="Cursor"
                         />
                         <div
                           className="w-4 h-4 rounded border border-gray-500"
-                          style={{ backgroundColor: preset.defaultText }}
+                          style={{ backgroundColor: preset.dark.typing.default }}
                           title="Default Text"
                         />
                         <div
                           className="w-4 h-4 rounded border border-gray-500"
-                          style={{ backgroundColor: preset.correctText }}
+                          style={{ backgroundColor: preset.dark.typing.correct }}
                           title="Correct Text"
                         />
                         <div
                           className="w-4 h-4 rounded border border-gray-500"
-                          style={{ backgroundColor: preset.incorrectText }}
+                          style={{ backgroundColor: preset.dark.typing.incorrect }}
                           title="Incorrect Text"
                         />
                       </div>

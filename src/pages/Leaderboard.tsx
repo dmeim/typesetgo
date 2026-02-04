@@ -1,14 +1,11 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Theme } from "@/lib/typing-constants";
-import { DEFAULT_THEME } from "@/lib/typing-constants";
-import { loadTheme } from "@/lib/storage-utils";
+import { useTheme } from "@/hooks/useTheme";
+import type { LegacyTheme } from "@/types/theme";
 
-const getTheme = (): Theme => {
-  const stored = loadTheme();
-  return stored ?? DEFAULT_THEME;
-};
+// Local type alias for components
+type Theme = LegacyTheme;
 
 interface LeaderboardEntry {
   rank: number;
@@ -313,7 +310,21 @@ function LeaderboardColumn({
 }
 
 export default function Leaderboard() {
-  const theme = getTheme();
+  const { legacyTheme } = useTheme();
+  
+  // Fallback theme
+  const theme: LegacyTheme = legacyTheme ?? {
+    cursor: "#3cb5ee",
+    defaultText: "#4b5563",
+    upcomingText: "#4b5563",
+    correctText: "#d1d5db",
+    incorrectText: "#ef4444",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
+    ghostCursor: "#a855f7",
+  };
 
   // Fetch all three leaderboards in parallel
   const allTimeLeaderboard = useQuery(api.testResults.getLeaderboard, {

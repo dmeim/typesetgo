@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import type { Theme } from "@/lib/typing-constants";
+import { useTheme } from "@/hooks/useTheme";
+import type { LegacyTheme } from "@/types/theme";
 import {
   getAchievementById,
   TIER_COLORS,
@@ -18,7 +19,6 @@ import AchievementsModal from "./AchievementsModal";
 interface AchievementsCategoryGridProps {
   // Record of achievementId -> earnedAt timestamp
   earnedAchievements: Record<string, number>;
-  theme: Theme;
 }
 
 // 15 categories (excluding collection which is shown separately)
@@ -84,7 +84,7 @@ function CategoryCard({
 }: {
   category: AchievementCategory;
   earnedIds: string[];
-  theme: Theme;
+  theme: LegacyTheme;
   onClick: () => void;
 }) {
   const categoryInfo = ACHIEVEMENT_CATEGORIES[category];
@@ -182,9 +182,23 @@ function CategoryCard({
 
 export default function AchievementsCategoryGrid({
   earnedAchievements,
-  theme,
 }: AchievementsCategoryGridProps) {
   const { user } = useUser();
+  const { legacyTheme } = useTheme();
+  
+  // Fallback theme (complete)
+  const theme: LegacyTheme = legacyTheme ?? {
+    cursor: "#3cb5ee",
+    defaultText: "#4b5563",
+    upcomingText: "#4b5563",
+    correctText: "#d1d5db",
+    incorrectText: "#ef4444",
+    buttonUnselected: "#3cb5ee",
+    buttonSelected: "#0097b2",
+    backgroundColor: "#323437",
+    surfaceColor: "#2c2e31",
+    ghostCursor: "#a855f7",
+  };
   const recheckAchievements = useMutation(
     api.achievements.recheckAllAchievements
   );
@@ -364,7 +378,6 @@ export default function AchievementsCategoryGrid({
       {showAchievementsModal && (
         <AchievementsModal
           earnedAchievements={earnedAchievements}
-          theme={theme}
           onClose={() => {
             setShowAchievementsModal(false);
             setSelectedCategory(null);

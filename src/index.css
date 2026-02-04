@@ -33,35 +33,84 @@ html {
   font-size: 18px;
 }
 
-/* CSS Variables for theming */
+/* CSS Variables for theming - defaults based on TypeSetGo theme */
 :root {
-  /* Background colors */
-  --bg-primary: #323437;
-  --surface: #2c2e31;
+  /* === THEME VARIABLES (set dynamically by ThemeProvider) === */
 
-  /* Text colors */
-  --text-primary: #d1d5db;
-  --text-secondary: #4b5563;
-  --text-body: #d1d0c5;
-  --text-error: #ef4444;
-  --text-success: #22c55e;
+  /* Surfaces */
+  --theme-bg-base: #323437;
+  --theme-bg-surface: #2c2e31;
+  --theme-bg-elevated: #37383b;
+  --theme-bg-overlay: rgba(0, 0, 0, 0.5);
 
-  /* Brand colors */
-  --brand-primary: #3cb5ee;
-  --brand-secondary: #0097b2;
-  --brand-accent: #a855f7;
+  /* Text */
+  --theme-text-primary: #d1d5db;
+  --theme-text-secondary: #4b5563;
+  --theme-text-muted: rgba(75, 85, 99, 0.6);
+  --theme-text-inverse: #ffffff;
 
-  /* Typing colors (can be overridden by theme) */
-  --cursor-color: #3cb5ee;
-  --default-text: #4b5563;
-  --upcoming-text: #4b5563;
-  --correct-text: #d1d5db;
-  --incorrect-text: #ef4444;
-  --ghost-cursor: #a855f7;
+  /* Interactive - Primary */
+  --theme-interactive-primary: #3cb5ee;
+  --theme-interactive-primary-muted: rgba(60, 181, 238, 0.3);
+  --theme-interactive-primary-subtle: rgba(60, 181, 238, 0.1);
 
-  /* Button colors */
-  --button-unselected: #3cb5ee;
-  --button-selected: #0097b2;
+  /* Interactive - Secondary */
+  --theme-interactive-secondary: #0097b2;
+  --theme-interactive-secondary-muted: rgba(0, 151, 178, 0.3);
+  --theme-interactive-secondary-subtle: rgba(0, 151, 178, 0.1);
+
+  /* Interactive - Accent */
+  --theme-interactive-accent: #a855f7;
+  --theme-interactive-accent-muted: rgba(168, 85, 247, 0.3);
+  --theme-interactive-accent-subtle: rgba(168, 85, 247, 0.1);
+
+  /* Status - Success */
+  --theme-status-success: #22c55e;
+  --theme-status-success-muted: rgba(34, 197, 94, 0.3);
+  --theme-status-success-subtle: rgba(34, 197, 94, 0.1);
+
+  /* Status - Error */
+  --theme-status-error: #ef4444;
+  --theme-status-error-muted: rgba(239, 68, 68, 0.3);
+  --theme-status-error-subtle: rgba(239, 68, 68, 0.1);
+
+  /* Status - Warning */
+  --theme-status-warning: #f59e0b;
+  --theme-status-warning-muted: rgba(245, 158, 11, 0.3);
+  --theme-status-warning-subtle: rgba(245, 158, 11, 0.1);
+
+  /* Borders */
+  --theme-border-default: rgba(75, 85, 99, 0.3);
+  --theme-border-subtle: rgba(75, 85, 99, 0.15);
+  --theme-border-focus: #3cb5ee;
+
+  /* Typing */
+  --theme-typing-cursor: #3cb5ee;
+  --theme-typing-cursor-ghost: #a855f7;
+  --theme-typing-correct: #d1d5db;
+  --theme-typing-incorrect: #ef4444;
+  --theme-typing-upcoming: #4b5563;
+  --theme-typing-default: #4b5563;
+
+  /* === LEGACY VARIABLES (for backward compatibility during migration) === */
+  --bg-primary: var(--theme-bg-base);
+  --surface: var(--theme-bg-surface);
+  --text-primary: var(--theme-text-primary);
+  --text-secondary: var(--theme-text-secondary);
+  --text-body: var(--theme-text-primary);
+  --text-error: var(--theme-status-error);
+  --text-success: var(--theme-status-success);
+  --brand-primary: var(--theme-interactive-primary);
+  --brand-secondary: var(--theme-interactive-secondary);
+  --brand-accent: var(--theme-interactive-accent);
+  --cursor-color: var(--theme-typing-cursor);
+  --default-text: var(--theme-typing-default);
+  --upcoming-text: var(--theme-typing-upcoming);
+  --correct-text: var(--theme-typing-correct);
+  --incorrect-text: var(--theme-typing-incorrect);
+  --ghost-cursor: var(--theme-typing-cursor-ghost);
+  --button-unselected: var(--theme-interactive-primary);
+  --button-selected: var(--theme-interactive-secondary);
 
   /* Shadcn/UI theme variables */
   --background: 0 0% 20%;
@@ -87,7 +136,7 @@ html {
 }
 
 body {
-  background: var(--bg-primary);
-  color: var(--text-body);
+  background: var(--theme-bg-base);
+  color: var(--theme-text-primary);
   font-family: var(--font-mono);
 }
