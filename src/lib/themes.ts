@@ -123,6 +123,49 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "death-note": "Death Note",
   "solo-leveling": "Solo Leveling",
   "jujutsu-kaisen": "Jujutsu Kaisen",
+
+  // Gaming
+  "crash-bandicoot": "Crash Bandicoot",
+  "rainbow-six-siege": "Rainbow Six Siege",
+  "nba2k": "NBA 2K",
+  "super-smash-bros": "Super Smash Bros.",
+  "plants-vs-zombies": "Plants vs. Zombies",
+  "ratchet-and-clank": "Ratchet & Clank",
+  "lego": "LEGO",
+
+  // Movies (new)
+  "wall-e": "WALL\u00B7E",
+  "spider-man": "Spider-Man",
+  "guardians-of-the-galaxy": "Guardians of the Galaxy",
+  "back-to-the-future": "Back to the Future",
+  "the-wizard-of-oz": "The Wizard of Oz",
+  "how-to-train-your-dragon": "How to Train Your Dragon",
+
+  // TV Shows (new)
+  "avatar-the-last-airbender": "Avatar: The Last Airbender",
+  "spongebob": "SpongeBob",
+  "phineas-and-ferb": "Phineas and Ferb",
+
+  // Anime (new)
+  "spy-x-family": "SPY x FAMILY",
+  "haikyuu": "Haikyu!!",
+  "cardcaptor-sakura": "Cardcaptor Sakura",
+  "mob-psycho-100": "Mob Psycho 100",
+  "fullmetal-alchemist": "Fullmetal Alchemist",
+
+  // Food (new)
+  "smores": "S'mores",
+  "bubble-tea": "Bubble Tea",
+
+  // Music (new)
+  "r-and-b": "R&B",
+  "k-pop": "K-Pop",
+  "bossa-nova": "Bossa Nova",
+
+  // Retro (new)
+  "mid-autumn": "Mid-Autumn",
+  "wabi-sabi": "Wabi-Sabi",
+  "tie-dye": "Tie-Dye",
 };
 
 // Format theme name for display (capitalize first letter of each word)
