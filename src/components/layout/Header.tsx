@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -6,17 +6,36 @@ import { useTheme } from "@/hooks/useTheme";
 import type { LegacyTheme } from "@/types/theme";
 import { UserButton } from "@/components/auth";
 import NotificationCenter from "@/components/layout/NotificationCenter";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, Keyboard, Flag, GraduationCap, Palette } from "lucide-react";
 
 interface HeaderProps {
   hidden?: boolean;
+  onOpenThemeModal?: () => void;
 }
+
+const NAV_TABS = [
+  { label: "Type", path: "/", icon: Keyboard },
+  { label: "Race", path: "/race", icon: Flag },
+  { label: "Lessons", path: "/lessons", icon: GraduationCap },
+] as const;
 
 export default function Header({
   hidden = false,
+  onOpenThemeModal,
 }: HeaderProps) {
   const { user: clerkUser, isSignedIn } = useUser();
   const { legacyTheme, mode, toggleMode, supportsLightMode } = useTheme();
+  const location = useLocation();
+  
+  // Determine active tab based on current path
+  const getActiveTab = () => {
+    if (location.pathname === "/") return "/";
+    if (location.pathname.startsWith("/race")) return "/race";
+    if (location.pathname.startsWith("/lessons")) return "/lessons";
+    return "/"; // Default to Type tab for other pages
+  };
+  
+  const activeTab = getActiveTab();
   
   // Fallback theme for when context is loading
   const theme: LegacyTheme = legacyTheme ?? {
@@ -71,6 +90,36 @@ export default function Header({
         </Link>
       </div>
 
+      {/* Navigation Tabs - Centered on page */}
+      <nav 
+        className={`absolute left-1/2 -translate-x-1/2 ${hidden ? "" : "pointer-events-auto"}`}
+      >
+        <div 
+          className="flex items-center gap-1 rounded-lg p-1"
+          style={{ backgroundColor: theme.surfaceColor }}
+        >
+          {NAV_TABS.map((tab) => {
+            const isActive = activeTab === tab.path;
+            const Icon = tab.icon;
+            return (
+              <Link
+                key={tab.path}
+                to={tab.path}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                style={{
+                  backgroundColor: isActive ? theme.elevatedColor : "transparent",
+                  color: isActive ? theme.buttonSelected : theme.buttonUnselected,
+                  boxShadow: isActive ? "0 1px 3px rgba(0, 0, 0, 0.2)" : "none",
+                }}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="hidden md:inline">{tab.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
       {/* Action Buttons */}
       <div className={`flex items-center gap-3 ${hidden ? "" : "pointer-events-auto"}`}>
         {/* Connect - temporarily hidden while feature is in development
@@ -119,6 +168,18 @@ export default function Header({
             <Moon className="w-5 h-5" />
           )}
         </button>
+
+        {/* Theme Picker */}
+        {onOpenThemeModal && (
+          <button
+            onClick={onOpenThemeModal}
+            className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
+            style={{ color: theme.buttonUnselected }}
+            title="Change Theme"
+          >
+            <Palette className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Leaderboard */}
         <Link

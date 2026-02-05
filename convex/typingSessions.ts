@@ -333,6 +333,28 @@ export const finalizeSession = mutation({
         }
       );
       newAchievements = achievementResult.newAchievements;
+
+      // Update user stats cache
+      await ctx.runMutation(internal.statsCache.updateUserStatsCache, {
+        userId: session.userId,
+        wpm: Math.round(wpm),
+        accuracy: Math.round(accuracy * 10) / 10,
+        duration: clientElapsed,
+        wordCount: Math.floor(args.typedText.length / 5),
+        isValid: true,
+      });
+
+      // Update leaderboard cache (only if accuracy >= 90%)
+      const roundedAccuracy = Math.round(accuracy * 10) / 10;
+      if (roundedAccuracy >= 90) {
+        await ctx.runMutation(internal.statsCache.updateLeaderboardCache, {
+          userId: session.userId,
+          wpm: Math.round(wpm),
+          createdAt: now,
+          username: user.username,
+          avatarUrl: user.avatarUrl,
+        });
+      }
     }
 
     // Delete the session

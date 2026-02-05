@@ -70,6 +70,10 @@ export default defineSchema({
     hostId: v.string(),
     hostName: v.string(),
     status: v.union(v.literal("waiting"), v.literal("active")),
+    // Game mode: practice (existing), race, or lesson
+    gameMode: v.optional(
+      v.union(v.literal("practice"), v.literal("race"), v.literal("lesson"))
+    ),
     settings: v.object({
       mode: v.string(),
       duration: v.number(),
@@ -90,6 +94,11 @@ export default defineSchema({
       plan: v.optional(v.any()),
       planIndex: v.optional(v.number()),
     }),
+    // Race-specific fields
+    readyParticipants: v.optional(v.array(v.string())), // sessionIds that are ready
+    raceStartTime: v.optional(v.number()), // timestamp when race actually starts
+    targetText: v.optional(v.string()), // shared text all racers type (for fairness)
+    raceEndTime: v.optional(v.number()), // timestamp when race ends (for 10-second timer)
     createdAt: v.number(),
     expiresAt: v.number(),
   })
@@ -112,6 +121,13 @@ export default defineSchema({
     }),
     typedText: v.optional(v.string()),
     targetText: v.optional(v.string()),
+    // Race-specific fields
+    isReady: v.optional(v.boolean()), // ready status for countdown
+    emoji: v.optional(v.string()), // chosen emoji avatar
+    finishTime: v.optional(v.number()), // when they finished (for ranking)
+    position: v.optional(v.number()), // their race position (1st, 2nd, etc.)
+    disconnectedAt: v.optional(v.number()), // timestamp when disconnected (for rejoin window)
+    typedProgress: v.optional(v.number()), // characters correctly typed (for rejoin restore)
     joinedAt: v.number(),
     lastSeen: v.number(),
   })
@@ -215,4 +231,24 @@ export default defineSchema({
   })
     .index("by_time_range_wpm", ["timeRange", "bestWpm"])
     .index("by_user_time_range", ["userId", "timeRange"]),
+
+  // Race results - stores final race results for podium/stats display
+  raceResults: defineTable({
+    raceId: v.id("rooms"), // reference to the race room
+    rankings: v.array(
+      v.object({
+        sessionId: v.string(),
+        name: v.string(),
+        emoji: v.optional(v.string()),
+        position: v.number(), // 1st, 2nd, 3rd, etc.
+        wpm: v.number(),
+        accuracy: v.number(),
+        finishTime: v.optional(v.number()), // ms from race start to finish
+        didFinish: v.boolean(), // false if timed out or disconnected
+      })
+    ),
+    targetText: v.string(), // the text that was raced
+    totalRacers: v.number(),
+    createdAt: v.number(),
+  }).index("by_race", ["raceId"]),
 });

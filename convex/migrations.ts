@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { internalMutation, internalAction } from "./_generated/server";
+import { internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 /**
  * Migration to backfill userStatsCache and leaderboardCache tables.
@@ -13,106 +14,52 @@ import { internal } from "./_generated/api";
  *   2. Click "Run" with no arguments
  *   3. Monitor progress in the logs
  * 
- * For large datasets, this runs in batches to avoid timeouts.
+ * Each user is processed in its own transaction to avoid hitting
+ * Convex read/write limits when users have many test results.
  */
 
-/**
- * Backfill user stats cache for a batch of users.
- * Processes users in batches to avoid timeout.
- */
-export const backfillUserStatsCacheBatch = internalMutation({
-  args: {
-    cursor: v.optional(v.string()),
-    batchSize: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const batchSize = args.batchSize ?? 50;
-    
-    // If we have a cursor, start from there
-    // Note: Convex doesn't have cursor-based pagination built-in,
-    // so we use the _id as a cursor by filtering
-    const users = args.cursor
-      ? await ctx.db
-          .query("users")
-          .filter((q) => q.gt(q.field("_id"), args.cursor as string))
-          .take(batchSize)
-      : await ctx.db.query("users").take(batchSize);
-
-    if (users.length === 0) {
-      return { done: true, processed: 0, nextCursor: null };
-    }
-
-    let processed = 0;
-    for (const user of users) {
-      await ctx.runMutation(internal.statsCache.rebuildUserStatsCacheForUser, {
-        userId: user._id,
-      });
-      processed++;
-    }
-
-    const lastUser = users[users.length - 1];
-    const nextCursor = users.length === batchSize ? (lastUser._id as string) : null;
-
-    return {
-      done: nextCursor === null,
-      processed,
-      nextCursor,
-    };
-  },
-});
-
-/**
- * Backfill leaderboard cache for a batch of users.
- * Processes users in batches to avoid timeout.
- */
-export const backfillLeaderboardCacheBatch = internalMutation({
-  args: {
-    cursor: v.optional(v.string()),
-    batchSize: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const batchSize = args.batchSize ?? 50;
-    
-    const users = args.cursor
-      ? await ctx.db
-          .query("users")
-          .filter((q) => q.gt(q.field("_id"), args.cursor as string))
-          .take(batchSize)
-      : await ctx.db.query("users").take(batchSize);
-
-    if (users.length === 0) {
-      return { done: true, processed: 0, nextCursor: null };
-    }
-
-    let processed = 0;
-    for (const user of users) {
-      await ctx.runMutation(internal.statsCache.rebuildLeaderboardCacheForUser, {
-        userId: user._id,
-      });
-      processed++;
-    }
-
-    const lastUser = users[users.length - 1];
-    const nextCursor = users.length === batchSize ? (lastUser._id as string) : null;
-
-    return {
-      done: nextCursor === null,
-      processed,
-      nextCursor,
-    };
-  },
-});
-
-// Type for batch result
-type BatchResult = {
-  done: boolean;
-  processed: number;
+interface UserIdsBatch {
+  userIds: Id<"users">[];
   nextCursor: string | null;
-};
+}
+
+/**
+ * Get a batch of user IDs for pagination.
+ * Returns user IDs and a cursor for the next batch.
+ */
+export const getUserIdsBatch = internalQuery({
+  args: {
+    cursor: v.optional(v.string()),
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? 50;
+
+    const users = args.cursor
+      ? await ctx.db
+          .query("users")
+          .filter((q) => q.gt(q.field("_id"), args.cursor as string))
+          .take(batchSize)
+      : await ctx.db.query("users").take(batchSize);
+
+    if (users.length === 0) {
+      return { userIds: [] as Id<"users">[], nextCursor: null as string | null };
+    }
+
+    const lastUser = users[users.length - 1];
+    const nextCursor = users.length === batchSize ? (lastUser._id as string) : null;
+
+    return {
+      userIds: users.map((u) => u._id),
+      nextCursor,
+    };
+  },
+});
 
 /**
  * Action to run the full backfill process.
- * This orchestrates multiple batches until all users are processed.
+ * Each user is processed in its own mutation call (own transaction),
+ * so users with many test results won't cause transaction limit errors.
  * 
  * Run this from the Convex dashboard to populate the cache tables.
  */
@@ -120,91 +67,79 @@ export const backfillAllCaches = internalAction({
   args: {},
   handler: async (ctx) => {
     console.log("Starting cache backfill migration...");
-    
+
     // Phase 1: Backfill user stats cache
     console.log("Phase 1: Backfilling user stats cache...");
-    let userStatsCursor: string | null = null;
+    let cursor: string | null = null;
     let totalUserStats = 0;
-    
+    let failures = 0;
+
     while (true) {
-      const result: BatchResult = await ctx.runMutation(
-        internal.migrations.backfillUserStatsCacheBatch,
-        { cursor: userStatsCursor ?? undefined, batchSize: 50 }
-      );
-      
-      totalUserStats += result.processed;
-      console.log(`  Processed ${result.processed} users (total: ${totalUserStats})`);
-      
-      if (result.done) {
-        break;
+      const batch: UserIdsBatch = await ctx.runQuery(internal.migrations.getUserIdsBatch, {
+        cursor: cursor ?? undefined,
+        batchSize: 50,
+      });
+
+      if (batch.userIds.length === 0) break;
+
+      for (const userId of batch.userIds) {
+        try {
+          await ctx.runMutation(internal.statsCache.rebuildUserStatsCacheForUser, {
+            userId,
+          });
+          totalUserStats++;
+        } catch (e) {
+          failures++;
+          console.error(`  Failed to rebuild stats cache for user ${userId}:`, e);
+        }
       }
-      
-      userStatsCursor = result.nextCursor;
+
+      console.log(`  Processed ${batch.userIds.length} users (total: ${totalUserStats}, failures: ${failures})`);
+
+      if (!batch.nextCursor) break;
+      cursor = batch.nextCursor;
     }
-    
-    console.log(`Phase 1 complete: ${totalUserStats} user stats cached`);
-    
+
+    console.log(`Phase 1 complete: ${totalUserStats} user stats cached (${failures} failures)`);
+
     // Phase 2: Backfill leaderboard cache
     console.log("Phase 2: Backfilling leaderboard cache...");
-    let leaderboardCursor: string | null = null;
+    cursor = null;
     let totalLeaderboard = 0;
-    
+    failures = 0;
+
     while (true) {
-      const result: BatchResult = await ctx.runMutation(
-        internal.migrations.backfillLeaderboardCacheBatch,
-        { cursor: leaderboardCursor ?? undefined, batchSize: 50 }
-      );
-      
-      totalLeaderboard += result.processed;
-      console.log(`  Processed ${result.processed} users (total: ${totalLeaderboard})`);
-      
-      if (result.done) {
-        break;
+      const batch: UserIdsBatch = await ctx.runQuery(internal.migrations.getUserIdsBatch, {
+        cursor: cursor ?? undefined,
+        batchSize: 50,
+      });
+
+      if (batch.userIds.length === 0) break;
+
+      for (const userId of batch.userIds) {
+        try {
+          await ctx.runMutation(internal.statsCache.rebuildLeaderboardCacheForUser, {
+            userId,
+          });
+          totalLeaderboard++;
+        } catch (e) {
+          failures++;
+          console.error(`  Failed to rebuild leaderboard cache for user ${userId}:`, e);
+        }
       }
-      
-      leaderboardCursor = result.nextCursor;
+
+      console.log(`  Processed ${batch.userIds.length} users (total: ${totalLeaderboard}, failures: ${failures})`);
+
+      if (!batch.nextCursor) break;
+      cursor = batch.nextCursor;
     }
-    
-    console.log(`Phase 2 complete: ${totalLeaderboard} users processed for leaderboard`);
+
+    console.log(`Phase 2 complete: ${totalLeaderboard} users processed for leaderboard (${failures} failures)`);
     console.log("Migration complete!");
-    
+
     return {
       userStatsProcessed: totalUserStats,
       leaderboardProcessed: totalLeaderboard,
-    };
-  },
-});
-
-/**
- * Quick migration for small datasets - processes all users in one go.
- * Only use this if you have < 100 users.
- */
-export const backfillAllCachesQuick = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const users = await ctx.db.query("users").collect();
-    
-    let userStatsCount = 0;
-    let leaderboardCount = 0;
-    
-    for (const user of users) {
-      // Rebuild user stats
-      await ctx.runMutation(internal.statsCache.rebuildUserStatsCacheForUser, {
-        userId: user._id,
-      });
-      userStatsCount++;
-      
-      // Rebuild leaderboard
-      await ctx.runMutation(internal.statsCache.rebuildLeaderboardCacheForUser, {
-        userId: user._id,
-      });
-      leaderboardCount++;
-    }
-    
-    return {
-      totalUsers: users.length,
-      userStatsProcessed: userStatsCount,
-      leaderboardProcessed: leaderboardCount,
     };
   },
 });

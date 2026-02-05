@@ -1412,7 +1412,7 @@ export default function TypingPractice({
             fontSize: `${settings.iconFontSize}rem`, 
             opacity: uiOpacity,
             // Fixed position below the header (which is ~80px tall with z-50)
-            top: "120px",
+            top: "140px",
           }}
         >
           {/* Row 1: Kid Mode, Sound, Ghost Writer, Theme, Settings */}
@@ -1477,33 +1477,6 @@ export default function TypingPractice({
                 onUpdateSettings={updateSettings}
                 theme={theme}
               />
-              <div className="w-px h-4 bg-gray-700"></div>
-              {/* Theme Button */}
-              <button
-                type="button"
-                onClick={() => setShowThemeModal(true)}
-                className="flex items-center gap-2 transition hover:text-gray-200"
-                style={{ color: theme.buttonUnselected }}
-                title="Theme"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" />
-                  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" />
-                  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" />
-                  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" />
-                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-                </svg>
-              </button>
               <div className="w-px h-4 bg-gray-700"></div>
               {/* Settings Button */}
               <button
@@ -1771,7 +1744,7 @@ export default function TypingPractice({
       {isRunning && !isFinished && (
         <div 
           className="fixed inset-x-0 flex flex-col items-center gap-2 select-none z-30 transition-opacity duration-300 pointer-events-none"
-          style={{ top: "120px" }}
+          style={{ top: "140px" }}
         >
           {/* Row 1: WPM + Mode-specific stat + Accuracy - hidden in kid mode */}
           {!isKidMode && (
