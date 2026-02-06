@@ -386,7 +386,8 @@ export const getUserStatsByUserId = query({
 });
 
 // Get leaderboard data for top WPM scores
-// Reads from pre-computed leaderboardCache (one row per user per time range)
+// Computes directly from testResults using per-user index reads.
+// Convex reactively caches this — reads only re-run when data changes.
 export const getLeaderboard = query({
   args: {
     timeRange: v.union(
@@ -399,43 +400,61 @@ export const getLeaderboard = query({
   handler: async (ctx, args) => {
     const limit = args.limit ?? 20;
 
-    if (args.timeRange === "all-time") {
-      // All-time entries never go stale - just read top N directly
-      const entries = await ctx.db
-        .query("leaderboardCache")
-        .withIndex("by_time_range_wpm", (q) => q.eq("timeRange", "all-time"))
-        .order("desc")
-        .take(limit);
-
-      return entries.map((entry, index) => ({
-        rank: index + 1,
-        username: entry.username,
-        avatarUrl: entry.avatarUrl ?? null,
-        wpm: entry.bestWpm,
-        createdAt: entry.bestWpmAt,
-      }));
+    let timeCutoff = 0;
+    if (args.timeRange === "today") {
+      timeCutoff = getStartOfDayET(0);
+    } else if (args.timeRange === "week") {
+      timeCutoff = getStartOfDayET(7);
     }
 
-    // For week/today: fetch extra entries since some may be stale
-    const timeCutoff =
-      args.timeRange === "today" ? getStartOfDayET(0) : getStartOfDayET(7);
+    const users = await ctx.db.query("users").collect();
+    const leaderboard: Array<{
+      username: string;
+      avatarUrl: string | null;
+      wpm: number;
+      createdAt: number;
+    }> = [];
 
-    const entries = await ctx.db
-      .query("leaderboardCache")
-      .withIndex("by_time_range_wpm", (q) => q.eq("timeRange", args.timeRange))
-      .order("desc")
-      .take(limit * 3);
+    for (const user of users) {
+      // For week/today, use date index to skip old results
+      const results =
+        args.timeRange !== "all-time"
+          ? await ctx.db
+              .query("testResults")
+              .withIndex("by_user_and_date", (q) =>
+                q.eq("userId", user._id).gte("createdAt", timeCutoff)
+              )
+              .collect()
+          : await ctx.db
+              .query("testResults")
+              .withIndex("by_user", (q) => q.eq("userId", user._id))
+              .collect();
 
-    const validEntries = entries
-      .filter((entry) => entry.bestWpmAt >= timeCutoff)
-      .slice(0, limit);
+      // Find best eligible result (accuracy >= 90%, valid)
+      let bestWpm = 0;
+      let bestCreatedAt = 0;
+      for (const r of results) {
+        if (r.accuracy >= 90 && r.isValid !== false && r.wpm > bestWpm) {
+          bestWpm = r.wpm;
+          bestCreatedAt = r.createdAt;
+        }
+      }
 
-    return validEntries.map((entry, index) => ({
+      if (bestWpm > 0) {
+        leaderboard.push({
+          username: user.username,
+          avatarUrl: user.avatarUrl ?? null,
+          wpm: bestWpm,
+          createdAt: bestCreatedAt,
+        });
+      }
+    }
+
+    leaderboard.sort((a, b) => b.wpm - a.wpm);
+
+    return leaderboard.slice(0, limit).map((entry, index) => ({
       rank: index + 1,
-      username: entry.username,
-      avatarUrl: entry.avatarUrl ?? null,
-      wpm: entry.bestWpm,
-      createdAt: entry.bestWpmAt,
+      ...entry,
     }));
   },
 });
