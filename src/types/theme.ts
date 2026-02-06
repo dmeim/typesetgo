@@ -24,6 +24,8 @@ export type ThemeCategory =
   | "productivity"
   | "gaming"
   | "music"
+  | "music-bands"
+  | "music-artists"
   | "food"
   | "space"
   | "sports"

@@ -40,10 +40,12 @@ export const CATEGORY_CONFIG: Record<ThemeCategory, CategoryConfig> = {
   anime: { displayName: "Anime", order: 17 },
   // Lifestyle
   music: { displayName: "Music", order: 18 },
-  sports: { displayName: "Sports", order: 19 },
-  food: { displayName: "Food", order: 20 },
-  fun: { displayName: "Fun", order: 21 },
-  holiday: { displayName: "Holiday", order: 22 },
+  "music-bands": { displayName: "Music (Bands)", order: 19 },
+  "music-artists": { displayName: "Music (Artists)", order: 20 },
+  sports: { displayName: "Sports", order: 21 },
+  food: { displayName: "Food", order: 22 },
+  fun: { displayName: "Fun", order: 23 },
+  holiday: { displayName: "Holiday", order: 24 },
 };
 
 // Cache for loaded data
@@ -147,6 +149,7 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "phineas-and-ferb": "Phineas and Ferb",
 
   // Anime (new)
+  "chainsaw-man": "Chainsaw Man",
   "spy-x-family": "SPY x FAMILY",
   "haikyuu": "Haikyu!!",
   "cardcaptor-sakura": "Cardcaptor Sakura",
@@ -157,10 +160,40 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "smores": "S'mores",
   "bubble-tea": "Bubble Tea",
 
-  // Music (new)
+  // Music (genres)
   "r-and-b": "R&B",
   "k-pop": "K-Pop",
   "bossa-nova": "Bossa Nova",
+
+  // Music (Bands)
+  "linkin-park": "Linkin Park",
+  "three-days-grace": "Three Days Grace",
+  "bring-me-the-horizon": "Bring Me the Horizon",
+  "falling-in-reverse": "Falling in Reverse",
+  "red-hot-chili-peppers": "Red Hot Chili Peppers",
+  "foo-fighters": "Foo Fighters",
+  "breaking-benjamin": "Breaking Benjamin",
+  "green-day": "Green Day",
+  "imagine-dragons": "Imagine Dragons",
+  "avenged-sevenfold": "Avenged Sevenfold",
+
+  // Music (Artists)
+  "avril-lavigne": "Avril Lavigne",
+  "amy-lee": "Amy Lee",
+  "corey-taylor": "Corey Taylor",
+  "myles-kennedy": "Myles Kennedy",
+  "lzzy-hale": "Lzzy Hale",
+  "chris-daughtry": "Chris Daughtry",
+  "lacey-sturm": "Lacey Sturm",
+  "devin-townsend": "Devin Townsend",
+  "zakk-wylde": "Zakk Wylde",
+  "joe-satriani": "Joe Satriani",
+  "lindsey-stirling": "Lindsey Stirling",
+  "ed-sheeran": "Ed Sheeran",
+  "lana-del-rey": "Lana Del Rey",
+  "john-mayer": "John Mayer",
+  "norah-jones": "Norah Jones",
+  "michael-buble": "Michael Bublé",
 
   // Retro (new)
   "mid-autumn": "Mid-Autumn",
@@ -289,6 +322,8 @@ export function groupThemesByCategory(themes: ThemeDefinition[]): GroupedThemes[
     anime: [],
     // Lifestyle
     music: [],
+    "music-bands": [],
+    "music-artists": [],
     sports: [],
     food: [],
     fun: [],
