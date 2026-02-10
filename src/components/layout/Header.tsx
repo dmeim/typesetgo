@@ -23,7 +23,7 @@ export default function Header({
   hidden = false,
   onOpenThemeModal,
 }: HeaderProps) {
-  const { user: clerkUser, isSignedIn } = useUser();
+  const { user: clerkUser, isSignedIn, isLoaded } = useUser();
   const { legacyTheme, mode, toggleMode, supportsLightMode } = useTheme();
   const location = useLocation();
   
@@ -70,12 +70,14 @@ export default function Header({
   };
   
   // Fetch current user's Convex ID for stats link
+  const accountFeaturesEnabled = isLoaded && isSignedIn;
   const convexUser = useQuery(
     api.users.getUser,
-    isSignedIn && clerkUser ? { clerkId: clerkUser.id } : "skip"
+    accountFeaturesEnabled && clerkUser ? { clerkId: clerkUser.id } : "skip"
   );
 
   const statsUrl = convexUser?._id ? `/user/${convexUser._id}` : null;
+  const isStatsEnabled = accountFeaturesEnabled && Boolean(statsUrl);
 
   return (
     <header className="absolute top-0 inset-x-0 p-4 md:p-6 z-50 flex items-center justify-between transition-opacity duration-300 pointer-events-none" style={{ opacity: hidden ? 0 : 1 }}>
@@ -208,10 +210,10 @@ export default function Header({
           </svg>
         </Link>
 
-        {/* Stats - only show if signed in */}
-        {statsUrl && (
+        {/* Stats */}
+        {isStatsEnabled ? (
           <Link
-            to={statsUrl}
+            to={statsUrl as string}
             className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
             style={{ color: theme.buttonUnselected }}
             title="Your Stats"
@@ -233,10 +235,36 @@ export default function Header({
               <path d="M7 6h3" />
             </svg>
           </Link>
+        ) : (
+          <button
+            type="button"
+            className="flex h-10 w-10 items-center justify-center rounded-lg opacity-40 cursor-not-allowed"
+            style={{ color: theme.textMuted }}
+            title={accountFeaturesEnabled ? "Loading your stats" : "Sign in to view your stats"}
+            disabled
+            aria-disabled="true"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+              <path d="M7 16h8" />
+              <path d="M7 11h12" />
+              <path d="M7 6h3" />
+            </svg>
+          </button>
         )}
 
         {/* Notification Center */}
-        <NotificationCenter />
+        <NotificationCenter disabled={!accountFeaturesEnabled} />
 
         {/* User Button - Sign In / Avatar Dropdown */}
         <UserButton />

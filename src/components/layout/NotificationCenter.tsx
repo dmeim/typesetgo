@@ -33,6 +33,10 @@ import {
 import { TIER_COLORS } from "@/lib/achievement-definitions";
 import AchievementsModal from "@/components/auth/AchievementsModal";
 
+interface NotificationCenterProps {
+  disabled?: boolean;
+}
+
 function getNotificationIcon(notification: Notification) {
   const color =
     notification.type === "achievement" && notification.metadata?.achievementTier
@@ -55,7 +59,7 @@ function getNotificationIcon(notification: Notification) {
   }
 }
 
-export default function NotificationCenter() {
+export default function NotificationCenter({ disabled = false }: NotificationCenterProps) {
   const { user: clerkUser, isSignedIn } = useUser();
   const { legacyTheme } = useTheme();
   
@@ -109,7 +113,7 @@ export default function NotificationCenter() {
     isSignedIn && clerkUser ? { clerkId: clerkUser.id } : "skip"
   ) ?? {};
 
-  const unreadCount = getUnreadCount();
+  const unreadCount = disabled ? 0 : getUnreadCount();
 
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
@@ -126,6 +130,21 @@ export default function NotificationCenter() {
     setShowAchievementsModal(false);
     setSelectedAchievementId(null);
   };
+
+  if (disabled) {
+    return (
+      <button
+        type="button"
+        className="relative flex h-10 w-10 items-center justify-center rounded-lg opacity-40 cursor-not-allowed"
+        style={{ color: theme.textMuted }}
+        title="Sign in to view notifications"
+        disabled
+        aria-disabled="true"
+      >
+        <BellIcon className="size-5" />
+      </button>
+    );
+  }
 
   return (
     <>
