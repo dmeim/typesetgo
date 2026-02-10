@@ -2422,7 +2422,7 @@ export default function TypingPractice({
           }}
         >
           <div
-            className="w-full max-w-6xl rounded-lg shadow-xl mx-4 max-h-[90vh] flex overflow-hidden"
+            className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] lg:w-[calc(100vw-3rem)] h-[85vh] rounded-lg shadow-xl flex overflow-hidden"
             style={{ backgroundColor: theme.surfaceColor }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2685,36 +2685,36 @@ export default function TypingPractice({
                         <h3 className="text-sm font-medium text-gray-400 mb-3 sticky top-0 py-1" style={{ backgroundColor: theme.surfaceColor }}>
                           {group.displayName}
                         </h3>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                           {group.themes.map((themeData) => (
                             <div
                               key={themeData.name}
-                              className={`flex rounded-lg border transition overflow-hidden min-h-[60px] ${
+                              className={`flex rounded-lg border transition overflow-hidden min-h-[64px] ${
                                 selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
                                   ? "border-gray-400 ring-1 ring-gray-400"
                                   : "border-gray-700 hover:border-gray-500"
                               }`}
                               style={{ backgroundColor: themeData.dark.bg.base }}
                             >
-                              {/* Left column - theme info (80%) */}
+                              {/* Left column - theme info */}
                               <button
                                 onClick={() => handleThemeSelect(themeData.name)}
                                 onMouseEnter={() => setPreviewTheme(themeData)}
                                 onMouseLeave={() => setPreviewTheme(null)}
-                                className="flex-[4] p-2 text-left"
+                                className="flex-1 min-w-0 p-2 text-left"
                               >
                                 <div className="flex items-center gap-1.5 mb-2">
-                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.typing.cursor }} />
-                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.interactive.secondary.DEFAULT }} />
-                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.typing.correct }} />
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.typing.cursor }} />
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.interactive.secondary.DEFAULT }} />
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.typing.correct }} />
                                 </div>
-                                <div className="text-xs truncate" style={{ color: themeData.dark.typing.correct }}>
+                                <div className="text-xs whitespace-normal break-words leading-tight" style={{ color: themeData.dark.typing.correct }}>
                                   {themeData.name}
                                 </div>
                               </button>
                               
-                              {/* Right column - mode toggles (10%) */}
-                              <div className="flex-1 flex flex-col border-l" style={{ borderColor: `${themeData.dark.typing.correct}30` }}>
+                              {/* Right column - mode toggles (fixed width) */}
+                              <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${themeData.dark.typing.correct}30` }}>
                                 {/* Light mode button */}
                                 <button
                                   onClick={(e) => { 
@@ -2758,7 +2758,7 @@ export default function TypingPractice({
 
                 {/* Categories View */}
                 {themeViewMode === "categories" && !selectedCategory && (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                     {groupedThemes.map((group) => (
                       <button
                         key={group.category}
@@ -2801,38 +2801,38 @@ export default function TypingPractice({
                     <h3 className="text-sm font-medium mb-3" style={{ color: theme.textSecondary }}>
                       {CATEGORY_CONFIG[selectedCategory].displayName}
                     </h3>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                       {groupedThemes
                         .find((g) => g.category === selectedCategory)
                         ?.themes.map((themeData) => (
                           <div
                             key={themeData.name}
-                            className={`flex rounded-lg border transition overflow-hidden min-h-[60px] ${
+                            className={`flex rounded-lg border transition overflow-hidden min-h-[64px] ${
                               selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
                                 ? "border-gray-400 ring-1 ring-gray-400"
                                 : "border-gray-700 hover:border-gray-500"
                             }`}
                             style={{ backgroundColor: themeData.dark.bg.base }}
                           >
-                            {/* Left column - theme info (80%) */}
+                            {/* Left column - theme info */}
                             <button
                               onClick={() => handleThemeSelect(themeData.name)}
                               onMouseEnter={() => setPreviewTheme(themeData)}
                               onMouseLeave={() => setPreviewTheme(null)}
-                              className="flex-[4] p-2 text-left"
+                              className="flex-1 min-w-0 p-2 text-left"
                             >
                               <div className="flex items-center gap-1.5 mb-2">
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.typing.cursor }} />
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.interactive.secondary.DEFAULT }} />
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeData.dark.typing.correct }} />
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.typing.cursor }} />
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.interactive.secondary.DEFAULT }} />
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.typing.correct }} />
                               </div>
-                              <div className="text-xs truncate" style={{ color: themeData.dark.typing.correct }}>
+                              <div className="text-xs whitespace-normal break-words leading-tight" style={{ color: themeData.dark.typing.correct }}>
                                 {themeData.name}
                               </div>
                             </button>
                             
-                            {/* Right column - mode toggles (10%) */}
-                            <div className="flex-1 flex flex-col border-l" style={{ borderColor: `${themeData.dark.typing.correct}30` }}>
+                            {/* Right column - mode toggles (fixed width) */}
+                            <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${themeData.dark.typing.correct}30` }}>
                               {/* Light mode button */}
                               <button
                                 onClick={(e) => { 
