@@ -33,19 +33,23 @@ export const CATEGORY_CONFIG: Record<ThemeCategory, CategoryConfig> = {
   // Era/Culture
   retro: { displayName: "Retro/Tech", order: 12 },
   cultural: { displayName: "Cultural", order: 13 },
+  books: { displayName: "Books", order: 14 },
+  mythology: { displayName: "Mythology", order: 15 },
+  cities: { displayName: "Cities", order: 16 },
+  subject: { displayName: "School Subjects", order: 17 },
   // Entertainment/Media
-  gaming: { displayName: "Gaming", order: 14 },
-  movies: { displayName: "Movies", order: 15 },
-  "tv-shows": { displayName: "TV Shows", order: 16 },
-  anime: { displayName: "Anime", order: 17 },
+  gaming: { displayName: "Gaming", order: 18 },
+  movies: { displayName: "Movies", order: 19 },
+  "tv-shows": { displayName: "TV Shows", order: 20 },
+  anime: { displayName: "Anime", order: 21 },
   // Lifestyle
-  music: { displayName: "Music", order: 18 },
-  "music-bands": { displayName: "Music (Bands)", order: 19 },
-  "music-artists": { displayName: "Music (Artists)", order: 20 },
-  sports: { displayName: "Sports", order: 21 },
-  food: { displayName: "Food", order: 22 },
-  fun: { displayName: "Fun", order: 23 },
-  holiday: { displayName: "Holiday", order: 24 },
+  music: { displayName: "Music", order: 22 },
+  "music-bands": { displayName: "Music (Bands)", order: 23 },
+  "music-artists": { displayName: "Music (Artists)", order: 24 },
+  sports: { displayName: "Sports", order: 25 },
+  food: { displayName: "Food", order: 26 },
+  fun: { displayName: "Fun", order: 27 },
+  holiday: { displayName: "Holiday", order: 28 },
 };
 
 // Cache for loaded data
@@ -142,6 +146,7 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "back-to-the-future": "Back to the Future",
   "the-wizard-of-oz": "The Wizard of Oz",
   "how-to-train-your-dragon": "How to Train Your Dragon",
+  "pride-and-prejudice": "Pride and Prejudice",
 
   // TV Shows (new)
   "avatar-the-last-airbender": "Avatar: The Last Airbender",
@@ -199,6 +204,37 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "mid-autumn": "Mid-Autumn",
   "wabi-sabi": "Wabi-Sabi",
   "tie-dye": "Tie-Dye",
+
+  // Books
+  "1984": "1984",
+  "the-great-gatsby": "The Great Gatsby",
+  "to-kill-a-mockingbird": "To Kill a Mockingbird",
+  "moby-dick": "Moby-Dick",
+  "wuthering-heights": "Wuthering Heights",
+  "jane-eyre": "Jane Eyre",
+  "dracula-book": "Dracula",
+  "the-catcher-in-the-rye": "The Catcher in the Rye",
+  "little-women": "Little Women",
+  "alice-in-wonderland": "Alice in Wonderland",
+  "the-picture-of-dorian-gray": "The Picture of Dorian Gray",
+  "don-quixote": "Don Quixote",
+  "a-tale-of-two-cities": "A Tale of Two Cities",
+  "the-secret-garden": "The Secret Garden",
+
+  // Mythology
+  "chinese-mythology": "Chinese Mythology",
+
+  "polynesian-mythology": "Polynesian Mythology",
+
+  // Cities
+  "rio-de-janeiro": "Rio de Janeiro",
+  "hong-kong": "Hong Kong",
+  "san-francisco": "San Francisco",
+
+  // School Subjects
+  "music-theory": "Music Theory",
+  "computer-science": "Computer Science",
+  "foreign-language": "Foreign Language",
 };
 
 // Format theme name for display (capitalize first letter of each word)
@@ -315,6 +351,10 @@ export function groupThemesByCategory(themes: ThemeDefinition[]): GroupedThemes[
     // Era/Culture
     retro: [],
     cultural: [],
+    books: [],
+    mythology: [],
+    cities: [],
+    subject: [],
     // Entertainment/Media
     gaming: [],
     movies: [],
