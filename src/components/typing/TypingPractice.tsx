@@ -519,9 +519,23 @@ export default function TypingPractice({
   // --- Calculated Stats ---
   const stats = useMemo(() => computeStats(typedText, words), [typedText, words]);
   const wordResults = useMemo(() => computeWordResults(typedText, words), [typedText, words]);
+  const typedWordCount = useMemo(() => {
+    const trimmed = typedText.trim();
+    if (trimmed === "") return 0;
+    const typedWords = trimmed.split(/\s+/).length;
+    return typedText.endsWith(" ") ? typedWords : Math.max(typedWords - 1, 0);
+  }, [typedText]);
   const accuracy = typedText.length > 0 ? (stats.correct / typedText.length) * 100 : 100;
   const elapsedMinutes = elapsedMs / 60000 || 0.01;
   const wpm = (typedText.length / 5) / elapsedMinutes;
+  const zenProgressGradient = useMemo(
+    () => `linear-gradient(120deg, ${theme.buttonSelected} 0%, ${theme.accentColor} 25%, ${theme.buttonUnselected} 50%, ${theme.accentColor} 75%, ${theme.buttonSelected} 100%)`,
+    [
+      theme.buttonSelected,
+      theme.accentColor,
+      theme.buttonUnselected,
+    ]
+  );
 
   const timeRemaining =
     settings.mode === "time" ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
@@ -1886,7 +1900,7 @@ export default function TypingPractice({
                   style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
                 >
                   <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
-                    {Math.min(typedText.trim() === "" ? 0 : typedText.trim().split(/\s+/).length, settings.wordTarget === 0 ? Infinity : settings.wordTarget)}
+                    {Math.min(typedWordCount, settings.wordTarget === 0 ? Infinity : settings.wordTarget)}
                   </span>
                   {settings.wordTarget > 0 && (
                     <>
@@ -1901,14 +1915,29 @@ export default function TypingPractice({
 
               {/* Zen Mode: Count-up Timer */}
               {settings.mode === "zen" && (
-                <div
-                  className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                  style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
-                >
-                  <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
-                    {formatTime(Math.floor(elapsedMs / 1000))}
-                  </span>
-                </div>
+                <>
+                  <div
+                    className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                    style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                  >
+                    <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
+                      {formatTime(Math.floor(elapsedMs / 1000))}
+                    </span>
+                  </div>
+
+                  <div
+                    className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                    style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                  >
+                    <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
+                      {typedWordCount}
+                    </span>
+                    <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>/</span>
+                    <span className="text-lg md:text-xl font-semibold leading-none" style={{ color: theme.textSecondary }}>
+                      {"\u221E"}
+                    </span>
+                  </div>
+                </>
               )}
 
               {/* Accuracy Pill */}
@@ -1924,29 +1953,52 @@ export default function TypingPractice({
             </div>
           )}
 
-          {/* Row 2: Progress Bar - shown only in time and words modes, hidden in kid mode */}
-          {(settings.mode === "time" || settings.mode === "words") && !isKidMode && (
+          {/* Row 2: Progress Bar - shown in time/words/zen modes, hidden in kid mode */}
+          {(settings.mode === "time" || settings.mode === "words" || settings.mode === "zen") && !isKidMode && (
             <div className="flex gap-2 md:gap-3 items-center">
               <div
                 className="w-56 md:w-80 px-3 py-2.5 md:px-4 md:py-4 backdrop-blur-md rounded-full shadow-lg"
                 style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
               >
-                <Progress
-                  value={
-                    settings.mode === "time"
-                      ? settings.duration > 0 ? (timeRemaining / settings.duration) * 100 : 0
-                      : settings.wordTarget > 0
-                        ? Math.min(((typedText.trim() === "" ? 0 : typedText.trim().split(/\s+/).length) / settings.wordTarget) * 100, 100)
-                        : 0
-                  }
-                  className="h-2 md:h-2.5"
-                  style={{ backgroundColor: theme.borderSubtle }}
-                  indicatorStyle={{
-                    backgroundColor: settings.mode === "time" && timeRemaining < 10
-                      ? theme.statusError
-                      : theme.statusSuccess,
-                  }}
-                />
+                {settings.mode === "zen" ? (
+                  <div
+                    className="relative h-2 md:h-2.5 w-full overflow-hidden rounded-full"
+                    style={{ backgroundColor: theme.borderSubtle }}
+                  >
+                    <motion.div
+                      className="absolute inset-0 w-[200%]"
+                      animate={{ x: ["0%", "-50%"] }}
+                      transition={{
+                        duration: 2,
+                        ease: "linear",
+                        repeat: Infinity,
+                      }}
+                      style={{
+                        backgroundImage: zenProgressGradient,
+                        backgroundSize: "50% 100%",
+                        backgroundPosition: "0% 50%",
+                        backgroundRepeat: "repeat-x",
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <Progress
+                    value={
+                      settings.mode === "time"
+                        ? settings.duration > 0 ? (timeRemaining / settings.duration) * 100 : 0
+                        : settings.wordTarget > 0
+                          ? Math.min((typedWordCount / settings.wordTarget) * 100, 100)
+                          : 0
+                    }
+                    className="h-2 md:h-2.5"
+                    style={{ backgroundColor: theme.borderSubtle }}
+                    indicatorStyle={{
+                      backgroundColor: settings.mode === "time" && timeRemaining < 10
+                        ? theme.statusError
+                        : theme.statusSuccess,
+                    }}
+                  />
+                )}
               </div>
             </div>
           )}
