@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Baby, Sun, Moon, ChevronDown } from "lucide-react";
+import { Sun, Moon, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
@@ -15,8 +15,6 @@ import {
   loadSettings,
   saveSettings,
 } from "@/lib/storage-utils";
-import SoundController from "./SoundController";
-import GhostWriterController from "./GhostWriterController";
 import type { Plan, PlanItem, PlanStepResult } from "@/types/plan";
 import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
 import PlanSplash from "@/components/plan/PlanSplash";
@@ -41,9 +39,27 @@ import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
 // Constants
 const TIME_PRESETS = [15, 30, 60, 120, 300];
 const WORD_PRESETS = [10, 25, 50, 100, 500];
+const MODE_SELECTOR_OPTIONS = ["kid", "zen", "time", "words", "quote"] as const;
 const PUNCTUATION_CHARS = [".", ",", "!", "?", ";", ":"];
 const NUMBER_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const LINE_HEIGHT = 1.6;
+const SETTINGS_TABS = [
+  { id: "all", label: "All" },
+  { id: "type", label: "Type" },
+  { id: "race", label: "Race" },
+  { id: "lesson", label: "Lesson" },
+] as const;
+const TEXT_ALIGN_OPTIONS = ["left", "center", "right", "justify"] as const;
+const FONT_OPTIONS = [
+  { value: "default", label: "Default Sans" },
+  { value: "mono", label: "Classic Mono" },
+  { value: "modern", label: "Modern Grotesk" },
+  { value: "serif", label: "Readable Serif" },
+] as const;
+
+type SettingsTabId = (typeof SETTINGS_TABS)[number]["id"];
+type FontOptionValue = (typeof FONT_OPTIONS)[number]["value"];
+type ModeSelectorOption = (typeof MODE_SELECTOR_OPTIONS)[number];
 
 // Word generation helper
 const generateWords = (
@@ -323,6 +339,8 @@ export default function TypingPractice({
 
   const [linePreview, setLinePreview] = useState(3);
   const [maxWordsPerLine, setMaxWordsPerLine] = useState(7);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTabId>("all");
+  const [selectedFontOption, setSelectedFontOption] = useState<FontOptionValue>("default");
   const [isCustomThemeOpen, setIsCustomThemeOpen] = useState(false);
   const [availableThemes, setAvailableThemes] = useState<ThemeDefinition[]>([]);
   const [groupedThemes, setGroupedThemes] = useState<GroupedThemes[]>([]);
@@ -352,7 +370,7 @@ export default function TypingPractice({
    *
   const [themeViewMode, setThemeViewMode] = useState<"all" | "categories">("all");
    */
-  const themeViewMode: "all" = "all";
+  const themeViewMode = "all" as const;
   const [selectedCategory, setSelectedCategory] = useState<ThemeCategory | null>(null);
   const [themeSearchQuery, setThemeSearchQuery] = useState("");
   // Collapse state for "All Themes" view — all collapsed except "Featured" by default
@@ -507,7 +525,7 @@ export default function TypingPractice({
     user ? { clerkId: user.id } : "skip"
   );
   const savePreferencesMutation = useMutation(api.preferences.savePreferences);
-  const hasAppliedDbPrefs = useRef(false);
+  const [hasResolvedDbPrefs, setHasResolvedDbPrefs] = useState(false);
   const prefsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -595,54 +613,87 @@ export default function TypingPractice({
     return () => window.removeEventListener("resize", checkCompactMode);
   }, []);
 
-  // --- Reset DB prefs flag when user changes ---
+  // --- Reset DB prefs sync state when user changes ---
   useEffect(() => {
-    hasAppliedDbPrefs.current = false;
+    setHasResolvedDbPrefs(false);
   }, [user?.id]);
 
   // --- Load Preferences from DB (for logged-in users) ---
   useEffect(() => {
-    if (!dbPreferences || hasAppliedDbPrefs.current) return;
-    hasAppliedDbPrefs.current = true;
+    if (!user?.id || hasResolvedDbPrefs || dbPreferences === undefined) return;
+
+    if (!dbPreferences) {
+      setHasResolvedDbPrefs(true);
+      return;
+    }
+
+    let isCancelled = false;
 
     // Use requestAnimationFrame to defer state updates and avoid cascading renders
-    requestAnimationFrame(async () => {
-      // Apply theme from DB using the context
-      if (dbPreferences.themeName && !dbPreferences.customTheme) {
-        // Named theme: set via context (which handles loading and CSS variables)
-        await setThemeById(dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-"));
-      }
-      // Note: Custom themes are not currently supported in the new theme system
-      // They would need to be stored as theme JSON files
+    requestAnimationFrame(() => {
+      (async () => {
+        try {
+          // Apply theme from DB using the context
+          if (dbPreferences.themeName && !dbPreferences.customTheme) {
+            // Named theme: set via context (which handles loading and CSS variables)
+            try {
+              await setThemeById(dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-"));
+            } catch (error) {
+              console.warn("Failed to apply theme from DB preferences:", error);
+            }
+          }
+          if (isCancelled) return;
 
-      // Apply settings from DB
-      setSettings((prev) => ({
-        ...prev,
-        mode: dbPreferences.defaultMode as typeof prev.mode,
-        duration: dbPreferences.defaultDuration,
-        wordTarget: dbPreferences.defaultWordTarget,
-        difficulty: dbPreferences.defaultDifficulty as typeof prev.difficulty,
-        quoteLength: dbPreferences.defaultQuoteLength as typeof prev.quoteLength,
-        punctuation: dbPreferences.defaultPunctuation,
-        numbers: dbPreferences.defaultNumbers,
-        capitalization: dbPreferences.defaultCapitalization ?? false,
-        soundEnabled: dbPreferences.soundEnabled,
-        typingSound: dbPreferences.typingSound,
-        warningSound: dbPreferences.warningSound,
-        errorSound: dbPreferences.errorSound,
-        ghostWriterEnabled: dbPreferences.ghostWriterEnabled,
-        ghostWriterSpeed: dbPreferences.ghostWriterSpeed,
-        typingFontSize: dbPreferences.typingFontSize,
-        iconFontSize: dbPreferences.iconFontSize,
-        helpFontSize: dbPreferences.helpFontSize,
-        textAlign: dbPreferences.textAlign as typeof prev.textAlign,
-      }));
+          // Note: Custom themes are not currently supported in the new theme system
+          // They would need to be stored as theme JSON files
+
+          // Apply settings from DB
+          setSettings((prev) => ({
+            ...prev,
+            mode: dbPreferences.defaultMode as typeof prev.mode,
+            duration: dbPreferences.defaultDuration,
+            wordTarget: dbPreferences.defaultWordTarget,
+            difficulty: dbPreferences.defaultDifficulty as typeof prev.difficulty,
+            quoteLength: dbPreferences.defaultQuoteLength as typeof prev.quoteLength,
+            punctuation: dbPreferences.defaultPunctuation,
+            numbers: dbPreferences.defaultNumbers,
+            capitalization: dbPreferences.defaultCapitalization ?? false,
+            presetModeType: (dbPreferences.defaultPresetModeType as typeof prev.presetModeType) ?? prev.presetModeType,
+            soundEnabled: dbPreferences.soundEnabled,
+            typingSound: dbPreferences.typingSound,
+            warningSound: dbPreferences.warningSound,
+            errorSound: dbPreferences.errorSound,
+            ghostWriterEnabled: dbPreferences.ghostWriterEnabled,
+            ghostWriterSpeed: dbPreferences.ghostWriterSpeed,
+            typingFontSize: dbPreferences.typingFontSize,
+            iconFontSize: dbPreferences.iconFontSize,
+            helpFontSize: dbPreferences.helpFontSize,
+            textAlign: dbPreferences.textAlign as typeof prev.textAlign,
+          }));
+
+          if (typeof dbPreferences.linePreview === "number") {
+            setLinePreview(Math.max(1, Math.min(6, Math.round(dbPreferences.linePreview))));
+          }
+
+          if (typeof dbPreferences.maxWordsPerLine === "number") {
+            setMaxWordsPerLine(Math.max(1, Math.min(10, Math.round(dbPreferences.maxWordsPerLine))));
+          }
+        } finally {
+          if (!isCancelled) {
+            setHasResolvedDbPrefs(true);
+          }
+        }
+      })();
     });
-  }, [dbPreferences, setThemeById, user?.id]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [dbPreferences, hasResolvedDbPrefs, setThemeById, user?.id]);
 
   // --- Save Preferences to DB (debounced, for logged-in users) ---
   useEffect(() => {
-    if (!user || !hasLoadedFromStorage.current) return;
+    if (!user || !hasLoadedFromStorage.current || !hasResolvedDbPrefs) return;
 
     if (prefsDebounceRef.current) {
       clearTimeout(prefsDebounceRef.current);
@@ -681,6 +732,9 @@ export default function TypingPractice({
             defaultPunctuation: settings.punctuation,
             defaultNumbers: settings.numbers,
             defaultCapitalization: settings.capitalization,
+            defaultPresetModeType: settings.presetModeType,
+            linePreview: Math.max(1, Math.min(6, linePreview)),
+            maxWordsPerLine: Math.max(1, Math.min(10, maxWordsPerLine)),
           },
         });
       } catch (error) {
@@ -695,6 +749,7 @@ export default function TypingPractice({
     };
   }, [
     user,
+    hasResolvedDbPrefs,
     settings.mode,
     settings.duration,
     settings.wordTarget,
@@ -703,6 +758,7 @@ export default function TypingPractice({
     settings.punctuation,
     settings.numbers,
     settings.capitalization,
+    settings.presetModeType,
     settings.soundEnabled,
     settings.typingSound,
     settings.warningSound,
@@ -713,6 +769,8 @@ export default function TypingPractice({
     settings.iconFontSize,
     settings.helpFontSize,
     settings.textAlign,
+    linePreview,
+    maxWordsPerLine,
     theme,
     selectedThemeName,
     getOrCreateUser,
@@ -1153,6 +1211,69 @@ export default function TypingPractice({
     resetSession,
   ]);
 
+  const enableKidMode = useCallback(() => {
+    setPreKidModeSettings({
+      mode: settings.mode,
+      typingFontSize: settings.typingFontSize,
+      ghostWriterEnabled: settings.ghostWriterEnabled,
+      linePreview,
+      maxWordsPerLine,
+    });
+    updateSettings({
+      mode: "zen",
+      typingFontSize: 5.5,
+      ghostWriterEnabled: false,
+    });
+    setLinePreview(2);
+    setMaxWordsPerLine(5);
+    setIsKidMode(true);
+  }, [
+    settings.mode,
+    settings.typingFontSize,
+    settings.ghostWriterEnabled,
+    linePreview,
+    maxWordsPerLine,
+    updateSettings,
+  ]);
+
+  const disableKidMode = useCallback((nextMode?: SettingsState["mode"]) => {
+    if (preKidModeSettings) {
+      updateSettings({
+        mode: nextMode ?? preKidModeSettings.mode,
+        typingFontSize: preKidModeSettings.typingFontSize,
+        ghostWriterEnabled: preKidModeSettings.ghostWriterEnabled,
+      });
+      setLinePreview(preKidModeSettings.linePreview);
+      setMaxWordsPerLine(preKidModeSettings.maxWordsPerLine);
+    } else {
+      updateSettings({ mode: nextMode ?? "zen" });
+    }
+    setPreKidModeSettings(null);
+    setIsKidMode(false);
+  }, [preKidModeSettings, updateSettings]);
+
+  const handleModeSelect = useCallback((mode: ModeSelectorOption) => {
+    if (mode === "kid") {
+      if (isKidMode) {
+        disableKidMode();
+      } else {
+        enableKidMode();
+      }
+      return;
+    }
+
+    if (isKidMode) {
+      disableKidMode(mode);
+      return;
+    }
+
+    if (settings.mode === mode) {
+      generateTest();
+    } else {
+      updateSettings({ mode });
+    }
+  }, [disableKidMode, enableKidMode, generateTest, isKidMode, settings.mode, updateSettings]);
+
   // Generate test on mode/difficulty change
   useEffect(() => {
     if (wordPool.length > 0 || settings.mode === "quote" || settings.mode === "preset") {
@@ -1517,6 +1638,41 @@ export default function TypingPractice({
     ).nodes;
   };
 
+  const formatRemValue = (value: number) => {
+    const normalized = value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+    return `${normalized}rem`;
+  };
+
+  const getSoundPackOptions = (category: "typing" | "warning" | "error") => {
+    if (!soundManifest?.[category]) return [];
+    return Object.keys(soundManifest[category]);
+  };
+
+  const playSettingsSoundPreview = (category: "typing" | "warning" | "error", pack: string) => {
+    if (!pack || !soundManifest) return;
+    const soundUrl = getRandomSoundUrl(soundManifest, category, pack);
+    if (!soundUrl) return;
+
+    try {
+      const audio = new Audio(soundUrl);
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    } catch {
+      // Ignore preview errors
+    }
+  };
+
+  const clampedTextSize = Math.max(3, Math.min(6, settings.typingFontSize));
+  const clampedLinePreview = Math.max(1, Math.min(6, linePreview));
+  const clampedMaxWordsPerLine = Math.max(1, Math.min(10, maxWordsPerLine));
+  const typingSoundOptions = getSoundPackOptions("typing");
+  const warningSoundOptions = getSoundPackOptions("warning");
+  const errorSoundOptions = getSoundPackOptions("error");
+  const closeSettingsModal = () => {
+    setActiveSettingsTab("all");
+    setShowSettings(false);
+  };
+
   return (
     <div
       className="relative flex min-h-[100dvh] flex-col items-center justify-center px-4 pb-8 pt-8 transition-colors duration-300"
@@ -1525,202 +1681,118 @@ export default function TypingPractice({
       {/* Settings Controls - Fixed at top */}
       {!connectMode && !isRunning && !isFinished && (
         <div
-          className="fixed inset-x-0 flex flex-col items-center justify-center gap-4 transition-opacity duration-300 z-30 pointer-events-none"
+          className="fixed inset-x-0 flex flex-col items-center justify-center gap-3 transition-opacity duration-300 z-30 pointer-events-none"
           style={{ 
             fontSize: `${settings.iconFontSize}rem`, 
             opacity: uiOpacity,
             // Fixed position below the header (which is ~80px tall with z-50)
-            top: "140px",
+            top: "120px",
           }}
         >
-          {/* Row 1: Kid Mode, Sound, Ghost Writer, Theme, Settings */}
-          <div className="flex items-center justify-center gap-4 text-gray-400 pointer-events-auto">
-            <div className="flex items-center gap-3 rounded-lg px-4 py-2" style={{ backgroundColor: theme.surfaceColor }}>
-              {/* Kid Mode Toggle Button */}
+          {/* Compact Mode: Quick Settings */}
+          {isCompactMode && (
+            <div className="pointer-events-auto">
               <button
                 type="button"
-                onClick={() => {
-                  if (isKidMode) {
-                    // Toggle OFF: restore previous settings
-                    if (preKidModeSettings) {
-                      updateSettings({
-                        mode: preKidModeSettings.mode,
-                        typingFontSize: preKidModeSettings.typingFontSize,
-                        ghostWriterEnabled: preKidModeSettings.ghostWriterEnabled,
-                      });
-                      setLinePreview(preKidModeSettings.linePreview);
-                      setMaxWordsPerLine(preKidModeSettings.maxWordsPerLine);
-                    }
-                    setPreKidModeSettings(null);
-                    setIsKidMode(false);
-                  } else {
-                    // Toggle ON: save current settings and apply kid presets
-                    setPreKidModeSettings({
-                      mode: settings.mode,
-                      typingFontSize: settings.typingFontSize,
-                      ghostWriterEnabled: settings.ghostWriterEnabled,
-                      linePreview,
-                      maxWordsPerLine,
-                    });
-                    updateSettings({
-                      mode: "zen",
-                      typingFontSize: 5.5,
-                      ghostWriterEnabled: false,
-                    });
-                    setLinePreview(2);
-                    setMaxWordsPerLine(5);
-                    setIsKidMode(true);
-                  }
-                }}
-                className="flex items-center gap-1 transition hover:opacity-75"
-                style={{ color: isKidMode ? theme.buttonSelected : theme.buttonUnselected }}
-                title={isKidMode ? "Exit Kid Mode" : "Kid Mode - Large text, simple layout, no timer"}
+                onClick={() => setShowQuickSettings(true)}
+                className="rounded-lg px-4 py-2 text-sm transition hover:text-gray-200"
+                style={{ backgroundColor: theme.surfaceColor, color: theme.buttonUnselected }}
+                title="Quick Settings"
               >
-                <Baby
-                  size={20}
-                  fill={isKidMode ? "currentColor" : "none"}
-                  strokeWidth={1.5}
-                />
+                Quick Settings
               </button>
-              <div className="w-px h-4 bg-gray-700"></div>
-              <SoundController
-                settings={settings}
-                onUpdateSettings={updateSettings}
-                soundManifest={soundManifest}
-                theme={theme}
-              />
-              <div className="w-px h-4 bg-gray-700"></div>
-              <GhostWriterController
-                settings={settings}
-                onUpdateSettings={updateSettings}
-                theme={theme}
-              />
-              {/* Quick Settings Button (compact mode only) */}
-              {isCompactMode && (
-                <>
-                  <div className="w-px h-4 bg-gray-700"></div>
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickSettings(true)}
-                    className="flex items-center gap-2 transition hover:text-gray-200"
-                    style={{ color: theme.buttonUnselected }}
-                    title="Quick Settings"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="4" y1="21" x2="4" y2="14" />
-                      <line x1="4" y1="10" x2="4" y2="3" />
-                      <line x1="12" y1="21" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12" y2="3" />
-                      <line x1="20" y1="21" x2="20" y2="16" />
-                      <line x1="20" y1="12" x2="20" y2="3" />
-                      <line x1="1" y1="14" x2="7" y2="14" />
-                      <line x1="9" y1="8" x2="15" y2="8" />
-                      <line x1="17" y1="16" x2="23" y2="16" />
-                    </svg>
-                  </button>
-                </>
-              )}
             </div>
-          </div>
+          )}
 
-          {/* Row 2: Test Mode | Modifiers (hidden in compact mode or kid mode) */}
-          {!isCompactMode && !isKidMode && (
+          {/* Row 1: Mode | Modifiers (hidden in compact mode) */}
+          {!isCompactMode && (
           <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400 pointer-events-auto">
             {/* Test Modes */}
             <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Mode</span>
             <div className="flex rounded-lg p-1" style={{ backgroundColor: theme.surfaceColor }}>
-              {(["zen", "time", "words", "quote"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    if (settings.mode === m) {
-                      generateTest();
-                    } else {
-                      updateSettings({ mode: m });
-                    }
-                  }}
-                  className={`px-3 py-1 rounded transition ${settings.mode === m ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                  style={{ color: settings.mode === m ? theme.buttonSelected : undefined }}
-                >
-                  {m}
-                </button>
-              ))}
+              {MODE_SELECTOR_OPTIONS.map((m) => {
+                const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => handleModeSelect(m)}
+                    className={`px-3 py-1 rounded transition ${isModeActive ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
+                    style={{ color: isModeActive ? theme.buttonSelected : undefined }}
+                  >
+                    {m}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="w-px h-4 bg-gray-700"></div>
+            {!isKidMode && (
+              <>
+                <div className="w-px h-4 bg-gray-700"></div>
 
-            {/* Modifiers: Caps, Punctuation & Numbers */}
-            <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Modifiers</span>
-            <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: theme.surfaceColor }}>
-              <button
-                type="button"
-                onClick={() => updateSettings({ capitalization: !settings.capitalization })}
-                className={`flex items-center gap-2 transition ${settings.capitalization ? "" : "hover:text-gray-200"}`}
-                style={{ color: settings.capitalization ? theme.buttonSelected : undefined }}
-                disabled={settings.mode === "quote"}
-                title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle capitalization"}
-              >
-                <span
-                  className={settings.capitalization ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                  style={{ 
-                    backgroundColor: settings.capitalization ? theme.buttonSelected : undefined,
-                    opacity: settings.mode === "quote" ? 0.5 : 1
-                  }}
-                >
-                  Aa
-                </span>
-                <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>caps</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => updateSettings({ punctuation: !settings.punctuation })}
-                className={`flex items-center gap-2 transition ${settings.punctuation ? "" : "hover:text-gray-200"}`}
-                style={{ color: settings.punctuation ? theme.buttonSelected : undefined }}
-                disabled={settings.mode === "quote"}
-                title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle punctuation"}
-              >
-                <span
-                  className={settings.punctuation ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                  style={{ 
-                    backgroundColor: settings.punctuation ? theme.buttonSelected : undefined,
-                    opacity: settings.mode === "quote" ? 0.5 : 1
-                  }}
-                >
-                  @
-                </span>
-                <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>punctuation</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => updateSettings({ numbers: !settings.numbers })}
-                className={`flex items-center gap-2 transition ${settings.numbers ? "" : "hover:text-gray-200"}`}
-                style={{ color: settings.numbers ? theme.buttonSelected : undefined }}
-                disabled={settings.mode === "quote"}
-                title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle numbers"}
-              >
-                <span
-                  className={settings.numbers ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                  style={{ 
-                    backgroundColor: settings.numbers ? theme.buttonSelected : undefined,
-                    opacity: settings.mode === "quote" ? 0.5 : 1
-                  }}
-                >
-                  #
-                </span>
-                <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>numbers</span>
-              </button>
-            </div>
+                {/* Modifiers: Caps, Punctuation & Numbers */}
+                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Modifiers</span>
+                <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: theme.surfaceColor }}>
+                  <button
+                    type="button"
+                    onClick={() => updateSettings({ capitalization: !settings.capitalization })}
+                    className={`flex items-center gap-2 transition ${settings.capitalization ? "" : "hover:text-gray-200"}`}
+                    style={{ color: settings.capitalization ? theme.buttonSelected : undefined }}
+                    disabled={settings.mode === "quote"}
+                    title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle capitalization"}
+                  >
+                    <span
+                      className={settings.capitalization ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
+                      style={{ 
+                        backgroundColor: settings.capitalization ? theme.buttonSelected : undefined,
+                        opacity: settings.mode === "quote" ? 0.5 : 1
+                      }}
+                    >
+                      Aa
+                    </span>
+                    <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>caps</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSettings({ punctuation: !settings.punctuation })}
+                    className={`flex items-center gap-2 transition ${settings.punctuation ? "" : "hover:text-gray-200"}`}
+                    style={{ color: settings.punctuation ? theme.buttonSelected : undefined }}
+                    disabled={settings.mode === "quote"}
+                    title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle punctuation"}
+                  >
+                    <span
+                      className={settings.punctuation ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
+                      style={{ 
+                        backgroundColor: settings.punctuation ? theme.buttonSelected : undefined,
+                        opacity: settings.mode === "quote" ? 0.5 : 1
+                      }}
+                    >
+                      @
+                    </span>
+                    <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>punctuation</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSettings({ numbers: !settings.numbers })}
+                    className={`flex items-center gap-2 transition ${settings.numbers ? "" : "hover:text-gray-200"}`}
+                    style={{ color: settings.numbers ? theme.buttonSelected : undefined }}
+                    disabled={settings.mode === "quote"}
+                    title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle numbers"}
+                  >
+                    <span
+                      className={settings.numbers ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
+                      style={{ 
+                        backgroundColor: settings.numbers ? theme.buttonSelected : undefined,
+                        opacity: settings.mode === "quote" ? 0.5 : 1
+                      }}
+                    >
+                      #
+                    </span>
+                    <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>numbers</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
           )}
 
@@ -1838,7 +1910,7 @@ export default function TypingPractice({
       {isRunning && !isFinished && (
         <div 
           className="fixed inset-x-0 flex flex-col items-center gap-2 select-none z-30 transition-opacity duration-300 pointer-events-none"
-          style={{ top: "140px" }}
+          style={{ top: "120px" }}
         >
           {/* Row 1: WPM + Mode-specific stat + Accuracy - hidden in kid mode */}
           {!isKidMode && (
@@ -1979,7 +2051,7 @@ export default function TypingPractice({
             </div>
           )}
 
-          {/* Kid Mode: Count-up Timer only */}
+          {/* Kid Mode: Count-up Timer + Infinite Word Counter */}
           {isKidMode && (
             <div className="flex gap-2 md:gap-3">
               <div
@@ -1988,6 +2060,19 @@ export default function TypingPractice({
               >
                 <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
                   {formatTime(Math.floor(elapsedMs / 1000))}
+                </span>
+              </div>
+
+              <div
+                className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+              >
+                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
+                  {typedWordCount}
+                </span>
+                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>/</span>
+                <span className="text-lg md:text-xl font-semibold leading-none" style={{ color: theme.textSecondary }}>
+                  {"\u221E"}
                 </span>
               </div>
             </div>
@@ -2015,7 +2100,7 @@ export default function TypingPractice({
       {/* Typing Area */}
       <div 
         className="w-[95%] md:w-[80%] max-w-none relative z-0 transition-all duration-300"
-        style={{ marginTop: isKidMode ? "-6rem" : undefined }}
+        style={{ marginTop: isKidMode ? "-6rem" : (!isRunning && !isFinished ? "-2rem" : undefined) }}
       >
         {!isFinished ? (
           <div className="relative z-0">
@@ -2559,74 +2644,21 @@ export default function TypingPractice({
 
               {/* Settings Controls Area - Absolute positioned below header */}
               <div className="absolute top-16 left-0 right-0 flex flex-col items-center gap-2 px-6 py-2 z-10">
-                {/* Row 1: Quick Settings Icons */}
-                <div 
-                  className="flex items-center gap-2 rounded-lg px-3 py-1.5"
-                  style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
-                >
-                  {/* Kid Mode (Baby) icon */}
-                  <div style={{ color: (previewTheme ?? theme).buttonUnselected }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 12h.01" />
-                      <path d="M15 12h.01" />
-                      <path d="M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5" />
-                      <path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1" />
-                    </svg>
-                  </div>
-                  <div className="w-px h-3" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
-                  {/* Sound icon */}
-                  <div style={{ color: (previewTheme ?? theme).buttonUnselected }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                    </svg>
-                  </div>
-                  <div className="w-px h-3" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
-                  {/* Ghost writer icon */}
-                  <div style={{ color: (previewTheme ?? theme).buttonSelected }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 10h.01" />
-                      <path d="M15 10h.01" />
-                      <path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
-                    </svg>
-                  </div>
-                  <div className="w-px h-3" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
-                  {/* Theme palette icon */}
-                  <div style={{ color: (previewTheme ?? theme).buttonUnselected }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" />
-                      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" />
-                      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" />
-                      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" />
-                      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-                    </svg>
-                  </div>
-                  <div className="w-px h-3" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
-                  {/* Settings gear icon */}
-                  <div style={{ color: (previewTheme ?? theme).buttonUnselected }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Row 2: Mode Selector */}
+                {/* Row 1: Mode Selector */}
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium" style={{ color: (previewTheme ?? theme).defaultText }}>Mode</span>
                   <div 
                     className="flex rounded-lg p-1"
                     style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
                   >
-                    {(["zen", "time", "words", "quote"] as const).map((m, idx) => (
+                    {MODE_SELECTOR_OPTIONS.map((m, idx) => (
                       <span
                         key={m}
                         className="px-3 py-1 rounded text-xs"
                         style={{ 
-                          color: idx === 0 ? (previewTheme ?? theme).buttonSelected : (previewTheme ?? theme).buttonUnselected,
-                          backgroundColor: idx === 0 ? (previewTheme ?? theme).backgroundColor : "transparent",
-                          fontWeight: idx === 0 ? 500 : 400
+                          color: idx === 1 ? (previewTheme ?? theme).buttonSelected : (previewTheme ?? theme).buttonUnselected,
+                          backgroundColor: idx === 1 ? (previewTheme ?? theme).backgroundColor : "transparent",
+                          fontWeight: idx === 1 ? 500 : 400
                         }}
                       >
                         {m}
@@ -2635,7 +2667,7 @@ export default function TypingPractice({
                   </div>
                 </div>
 
-                {/* Row 3: Zen infinity + Difficulty */}
+                {/* Row 2: Zen infinity + Difficulty */}
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-medium" style={{ color: (previewTheme ?? theme).defaultText }}>Duration</span>
                   <div 
@@ -3167,96 +3199,486 @@ export default function TypingPractice({
       {/* Settings Modal */}
       {showSettings && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowSettings(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-3 py-6"
+          onClick={closeSettingsModal}
         >
           <div
-            className="w-full max-w-xl rounded-lg p-6 shadow-xl mx-4"
-            style={{ backgroundColor: theme.surfaceColor }}
+            className="flex h-[min(90vh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-xl"
+            style={{
+              backgroundColor: theme.surfaceColor,
+              borderColor: theme.borderSubtle,
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="hover:opacity-80 transition-opacity" style={{ color: theme.textMuted }}>
+            <div
+              className="flex items-start justify-between gap-4 border-b px-6 py-5"
+              style={{ borderColor: theme.borderSubtle }}
+            >
+              <div>
+                <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>
+                  Settings
+                </h2>
+                <p className="mt-1 text-sm" style={{ color: theme.textSecondary }}>
+                  Organize your typing preferences by area.
+                </p>
+              </div>
+              <button
+                onClick={closeSettingsModal}
+                className="rounded-md px-2 py-1 text-lg leading-none transition-opacity hover:opacity-80"
+                style={{ color: theme.textMuted }}
+                aria-label="Close settings"
+              >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-6">
-              {/* Line Preview */}
-              <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Lines to Preview</label>
-                <div className="flex gap-2 flex-wrap justify-center">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <div
+                className="mb-6 grid grid-cols-4 gap-2 rounded-xl border p-1"
+                style={{
+                  backgroundColor: theme.backgroundColor,
+                  borderColor: theme.borderSubtle,
+                }}
+              >
+                {SETTINGS_TABS.map((tab) => {
+                  const isActive = activeSettingsTab === tab.id;
+
+                  return (
                     <button
-                      key={num}
-                      onClick={() => setLinePreview(num)}
-                      className={`rounded px-4 py-2 text-sm transition ${linePreview === num ? "font-medium" : "hover:opacity-80"}`}
-                      style={{ 
-                        color: linePreview === num ? theme.buttonSelected : theme.textSecondary,
-                        backgroundColor: linePreview === num ? theme.elevatedColor : theme.backgroundColor
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveSettingsTab(tab.id)}
+                      className="rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                      style={{
+                        color: isActive ? theme.textPrimary : theme.textSecondary,
+                        backgroundColor: isActive ? theme.elevatedColor : "transparent",
+                        boxShadow: isActive ? `inset 0 0 0 1px ${theme.borderDefault}` : "none",
                       }}
                     >
-                      {num}
+                      {tab.label}
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
 
-              {/* Max Words per Line */}
-              <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Max Words per Line</label>
-                <div className="flex gap-2 flex-wrap justify-center">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <button
-                      key={num}
-                      onClick={() => setMaxWordsPerLine(num)}
-                      className={`rounded px-4 py-2 text-sm transition ${maxWordsPerLine === num ? "font-medium" : "hover:opacity-80"}`}
-                      style={{ 
-                        color: maxWordsPerLine === num ? theme.buttonSelected : theme.textSecondary,
-                        backgroundColor: maxWordsPerLine === num ? theme.elevatedColor : theme.backgroundColor
-                      }}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Font Size & Text Alignment */}
-              <div className="flex gap-4 justify-center">
-                <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Text Size (rem)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    step="0.25"
-                    value={settings.typingFontSize}
-                    onChange={(e) => updateSettings({ typingFontSize: parseFloat(e.target.value) || 3 })}
-                    className="w-28 rounded px-3 py-2 text-center focus:outline-none focus:ring-2"
-                    style={{ backgroundColor: theme.backgroundColor, color: theme.textPrimary, "--tw-ring-color": theme.buttonSelected } as React.CSSProperties}
-                  />
-                </div>
-                <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Text Alignment</label>
-                  <div className="flex gap-2 justify-center">
-                    {(["left", "center", "right", "justify"] as const).map((align) => (
-                      <button
-                        key={align}
-                        onClick={() => updateSettings({ textAlign: align })}
-                        className={`rounded px-3 py-2 text-sm capitalize transition ${settings.textAlign === align ? "font-medium" : "hover:opacity-80"}`}
-                        style={{ 
-                          color: settings.textAlign === align ? theme.buttonSelected : theme.textSecondary,
-                          backgroundColor: settings.textAlign === align ? theme.elevatedColor : theme.backgroundColor
+              {activeSettingsTab === "all" && (
+                <div className="space-y-4">
+                  <section
+                    className="rounded-xl border p-5"
+                    style={{
+                      backgroundColor: theme.backgroundColor,
+                      borderColor: theme.borderSubtle,
+                    }}
+                  >
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                        Text
+                      </h3>
+                      <span
+                        className="rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{
+                          color: theme.textSecondary,
+                          backgroundColor: theme.surfaceColor,
                         }}
                       >
-                        {align}
+                        Display
+                      </span>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>
+                          Font
+                        </label>
+                        <select
+                          value={selectedFontOption}
+                          onChange={(e) => setSelectedFontOption(e.target.value as FontOptionValue)}
+                          className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                          style={{
+                            backgroundColor: theme.surfaceColor,
+                            borderColor: theme.borderSubtle,
+                            color: theme.textPrimary,
+                            ["--tw-ring-color" as string]: theme.buttonSelected,
+                          }}
+                        >
+                          {FONT_OPTIONS.map((font) => (
+                            <option key={font.value} value={font.value}>
+                              {font.label}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1 text-xs" style={{ color: theme.textMuted }}>
+                          Font rendering hookup will be wired in a follow-up.
+                        </p>
+                      </div>
+
+                      <div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <label className="text-sm" style={{ color: theme.textSecondary }}>
+                            Text Size
+                          </label>
+                          <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+                            {formatRemValue(clampedTextSize)}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={3}
+                          max={6}
+                          step={0.25}
+                          value={clampedTextSize}
+                          onChange={(e) => updateSettings({ typingFontSize: parseFloat(e.target.value) || 3 })}
+                          className="w-full cursor-pointer"
+                          style={{ accentColor: theme.buttonSelected }}
+                        />
+                        <p className="mt-1 text-xs" style={{ color: theme.textMuted }}>
+                          Range: 3rem to 6rem
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 border-t pt-4" style={{ borderColor: theme.borderSubtle }}>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className="text-sm" style={{ color: theme.textSecondary }}>
+                          Text Alignment
+                        </label>
+                        <span className="text-xs uppercase tracking-wide" style={{ color: theme.textMuted }}>
+                          {settings.textAlign}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {TEXT_ALIGN_OPTIONS.map((align) => {
+                          const isActive = settings.textAlign === align;
+
+                          return (
+                            <button
+                              key={align}
+                              type="button"
+                              onClick={() => updateSettings({ textAlign: align })}
+                              className="rounded-md px-3 py-2 text-sm capitalize transition-colors"
+                              style={{
+                                color: isActive ? theme.textPrimary : theme.textSecondary,
+                                backgroundColor: isActive ? theme.elevatedColor : theme.surfaceColor,
+                                boxShadow: isActive ? `inset 0 0 0 1px ${theme.buttonSelected}` : "none",
+                              }}
+                            >
+                              {align}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section
+                    className="rounded-xl border p-5"
+                    style={{
+                      backgroundColor: theme.backgroundColor,
+                      borderColor: theme.borderSubtle,
+                    }}
+                  >
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                          Sound
+                        </h3>
+                        <p className="text-xs" style={{ color: theme.textMuted }}>
+                          Typing, warning, and error feedback.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
+                        className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+                        style={{
+                          color: settings.soundEnabled ? theme.textPrimary : theme.textSecondary,
+                          backgroundColor: settings.soundEnabled ? theme.elevatedColor : theme.surfaceColor,
+                          borderColor: settings.soundEnabled ? theme.buttonSelected : theme.borderSubtle,
+                        }}
+                      >
+                        Sound {settings.soundEnabled ? "On" : "Off"}
                       </button>
-                    ))}
-                  </div>
+                    </div>
+
+                    <div className={`space-y-3 ${!settings.soundEnabled ? "pointer-events-none opacity-50" : ""}`}>
+                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                        <div>
+                          <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>
+                            Typing Sound
+                          </label>
+                          <select
+                            value={settings.typingSound}
+                            onChange={(e) => updateSettings({ typingSound: e.target.value })}
+                            className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                            style={{
+                              backgroundColor: theme.surfaceColor,
+                              borderColor: theme.borderSubtle,
+                              color: theme.textPrimary,
+                              ["--tw-ring-color" as string]: theme.buttonSelected,
+                            }}
+                          >
+                            {typingSoundOptions.length === 0 ? (
+                              <option value={settings.typingSound || ""}>No packs found</option>
+                            ) : (
+                              typingSoundOptions.map((pack) => (
+                                <option key={pack} value={pack}>
+                                  {pack.charAt(0).toUpperCase() + pack.slice(1)}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => playSettingsSoundPreview("typing", settings.typingSound)}
+                          className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+                          style={{
+                            color: theme.textPrimary,
+                            backgroundColor: theme.surfaceColor,
+                            borderColor: theme.borderSubtle,
+                          }}
+                          disabled={!settings.typingSound || typingSoundOptions.length === 0}
+                        >
+                          Preview
+                        </button>
+                      </div>
+
+                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                        <div>
+                          <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>
+                            Warning Sound
+                          </label>
+                          <select
+                            value={settings.warningSound}
+                            onChange={(e) => updateSettings({ warningSound: e.target.value })}
+                            className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                            style={{
+                              backgroundColor: theme.surfaceColor,
+                              borderColor: theme.borderSubtle,
+                              color: theme.textPrimary,
+                              ["--tw-ring-color" as string]: theme.buttonSelected,
+                            }}
+                          >
+                            {warningSoundOptions.length === 0 ? (
+                              <option value={settings.warningSound || ""}>No packs found</option>
+                            ) : (
+                              warningSoundOptions.map((pack) => (
+                                <option key={pack} value={pack}>
+                                  {pack.charAt(0).toUpperCase() + pack.slice(1)}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => playSettingsSoundPreview("warning", settings.warningSound)}
+                          className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+                          style={{
+                            color: theme.textPrimary,
+                            backgroundColor: theme.surfaceColor,
+                            borderColor: theme.borderSubtle,
+                          }}
+                          disabled={!settings.warningSound || warningSoundOptions.length === 0}
+                        >
+                          Preview
+                        </button>
+                      </div>
+
+                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                        <div>
+                          <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>
+                            Error Sound
+                          </label>
+                          <select
+                            value={settings.errorSound}
+                            onChange={(e) => updateSettings({ errorSound: e.target.value })}
+                            className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2"
+                            style={{
+                              backgroundColor: theme.surfaceColor,
+                              borderColor: theme.borderSubtle,
+                              color: theme.textPrimary,
+                              ["--tw-ring-color" as string]: theme.buttonSelected,
+                            }}
+                          >
+                            <option value="">None</option>
+                            {errorSoundOptions.map((pack) => (
+                              <option key={pack} value={pack}>
+                                {pack.charAt(0).toUpperCase() + pack.slice(1)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => playSettingsSoundPreview("error", settings.errorSound)}
+                          className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+                          style={{
+                            color: theme.textPrimary,
+                            backgroundColor: theme.surfaceColor,
+                            borderColor: theme.borderSubtle,
+                          }}
+                          disabled={!settings.errorSound || errorSoundOptions.length === 0}
+                        >
+                          Preview
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section
+                    className="rounded-xl border p-5"
+                    style={{
+                      backgroundColor: theme.backgroundColor,
+                      borderColor: theme.borderSubtle,
+                    }}
+                  >
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                          Ghost
+                        </h3>
+                        <p className="text-xs" style={{ color: theme.textMuted }}>
+                          Pace guidance while typing.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateSettings({ ghostWriterEnabled: !settings.ghostWriterEnabled })}
+                        className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+                        style={{
+                          color: settings.ghostWriterEnabled ? theme.textPrimary : theme.textSecondary,
+                          backgroundColor: settings.ghostWriterEnabled ? theme.elevatedColor : theme.surfaceColor,
+                          borderColor: settings.ghostWriterEnabled ? theme.buttonSelected : theme.borderSubtle,
+                        }}
+                      >
+                        Ghost {settings.ghostWriterEnabled ? "On" : "Off"}
+                      </button>
+                    </div>
+
+                    <div className={`${!settings.ghostWriterEnabled ? "pointer-events-none opacity-50" : ""}`}>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className="text-sm" style={{ color: theme.textSecondary }}>
+                          Target Speed
+                        </label>
+                        <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+                          {Math.max(1, Math.min(200, settings.ghostWriterSpeed))} WPM
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={200}
+                        step={1}
+                        value={Math.max(1, Math.min(200, settings.ghostWriterSpeed))}
+                        onChange={(e) =>
+                          updateSettings({
+                            ghostWriterSpeed: parseInt(e.target.value, 10) || 1,
+                          })
+                        }
+                        className="w-full cursor-pointer"
+                        style={{ accentColor: theme.buttonSelected }}
+                      />
+                    </div>
+                  </section>
                 </div>
-              </div>
+              )}
+
+              {activeSettingsTab === "type" && (
+                <section
+                  className="rounded-xl border p-5"
+                  style={{
+                    backgroundColor: theme.backgroundColor,
+                    borderColor: theme.borderSubtle,
+                  }}
+                >
+                  <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                    Type
+                  </h3>
+                  <p className="mt-1 text-xs" style={{ color: theme.textMuted }}>
+                    Control how much text is visible and how each line wraps.
+                  </p>
+
+                  <div className="mt-5 space-y-5">
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className="text-sm" style={{ color: theme.textSecondary }}>
+                          Preview Lines
+                        </label>
+                        <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+                          {clampedLinePreview}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={6}
+                        step={1}
+                        value={clampedLinePreview}
+                        onChange={(e) => setLinePreview(parseInt(e.target.value, 10) || 1)}
+                        className="w-full cursor-pointer"
+                        style={{ accentColor: theme.buttonSelected }}
+                      />
+                    </div>
+
+                    <div className="border-t pt-4" style={{ borderColor: theme.borderSubtle }}>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className="text-sm" style={{ color: theme.textSecondary }}>
+                          Max Words Per Line
+                        </label>
+                        <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+                          {clampedMaxWordsPerLine}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={clampedMaxWordsPerLine}
+                        onChange={(e) => setMaxWordsPerLine(parseInt(e.target.value, 10) || 1)}
+                        className="w-full cursor-pointer"
+                        style={{ accentColor: theme.buttonSelected }}
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {activeSettingsTab === "race" && (
+                <section
+                  className="rounded-xl border p-5"
+                  style={{
+                    backgroundColor: theme.backgroundColor,
+                    borderColor: theme.borderSubtle,
+                  }}
+                >
+                  <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                    Race
+                  </h3>
+                  <p className="mt-2 text-sm" style={{ color: theme.textSecondary }}>
+                    Race-specific controls are still handled in the race lobby. This tab is ready for that migration.
+                  </p>
+                </section>
+              )}
+
+              {activeSettingsTab === "lesson" && (
+                <section
+                  className="rounded-xl border p-5"
+                  style={{
+                    backgroundColor: theme.backgroundColor,
+                    borderColor: theme.borderSubtle,
+                  }}
+                >
+                  <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                    Lesson
+                  </h3>
+                  <p className="mt-2 text-sm" style={{ color: theme.textSecondary }}>
+                    Lesson-specific controls can be centralized here next.
+                  </p>
+                </section>
+              )}
             </div>
           </div>
         </div>
@@ -3285,25 +3707,22 @@ export default function TypingPractice({
               <div className="text-center">
                 <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Mode</label>
                 <div className="flex gap-2 flex-wrap justify-center">
-                  {(["zen", "time", "words", "quote"] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => {
-                        if (settings.mode === m) {
-                          generateTest();
-                        } else {
-                          updateSettings({ mode: m });
-                        }
-                      }}
-                      className={`rounded px-4 py-2 text-sm capitalize transition ${settings.mode === m ? "font-medium" : "hover:opacity-80"}`}
-                      style={{ 
-                        color: settings.mode === m ? theme.buttonSelected : theme.textSecondary,
-                        backgroundColor: settings.mode === m ? theme.elevatedColor : theme.backgroundColor
-                      }}
-                    >
-                      {m}
-                    </button>
-                  ))}
+                  {MODE_SELECTOR_OPTIONS.map((m) => {
+                    const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
+                    return (
+                      <button
+                        key={m}
+                        onClick={() => handleModeSelect(m)}
+                        className={`rounded px-4 py-2 text-sm capitalize transition ${isModeActive ? "font-medium" : "hover:opacity-80"}`}
+                        style={{ 
+                          color: isModeActive ? theme.buttonSelected : theme.textSecondary,
+                          backgroundColor: isModeActive ? theme.elevatedColor : theme.backgroundColor
+                        }}
+                      >
+                        {m}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -3320,7 +3739,7 @@ export default function TypingPractice({
                           else updateSettings({ duration: d });
                         }}
                         className={`rounded px-4 py-2 text-sm transition ${settings.duration === d ? "font-medium" : "hover:opacity-80"}`}
-                        style={{ 
+                        style={{
                           color: settings.duration === d ? theme.buttonSelected : theme.textSecondary,
                           backgroundColor: settings.duration === d ? theme.elevatedColor : theme.backgroundColor
                         }}
@@ -3344,7 +3763,7 @@ export default function TypingPractice({
                           else updateSettings({ wordTarget: w });
                         }}
                         className={`rounded px-4 py-2 text-sm transition ${settings.wordTarget === w ? "font-medium" : "hover:opacity-80"}`}
-                        style={{ 
+                        style={{
                           color: settings.wordTarget === w ? theme.buttonSelected : theme.textSecondary,
                           backgroundColor: settings.wordTarget === w ? theme.elevatedColor : theme.backgroundColor
                         }}
@@ -3368,7 +3787,7 @@ export default function TypingPractice({
                           else updateSettings({ quoteLength: l as typeof settings.quoteLength });
                         }}
                         className={`rounded px-4 py-2 text-sm transition ${settings.quoteLength === l ? "font-medium" : "hover:opacity-80"}`}
-                        style={{ 
+                        style={{
                           color: settings.quoteLength === l ? theme.buttonSelected : theme.textSecondary,
                           backgroundColor: settings.quoteLength === l ? theme.elevatedColor : theme.backgroundColor
                         }}
@@ -3393,7 +3812,7 @@ export default function TypingPractice({
                           else updateSettings({ difficulty: d as typeof settings.difficulty });
                         }}
                         className={`rounded px-4 py-2 text-sm capitalize transition ${settings.difficulty === d ? "font-medium" : "hover:opacity-80"}`}
-                        style={{ 
+                        style={{
                           color: settings.difficulty === d ? theme.buttonSelected : theme.textSecondary,
                           backgroundColor: settings.difficulty === d ? theme.elevatedColor : theme.backgroundColor
                         }}
@@ -3413,7 +3832,7 @@ export default function TypingPractice({
                     onClick={() => updateSettings({ capitalization: !settings.capitalization })}
                     disabled={settings.mode === "quote"}
                     className={`rounded px-4 py-2 text-sm transition ${settings.capitalization ? "font-medium" : "hover:opacity-80"}`}
-                    style={{ 
+                    style={{
                       color: settings.capitalization ? theme.buttonSelected : theme.textSecondary,
                       backgroundColor: settings.capitalization ? theme.elevatedColor : theme.backgroundColor,
                       opacity: settings.mode === "quote" ? 0.5 : 1
@@ -3425,7 +3844,7 @@ export default function TypingPractice({
                     onClick={() => updateSettings({ punctuation: !settings.punctuation })}
                     disabled={settings.mode === "quote"}
                     className={`rounded px-4 py-2 text-sm transition ${settings.punctuation ? "font-medium" : "hover:opacity-80"}`}
-                    style={{ 
+                    style={{
                       color: settings.punctuation ? theme.buttonSelected : theme.textSecondary,
                       backgroundColor: settings.punctuation ? theme.elevatedColor : theme.backgroundColor,
                       opacity: settings.mode === "quote" ? 0.5 : 1
@@ -3437,7 +3856,7 @@ export default function TypingPractice({
                     onClick={() => updateSettings({ numbers: !settings.numbers })}
                     disabled={settings.mode === "quote"}
                     className={`rounded px-4 py-2 text-sm transition ${settings.numbers ? "font-medium" : "hover:opacity-80"}`}
-                    style={{ 
+                    style={{
                       color: settings.numbers ? theme.buttonSelected : theme.textSecondary,
                       backgroundColor: settings.numbers ? theme.elevatedColor : theme.backgroundColor,
                       opacity: settings.mode === "quote" ? 0.5 : 1
@@ -3452,12 +3871,12 @@ export default function TypingPractice({
               <div className="text-center">
                 <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Lines to Preview</label>
                 <div className="flex gap-2 flex-wrap justify-center">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                  {[1, 2, 3, 4, 5, 6].map((num) => (
                     <button
                       key={num}
                       onClick={() => setLinePreview(num)}
                       className={`rounded px-3 py-2 text-sm transition ${linePreview === num ? "font-medium" : "hover:opacity-80"}`}
-                      style={{ 
+                      style={{
                         color: linePreview === num ? theme.buttonSelected : theme.textSecondary,
                         backgroundColor: linePreview === num ? theme.elevatedColor : theme.backgroundColor
                       }}
@@ -3477,7 +3896,7 @@ export default function TypingPractice({
                       key={num}
                       onClick={() => setMaxWordsPerLine(num)}
                       className={`rounded px-3 py-2 text-sm transition ${maxWordsPerLine === num ? "font-medium" : "hover:opacity-80"}`}
-                      style={{ 
+                      style={{
                         color: maxWordsPerLine === num ? theme.buttonSelected : theme.textSecondary,
                         backgroundColor: maxWordsPerLine === num ? theme.elevatedColor : theme.backgroundColor
                       }}
@@ -3506,12 +3925,12 @@ export default function TypingPractice({
                 <div className="text-center">
                   <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Text Alignment</label>
                   <div className="flex gap-2 justify-center">
-                    {(["left", "center", "right"] as const).map((align) => (
+                    {(["left", "center", "right", "justify"] as const).map((align) => (
                       <button
                         key={align}
                         onClick={() => updateSettings({ textAlign: align })}
                         className={`rounded px-3 py-2 text-sm capitalize transition ${settings.textAlign === align ? "font-medium" : "hover:opacity-80"}`}
-                        style={{ 
+                        style={{
                           color: settings.textAlign === align ? theme.buttonSelected : theme.textSecondary,
                           backgroundColor: settings.textAlign === align ? theme.elevatedColor : theme.backgroundColor
                         }}

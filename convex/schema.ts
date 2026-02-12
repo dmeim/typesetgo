@@ -180,6 +180,11 @@ export default defineSchema({
     defaultPunctuation: v.boolean(),
     defaultNumbers: v.boolean(),
     defaultCapitalization: v.optional(v.boolean()),
+    defaultPresetModeType: v.optional(v.string()),
+
+    // Text layout settings
+    linePreview: v.optional(v.number()),
+    maxWordsPerLine: v.optional(v.number()),
 
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),

@@ -46,6 +46,11 @@ const preferencesValidator = v.object({
   defaultPunctuation: v.boolean(),
   defaultNumbers: v.boolean(),
   defaultCapitalization: v.optional(v.boolean()),
+  defaultPresetModeType: v.optional(v.string()),
+
+  // Text layout settings
+  linePreview: v.optional(v.number()),
+  maxWordsPerLine: v.optional(v.number()),
 });
 
 // Save or update user preferences
