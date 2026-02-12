@@ -49,7 +49,7 @@ export default function Home() {
       style={{ backgroundColor: theme.backgroundColor }}
     >
       {/* Header with action buttons */}
-      <Header hidden={isTyping} onOpenThemeModal={() => setShowThemeModal(true)} />
+      <Header hidden={isTyping} onOpenThemeModal={() => setShowThemeModal(true)} onOpenSettings={() => setShowSettings(true)} />
 
       {/* Main Content - TypingPractice fills the page */}
       <TypingPractice

@@ -11,17 +11,19 @@ import { Sun, Moon, Keyboard, Flag, GraduationCap, Palette } from "lucide-react"
 interface HeaderProps {
   hidden?: boolean;
   onOpenThemeModal?: () => void;
+  onOpenSettings?: () => void;
 }
 
 const NAV_TABS = [
-  { label: "Type", path: "/", icon: Keyboard },
-  { label: "Race", path: "/race", icon: Flag },
-  { label: "Lessons", path: "/lessons", icon: GraduationCap },
+  { label: "Type", path: "/", icon: Keyboard, enabled: true },
+  { label: "Race", path: "/race", icon: Flag, enabled: false },
+  { label: "Lessons", path: "/lessons", icon: GraduationCap, enabled: false },
 ] as const;
 
 export default function Header({
   hidden = false,
   onOpenThemeModal,
+  onOpenSettings,
 }: HeaderProps) {
   const { user: clerkUser, isSignedIn, isLoaded } = useUser();
   const { legacyTheme, mode, toggleMode, supportsLightMode } = useTheme();
@@ -81,18 +83,79 @@ export default function Header({
 
   return (
     <header className="absolute top-0 inset-x-0 p-4 md:p-6 z-50 flex items-center justify-between transition-opacity duration-300 pointer-events-none" style={{ opacity: hidden ? 0 : 1 }}>
-      {/* Logo */}
-      <div className={`w-[200px] md:w-[450px] ${hidden ? "" : "pointer-events-auto"}`}>
-        <Link to="/">
+      {/* Left Section: Logo + Settings + Theme + Light/Dark */}
+      <div className={`flex items-center gap-4 ${hidden ? "" : "pointer-events-auto"}`}>
+        {/* Logo */}
+        <Link to="/" className="w-[170px] md:w-[280px] shrink-0 md:-mr-9">
           <img
             src="/assets/Banner-Color.svg"
             alt="TypeSetGo"
             className="w-full h-auto"
           />
         </Link>
+
+        <div className="flex items-center gap-2">
+          {/* Settings */}
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
+              style={{ color: theme.buttonUnselected }}
+              title="Settings"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+          )}
+
+          {/* Theme Picker */}
+          {onOpenThemeModal && (
+            <button
+              onClick={onOpenThemeModal}
+              className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
+              style={{ color: theme.buttonUnselected }}
+              title="Change Theme"
+            >
+              <Palette className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Light/Dark Mode Toggle */}
+          <button
+            onClick={supportsLightMode ? toggleMode : undefined}
+            className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
+              supportsLightMode ? "hover:bg-gray-800/50 cursor-pointer" : "opacity-40 cursor-not-allowed"
+            }`}
+            style={{ color: supportsLightMode ? theme.buttonUnselected : theme.textMuted }}
+            title={
+              supportsLightMode
+                ? `Switch to ${mode === "dark" ? "light" : "dark"} mode`
+                : "This theme doesn't support light mode"
+            }
+            disabled={!supportsLightMode}
+          >
+            {mode === "dark" ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Navigation Tabs - Centered on page */}
+      {/* Center Section: Navigation Tabs */}
       <nav 
         className={`absolute left-1/2 -translate-x-1/2 ${hidden ? "" : "pointer-events-auto"}`}
       >
@@ -103,6 +166,27 @@ export default function Header({
           {NAV_TABS.map((tab) => {
             const isActive = activeTab === tab.path;
             const Icon = tab.icon;
+            const isDisabled = !tab.enabled;
+
+            if (isDisabled) {
+              return (
+                <span
+                  key={tab.path}
+                  className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium cursor-not-allowed select-none"
+                  style={{
+                    backgroundColor: "transparent",
+                    color: theme.textMuted,
+                    opacity: 0.5,
+                  }}
+                  title="Coming Soon"
+                  aria-disabled="true"
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden md:inline">{tab.label}</span>
+                </span>
+              );
+            }
+
             return (
               <Link
                 key={tab.path}
@@ -122,67 +206,8 @@ export default function Header({
         </div>
       </nav>
 
-      {/* Action Buttons */}
-      <div className={`flex items-center gap-3 ${hidden ? "" : "pointer-events-auto"}`}>
-        {/* Connect - temporarily hidden while feature is in development
-        <Link
-          to="/connect"
-          className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-          style={{ color: theme.buttonUnselected }}
-          title="Multiplayer"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-        </Link>
-        */}
-
-        {/* Light/Dark Mode Toggle */}
-        <button
-          onClick={supportsLightMode ? toggleMode : undefined}
-          className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
-            supportsLightMode ? "hover:bg-gray-800/50 cursor-pointer" : "opacity-40 cursor-not-allowed"
-          }`}
-          style={{ color: supportsLightMode ? theme.buttonUnselected : theme.textMuted }}
-          title={
-            supportsLightMode
-              ? `Switch to ${mode === "dark" ? "light" : "dark"} mode`
-              : "This theme doesn't support light mode"
-          }
-          disabled={!supportsLightMode}
-        >
-          {mode === "dark" ? (
-            <Sun className="w-5 h-5" />
-          ) : (
-            <Moon className="w-5 h-5" />
-          )}
-        </button>
-
-        {/* Theme Picker */}
-        {onOpenThemeModal && (
-          <button
-            onClick={onOpenThemeModal}
-            className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-            style={{ color: theme.buttonUnselected }}
-            title="Change Theme"
-          >
-            <Palette className="w-5 h-5" />
-          </button>
-        )}
-
+      {/* Right Section: Leaderboard + Stats + Notifications + User */}
+      <div className={`flex items-center gap-2 ${hidden ? "" : "pointer-events-auto"}`}>
         {/* Leaderboard */}
         <Link
           to="/leaderboard"
