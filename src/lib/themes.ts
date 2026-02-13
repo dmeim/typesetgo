@@ -184,6 +184,21 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "green-day": "Green Day",
   "imagine-dragons": "Imagine Dragons",
   "avenged-sevenfold": "Avenged Sevenfold",
+  "my-chemical-romance": "My Chemical Romance",
+  "fall-out-boy": "Fall Out Boy",
+  "panic-at-the-disco": "Panic! at the Disco",
+  "the-academy-is": "The Academy Is...",
+  "the-beatles": "The Beatles",
+  "pierce-the-veil": "Pierce the Veil",
+  "sleeping-with-sirens": "Sleeping with Sirens",
+  "weezer": "Weezer",
+  "cobra-starship": "Cobra Starship",
+  "creed": "Creed",
+  "nickelback": "Nickelback",
+  "staind": "Staind",
+  "three-doors-down": "3 Doors Down",
+  "matchbox-twenty": "Matchbox Twenty",
+  "puddle-of-mudd": "Puddle of Mudd",
 
   // Music (Artists)
   "avril-lavigne": "Avril Lavigne",
@@ -202,6 +217,9 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "john-mayer": "John Mayer",
   "norah-jones": "Norah Jones",
   "michael-buble": "Michael Bublé",
+  "scott-stapp": "Scott Stapp",
+  "rob-thomas": "Rob Thomas",
+  "aaron-lewis": "Aaron Lewis",
 
   // Retro (new)
   "mid-autumn": "Mid-Autumn",
