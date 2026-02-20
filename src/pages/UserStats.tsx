@@ -7,6 +7,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { useTheme } from "@/hooks/useTheme";
 import type { LegacyTheme } from "@/types/theme";
 import AchievementsCategoryGrid from "@/components/auth/AchievementsCategoryGrid";
+import UserStatsChartModal, { type StatCardType } from "@/components/stats/UserStatsChartModal";
 import { motion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 
@@ -71,6 +72,44 @@ function formatDateTime(timestamp: number): string {
   const ampm = hours >= 12 ? "PM" : "AM";
   const hour12 = hours % 12 || 12;
   return `${month}/${day}/${year} at ${hour12}:${minutes} ${ampm}`;
+}
+
+// Minimal type for chart-compatible results
+interface ChartableResult {
+  wpm: number;
+  accuracy: number;
+  duration: number;
+  wordCount: number;
+  isValid?: boolean;
+  createdAt: number;
+}
+
+// Helper to get the display value for a stat card type
+function getCardDisplayValue(
+  cardType: StatCardType,
+  stats: {
+    totalTimeTyped: number;
+    bestWpm: number;
+    averageWpm: number;
+    averageAccuracy: number;
+    totalWordsTyped: number;
+    totalCharactersTyped: number;
+  }
+): string {
+  switch (cardType) {
+    case "typingTime":
+      return formatDuration(stats.totalTimeTyped);
+    case "bestWpm":
+      return String(stats.bestWpm);
+    case "avgWpm":
+      return String(stats.averageWpm);
+    case "avgAccuracy":
+      return `${stats.averageAccuracy}%`;
+    case "wordsTyped":
+      return stats.totalWordsTyped.toLocaleString();
+    case "characters":
+      return stats.totalCharactersTyped.toLocaleString();
+  }
 }
 
 // Chip data for test type
@@ -532,16 +571,18 @@ function StatCard({
   theme,
   color = "buttonSelected",
   index = 0,
+  onClick,
 }: {
   label: string;
   value: string | number;
   theme: Theme;
   color?: "buttonSelected" | "correctText";
   index?: number;
+  onClick?: () => void;
 }) {
   return (
     <motion.div
-      className="p-4 rounded-xl flex flex-col justify-center"
+      className="p-4 rounded-xl flex flex-col justify-center cursor-pointer transition-all hover:scale-[1.03]"
       style={{ 
         backgroundColor: theme.surfaceColor,
         border: `1px solid ${theme.defaultText}20`
@@ -549,6 +590,8 @@ function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.08, ease: "easeOut" }}
+      onClick={onClick}
+      whileHover={{ borderColor: theme.buttonSelected }}
     >
       <div className="text-sm font-semibold uppercase tracking-wide mb-1.5" style={{ color: theme.textSecondary }}>
         {label}
@@ -618,6 +661,7 @@ export default function UserStats() {
   const isOwner = currentConvexUser?._id === userId;
 
   const [selectedTest, setSelectedTest] = useState<TestResult | null>(null);
+  const [selectedChart, setSelectedChart] = useState<StatCardType | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -733,12 +777,12 @@ export default function UserStats() {
         <div className="flex-1 flex flex-col min-h-0 px-4 pb-4 md:px-6 md:pb-6 gap-4">
           {/* Top Row - 6 Stat Cards */}
           <div className="shrink-0 grid grid-cols-3 md:grid-cols-6 gap-3">
-            <StatCard label="Typing Time" value={formatDuration(stats.totalTimeTyped)} theme={theme} index={0} />
-            <StatCard label="Best WPM" value={stats.bestWpm} theme={theme} index={1} />
-            <StatCard label="Avg WPM" value={stats.averageWpm} theme={theme} color="correctText" index={2} />
-            <StatCard label="Avg Accuracy" value={`${stats.averageAccuracy}%`} theme={theme} color="correctText" index={3} />
-            <StatCard label="Words Typed" value={stats.totalWordsTyped.toLocaleString()} theme={theme} index={4} />
-            <StatCard label="Characters" value={stats.totalCharactersTyped.toLocaleString()} theme={theme} index={5} />
+            <StatCard label="Typing Time" value={formatDuration(stats.totalTimeTyped)} theme={theme} index={0} onClick={() => setSelectedChart("typingTime")} />
+            <StatCard label="Best WPM" value={stats.bestWpm} theme={theme} index={1} onClick={() => setSelectedChart("bestWpm")} />
+            <StatCard label="Avg WPM" value={stats.averageWpm} theme={theme} color="correctText" index={2} onClick={() => setSelectedChart("avgWpm")} />
+            <StatCard label="Avg Accuracy" value={`${stats.averageAccuracy}%`} theme={theme} color="correctText" index={3} onClick={() => setSelectedChart("avgAccuracy")} />
+            <StatCard label="Words Typed" value={stats.totalWordsTyped.toLocaleString()} theme={theme} index={4} onClick={() => setSelectedChart("wordsTyped")} />
+            <StatCard label="Characters" value={stats.totalCharactersTyped.toLocaleString()} theme={theme} index={5} onClick={() => setSelectedChart("characters")} />
           </div>
 
           {/* Two Column Layout */}
@@ -854,6 +898,18 @@ export default function UserStats() {
           isOwner={isOwner}
           onClose={() => setSelectedTest(null)}
           onDeleted={() => setSelectedTest(null)}
+        />
+      )}
+
+      {/* Stats Chart Modal */}
+      {selectedChart && stats && (
+        <UserStatsChartModal
+          isOpen={!!selectedChart}
+          onClose={() => setSelectedChart(null)}
+          cardType={selectedChart}
+          cardValue={getCardDisplayValue(selectedChart, stats)}
+          allResults={stats.allResults as ChartableResult[]}
+          theme={theme}
         />
       )}
     </div>
