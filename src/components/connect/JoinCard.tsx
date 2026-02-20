@@ -21,7 +21,7 @@ export default function JoinCard() {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl p-10 flex flex-col items-center group border border-gray-800 hover:border-gray-700 transition-all duration-300 h-96 ${isFocused ? "justify-start pt-10" : "justify-center"}`}
+      className={`relative rounded-2xl p-10 flex flex-col items-center group border border-gray-800 hover:border-gray-700 transition-all duration-300 min-h-96 ${isFocused ? "justify-start pt-10" : "justify-center"}`}
       style={{ backgroundColor: GLOBAL_COLORS.surface }}
     >
       <div

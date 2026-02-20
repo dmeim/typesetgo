@@ -701,7 +701,7 @@ export default function UserStats() {
   if (profileUser === null) {
     return (
       <div
-        className="h-[100dvh] flex flex-col items-center justify-center font-mono"
+        className="min-h-[100dvh] flex flex-col items-center justify-center font-mono"
         style={{ backgroundColor: theme.backgroundColor }}
       >
         <div className="text-4xl mb-4">404</div>
@@ -724,7 +724,7 @@ export default function UserStats() {
 
   return (
     <div
-      className="h-[100dvh] flex flex-col font-mono overflow-hidden"
+      className="min-h-[100dvh] flex flex-col font-mono"
       style={{ backgroundColor: theme.backgroundColor }}
     >
       {/* Header */}
@@ -786,7 +786,7 @@ export default function UserStats() {
           </div>
 
           {/* Two Column Layout */}
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[400px]">
             {/* Left Column - Achievements */}
             <motion.div
               className="rounded-xl p-4 flex flex-col min-h-0 overflow-auto"

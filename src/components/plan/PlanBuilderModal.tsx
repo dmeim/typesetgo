@@ -222,7 +222,7 @@ export default function PlanBuilderModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div
-        className="w-full max-w-5xl h-[80vh] rounded-xl flex overflow-hidden shadow-2xl border border-gray-800"
+        className="w-full max-w-5xl max-h-[80vh] rounded-xl flex overflow-hidden shadow-2xl border border-gray-800"
         style={{ backgroundColor: GLOBAL_COLORS.surface }}
       >
         {/* Left Panel: List */}

@@ -286,7 +286,7 @@ export default function RaceActive() {
 
   return (
     <div
-      className="h-screen flex flex-col overflow-hidden"
+      className="min-h-screen flex flex-col overflow-y-auto"
       style={{ backgroundColor: theme.backgroundColor }}
     >
       {/* Race header bar */}
@@ -341,11 +341,10 @@ export default function RaceActive() {
         </div>
       </div>
 
-      {/* Race course (top 4/5) */}
+      {/* Race course (flexible, takes remaining space) */}
       <div
-        className="flex-1 min-h-0"
+        className="flex-1 min-h-[200px]"
         style={{ 
-          maxHeight: "80%",
           backgroundColor: theme.backgroundColor,
         }}
       >
@@ -356,12 +355,13 @@ export default function RaceActive() {
         />
       </div>
 
-      {/* Typing area (bottom 1/5) */}
+      {/* Typing area (shrink-0 with min-height for usability) */}
       <div
-        className="h-[20%] shrink-0 p-4"
+        className="shrink-0 p-4"
         style={{
           backgroundColor: theme.surfaceColor,
           borderTop: `2px solid ${theme.borderDefault}`,
+          minHeight: "120px",
         }}
       >
         {isRaceEnded ? (

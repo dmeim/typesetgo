@@ -375,7 +375,7 @@ export default function Leaderboard() {
 
   return (
     <div
-      className="h-[100dvh] flex flex-col font-mono overflow-hidden"
+      className="min-h-[100dvh] flex flex-col font-mono"
       style={{ backgroundColor: theme.backgroundColor }}
     >
       {/* Header */}
@@ -428,8 +428,8 @@ export default function Leaderboard() {
       </div>
 
       {/* Three Column Layout */}
-      <div className="flex-1 min-h-0 px-4 pb-4 md:px-6 md:pb-6">
-        <div className="h-full grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="flex-1 px-4 pb-4 md:px-6 md:pb-6">
+        <div className="min-h-[500px] grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* All Time Column */}
           <div
             className="rounded-xl p-4 flex flex-col min-h-0 lg:flex"

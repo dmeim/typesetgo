@@ -290,7 +290,7 @@ export default function UserStatsChartModal({
           backgroundColor: theme.surfaceColor,
           borderColor: theme.borderSubtle,
           width: "80vw",
-          height: "80vh",
+          maxHeight: "80vh",
         }}
       >
         <DialogHeader>

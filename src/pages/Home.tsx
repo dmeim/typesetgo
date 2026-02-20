@@ -45,24 +45,27 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen relative"
+      className="relative flex h-[100dvh] flex-col overflow-hidden"
       style={{ backgroundColor: theme.backgroundColor }}
     >
       {/* Header with action buttons */}
       <Header hidden={isTyping} onOpenThemeModal={() => setShowThemeModal(true)} onOpenSettings={() => setShowSettings(true)} />
 
       {/* Main Content - TypingPractice fills the page */}
-      <TypingPractice
-        showSettings={showSettings}
-        setShowSettings={setShowSettings}
-        showThemeModal={showThemeModal}
-        setShowThemeModal={setShowThemeModal}
-        onTypingStateChange={setIsTyping}
-      />
+      <div className="min-h-0 flex-1">
+        <TypingPractice
+          fitToParentHeight
+          showSettings={showSettings}
+          setShowSettings={setShowSettings}
+          showThemeModal={showThemeModal}
+          setShowThemeModal={setShowThemeModal}
+          onTypingStateChange={setIsTyping}
+        />
+      </div>
 
       {/* Footer with legal links - always visible for Google verification compliance */}
       <footer
-        className="fixed bottom-4 left-0 right-0 flex justify-center gap-4 text-xs"
+        className="shrink-0 py-3 flex justify-center gap-4 text-xs"
         style={{ color: theme.textSecondary }}
       >
         <Link to="/about" className="hover:underline opacity-70 hover:opacity-100 transition-opacity">

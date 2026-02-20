@@ -41,13 +41,13 @@ export default function Lessons() {
 
   return (
     <div
-      className="min-h-screen relative"
+      className="min-h-screen flex flex-col"
       style={{ backgroundColor: theme.backgroundColor }}
     >
       <Header />
 
       {/* Main Content */}
-      <main className="flex flex-col items-center justify-center min-h-screen px-4">
+      <main className="flex flex-1 flex-col items-center justify-center px-4 pt-20 pb-8">
         <div 
           className="text-center p-8 rounded-2xl max-w-md"
           style={{ backgroundColor: theme.surfaceColor }}
@@ -91,7 +91,7 @@ export default function Lessons() {
       </main>
 
       {/* Footer */}
-      <footer className="absolute bottom-0 inset-x-0 p-6 flex justify-center gap-8">
+      <footer className="shrink-0 p-6 flex justify-center gap-8">
         <Link
           to="/about"
           className="text-sm transition-colors hover:opacity-80"

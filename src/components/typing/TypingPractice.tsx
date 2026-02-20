@@ -202,6 +202,7 @@ const formatTime = (seconds: number) => {
 
 interface TypingPracticeProps {
   connectMode?: boolean;
+  fitToParentHeight?: boolean;
   lockedSettings?: Partial<SettingsState>;
   isTestActive?: boolean;
   onStatsUpdate?: (
@@ -255,6 +256,7 @@ function AnimatedAccuracyDisplay({ value, color }: { value: number; color: strin
 
 export default function TypingPractice({
   connectMode = false,
+  fitToParentHeight = false,
   lockedSettings,
   isTestActive = true,
   onStatsUpdate,
@@ -536,6 +538,9 @@ export default function TypingPractice({
   const activeWordRef = useRef<HTMLSpanElement | null>(null);
   const hasLoadedFromStorage = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const topLayoutRef = useRef<HTMLDivElement | null>(null);
+  const bottomLayoutRef = useRef<HTMLDivElement | null>(null);
+  const [typingCenterOffset, setTypingCenterOffset] = useState(0);
 
   // --- Calculated Stats ---
   const stats = useMemo(() => computeStats(typedText, words), [typedText, words]);
@@ -602,16 +607,18 @@ export default function TypingPractice({
 
   // --- Compact Mode Detection (for zoomed/narrow viewports) ---
   useEffect(() => {
-    const COMPACT_THRESHOLD = 768;
+    const COMPACT_WIDTH = 768;
+    const COMPACT_HEIGHT = 600;
     
     const checkCompactMode = () => {
-      setIsCompactMode(window.innerWidth < COMPACT_THRESHOLD);
+      // Trigger compact mode when viewport is narrow OR short (e.g. browser zoom)
+      setIsCompactMode(window.innerWidth < COMPACT_WIDTH || window.innerHeight < COMPACT_HEIGHT);
     };
     
     // Check on mount
     checkCompactMode();
     
-    // Listen for resize events
+    // Listen for resize events (covers zoom changes which alter innerWidth/innerHeight)
     window.addEventListener("resize", checkCompactMode);
     return () => window.removeEventListener("resize", checkCompactMode);
   }, []);
@@ -1563,6 +1570,48 @@ export default function TypingPractice({
     }
   }, [typedText, settings.typingFontSize, linePreview]);
 
+  useLayoutEffect(() => {
+    if (isCompactMode || isFinished) {
+      setTypingCenterOffset(0);
+      return;
+    }
+
+    const topEl = topLayoutRef.current;
+    const bottomEl = bottomLayoutRef.current;
+    if (!topEl || !bottomEl) return;
+
+    const updateOffset = () => {
+      const topHeight = topEl.getBoundingClientRect().height;
+      const bottomHeight = bottomEl.getBoundingClientRect().height;
+      const offset = (bottomHeight - topHeight) / 2;
+      setTypingCenterOffset(Math.max(-180, Math.min(180, offset)));
+    };
+
+    updateOffset();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateOffset();
+    });
+
+    resizeObserver.observe(topEl);
+    resizeObserver.observe(bottomEl);
+    window.addEventListener("resize", updateOffset);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateOffset);
+    };
+  }, [
+    isCompactMode,
+    isFinished,
+    isRunning,
+    isKidMode,
+    settings.mode,
+    settings.helpFontSize,
+    linePreview,
+    showQuickSettings,
+  ]);
+
   // --- Render Typing Area ---
   const renderTypingArea = () => {
     const wordsArray = words.split(" ");
@@ -1690,38 +1739,38 @@ export default function TypingPractice({
 
   return (
     <div
-      className="relative flex min-h-[100dvh] flex-col items-center justify-center px-4 pb-8 pt-8 transition-colors duration-300"
+      className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300`}
       style={{ backgroundColor: theme.backgroundColor }}
     >
-      {/* Settings Controls - Fixed at top */}
+      <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
+      {/* Header clearance spacer */}
+      <div className="shrink-0 w-full pt-20 md:pt-24" />
+
+      {/* Settings Controls */}
       {!connectMode && !isRunning && !isFinished && (
         <div
-          className="fixed inset-x-0 flex flex-col items-center justify-center gap-3 transition-opacity duration-300 z-30 pointer-events-none"
+          className="shrink-0 w-full flex flex-col items-center justify-center gap-3 transition-opacity duration-300 pb-2"
           style={{ 
             fontSize: `${settings.iconFontSize}rem`, 
             opacity: uiOpacity,
-            // Fixed position below the header (which is ~80px tall with z-50)
-            top: "120px",
           }}
         >
           {/* Compact Mode: Quick Settings */}
           {isCompactMode && (
-            <div className="pointer-events-auto">
-              <button
-                type="button"
-                onClick={() => setShowQuickSettings(true)}
-                className="rounded-lg px-4 py-2 text-sm transition hover:text-gray-200"
-                style={{ backgroundColor: theme.surfaceColor, color: theme.buttonUnselected }}
-                title="Quick Settings"
-              >
-                Quick Settings
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowQuickSettings(true)}
+              className="rounded-lg px-4 py-2 text-sm transition hover:text-gray-200"
+              style={{ backgroundColor: theme.surfaceColor, color: theme.buttonUnselected }}
+              title="Quick Settings"
+            >
+              Quick Settings
+            </button>
           )}
 
           {/* Row 1: Mode | Modifiers (hidden in compact mode) */}
           {!isCompactMode && (
-          <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400 pointer-events-auto">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400">
             {/* Test Modes */}
             <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Mode</span>
             <div className="flex rounded-lg p-1" style={{ backgroundColor: theme.surfaceColor }}>
@@ -1813,7 +1862,7 @@ export default function TypingPractice({
 
           {/* Row 3: Time/Word Count/Quote Length + Difficulty with labels (hidden in compact mode or kid mode) */}
           {!isCompactMode && !isKidMode && (
-          <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400 pointer-events-auto">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400">
             {/* Time Duration */}
             {settings.mode === "time" && (
               <>
@@ -1924,8 +1973,7 @@ export default function TypingPractice({
       {/* Live Stats Widget - Unified 2-row layout */}
       {isRunning && !isFinished && (
         <div 
-          className="fixed inset-x-0 flex flex-col items-center gap-2 select-none z-30 transition-opacity duration-300 pointer-events-none"
-          style={{ top: "120px" }}
+          className="shrink-0 w-full flex flex-col items-center gap-2 select-none transition-opacity duration-300 pb-2"
         >
           {/* Row 1: WPM + Mode-specific stat + Accuracy - hidden in kid mode */}
           {!isKidMode && (
@@ -2094,29 +2142,36 @@ export default function TypingPractice({
           )}
         </div>
       )}
+      </div>
 
-      {/* Quote Info */}
-      {settings.mode === "quote" && currentQuote && !isFinished && (
-        <div
-          className="mb-8 flex flex-col items-center text-center animate-fade-in transition-opacity duration-500"
-          style={{ opacity: uiOpacity }}
-        >
-          <div className="text-xl font-medium" style={{ color: theme.buttonSelected }}>
-            {currentQuote.author}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-sm" style={{ color: theme.textSecondary }}>
-              {currentQuote.source}, {currentQuote.date}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Flexible spacer - balances content vertically */}
+      <div className="flex-1" />
 
-      {/* Typing Area */}
-      <div 
-        className="w-[95%] md:w-[80%] max-w-none relative z-0 transition-all duration-300"
-        style={{ marginTop: isKidMode ? "-6rem" : (!isRunning && !isFinished ? "-2rem" : undefined) }}
+      <div
+        className="w-full flex flex-col items-center transition-transform duration-300"
+        style={!isCompactMode && !isFinished ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
       >
+        {/* Quote Info */}
+        {settings.mode === "quote" && currentQuote && !isFinished && (
+          <div
+            className="mb-4 flex flex-col items-center text-center animate-fade-in transition-opacity duration-500"
+            style={{ opacity: uiOpacity }}
+          >
+            <div className="text-xl font-medium" style={{ color: theme.buttonSelected }}>
+              {currentQuote.author}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm" style={{ color: theme.textSecondary }}>
+                {currentQuote.source}, {currentQuote.date}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Typing Area */}
+        <div 
+          className="w-[95%] md:w-[80%] max-w-none relative z-0 transition-all duration-300"
+        >
         {!isFinished ? (
           <div className="relative z-0">
             <input
@@ -2550,22 +2605,31 @@ export default function TypingPractice({
             </motion.div>
           </div>
         )}
+        </div>
       </div>
 
-      {/* Instructions */}
-      {!isRunning && !isFinished && (
-        <div
-          className="fixed bottom-[15%] inset-x-0 text-center text-gray-600 transition-opacity duration-300 pointer-events-none"
-          style={{ fontSize: `${settings.helpFontSize}rem`, opacity: uiOpacity }}
-        >
-          {isRepeated && <div className="mb-2 text-red-500 font-medium">REPEATED</div>}
-          <div>
-            Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> +{" "}
-            <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Shift</kbd> to restart
+      <div ref={bottomLayoutRef} className="shrink-0 w-full flex flex-col items-center pt-10 md:pt-12">
+        {/* Instructions */}
+        {!isRunning && !isFinished && (
+          <div
+            className="text-center text-gray-600 transition-opacity duration-300"
+            style={{ fontSize: `${settings.helpFontSize}rem`, opacity: uiOpacity }}
+          >
+            {isRepeated && <div className="mb-2 text-red-500 font-medium">REPEATED</div>}
+            <div>
+              Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> +{" "}
+              <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Shift</kbd> to restart
+            </div>
+            <div>Click on the text area and start typing</div>
           </div>
-          <div>Click on the text area and start typing</div>
-        </div>
-      )}
+        )}
+
+        {/* Bottom padding */}
+        <div className="shrink-0 h-8" />
+      </div>
+
+      {/* Flexible spacer - keeps typing area vertically centered */}
+      <div className="flex-1" />
 
       {/* Preset Input Modal */}
       {showPresetInput && (
@@ -2616,7 +2680,7 @@ export default function TypingPractice({
           }}
         >
           <div
-            className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] lg:w-[calc(100vw-3rem)] h-[85vh] rounded-lg shadow-xl flex overflow-hidden"
+            className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] lg:w-[calc(100vw-3rem)] max-h-[85vh] rounded-lg shadow-xl flex overflow-hidden"
             style={{ backgroundColor: theme.surfaceColor }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -3219,7 +3283,7 @@ export default function TypingPractice({
           onClick={closeSettingsModal}
         >
           <div
-            className="flex h-[min(90vh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-xl"
+            className="flex max-h-[min(90vh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-xl"
             style={{
               backgroundColor: theme.surfaceColor,
               borderColor: theme.borderSubtle,

@@ -82,9 +82,9 @@ export default function Header({
   const isStatsEnabled = accountFeaturesEnabled && Boolean(statsUrl);
 
   return (
-    <header className="absolute top-0 inset-x-0 p-4 md:p-6 z-50 flex items-center justify-between transition-opacity duration-300 pointer-events-none" style={{ opacity: hidden ? 0 : 1 }}>
+    <header className="absolute top-0 inset-x-0 p-4 md:p-6 z-50 flex items-center justify-between transition-opacity duration-300 pointer-events-none gap-2" style={{ opacity: hidden ? 0 : 1 }}>
       {/* Left Section: Logo + Settings + Theme + Light/Dark */}
-      <div className={`flex items-center gap-4 ${hidden ? "" : "pointer-events-auto"}`}>
+      <div className={`flex items-center gap-4 shrink-0 ${hidden ? "" : "pointer-events-auto"}`}>
         {/* Logo */}
         <Link to="/" className="w-[170px] md:w-[280px] shrink-0 md:-mr-9">
           <img
@@ -155,7 +155,7 @@ export default function Header({
         </div>
       </div>
 
-      {/* Center Section: Navigation Tabs */}
+      {/* Center Section: Navigation Tabs (page-centered) */}
       <nav 
         className={`absolute left-1/2 -translate-x-1/2 ${hidden ? "" : "pointer-events-auto"}`}
       >
@@ -207,7 +207,7 @@ export default function Header({
       </nav>
 
       {/* Right Section: Leaderboard + Stats + Notifications + User */}
-      <div className={`flex items-center gap-2 ${hidden ? "" : "pointer-events-auto"}`}>
+      <div className={`flex items-center gap-2 shrink-0 ${hidden ? "" : "pointer-events-auto"}`}>
         {/* Leaderboard */}
         <Link
           to="/leaderboard"

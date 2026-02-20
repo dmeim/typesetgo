@@ -94,7 +94,7 @@ function RaceHostCard({ theme }: { theme: LegacyTheme }) {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl p-10 flex flex-col items-center group transition-all duration-300 h-96 ${
+      className={`relative rounded-2xl p-10 flex flex-col items-center group transition-all duration-300 min-h-96 ${
         isFocused ? "justify-start pt-10" : "justify-center"
       }`}
       style={{ 
@@ -233,7 +233,7 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl p-10 flex flex-col items-center group transition-all duration-300 h-96 ${
+      className={`relative rounded-2xl p-10 flex flex-col items-center group transition-all duration-300 min-h-96 ${
         isFocused ? "justify-start pt-10" : "justify-center"
       }`}
       style={{ 
@@ -341,13 +341,13 @@ export default function Race() {
 
   return (
     <div
-      className="min-h-screen relative"
+      className="min-h-screen flex flex-col"
       style={{ backgroundColor: theme.backgroundColor }}
     >
       <Header />
 
       {/* Main Content */}
-      <main className="flex flex-col items-center justify-center min-h-screen px-4 pt-20">
+      <main className="flex flex-1 flex-col items-center justify-center px-4 pt-20 pb-8">
         <div className="w-full max-w-4xl mx-auto animate-fade-in">
           <div className="text-center mb-12">
             <h1
@@ -379,7 +379,7 @@ export default function Race() {
       </main>
 
       {/* Footer */}
-      <footer className="absolute bottom-0 inset-x-0 p-6 flex justify-center gap-8">
+      <footer className="shrink-0 p-6 flex justify-center gap-8">
         <Link
           to="/about"
           className="text-sm transition-colors hover:opacity-80"
