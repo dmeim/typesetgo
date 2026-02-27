@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Sun, Moon, ChevronDown } from "lucide-react";
+import { Sun, Moon, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
@@ -52,6 +52,14 @@ const MODE_SELECTOR_OPTIONS = ["kid", "zen", "time", "words", "quote"] as const;
 const PUNCTUATION_CHARS = [".", ",", "!", "?", ";", ":"];
 const NUMBER_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const LINE_HEIGHT = 1.6;
+const CUSTOM_WORD_MIN = 1;
+const CUSTOM_WORD_MAX = 9999;
+const CUSTOM_DURATION_MAX_HOURS = 6;
+const DIAL_ROW_HEIGHT = 42;
+const DIAL_VISIBLE_ROWS = 5;
+const DIAL_PADDING_ROWS = Math.floor(DIAL_VISIBLE_ROWS / 2);
+const DIAL_VIEWPORT_HEIGHT = DIAL_ROW_HEIGHT * DIAL_VISIBLE_ROWS;
+const DIAL_SPACER_HEIGHT = DIAL_ROW_HEIGHT * DIAL_PADDING_ROWS;
 const SETTINGS_TABS = [
   { id: "all", label: "All" },
   { id: "type", label: "Type" },
@@ -199,6 +207,197 @@ const formatTime = (seconds: number) => {
   }
   return `${s}s`;
 };
+
+const clampNumber = (value: number, min: number, max: number) => {
+  return Math.min(max, Math.max(min, value));
+};
+
+const durationToDialValues = (totalSeconds: number) => {
+  const clampedSeconds = clampNumber(
+    Math.round(totalSeconds),
+    0,
+    CUSTOM_DURATION_MAX_HOURS * 3600 + 59 * 60 + 59
+  );
+
+  return {
+    hours: Math.floor(clampedSeconds / 3600),
+    minutes: Math.floor((clampedSeconds % 3600) / 60),
+    seconds: clampedSeconds % 60,
+  };
+};
+
+type WordDigits = {
+  thousands: number;
+  hundreds: number;
+  tens: number;
+  ones: number;
+};
+
+const wordTargetToDigits = (target: number): WordDigits => {
+  const clampedTarget = clampNumber(Math.round(target), CUSTOM_WORD_MIN, CUSTOM_WORD_MAX);
+  const [thousands, hundreds, tens, ones] = clampedTarget
+    .toString()
+    .padStart(4, "0")
+    .split("")
+    .map((digit) => Number(digit));
+
+  return {
+    thousands,
+    hundreds,
+    tens,
+    ones,
+  };
+};
+
+const digitsToWordTarget = (digits: WordDigits) => {
+  return digits.thousands * 1000 + digits.hundreds * 100 + digits.tens * 10 + digits.ones;
+};
+
+type NumberDialProps = {
+  label: string;
+  min: number;
+  max: number;
+  value: number;
+  onChange: (value: number) => void;
+  theme: LegacyTheme;
+};
+
+function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const isSyncingRef = useRef(false);
+  const options = useMemo(
+    () => Array.from({ length: max - min + 1 }, (_, index) => min + index),
+    [max, min]
+  );
+
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    const targetTop = (value - min) * DIAL_ROW_HEIGHT;
+    isSyncingRef.current = true;
+    scroller.scrollTo({ top: targetTop, behavior: "auto" });
+
+    const frame = requestAnimationFrame(() => {
+      isSyncingRef.current = false;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [min, value]);
+
+  const adjustValue = useCallback(
+    (delta: number) => {
+      onChange(clampNumber(value + delta, min, max));
+    },
+    [max, min, onChange, value]
+  );
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <button
+        type="button"
+        onClick={() => adjustValue(-1)}
+        className="rounded-full p-1 transition-opacity hover:opacity-80"
+        style={{ color: theme.textSecondary, backgroundColor: theme.backgroundColor }}
+        aria-label={`${label} up`}
+      >
+        <ChevronUp className="h-4 w-4" />
+      </button>
+
+      <div
+        className="relative w-20 overflow-hidden rounded-xl border"
+        style={{
+          height: `${DIAL_VIEWPORT_HEIGHT}px`,
+          borderColor: theme.borderSubtle,
+          backgroundColor: theme.backgroundColor,
+        }}
+      >
+        <div
+          ref={scrollRef}
+          className="h-full snap-y snap-mandatory overflow-y-auto"
+          style={{
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+          onScroll={(event) => {
+            if (isSyncingRef.current) return;
+            const nextIndex = Math.round(event.currentTarget.scrollTop / DIAL_ROW_HEIGHT);
+            const nextValue = clampNumber(min + nextIndex, min, max);
+            if (nextValue !== value) {
+              onChange(nextValue);
+            }
+          }}
+        >
+          <div style={{ height: `${DIAL_SPACER_HEIGHT}px` }} />
+
+          {options.map((optionValue) => {
+            const distance = Math.abs(optionValue - value);
+            const opacity = distance === 0 ? 1 : distance === 1 ? 0.75 : distance === 2 ? 0.45 : 0.2;
+
+            return (
+              <div
+                key={optionValue}
+                className="snap-center text-center tabular-nums leading-none"
+                style={{
+                  height: `${DIAL_ROW_HEIGHT}px`,
+                  lineHeight: `${DIAL_ROW_HEIGHT}px`,
+                  fontSize: distance === 0 ? "1.6rem" : "1.2rem",
+                  fontWeight: distance === 0 ? 700 : 500,
+                  color: distance === 0 ? theme.buttonSelected : theme.textSecondary,
+                  opacity,
+                }}
+              >
+                {optionValue.toString().padStart(2, "0")}
+              </div>
+            );
+          })}
+
+          <div style={{ height: `${DIAL_SPACER_HEIGHT}px` }} />
+        </div>
+
+        <div
+          className="pointer-events-none absolute inset-x-1 top-1/2 -translate-y-1/2 rounded-lg border"
+          style={{
+            height: `${DIAL_ROW_HEIGHT}px`,
+            borderColor: theme.buttonSelected,
+            backgroundColor: theme.elevatedColor,
+            opacity: 0.75,
+          }}
+        />
+
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0"
+          style={{
+            height: `${DIAL_SPACER_HEIGHT}px`,
+            background: `linear-gradient(to bottom, ${theme.backgroundColor}, transparent)`,
+          }}
+        />
+
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0"
+          style={{
+            height: `${DIAL_SPACER_HEIGHT}px`,
+            background: `linear-gradient(to top, ${theme.backgroundColor}, transparent)`,
+          }}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => adjustValue(1)}
+        className="rounded-full p-1 transition-opacity hover:opacity-80"
+        style={{ color: theme.textSecondary, backgroundColor: theme.backgroundColor }}
+        aria-label={`${label} down`}
+      >
+        <ChevronDown className="h-4 w-4" />
+      </button>
+
+      <span className="text-xs uppercase tracking-wide" style={{ color: theme.textMuted }}>
+        {label}
+      </span>
+    </div>
+  );
+}
 
 interface TypingPracticeProps {
   connectMode?: boolean;
@@ -438,6 +637,11 @@ export default function TypingPractice({
   const [wordsManifest, setWordsManifest] = useState<WordsManifest | null>(null);
   const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
   const [showPresetInput, setShowPresetInput] = useState(false);
+  const [showCustomCountModal, setShowCustomCountModal] = useState(false);
+  const [customDuration, setCustomDuration] = useState(() => durationToDialValues(30));
+  const [customWordDigits, setCustomWordDigits] = useState<WordDigits>(() =>
+    wordTargetToDigits(25)
+  );
   const [tempPresetText, setTempPresetText] = useState("");
   const [wordPool, setWordPool] = useState<string[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -842,6 +1046,22 @@ export default function TypingPractice({
     setSettings((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  const openCustomCountModal = useCallback(() => {
+    if (settings.mode === "time") {
+      setCustomDuration(durationToDialValues(settings.duration));
+    } else if (settings.mode === "words") {
+      setCustomWordDigits(
+        wordTargetToDigits(
+          clampNumber(settings.wordTarget || CUSTOM_WORD_MIN, CUSTOM_WORD_MIN, CUSTOM_WORD_MAX)
+        )
+      );
+    } else {
+      return;
+    }
+
+    setShowCustomCountModal(true);
+  }, [settings.duration, settings.mode, settings.wordTarget]);
+
   const resetSession = useCallback((isRepeat = false) => {
     setTypedText("");
     setIsRunning(false);
@@ -1222,6 +1442,56 @@ export default function TypingPractice({
     wordPool,
     quotes,
     resetSession,
+  ]);
+
+  const applyCustomCount = useCallback(() => {
+    if (settings.mode === "time") {
+      const totalSeconds =
+        customDuration.hours * 3600 +
+        customDuration.minutes * 60 +
+        customDuration.seconds;
+
+      if (totalSeconds <= 0) {
+        toast.error("Set at least 1 second.");
+        return;
+      }
+
+      const nextDuration = TIME_PRESETS.find((preset) => preset === totalSeconds) ?? totalSeconds;
+
+      if (settings.duration === nextDuration) {
+        generateTest();
+      } else {
+        updateSettings({ duration: nextDuration });
+      }
+    } else if (settings.mode === "words") {
+      const rawWordTarget = digitsToWordTarget(customWordDigits);
+      if (rawWordTarget <= 0) {
+        toast.error("Set at least 1 word.");
+        return;
+      }
+
+      const nextWordTarget = clampNumber(rawWordTarget, CUSTOM_WORD_MIN, CUSTOM_WORD_MAX);
+      const normalizedWordTarget =
+        WORD_PRESETS.find((preset) => preset === nextWordTarget) ?? nextWordTarget;
+
+      if (settings.wordTarget === normalizedWordTarget) {
+        generateTest();
+      } else {
+        updateSettings({ wordTarget: normalizedWordTarget });
+      }
+    }
+
+    setShowCustomCountModal(false);
+  }, [
+    customDuration.hours,
+    customDuration.minutes,
+    customDuration.seconds,
+    customWordDigits,
+    generateTest,
+    settings.duration,
+    settings.mode,
+    settings.wordTarget,
+    updateSettings,
   ]);
 
   const enableKidMode = useCallback(() => {
@@ -1720,6 +1990,17 @@ export default function TypingPractice({
   const clampedTextSize = Math.max(3, Math.min(6, settings.typingFontSize));
   const clampedLinePreview = Math.max(1, Math.min(6, linePreview));
   const clampedMaxWordsPerLine = Math.max(1, Math.min(10, maxWordsPerLine));
+  const selectedDurationPreset = TIME_PRESETS.find((preset) => preset === settings.duration);
+  const selectedWordPreset = WORD_PRESETS.find((preset) => preset === settings.wordTarget);
+  const isCustomDurationSelected = selectedDurationPreset === undefined;
+  const isCustomWordTargetSelected = selectedWordPreset === undefined;
+  const customDurationSeconds =
+    customDuration.hours * 3600 + customDuration.minutes * 60 + customDuration.seconds;
+  const formattedCustomDuration = `${customDuration.hours.toString().padStart(2, "0")}:${customDuration.minutes
+    .toString()
+    .padStart(2, "0")}:${customDuration.seconds.toString().padStart(2, "0")}`;
+  const customWordValue = digitsToWordTarget(customWordDigits);
+  const formattedCustomWordValue = customWordValue.toString().padStart(4, "0");
   const typingSoundOptions = getSoundPackOptions("typing");
   const warningSoundOptions = getSoundPackOptions("warning");
   const errorSoundOptions = getSoundPackOptions("error");
@@ -1882,6 +2163,14 @@ export default function TypingPractice({
                       {d}s
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={openCustomCountModal}
+                    className={`px-3 py-1 rounded transition ${isCustomDurationSelected ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
+                    style={{ color: isCustomDurationSelected ? theme.buttonSelected : undefined }}
+                  >
+                    custom
+                  </button>
                 </div>
               </>
             )}
@@ -1905,6 +2194,14 @@ export default function TypingPractice({
                       {w}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={openCustomCountModal}
+                    className={`px-3 py-1 rounded transition ${isCustomWordTargetSelected ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
+                    style={{ color: isCustomWordTargetSelected ? theme.buttonSelected : undefined }}
+                  >
+                    custom
+                  </button>
                 </div>
               </>
             )}
@@ -3822,6 +4119,188 @@ export default function TypingPractice({
         </div>
       )}
 
+      {/* Custom Duration / Word Count Modal */}
+      {showCustomCountModal && (settings.mode === "time" || settings.mode === "words") && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4"
+          onClick={() => setShowCustomCountModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-xl border p-6 shadow-2xl"
+            style={{
+              backgroundColor: theme.surfaceColor,
+              borderColor: theme.borderSubtle,
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>
+                  {settings.mode === "time" ? "Custom Duration" : "Custom Word Count"}
+                </h2>
+                <p className="mt-1 text-sm" style={{ color: theme.textSecondary }}>
+                  {settings.mode === "time"
+                    ? "Scroll each dial or use arrows to set hours, minutes, and seconds."
+                    : "Scroll each dial or use arrows to set a word count from 0001 to 9999."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCustomCountModal(false)}
+                className="rounded-md px-2 py-1 text-sm transition-opacity hover:opacity-80"
+                style={{ color: theme.textMuted }}
+                aria-label="Close custom selector"
+              >
+                ✕
+              </button>
+            </div>
+
+            {settings.mode === "time" ? (
+              <div className="space-y-5">
+                <div className="text-center" style={{ color: theme.textSecondary }}>
+                  <span className="text-base sm:text-lg">Selected:</span>{" "}
+                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: theme.buttonSelected }}>
+                    {formattedCustomDuration}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
+                  <NumberDial
+                    label="hours"
+                    min={0}
+                    max={CUSTOM_DURATION_MAX_HOURS}
+                    value={customDuration.hours}
+                    onChange={(hours) =>
+                      setCustomDuration((prev) => ({
+                        ...prev,
+                        hours,
+                      }))
+                    }
+                    theme={theme}
+                  />
+                  <NumberDial
+                    label="minutes"
+                    min={0}
+                    max={59}
+                    value={customDuration.minutes}
+                    onChange={(minutes) =>
+                      setCustomDuration((prev) => ({
+                        ...prev,
+                        minutes,
+                      }))
+                    }
+                    theme={theme}
+                  />
+                  <NumberDial
+                    label="seconds"
+                    min={0}
+                    max={59}
+                    value={customDuration.seconds}
+                    onChange={(seconds) =>
+                      setCustomDuration((prev) => ({
+                        ...prev,
+                        seconds,
+                      }))
+                    }
+                    theme={theme}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="text-center" style={{ color: theme.textSecondary }}>
+                  <span className="text-base sm:text-lg">Selected:</span>{" "}
+                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: theme.buttonSelected }}>
+                    {formattedCustomWordValue}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
+                  <NumberDial
+                    label="thousands"
+                    min={0}
+                    max={9}
+                    value={customWordDigits.thousands}
+                    onChange={(thousands) =>
+                      setCustomWordDigits((prev) => ({
+                        ...prev,
+                        thousands,
+                      }))
+                    }
+                    theme={theme}
+                  />
+                  <NumberDial
+                    label="hundreds"
+                    min={0}
+                    max={9}
+                    value={customWordDigits.hundreds}
+                    onChange={(hundreds) =>
+                      setCustomWordDigits((prev) => ({
+                        ...prev,
+                        hundreds,
+                      }))
+                    }
+                    theme={theme}
+                  />
+                  <NumberDial
+                    label="tens"
+                    min={0}
+                    max={9}
+                    value={customWordDigits.tens}
+                    onChange={(tens) =>
+                      setCustomWordDigits((prev) => ({
+                        ...prev,
+                        tens,
+                      }))
+                    }
+                    theme={theme}
+                  />
+                  <NumberDial
+                    label="ones"
+                    min={0}
+                    max={9}
+                    value={customWordDigits.ones}
+                    onChange={(ones) =>
+                      setCustomWordDigits((prev) => ({
+                        ...prev,
+                        ones,
+                      }))
+                    }
+                    theme={theme}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCustomCountModal(false)}
+                className="rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+                style={{
+                  color: theme.textSecondary,
+                  backgroundColor: theme.backgroundColor,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={applyCustomCount}
+                disabled={
+                  (settings.mode === "time" && customDurationSeconds <= 0) ||
+                  (settings.mode === "words" && customWordValue <= 0)
+                }
+                className="rounded-md px-4 py-2 text-sm font-medium text-gray-900 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ backgroundColor: theme.buttonSelected }}
+              >
+                Set {settings.mode === "time" ? "Duration" : "Word Count"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Settings Modal (for compact/zoomed mode) */}
       {showQuickSettings && (
         <div
@@ -3885,6 +4364,19 @@ export default function TypingPractice({
                         {d}s
                       </button>
                     ))}
+                    <button
+                      onClick={() => {
+                        setShowQuickSettings(false);
+                        openCustomCountModal();
+                      }}
+                      className={`rounded px-4 py-2 text-sm transition ${isCustomDurationSelected ? "font-medium" : "hover:opacity-80"}`}
+                      style={{
+                        color: isCustomDurationSelected ? theme.buttonSelected : theme.textSecondary,
+                        backgroundColor: isCustomDurationSelected ? theme.elevatedColor : theme.backgroundColor,
+                      }}
+                    >
+                      custom
+                    </button>
                   </div>
                 </div>
               )}
@@ -3909,6 +4401,19 @@ export default function TypingPractice({
                         {w}
                       </button>
                     ))}
+                    <button
+                      onClick={() => {
+                        setShowQuickSettings(false);
+                        openCustomCountModal();
+                      }}
+                      className={`rounded px-4 py-2 text-sm transition ${isCustomWordTargetSelected ? "font-medium" : "hover:opacity-80"}`}
+                      style={{
+                        color: isCustomWordTargetSelected ? theme.buttonSelected : theme.textSecondary,
+                        backgroundColor: isCustomWordTargetSelected ? theme.elevatedColor : theme.backgroundColor,
+                      }}
+                    >
+                      custom
+                    </button>
                   </div>
                 </div>
               )}
