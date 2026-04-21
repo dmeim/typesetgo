@@ -53,6 +53,16 @@ export const CATEGORY_CONFIG: Record<ThemeCategory, CategoryConfig> = {
   food: { displayName: "Food", order: 29 },
   fun: { displayName: "Fun", order: 30 },
   holiday: { displayName: "Holiday", order: 31 },
+  // Collections/Misc
+  zodiac: { displayName: "Zodiac", order: 32 },
+  gemstones: { displayName: "Gemstones", order: 33 },
+  instruments: { displayName: "Instruments", order: 34 },
+  dance: { displayName: "Dance", order: 35 },
+  vehicles: { displayName: "Vehicles", order: 36 },
+  comics: { displayName: "Comics", order: 37 },
+  "historical-era": { displayName: "Historical Eras", order: 38 },
+  emotions: { displayName: "Emotions", order: 39 },
+  textiles: { displayName: "Fabrics & Textures", order: 40 },
 };
 
 // Cache for loaded data
@@ -74,7 +84,22 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "linkedin": "LinkedIn",
   "playstation": "PlayStation",
   "stackoverflow": "Stack Overflow",
+  "intellij": "IntelliJ",
+  "jetbrains-fleet": "JetBrains Fleet",
+  "github-actions": "GitHub Actions",
+  "hashicorp": "HashiCorp",
+  "datadog": "Datadog",
+  "cloudflare": "Cloudflare",
+  "postman": "Postman",
   
+  "notepad-plus-plus": "Notepad++",
+  "digitalocean": "DigitalOcean",
+  "mongodb": "MongoDB",
+  "tiktok": "TikTok",
+  "epic-games": "Epic Games",
+  "nvidia": "NVIDIA",
+  "amd": "AMD",
+
   // All-caps acronyms
   "aws": "AWS",
   "dos": "DOS",
@@ -83,6 +108,8 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "ibm": "IBM",
   "html": "HTML",
   "css": "CSS",
+  "edm": "EDM",
+  "ac-dc": "AC/DC",
   
   // Roman numerals
   "apple-ii": "Apple II",
@@ -141,6 +168,17 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "plants-vs-zombies": "Plants vs. Zombies",
   "ratchet-and-clank": "Ratchet & Clank",
   "lego": "LEGO",
+  "cyberpunk-2077": "Cyberpunk 2077",
+  "horizon-zero-dawn": "Horizon Zero Dawn",
+  "persona-5": "Persona 5",
+  "last-of-us": "Last of Us",
+  "ghost-of-tsushima": "Ghost of Tsushima",
+  "metal-gear-solid": "Metal Gear Solid",
+  "resident-evil": "Resident Evil",
+  "it-takes-two": "It Takes Two",
+  "disco-elysium": "Disco Elysium",
+  "no-mans-sky": "No Man's Sky",
+  "death-stranding": "Death Stranding",
 
   // Movies (new)
   "wall-e": "WALL\u00B7E",
@@ -150,11 +188,20 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "the-wizard-of-oz": "The Wizard of Oz",
   "how-to-train-your-dragon": "How to Train Your Dragon",
   "pride-and-prejudice": "Pride and Prejudice",
+  "mad-max": "Mad Max",
+  "the-dark-knight": "The Dark Knight",
+  "john-wick": "John Wick",
+  "grand-budapest-hotel": "Grand Budapest Hotel",
 
   // TV Shows (new)
   "avatar-the-last-airbender": "Avatar: The Last Airbender",
   "spongebob": "SpongeBob",
   "phineas-and-ferb": "Phineas and Ferb",
+  "the-last-of-us": "The Last of Us",
+  "black-mirror": "Black Mirror",
+  "the-bear": "The Bear",
+  "band-of-brothers": "Band of Brothers",
+  "mr-robot": "Mr. Robot",
 
   // Anime (new)
   "chainsaw-man": "Chainsaw Man",
@@ -163,6 +210,14 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "cardcaptor-sakura": "Cardcaptor Sakura",
   "mob-psycho-100": "Mob Psycho 100",
   "fullmetal-alchemist": "Fullmetal Alchemist",
+  "cowboy-bebop": "Cowboy Bebop",
+  "neon-genesis-evangelion": "Neon Genesis Evangelion",
+  "steins-gate": "Steins;Gate",
+  "hunter-x-hunter": "Hunter x Hunter",
+  "tokyo-ghoul": "Tokyo Ghoul",
+  "sword-art-online": "Sword Art Online",
+  "vinland-saga": "Vinland Saga",
+  "dandadan": "DAN DA DAN",
 
   // Food (new)
   "smores": "S'mores",
@@ -172,6 +227,7 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "r-and-b": "R&B",
   "k-pop": "K-Pop",
   "bossa-nova": "Bossa Nova",
+  "drum-and-bass": "Drum and Bass",
 
   // Music (Bands)
   "linkin-park": "Linkin Park",
@@ -199,6 +255,11 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "three-doors-down": "3 Doors Down",
   "matchbox-twenty": "Matchbox Twenty",
   "puddle-of-mudd": "Puddle of Mudd",
+  "alice-in-chains": "Alice in Chains",
+  "system-of-a-down": "System of a Down",
+  "rage-against-the-machine": "Rage Against the Machine",
+  "stone-temple-pilots": "Stone Temple Pilots",
+  "pearl-jam": "Pearl Jam",
 
   // Music (Artists)
   "avril-lavigne": "Avril Lavigne",
@@ -220,6 +281,13 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "scott-stapp": "Scott Stapp",
   "rob-thomas": "Rob Thomas",
   "aaron-lewis": "Aaron Lewis",
+  "billie-eilish": "Billie Eilish",
+  "post-malone": "Post Malone",
+  "taylor-swift": "Taylor Swift",
+  "kendrick-lamar": "Kendrick Lamar",
+  "frank-ocean": "Frank Ocean",
+  "the-weeknd": "The Weeknd",
+  "dua-lipa": "Dua Lipa",
 
   // Retro (new)
   "mid-autumn": "Mid-Autumn",
@@ -241,21 +309,280 @@ const THEME_DISPLAY_NAMES: Record<string, string> = {
   "don-quixote": "Don Quixote",
   "a-tale-of-two-cities": "A Tale of Two Cities",
   "the-secret-garden": "The Secret Garden",
+  "the-hobbit": "The Hobbit",
+  "dune-book": "Dune",
+  "brave-new-world": "Brave New World",
+  "fahrenheit-451": "Fahrenheit 451",
+  "the-odyssey": "The Odyssey",
+  "crime-and-punishment": "Crime and Punishment",
+  "anna-karenina": "Anna Karenina",
+  "les-miserables": "Les Misérables",
+  "war-and-peace": "War and Peace",
 
   // Mythology
   "chinese-mythology": "Chinese Mythology",
 
   "polynesian-mythology": "Polynesian Mythology",
+  "japanese-mythology": "Japanese Mythology",
+  "native-american": "Native American",
 
   // Cities
   "rio-de-janeiro": "Rio de Janeiro",
   "hong-kong": "Hong Kong",
   "san-francisco": "San Francisco",
+  "buenos-aires": "Buenos Aires",
+  "kuiper-belt": "Kuiper Belt",
+
+  // Productivity
+  "pair-programming": "Pair Programming",
+  "crunch-time": "Crunch Time",
+  "retro-meeting": "Retro Meeting",
+
+  // Fun
+  "escape-room": "Escape Room",
+  "bubble-wrap": "Bubble Wrap",
+  "magic-show": "Magic Show",
+  "whack-a-mole": "Whack-a-Mole",
+
+  // Cultural
+  "greek-isles": "Greek Isles",
+
+  // Sports
+  "hot-spring": "Hot Spring",
 
   // School Subjects
   "music-theory": "Music Theory",
   "computer-science": "Computer Science",
   "foreign-language": "Foreign Language",
+  "environmental-science": "Environmental Science",
+
+  // Batch 2 — Gaming
+  "monster-hunter": "Monster Hunter",
+  "mega-man": "Mega Man",
+  "pac-man": "Pac-Man",
+  "street-fighter": "Street Fighter",
+  "mortal-kombat": "Mortal Kombat",
+  "kingdom-hearts": "Kingdom Hearts",
+  "fire-emblem": "Fire Emblem",
+  "alan-wake": "Alan Wake",
+  "outer-wilds": "Outer Wilds",
+  "lies-of-p": "Lies of P",
+  "armored-core": "Armored Core",
+  "death-loop": "Deathloop",
+  "deep-rock-galactic": "Deep Rock Galactic",
+  "half-life": "Half-Life",
+
+  // Batch 2 — Movies
+  "the-godfather": "The Godfather",
+  "pulp-fiction": "Pulp Fiction",
+  "fight-club": "Fight Club",
+  "everything-everywhere": "Everything Everywhere All at Once",
+  "la-la-land": "La La Land",
+  "the-prestige": "The Prestige",
+  "eternal-sunshine": "Eternal Sunshine",
+  "ex-machina": "Ex Machina",
+  "the-truman-show": "The Truman Show",
+  "spirited-away": "Spirited Away",
+  "princess-mononoke": "Princess Mononoke",
+  "howls-moving-castle": "Howl's Moving Castle",
+
+  // Batch 2 — TV Shows
+  "the-wire": "The Wire",
+  "schitts-creek": "Schitt's Creek",
+  "parks-and-rec": "Parks and Rec",
+  "brooklyn-nine-nine": "Brooklyn Nine-Nine",
+  "better-call-saul": "Better Call Saul",
+  "true-detective": "True Detective",
+  "house-of-the-dragon": "House of the Dragon",
+  "fallout-show": "Fallout",
+  "3-body-problem": "3 Body Problem",
+  "white-lotus": "White Lotus",
+
+  // Batch 2 — Anime
+  "one-punch-man": "One-Punch Man",
+  "code-geass": "Code Geass",
+  "psycho-pass": "Psycho-Pass",
+  "made-in-abyss": "Made in Abyss",
+  "mushoku-tensei": "Mushoku Tensei",
+  "re-zero": "Re:Zero",
+  "bocchi-the-rock": "Bocchi the Rock!",
+  "oshi-no-ko": "Oshi no Ko",
+  "blue-lock": "Blue Lock",
+  "cyberpunk-edgerunners": "Cyberpunk: Edgerunners",
+  "samurai-champloo": "Samurai Champloo",
+  "ranking-of-kings": "Ranking of Kings",
+  "blue-exorcist": "Blue Exorcist",
+  "fire-force": "Fire Force",
+  "kaiju-no-8": "Kaiju No. 8",
+
+  // Batch 2 — Music Bands
+  "led-zeppelin": "Led Zeppelin",
+  "pink-floyd": "Pink Floyd",
+  "the-rolling-stones": "The Rolling Stones",
+  "black-sabbath": "Black Sabbath",
+  "deep-purple": "Deep Purple",
+  "iron-maiden": "Iron Maiden",
+  "judas-priest": "Judas Priest",
+  "type-o-negative": "Type O Negative",
+  "nine-inch-nails": "Nine Inch Nails",
+  "the-cure": "The Cure",
+  "depeche-mode": "Depeche Mode",
+  "joy-division": "Joy Division",
+  "arctic-monkeys": "Arctic Monkeys",
+  "the-strokes": "The Strokes",
+  "queens-of-the-stone-age": "Queens of the Stone Age",
+  "smashing-pumpkins": "Smashing Pumpkins",
+  "collective-soul": "Collective Soul",
+  "our-lady-peace": "Our Lady Peace",
+  "the-wallflowers": "The Wallflowers",
+  "goo-goo-dolls": "Goo Goo Dolls",
+  "third-eye-blind": "Third Eye Blind",
+  "vertical-horizon": "Vertical Horizon",
+  "eve-6": "Eve 6",
+  "marcy-playground": "Marcy Playground",
+  "theory-of-a-deadman": "Theory of a Deadman",
+  "alter-bridge": "Alter Bridge",
+  "in-this-moment": "In This Moment",
+  "nothing-more": "Nothing More",
+  "thousand-foot-krutch": "Thousand Foot Krutch",
+  "the-letter-black": "The Letter Black",
+  "we-are-the-fallen": "We Are the Fallen",
+  "from-ashes-to-new": "From Ashes to New",
+
+  // Batch 2 — Music Artists
+  "chester-bennington": "Chester Bennington",
+  "chris-cornell": "Chris Cornell",
+  "eddie-vedder": "Eddie Vedder",
+  "kurt-cobain": "Kurt Cobain",
+  "layne-staley": "Layne Staley",
+  "scott-weiland": "Scott Weiland",
+  "shannon-hoon": "Shannon Hoon",
+  "dave-grohl": "Dave Grohl",
+  "jerry-cantrell": "Jerry Cantrell",
+  "mark-tremonti": "Mark Tremonti",
+  "brent-smith": "Brent Smith",
+  "jacoby-shaddix": "Jacoby Shaddix",
+  "sully-erna": "Sully Erna",
+  "david-draiman": "David Draiman",
+  "serj-tankian": "Serj Tankian",
+  "brandon-boyd": "Brandon Boyd",
+  "maynard-james-keenan": "Maynard James Keenan",
+  "chino-moreno": "Chino Moreno",
+  "amy-winehouse": "Amy Winehouse",
+  "freddie-mercury": "Freddie Mercury",
+  "david-bowie": "David Bowie",
+  "dolly-parton": "Dolly Parton",
+  "johnny-cash": "Johnny Cash",
+  "willie-nelson": "Willie Nelson",
+  "stevie-nicks": "Stevie Nicks",
+  "robert-plant": "Robert Plant",
+  "ozzy-osbourne": "Ozzy Osbourne",
+  "james-hetfield": "James Hetfield",
+  "trent-reznor": "Trent Reznor",
+
+  // Batch 2 — Books
+  "the-count-of-monte-cristo": "The Count of Monte Cristo",
+  "treasure-island": "Treasure Island",
+  "the-brothers-karamazov": "The Brothers Karamazov",
+  "heart-of-darkness": "Heart of Darkness",
+  "the-sun-also-rises": "The Sun Also Rises",
+  "great-expectations": "Great Expectations",
+  "the-scarlet-letter": "The Scarlet Letter",
+  "catch-22": "Catch-22",
+  "slaughterhouse-five": "Slaughterhouse-Five",
+  "dantes-inferno": "Dante's Inferno",
+  "paradise-lost": "Paradise Lost",
+  "the-iliad": "The Iliad",
+  "the-alchemist": "The Alchemist",
+  "hundred-years-of-solitude": "One Hundred Years of Solitude",
+  "kafka-on-the-shore": "Kafka on the Shore",
+
+  // Batch 2 — Cities
+  "cape-town": "Cape Town",
+  "mexico-city": "Mexico City",
+
+  // Batch 2 — Comics
+  "saga-comic": "Saga",
+  "ghost-in-the-shell": "Ghost in the Shell",
+  "scott-pilgrim": "Scott Pilgrim",
+  "the-boys": "The Boys",
+  "v-for-vendetta": "V for Vendetta",
+  "sin-city": "Sin City",
+
+  // Batch 2 — Historical Eras
+  "silk-road": "Silk Road",
+  "industrial-revolution": "Industrial Revolution",
+  "space-race": "Space Race",
+  "gold-rush": "Gold Rush",
+  "belle-epoque": "Belle Époque",
+  "bronze-age": "Bronze Age",
+  "iron-age": "Iron Age",
+  "viking-age": "Viking Age",
+  "cold-war": "Cold War",
+  "ancient-greece": "Ancient Greece",
+  "ottoman-empire": "Ottoman Empire",
+
+  // Batch 2 — Mythology
+  "hawaiian-mythology": "Hawaiian Mythology",
+  "finnish-mythology": "Finnish Mythology",
+  "korean-mythology": "Korean Mythology",
+
+  // Batch 2 — Weather
+  "rainbow-after-storm": "Rainbow After Storm",
+  "dust-devil": "Dust Devil",
+  "ice-storm": "Ice Storm",
+  "sea-fog": "Sea Fog",
+  "ball-lightning": "Ball Lightning",
+  "mammatus-clouds": "Mammatus Clouds",
+  "deep-sea-vent": "Deep-Sea Vent",
+  "salt-flat": "Salt Flat",
+
+  // Batch 2 — Gemstones
+  "lapis-lazuli": "Lapis Lazuli",
+  "obsidian-stone": "Obsidian",
+  "turquoise-gem": "Turquoise",
+
+  // Batch 2 — Emotions
+  "serenity-mood": "Serenity",
+  "euphoria-mood": "Euphoria",
+  "nostalgia-mood": "Nostalgia",
+
+  // Batch 2 — Vehicles
+  "steam-train": "Steam Train",
+  "hot-air-balloon": "Hot Air Balloon",
+  "rocket-ship": "Rocket Ship",
+  "cable-car": "Cable Car",
+  "cardinal-bird": "Cardinal",
+  "arctic-fox": "Arctic Fox",
+  "manta-ray": "Manta Ray",
+  "horseshoe-crab": "Horseshoe Crab",
+
+  // Batch 2 — Dance
+  "tap-dance": "Tap Dance",
+  "line-dance": "Line Dance",
+  "bass-guitar": "Bass Guitar",
+
+  // Batch 2 — Food
+  "pad-thai": "Pad Thai",
+  "dim-sum": "Dim Sum",
+  "creme-brulee": "Crème Brûlée",
+
+  // Batch 2 — Productivity
+  "inbox-zero": "Inbox Zero",
+  "time-boxing": "Time Boxing",
+  "demo-day": "Demo Day",
+  "on-call": "On-Call",
+
+  // Batch 2 — Misc
+  "spring-pool": "Spring Pool",
+  "kelp-forest": "Kelp Forest",
+  "ring-nebula": "Ring Nebula",
+  "dark-matter": "Dark Matter",
+  "cosmic-dust": "Cosmic Dust",
+  "oort-cloud": "Oort Cloud",
+  "lagrange-point": "Lagrange Point",
+  "pulsar-editor": "Pulsar",
+  "lite-xl": "Lite XL",
 };
 
 // Format theme name for display (capitalize first letter of each word)
@@ -392,6 +719,16 @@ export function groupThemesByCategory(themes: ThemeDefinition[]): GroupedThemes[
     food: [],
     fun: [],
     holiday: [],
+    // Collections/Misc
+    zodiac: [],
+    gemstones: [],
+    instruments: [],
+    dance: [],
+    vehicles: [],
+    comics: [],
+    "historical-era": [],
+    emotions: [],
+    textiles: [],
   };
 
   // Group themes

@@ -38,7 +38,16 @@ export type ThemeCategory =
   | "sports"
   | "tv-shows"
   | "movies"
-  | "anime";
+  | "anime"
+  | "zodiac"
+  | "instruments"
+  | "dance"
+  | "gemstones"
+  | "vehicles"
+  | "comics"
+  | "historical-era"
+  | "emotions"
+  | "textiles";
 
 // Color scale with opacity variants (all manually specified in JSON)
 export type ColorScale = {
