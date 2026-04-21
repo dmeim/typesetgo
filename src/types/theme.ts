@@ -106,13 +106,30 @@ export type ThemeColors = {
   };
 };
 
-// Theme definition with optional light mode
+// A single variant within a theme (e.g., "default", "meteora", "hybrid-theory")
+export type ThemeVariantDefinition = {
+  id: string;
+  label: string;
+  dark: ThemeColors;
+  light: ThemeColors | null;
+};
+
+// Atomic selection of theme + variant + mode
+export type ThemeSelection = {
+  themeId: string;
+  variantId: string;
+  mode: ThemeMode;
+};
+
+// Theme definition with variant support
 export type ThemeDefinition = {
   id: string;
   name: string;
   category: ThemeCategory;
   dark: ThemeColors;
-  light: ThemeColors | null; // Optional - can be added manually per theme
+  light: ThemeColors | null;
+  defaultVariantId: string;
+  variants: ThemeVariantDefinition[];
 };
 
 // Theme manifest structure

@@ -138,8 +138,12 @@ export default defineSchema({
   userPreferences: defineTable({
     userId: v.id("users"),
 
-    // Theme
-    themeName: v.string(),
+    // Theme (stable id-based persistence)
+    themeId: v.optional(v.string()),
+    themeVariantId: v.optional(v.string()),
+    themeMode: v.optional(v.string()),
+    // Legacy theme fields (kept optional for existing rows)
+    themeName: v.optional(v.string()),
     customTheme: v.optional(
       v.object({
         backgroundColor: v.string(),

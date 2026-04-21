@@ -10,11 +10,13 @@ import type {
   ThemeColors,
   ThemeDefinition,
   ThemeMode,
+  ThemeVariantDefinition,
 } from "@/types/theme";
 import { fetchTheme, fetchThemeManifest, getDefaultTheme } from "@/lib/themes";
 
 // Storage keys
 const THEME_STORAGE_KEY = "typesetgo-theme-id";
+const VARIANT_STORAGE_KEY = "typesetgo-theme-variant-id";
 const MODE_STORAGE_KEY = "typesetgo-theme-mode";
 
 // Context value type
@@ -22,8 +24,12 @@ export type ThemeContextValue = {
   theme: ThemeDefinition;
   themeId: string;
   themeName: string;
+  variantId: string;
+  variant: ThemeVariantDefinition;
   mode: ThemeMode;
   setTheme: (id: string) => Promise<void>;
+  setVariant: (variantId: string) => void;
+  setThemeSelection: (selection: { themeId: string; variantId?: string; mode?: ThemeMode }) => Promise<void>;
   setMode: (mode: ThemeMode) => void;
   toggleMode: () => void;
   colors: ThemeColors;
@@ -35,6 +41,16 @@ export type ThemeContextValue = {
 export const ThemeContext = createContext<ThemeContextValue | undefined>(
   undefined
 );
+
+function resolveVariant(theme: ThemeDefinition, requestedId: string): ThemeVariantDefinition {
+  return theme.variants.find(v => v.id === requestedId)
+    || theme.variants.find(v => v.id === theme.defaultVariantId)
+    || theme.variants[0];
+}
+
+function resolveColors(variant: ThemeVariantDefinition, mode: ThemeMode): ThemeColors {
+  return mode === "light" && variant.light ? variant.light : variant.dark;
+}
 
 // CSS variable mapping from ThemeColors structure
 function applyThemeCSS(colors: ThemeColors): void {
@@ -104,6 +120,7 @@ type ThemeProviderProps = {
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeDefinition>(getDefaultTheme());
   const [themeId, setThemeId] = useState<string>("typesetgo");
+  const [variantId, setVariantIdState] = useState<string>("default");
   const [mode, setModeState] = useState<ThemeMode>("dark");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -112,88 +129,103 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     async function initTheme() {
       setIsLoading(true);
 
-      // Get stored preferences
       const storedThemeId = localStorage.getItem(THEME_STORAGE_KEY) || "typesetgo";
+      const storedVariantId = localStorage.getItem(VARIANT_STORAGE_KEY) || "default";
       const storedMode = (localStorage.getItem(MODE_STORAGE_KEY) as ThemeMode) || "dark";
 
-      // Fetch manifest to ensure theme exists
       const manifest = await fetchThemeManifest();
       const validThemeId = manifest.themes.includes(storedThemeId)
         ? storedThemeId
         : manifest.default || "typesetgo";
 
-      // Fetch the theme
       const loadedTheme = await fetchTheme(validThemeId);
-
       const resolvedTheme = loadedTheme ?? getDefaultTheme();
       const resolvedId = loadedTheme ? validThemeId : "typesetgo";
 
+      const variant = resolveVariant(resolvedTheme, storedVariantId);
+      const effectiveMode = storedMode === "light" && variant.light ? "light" : "dark";
+
       setThemeState(resolvedTheme);
       setThemeId(resolvedId);
-
-      // If stored mode is light but theme doesn't support it, fallback to dark
-      const effectiveMode = storedMode === "light" && resolvedTheme.light
-        ? "light"
-        : "dark";
+      setVariantIdState(variant.id);
       setModeState(effectiveMode);
 
-      // Apply CSS variables
-      const colors = effectiveMode === "light" && resolvedTheme.light
-        ? resolvedTheme.light
-        : resolvedTheme.dark;
-      applyThemeCSS(colors);
-
+      applyThemeCSS(resolveColors(variant, effectiveMode));
       setIsLoading(false);
     }
 
     initTheme();
   }, []);
 
-  // Set theme by ID
+  // Set theme by ID (resets variant to default)
   const setTheme = useCallback(async (id: string) => {
     const loadedTheme = await fetchTheme(id);
+    if (!loadedTheme) return;
 
-    if (loadedTheme) {
-      setThemeState(loadedTheme);
-      setThemeId(id);
-      localStorage.setItem(THEME_STORAGE_KEY, id);
+    const variant = resolveVariant(loadedTheme, loadedTheme.defaultVariantId);
+    const effectiveMode = mode === "light" && variant.light ? "light" : "dark";
 
-      // If current mode is light but new theme doesn't support it, switch to dark
-      const effectiveMode = mode === "light" && loadedTheme.light
-        ? "light"
-        : "dark";
+    setThemeState(loadedTheme);
+    setThemeId(id);
+    setVariantIdState(variant.id);
+    localStorage.setItem(THEME_STORAGE_KEY, id);
+    localStorage.setItem(VARIANT_STORAGE_KEY, variant.id);
 
-      if (effectiveMode !== mode) {
-        setModeState(effectiveMode);
-        localStorage.setItem(MODE_STORAGE_KEY, effectiveMode);
-      }
-
-      // Apply CSS variables
-      const colors = effectiveMode === "light" && loadedTheme.light
-        ? loadedTheme.light
-        : loadedTheme.dark;
-      applyThemeCSS(colors);
+    if (effectiveMode !== mode) {
+      setModeState(effectiveMode);
+      localStorage.setItem(MODE_STORAGE_KEY, effectiveMode);
     }
+
+    applyThemeCSS(resolveColors(variant, effectiveMode));
+  }, [mode]);
+
+  // Set variant within current theme
+  const setVariant = useCallback((newVariantId: string) => {
+    const variant = resolveVariant(theme, newVariantId);
+    const effectiveMode = mode === "light" && variant.light ? "light" : "dark";
+
+    setVariantIdState(variant.id);
+    localStorage.setItem(VARIANT_STORAGE_KEY, variant.id);
+
+    if (effectiveMode !== mode) {
+      setModeState(effectiveMode);
+      localStorage.setItem(MODE_STORAGE_KEY, effectiveMode);
+    }
+
+    applyThemeCSS(resolveColors(variant, effectiveMode));
+  }, [theme, mode]);
+
+  // Atomic setter for theme + variant + mode
+  const setThemeSelection = useCallback(async (selection: { themeId: string; variantId?: string; mode?: ThemeMode }) => {
+    const loadedTheme = await fetchTheme(selection.themeId);
+    if (!loadedTheme) return;
+
+    const variant = resolveVariant(loadedTheme, selection.variantId || loadedTheme.defaultVariantId);
+    const requestedMode = selection.mode || mode;
+    const effectiveMode = requestedMode === "light" && variant.light ? "light" : "dark";
+
+    setThemeState(loadedTheme);
+    setThemeId(selection.themeId);
+    setVariantIdState(variant.id);
+    setModeState(effectiveMode);
+
+    localStorage.setItem(THEME_STORAGE_KEY, selection.themeId);
+    localStorage.setItem(VARIANT_STORAGE_KEY, variant.id);
+    localStorage.setItem(MODE_STORAGE_KEY, effectiveMode);
+
+    applyThemeCSS(resolveColors(variant, effectiveMode));
   }, [mode]);
 
   // Set mode
   const setMode = useCallback((newMode: ThemeMode) => {
-    // Only allow light mode if theme supports it
-    if (newMode === "light" && !theme?.light) {
-      return;
-    }
+    const variant = resolveVariant(theme, variantId);
+    if (newMode === "light" && !variant.light) return;
 
     setModeState(newMode);
     localStorage.setItem(MODE_STORAGE_KEY, newMode);
 
-    // Apply CSS variables for new mode
-    if (theme) {
-      const colors = newMode === "light" && theme.light
-        ? theme.light
-        : theme.dark;
-      applyThemeCSS(colors);
-    }
-  }, [theme]);
+    applyThemeCSS(resolveColors(variant, newMode));
+  }, [theme, variantId]);
 
   // Toggle mode
   const toggleMode = useCallback(() => {
@@ -201,34 +233,41 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     setMode(newMode);
   }, [mode, setMode]);
 
-  // Compute current colors based on mode
+  // Resolve active variant
+  const variant = useMemo(() => {
+    return resolveVariant(theme, variantId);
+  }, [theme, variantId]);
+
+  // Compute current colors from variant + mode
   const colors = useMemo(() => {
-    return mode === "light" && theme.light ? theme.light : theme.dark;
-  }, [theme, mode]);
+    return resolveColors(variant, mode);
+  }, [variant, mode]);
 
-  // Check if current theme supports light mode
+  // Check if active variant supports light mode
   const supportsLightMode = useMemo(() => {
-    return theme.light !== null && theme.light !== undefined;
-  }, [theme]);
+    return variant.light !== null && variant.light !== undefined;
+  }, [variant]);
 
-  // Theme name for display
   const themeName = theme?.name || "TypeSetGo";
 
-  // Context value
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
       themeId,
       themeName,
+      variantId,
+      variant,
       mode,
       setTheme,
+      setVariant,
+      setThemeSelection,
       setMode,
       toggleMode,
       colors,
       supportsLightMode,
       isLoading,
     }),
-    [theme, themeId, themeName, mode, setTheme, setMode, toggleMode, colors, supportsLightMode, isLoading]
+    [theme, themeId, themeName, variantId, variant, mode, setTheme, setVariant, setThemeSelection, setMode, toggleMode, colors, supportsLightMode, isLoading]
   );
 
   return (

@@ -1,6 +1,7 @@
 import type {
   ThemeCategory,
   ThemeDefinition,
+  ThemeVariantDefinition,
   ThemeManifest,
   ThemeColors,
   GroupedThemes,
@@ -627,7 +628,7 @@ export function getThemeManifestFromCache(): ThemeManifest | null {
 // Fetch a single theme by name from /public/themes/
 export async function fetchTheme(themeName: string): Promise<ThemeDefinition | null> {
   const key = themeName.toLowerCase();
-  
+
   // Return from cache if available
   if (themeCache[key]) {
     return themeCache[key];
@@ -636,18 +637,45 @@ export async function fetchTheme(themeName: string): Promise<ThemeDefinition | n
   try {
     const res = await fetch(`/themes/${key}.json`);
     if (!res.ok) return null;
-    
+
     const data = await res.json();
-    
-    // Parse the new theme format
+
+    let variants: ThemeVariantDefinition[];
+    let defaultVariantId: string;
+
+    if (data.variants) {
+      defaultVariantId = data.defaultVariant || "default";
+      variants = Object.entries(data.variants).map(([id, v]: [string, unknown]) => {
+        const variant = v as { label?: string; dark: ThemeColors; light?: ThemeColors | null };
+        return {
+          id,
+          label: variant.label || formatThemeName(id),
+          dark: variant.dark,
+          light: variant.light || null,
+        };
+      });
+    } else {
+      defaultVariantId = "default";
+      variants = [{
+        id: "default",
+        label: "Default",
+        dark: data.dark,
+        light: data.light || null,
+      }];
+    }
+
+    const defaultVariant = variants.find(v => v.id === defaultVariantId) || variants[0];
+
     const theme: ThemeDefinition = {
       id: key,
       name: formatThemeName(key),
       category: data.category || "default",
-      dark: data.dark,
-      light: data.light || null,
+      dark: defaultVariant.dark,
+      light: defaultVariant.light,
+      defaultVariantId,
+      variants,
     };
-    
+
     // Cache the loaded theme
     themeCache[key] = theme;
     return theme;
@@ -772,71 +800,80 @@ export function getThemeFromCache(themeName: string): ThemeDefinition | null {
 
 // Default theme definition (TypeSetGo)
 export function getDefaultTheme(): ThemeDefinition {
+  const darkColors: ThemeColors = {
+    bg: {
+      base: "#323437",
+      surface: "#2c2e31",
+      elevated: "#37383b",
+      overlay: "rgba(0, 0, 0, 0.5)",
+    },
+    text: {
+      primary: "#d1d5db",
+      secondary: "#4b5563",
+      muted: "rgba(75, 85, 99, 0.6)",
+      inverse: "#ffffff",
+    },
+    interactive: {
+      primary: {
+        DEFAULT: "#3cb5ee",
+        muted: "rgba(60, 181, 238, 0.3)",
+        subtle: "rgba(60, 181, 238, 0.1)",
+      },
+      secondary: {
+        DEFAULT: "#0097b2",
+        muted: "rgba(0, 151, 178, 0.3)",
+        subtle: "rgba(0, 151, 178, 0.1)",
+      },
+      accent: {
+        DEFAULT: "#a855f7",
+        muted: "rgba(168, 85, 247, 0.3)",
+        subtle: "rgba(168, 85, 247, 0.1)",
+      },
+    },
+    status: {
+      success: {
+        DEFAULT: "#22c55e",
+        muted: "rgba(34, 197, 94, 0.3)",
+        subtle: "rgba(34, 197, 94, 0.1)",
+      },
+      error: {
+        DEFAULT: "#ef4444",
+        muted: "rgba(239, 68, 68, 0.3)",
+        subtle: "rgba(239, 68, 68, 0.1)",
+      },
+      warning: {
+        DEFAULT: "#f59e0b",
+        muted: "rgba(245, 158, 11, 0.3)",
+        subtle: "rgba(245, 158, 11, 0.1)",
+      },
+    },
+    border: {
+      default: "rgba(75, 85, 99, 0.3)",
+      subtle: "rgba(75, 85, 99, 0.15)",
+      focus: "#3cb5ee",
+    },
+    typing: {
+      cursor: "#3cb5ee",
+      cursorGhost: "#a855f7",
+      correct: "#d1d5db",
+      incorrect: "#ef4444",
+      upcoming: "#4b5563",
+      default: "#4b5563",
+    },
+  };
+
   return {
     id: "typesetgo",
     name: "TypeSetGo",
     category: "default",
-    dark: {
-      bg: {
-        base: "#323437",
-        surface: "#2c2e31",
-        elevated: "#37383b",
-        overlay: "rgba(0, 0, 0, 0.5)",
-      },
-      text: {
-        primary: "#d1d5db",
-        secondary: "#4b5563",
-        muted: "rgba(75, 85, 99, 0.6)",
-        inverse: "#ffffff",
-      },
-      interactive: {
-        primary: {
-          DEFAULT: "#3cb5ee",
-          muted: "rgba(60, 181, 238, 0.3)",
-          subtle: "rgba(60, 181, 238, 0.1)",
-        },
-        secondary: {
-          DEFAULT: "#0097b2",
-          muted: "rgba(0, 151, 178, 0.3)",
-          subtle: "rgba(0, 151, 178, 0.1)",
-        },
-        accent: {
-          DEFAULT: "#a855f7",
-          muted: "rgba(168, 85, 247, 0.3)",
-          subtle: "rgba(168, 85, 247, 0.1)",
-        },
-      },
-      status: {
-        success: {
-          DEFAULT: "#22c55e",
-          muted: "rgba(34, 197, 94, 0.3)",
-          subtle: "rgba(34, 197, 94, 0.1)",
-        },
-        error: {
-          DEFAULT: "#ef4444",
-          muted: "rgba(239, 68, 68, 0.3)",
-          subtle: "rgba(239, 68, 68, 0.1)",
-        },
-        warning: {
-          DEFAULT: "#f59e0b",
-          muted: "rgba(245, 158, 11, 0.3)",
-          subtle: "rgba(245, 158, 11, 0.1)",
-        },
-      },
-      border: {
-        default: "rgba(75, 85, 99, 0.3)",
-        subtle: "rgba(75, 85, 99, 0.15)",
-        focus: "#3cb5ee",
-      },
-      typing: {
-        cursor: "#3cb5ee",
-        cursorGhost: "#a855f7",
-        correct: "#d1d5db",
-        incorrect: "#ef4444",
-        upcoming: "#4b5563",
-        default: "#4b5563",
-      },
-    },
+    dark: darkColors,
     light: null,
+    defaultVariantId: "default",
+    variants: [{
+      id: "default",
+      label: "Default",
+      dark: darkColors,
+      light: null,
+    }],
   };
 }

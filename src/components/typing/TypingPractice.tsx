@@ -470,8 +470,11 @@ export default function TypingPractice({
   const {
     colors,
     themeName: selectedThemeName,
+    themeId: selectedThemeId,
+    variantId: selectedVariantId,
+    mode: selectedMode,
     setTheme: setThemeById,
-    setMode,
+    setThemeSelection,
   } = useTheme();
   // --- State ---
   const [settings, setSettings] = useState<SettingsState>({
@@ -513,24 +516,30 @@ export default function TypingPractice({
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTabId>("all");
   // Font option is now stored in settings.typingFontFamily
   const [isCustomThemeOpen, setIsCustomThemeOpen] = useState(false);
-  const [availableThemes, setAvailableThemes] = useState<ThemeDefinition[]>([]);
+  const [, setAvailableThemes] = useState<ThemeDefinition[]>([]);
   const [groupedThemes, setGroupedThemes] = useState<GroupedThemes[]>([]);
-  const [previewThemeDef, setPreviewThemeDef] = useState<(ThemeDefinition & { previewMode?: ThemeMode }) | null>(null);
-  
-  // Helper to set preview theme with optional mode
-  const setPreviewTheme = useCallback((theme: ThemeDefinition | null, mode?: ThemeMode) => {
+  const [expandedThemeId, setExpandedThemeId] = useState<string | null>(null);
+  const [previewThemeDef, setPreviewThemeDef] = useState<(ThemeDefinition & { previewMode?: ThemeMode; previewVariantId?: string }) | null>(null);
+
+  // Helper to set preview theme with optional mode and variant
+  const setPreviewTheme = useCallback((theme: ThemeDefinition | null, mode?: ThemeMode, variantId?: string) => {
     if (!theme) {
       setPreviewThemeDef(null);
     } else {
-      setPreviewThemeDef({ ...theme, previewMode: mode });
+      setPreviewThemeDef({ ...theme, previewMode: mode, previewVariantId: variantId });
     }
   }, []);
-  
+
   // Resolve preview colors for the theme preview panel
   const resolvedPreviewColors: ThemeColors = previewThemeDef
-    ? (previewThemeDef.previewMode === "light" && previewThemeDef.light
-        ? previewThemeDef.light
-        : previewThemeDef.dark)
+    ? (() => {
+        const variant = previewThemeDef.variants.find(
+          v => v.id === (previewThemeDef.previewVariantId || previewThemeDef.defaultVariantId)
+        ) || previewThemeDef.variants[0];
+        return previewThemeDef.previewMode === "light" && variant.light
+          ? variant.light
+          : variant.dark;
+      })()
     : colors;
 
   const planTheme: Theme = useMemo(() => ({
@@ -578,7 +587,11 @@ export default function TypingPractice({
           return group.themes.filter((themeData) => {
             const nameMatch = themeData.name.toLowerCase().includes(normalizedThemeSearchQuery);
             const idMatch = themeData.id.toLowerCase().includes(normalizedThemeSearchQuery);
-            return nameMatch || idMatch;
+            const variantMatch = themeData.variants.some(v =>
+              v.id.toLowerCase().includes(normalizedThemeSearchQuery) ||
+              v.label.toLowerCase().includes(normalizedThemeSearchQuery)
+            );
+            return nameMatch || idMatch || variantMatch;
           });
         })(),
       }))
@@ -831,8 +844,20 @@ export default function TypingPractice({
       (async () => {
         try {
           // Apply theme from DB using the context
-          if (dbPreferences.themeName && !dbPreferences.customTheme) {
-            // Named theme: set via context (which handles loading and CSS variables)
+          const dbThemeId = (dbPreferences as Record<string, unknown>).themeId as string | undefined;
+          const dbVariantId = (dbPreferences as Record<string, unknown>).themeVariantId as string | undefined;
+          const dbThemeMode = (dbPreferences as Record<string, unknown>).themeMode as string | undefined;
+          if (dbThemeId) {
+            try {
+              await setThemeSelection({
+                themeId: dbThemeId,
+                variantId: dbVariantId || undefined,
+                mode: (dbThemeMode as "light" | "dark") || undefined,
+              });
+            } catch (error) {
+              console.warn("Failed to apply theme from DB preferences:", error);
+            }
+          } else if (dbPreferences.themeName && !dbPreferences.customTheme) {
             try {
               await setThemeById(dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-"));
             } catch (error) {
@@ -910,7 +935,10 @@ export default function TypingPractice({
         await savePreferencesMutation({
           clerkId: user.id,
           preferences: {
-            themeName: selectedThemeName,
+            themeId: selectedThemeId,
+            themeVariantId: selectedVariantId,
+            themeMode: selectedMode,
+            themeName: undefined,
             customTheme: undefined,
             soundEnabled: settings.soundEnabled,
             typingSound: settings.typingSound,
@@ -971,7 +999,9 @@ export default function TypingPractice({
     settings.textAlign,
     linePreview,
     maxWordsPerLine,
-    selectedThemeName,
+    selectedThemeId,
+    selectedVariantId,
+    selectedMode,
     getOrCreateUser,
     savePreferencesMutation,
   ]);
@@ -1731,24 +1761,8 @@ export default function TypingPractice({
     }
   };
 
-  const handleThemeSelect = async (themeName: string, mode?: ThemeMode) => {
-    // Find the theme to get its ID
-    const themeData = availableThemes.find(
-      (t) => t.name.toLowerCase() === themeName.toLowerCase()
-    );
-    if (themeData) {
-      // Use the theme ID (lowercase, hyphenated) for the context
-      await setThemeById(themeData.id);
-      // If a specific mode was requested and the theme supports it, set the mode
-      if (mode) {
-        // Only set light mode if the theme has a light variant
-        if (mode === "light" && themeData.light) {
-          setMode("light");
-        } else if (mode === "dark") {
-          setMode("dark");
-        }
-      }
-    }
+  const handleThemeSelect = async (themeId: string, variantId?: string, mode?: ThemeMode) => {
+    await setThemeSelection({ themeId, variantId, mode });
   };
 
   // --- Plan Mode Handlers ---
@@ -2987,12 +3001,22 @@ export default function TypingPractice({
             >
               {/* Mini Header - Absolute positioned at top */}
               <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 z-10">
-                {/* Theme name */}
-                <div
-                  className="text-lg font-semibold"
-                  style={{ color: resolvedPreviewColors.interactive.secondary.DEFAULT }}
-                >
-                  {previewThemeDef?.name ?? selectedThemeName}
+                {/* Theme name + variant label */}
+                <div className="min-w-0">
+                  <div
+                    className="text-lg font-semibold truncate"
+                    style={{ color: resolvedPreviewColors.interactive.secondary.DEFAULT }}
+                  >
+                    {previewThemeDef?.name ?? selectedThemeName}
+                  </div>
+                  {previewThemeDef && previewThemeDef.variants.length > 1 && previewThemeDef.previewVariantId && (
+                    <div
+                      className="text-xs truncate"
+                      style={{ color: resolvedPreviewColors.text.secondary }}
+                    >
+                      {previewThemeDef.variants.find(v => v.id === previewThemeDef.previewVariantId)?.label}
+                    </div>
+                  )}
                 </div>
                 {/* Header icons */}
                 <div className="flex items-center gap-3">
@@ -3264,70 +3288,184 @@ export default function TypingPractice({
                             }`}
                           >
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                              {group.themes.map((themeData) => (
-                                <div
-                                  key={themeData.name}
-                                  className={`flex rounded-lg border transition overflow-hidden min-h-[64px] ${
-                                    selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
-                                      ? "border-gray-400 ring-1 ring-gray-400"
-                                      : "border-gray-700 hover:border-gray-500"
-                                  }`}
-                                  style={{ backgroundColor: themeData.dark.bg.base }}
-                                >
-                                  {/* Left column - theme info */}
-                                  <button
-                                    onClick={() => handleThemeSelect(themeData.name)}
-                                    onMouseEnter={() => setPreviewTheme(themeData)}
-                                    onMouseLeave={() => setPreviewTheme(null)}
-                                    className="flex-1 min-w-0 p-2 text-left"
+                              {group.themes.map((themeData) => {
+                                const isMultiVariant = themeData.variants.length > 1;
+                                const isThemeExpanded = expandedThemeId === themeData.id;
+                                const isSelected = selectedThemeId === themeData.id;
+                                const defaultVariant = themeData.variants.find(v => v.id === themeData.defaultVariantId) || themeData.variants[0];
+                                const matchingVariants = normalizedThemeSearchQuery
+                                  ? themeData.variants.filter(v =>
+                                      v.id.toLowerCase().includes(normalizedThemeSearchQuery) ||
+                                      v.label.toLowerCase().includes(normalizedThemeSearchQuery)
+                                    )
+                                  : themeData.variants;
+                                const displayedVariants = isThemeExpanded
+                                  ? (normalizedThemeSearchQuery && matchingVariants.length > 0 ? matchingVariants : themeData.variants)
+                                  : [];
+
+                                return (
+                                  <div
+                                    key={themeData.id}
+                                    className="flex flex-col transition-opacity duration-200"
+                                    style={{
+                                      opacity: expandedThemeId && expandedThemeId !== themeData.id ? 0.5 : 1,
+                                    }}
                                   >
-                                    <div className="flex items-center gap-1.5 mb-2">
-                                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.typing.cursor }} />
-                                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.interactive.secondary.DEFAULT }} />
-                                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.typing.correct }} />
-                                    </div>
-                                    <div className="text-xs whitespace-normal break-words leading-tight" style={{ color: themeData.dark.typing.correct }}>
-                                      {themeData.name}
-                                    </div>
-                                  </button>
-                                  
-                                  {/* Right column - mode toggles (fixed width) */}
-                                  <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${themeData.dark.typing.correct}30` }}>
-                                    {/* Light mode button */}
-                                    <button
-                                      onClick={(e) => { 
-                                        e.stopPropagation(); 
-                                        if (themeData.light) handleThemeSelect(themeData.name, "light"); 
-                                      }}
-                                      onMouseEnter={() => themeData.light && setPreviewTheme(themeData, "light")}
-                                      onMouseLeave={() => setPreviewTheme(null)}
-                                      disabled={!themeData.light}
-                                      className={`flex-1 flex items-center justify-center transition-colors ${
-                                        !themeData.light 
-                                          ? "opacity-30 cursor-not-allowed" 
-                                          : "hover:bg-white/10 cursor-pointer"
+                                    {/* Collapsed card */}
+                                    <div
+                                      className={`flex rounded-lg border transition overflow-hidden min-h-[64px] ${
+                                        isSelected
+                                          ? "border-gray-400 ring-1 ring-gray-400"
+                                          : "border-gray-700 hover:border-gray-500"
                                       }`}
-                                      title={themeData.light ? "Light mode" : "Light mode not available"}
+                                      style={{ backgroundColor: defaultVariant.dark.bg.base }}
                                     >
-                                      <Sun className="w-3 h-3" style={{ color: themeData.dark.typing.correct }} />
-                                    </button>
-                                    
-                                    {/* Dark mode button */}
-                                    <button
-                                      onClick={(e) => { 
-                                        e.stopPropagation(); 
-                                        handleThemeSelect(themeData.name, "dark"); 
-                                      }}
-                                      onMouseEnter={() => setPreviewTheme(themeData, "dark")}
-                                      onMouseLeave={() => setPreviewTheme(null)}
-                                      className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
-                                      title="Dark mode"
-                                    >
-                                      <Moon className="w-3 h-3" style={{ color: themeData.dark.typing.correct }} />
-                                    </button>
+                                      {/* Left column - theme info */}
+                                      <button
+                                        onClick={() => {
+                                          if (isMultiVariant) {
+                                            setExpandedThemeId(isThemeExpanded ? null : themeData.id);
+                                          } else {
+                                            handleThemeSelect(themeData.id);
+                                          }
+                                        }}
+                                        onMouseEnter={() => setPreviewTheme(themeData)}
+                                        onMouseLeave={() => setPreviewTheme(null)}
+                                        className="flex-1 min-w-0 p-2 text-left"
+                                      >
+                                        <div className="flex items-center gap-1.5 mb-2">
+                                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: defaultVariant.dark.typing.cursor }} />
+                                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: defaultVariant.dark.interactive.secondary.DEFAULT }} />
+                                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: defaultVariant.dark.typing.correct }} />
+                                        </div>
+                                        <div className="text-xs whitespace-normal break-words leading-tight" style={{ color: defaultVariant.dark.typing.correct }}>
+                                          {themeData.name}
+                                        </div>
+                                      </button>
+
+                                      {/* Right column */}
+                                      {!isMultiVariant ? (
+                                        <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${defaultVariant.dark.typing.correct}30` }}>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (defaultVariant.light) handleThemeSelect(themeData.id, defaultVariant.id, "light");
+                                            }}
+                                            onMouseEnter={() => defaultVariant.light && setPreviewTheme(themeData, "light", defaultVariant.id)}
+                                            onMouseLeave={() => setPreviewTheme(null)}
+                                            disabled={!defaultVariant.light}
+                                            className={`flex-1 flex items-center justify-center transition-colors ${
+                                              !defaultVariant.light
+                                                ? "opacity-30 cursor-not-allowed"
+                                                : "hover:bg-white/10 cursor-pointer"
+                                            }`}
+                                            title={defaultVariant.light ? "Light mode" : "Light mode not available"}
+                                          >
+                                            <Sun className="w-3 h-3" style={{ color: defaultVariant.dark.typing.correct }} />
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleThemeSelect(themeData.id, defaultVariant.id, "dark");
+                                            }}
+                                            onMouseEnter={() => setPreviewTheme(themeData, "dark", defaultVariant.id)}
+                                            onMouseLeave={() => setPreviewTheme(null)}
+                                            className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
+                                            title="Dark mode"
+                                          >
+                                            <Moon className="w-3 h-3" style={{ color: defaultVariant.dark.typing.correct }} />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div
+                                          className="w-10 shrink-0 flex items-center justify-center border-l cursor-pointer hover:bg-white/5 transition-colors"
+                                          style={{ borderColor: `${defaultVariant.dark.typing.correct}30` }}
+                                          onClick={() => setExpandedThemeId(isThemeExpanded ? null : themeData.id)}
+                                        >
+                                          <span
+                                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                            style={{
+                                              backgroundColor: defaultVariant.dark.interactive.primary.subtle,
+                                              color: defaultVariant.dark.interactive.primary.DEFAULT,
+                                            }}
+                                          >
+                                            {normalizedThemeSearchQuery && matchingVariants.length > 0 && matchingVariants.length < themeData.variants.length
+                                              ? matchingVariants.length
+                                              : themeData.variants.length}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Expanded variant rows */}
+                                    {isMultiVariant && isThemeExpanded && (
+                                      <div className="mt-1 ml-2 space-y-1">
+                                        {displayedVariants.map((variant) => {
+                                          const isVariantSelected = isSelected && selectedVariantId === variant.id;
+                                          return (
+                                            <div
+                                              key={variant.id}
+                                              className={`flex rounded-md border overflow-hidden transition ${
+                                                isVariantSelected
+                                                  ? "border-gray-400 ring-1 ring-gray-400"
+                                                  : "border-gray-700 hover:border-gray-500"
+                                              }`}
+                                              style={{ backgroundColor: variant.dark.bg.base }}
+                                            >
+                                              <button
+                                                onClick={() => handleThemeSelect(themeData.id, variant.id)}
+                                                onMouseEnter={() => setPreviewTheme(themeData, undefined, variant.id)}
+                                                onMouseLeave={() => setPreviewTheme(null)}
+                                                className="flex-1 min-w-0 p-1.5 text-left"
+                                              >
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: variant.dark.typing.cursor }} />
+                                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: variant.dark.interactive.secondary.DEFAULT }} />
+                                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: variant.dark.typing.correct }} />
+                                                  <span className="text-xs ml-1 truncate" style={{ color: variant.dark.typing.correct }}>
+                                                    {variant.label}
+                                                  </span>
+                                                </div>
+                                              </button>
+                                              <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${variant.dark.typing.correct}30` }}>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (variant.light) handleThemeSelect(themeData.id, variant.id, "light");
+                                                  }}
+                                                  onMouseEnter={() => variant.light && setPreviewTheme(themeData, "light", variant.id)}
+                                                  onMouseLeave={() => setPreviewTheme(null)}
+                                                  disabled={!variant.light}
+                                                  className={`flex-1 flex items-center justify-center transition-colors ${
+                                                    !variant.light
+                                                      ? "opacity-30 cursor-not-allowed"
+                                                      : "hover:bg-white/10 cursor-pointer"
+                                                  }`}
+                                                  title={variant.light ? "Light mode" : "Light mode not available"}
+                                                >
+                                                  <Sun className="w-3 h-3" style={{ color: variant.dark.typing.correct }} />
+                                                </button>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleThemeSelect(themeData.id, variant.id, "dark");
+                                                  }}
+                                                  onMouseEnter={() => setPreviewTheme(themeData, "dark", variant.id)}
+                                                  onMouseLeave={() => setPreviewTheme(null)}
+                                                  className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
+                                                  title="Dark mode"
+                                                >
+                                                  <Moon className="w-3 h-3" style={{ color: variant.dark.typing.correct }} />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         </div>

@@ -1,125 +1,131 @@
 {
   "category": "tv-shows",
-  "dark": {
-    "bg": {
-      "base": "#12100a",
-      "surface": "#1a1810",
-      "elevated": "#242018",
-      "overlay": "rgba(0, 0, 0, 0.5)"
-    },
-    "text": {
-      "primary": "#dcd4c4",
-      "secondary": "#8a7e68",
-      "muted": "rgba(138, 126, 104, 0.6)",
-      "inverse": "#12100a"
-    },
-    "interactive": {
-      "primary": {
-        "DEFAULT": "#8a6830",
-        "muted": "rgba(138, 104, 48, 0.3)",
-        "subtle": "rgba(138, 104, 48, 0.1)"
+  "defaultVariant": "default",
+  "variants": {
+    "default": {
+      "label": "Default",
+      "dark": {
+        "bg": {
+          "base": "#12100a",
+          "surface": "#1a1810",
+          "elevated": "#242018",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#dcd4c4",
+          "secondary": "#8a7e68",
+          "muted": "rgba(138, 126, 104, 0.6)",
+          "inverse": "#12100a"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#8a6830",
+            "muted": "rgba(138, 104, 48, 0.3)",
+            "subtle": "rgba(138, 104, 48, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#5a90c0",
+            "muted": "rgba(90, 144, 192, 0.3)",
+            "subtle": "rgba(90, 144, 192, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#c49040",
+            "muted": "rgba(196, 144, 64, 0.3)",
+            "subtle": "rgba(196, 144, 64, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#5a9a58",
+            "muted": "rgba(90, 154, 88, 0.3)",
+            "subtle": "rgba(90, 154, 88, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#c84838",
+            "muted": "rgba(200, 72, 56, 0.3)",
+            "subtle": "rgba(200, 72, 56, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#c49040",
+            "muted": "rgba(196, 144, 64, 0.3)",
+            "subtle": "rgba(196, 144, 64, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(138, 126, 104, 0.3)",
+          "subtle": "rgba(138, 126, 104, 0.15)",
+          "focus": "#5a90c0"
+        },
+        "typing": {
+          "cursor": "#c49040",
+          "cursorGhost": "#5a90c0",
+          "correct": "#dcd4c4",
+          "incorrect": "#c84838",
+          "upcoming": "#8a7e68",
+          "default": "#8a7e68"
+        }
       },
-      "secondary": {
-        "DEFAULT": "#5a90c0",
-        "muted": "rgba(90, 144, 192, 0.3)",
-        "subtle": "rgba(90, 144, 192, 0.1)"
-      },
-      "accent": {
-        "DEFAULT": "#c49040",
-        "muted": "rgba(196, 144, 64, 0.3)",
-        "subtle": "rgba(196, 144, 64, 0.1)"
+      "light": {
+        "bg": {
+          "base": "#f2ece0",
+          "surface": "#ffffff",
+          "elevated": "#e6ded2",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#242018",
+          "secondary": "#7a6e58",
+          "muted": "rgba(122, 110, 88, 0.6)",
+          "inverse": "#f2ece0"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#6a5020",
+            "muted": "rgba(106, 80, 32, 0.2)",
+            "subtle": "rgba(106, 80, 32, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#3a70a0",
+            "muted": "rgba(58, 112, 160, 0.2)",
+            "subtle": "rgba(58, 112, 160, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#9a7028",
+            "muted": "rgba(154, 112, 40, 0.2)",
+            "subtle": "rgba(154, 112, 40, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#3a7a38",
+            "muted": "rgba(58, 122, 56, 0.2)",
+            "subtle": "rgba(58, 122, 56, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#a83828",
+            "muted": "rgba(168, 56, 40, 0.2)",
+            "subtle": "rgba(168, 56, 40, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#9a7028",
+            "muted": "rgba(154, 112, 40, 0.2)",
+            "subtle": "rgba(154, 112, 40, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(122, 110, 88, 0.2)",
+          "subtle": "rgba(122, 110, 88, 0.1)",
+          "focus": "#3a70a0"
+        },
+        "typing": {
+          "cursor": "#6a5020",
+          "cursorGhost": "#3a70a0",
+          "correct": "#242018",
+          "incorrect": "#a83828",
+          "upcoming": "#7a6e58",
+          "default": "#7a6e58"
+        }
       }
-    },
-    "status": {
-      "success": {
-        "DEFAULT": "#5a9a58",
-        "muted": "rgba(90, 154, 88, 0.3)",
-        "subtle": "rgba(90, 154, 88, 0.1)"
-      },
-      "error": {
-        "DEFAULT": "#c84838",
-        "muted": "rgba(200, 72, 56, 0.3)",
-        "subtle": "rgba(200, 72, 56, 0.1)"
-      },
-      "warning": {
-        "DEFAULT": "#c49040",
-        "muted": "rgba(196, 144, 64, 0.3)",
-        "subtle": "rgba(196, 144, 64, 0.1)"
-      }
-    },
-    "border": {
-      "default": "rgba(138, 126, 104, 0.3)",
-      "subtle": "rgba(138, 126, 104, 0.15)",
-      "focus": "#5a90c0"
-    },
-    "typing": {
-      "cursor": "#c49040",
-      "cursorGhost": "#5a90c0",
-      "correct": "#dcd4c4",
-      "incorrect": "#c84838",
-      "upcoming": "#8a7e68",
-      "default": "#8a7e68"
-    }
-  },
-  "light": {
-    "bg": {
-      "base": "#f2ece0",
-      "surface": "#ffffff",
-      "elevated": "#e6ded2",
-      "overlay": "rgba(0, 0, 0, 0.3)"
-    },
-    "text": {
-      "primary": "#242018",
-      "secondary": "#7a6e58",
-      "muted": "rgba(122, 110, 88, 0.6)",
-      "inverse": "#f2ece0"
-    },
-    "interactive": {
-      "primary": {
-        "DEFAULT": "#6a5020",
-        "muted": "rgba(106, 80, 32, 0.2)",
-        "subtle": "rgba(106, 80, 32, 0.08)"
-      },
-      "secondary": {
-        "DEFAULT": "#3a70a0",
-        "muted": "rgba(58, 112, 160, 0.2)",
-        "subtle": "rgba(58, 112, 160, 0.08)"
-      },
-      "accent": {
-        "DEFAULT": "#9a7028",
-        "muted": "rgba(154, 112, 40, 0.2)",
-        "subtle": "rgba(154, 112, 40, 0.08)"
-      }
-    },
-    "status": {
-      "success": {
-        "DEFAULT": "#3a7a38",
-        "muted": "rgba(58, 122, 56, 0.2)",
-        "subtle": "rgba(58, 122, 56, 0.08)"
-      },
-      "error": {
-        "DEFAULT": "#a83828",
-        "muted": "rgba(168, 56, 40, 0.2)",
-        "subtle": "rgba(168, 56, 40, 0.08)"
-      },
-      "warning": {
-        "DEFAULT": "#9a7028",
-        "muted": "rgba(154, 112, 40, 0.2)",
-        "subtle": "rgba(154, 112, 40, 0.08)"
-      }
-    },
-    "border": {
-      "default": "rgba(122, 110, 88, 0.2)",
-      "subtle": "rgba(122, 110, 88, 0.1)",
-      "focus": "#3a70a0"
-    },
-    "typing": {
-      "cursor": "#6a5020",
-      "cursorGhost": "#3a70a0",
-      "correct": "#242018",
-      "incorrect": "#a83828",
-      "upcoming": "#7a6e58",
-      "default": "#7a6e58"
     }
   }
 }
