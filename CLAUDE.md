@@ -60,7 +60,7 @@ bun run convex:deploy   # Deploy Convex functions
 
 ## For Detailed Context
 
-See **AGENTS.md** for comprehensive documentation including:
+See **docs/AGENTS.md** for comprehensive documentation including:
 - Full provider stack and bootstrap order
 - Convex schema tables and patterns
 - Testing methodology details

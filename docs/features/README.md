@@ -1,28 +1,19 @@
-# TypeSetGo Documentation
+# Feature Documentation
 
-Welcome to the TypeSetGo technical documentation. This folder contains detailed guides on the project's core features, architecture, and content management systems.
+Technical documentation for TypeSetGo's core features.
 
-## Feature Guides
+## Guides
 
-### [Core Typing Engine](./features/Core_Typing_Engine.md)
-The heart of the application. This document explains how the typing test works, including:
--   **Modes**: Time, Words, Quote, Zen, Preset.
--   **Statistics**: How WPM and Accuracy are calculated.
--   **Configuration**: Settings for difficulty, duration, and visual themes.
--   **Architecture**: How the `TypingPractice` component handles input and state.
+- **[Core Typing Engine](./Core_Typing_Engine.md)** — Modes, statistics calculation, input handling, and architecture
+- **[Content Management](./Content_Management.md)** — Word lists, quotes, JSON structure, and adding new content
 
-### [Connect (Multiplayer)](./features/Connect_Multiplayer.md)
-Documentation for the real-time multiplayer feature.
--   **Architecture**: Client-Server model using Socket.IO.
--   **Host & Join**: How rooms are created, managed, and synchronized.
--   **Events**: The protocol used for real-time communication.
--   **Reconnection**: Handling disconnects and session persistence.
+## Planned
 
-### [Content Management](./features/Content_Management.md)
-How to manage the text content used in typing tests.
--   **Word Lists**: JSON structure for random word generation.
--   **Quotes**: Database of quotes filtered by length.
--   **Adding Content**: Instructions for contributors to add new words or quotes.
+The following features are implemented but not yet documented:
 
-## Product Requirements (PRDs)
-For the vision and requirements of upcoming features, check the [PRDs](../PRDs/) directory.
+- Theme system (1300+ themes, light/dark variants, categories, live preview)
+- Sound packs (typing sounds, configuration, adding new packs)
+- Ghost Writer (target WPM ghost cursor)
+- User accounts, stats, streaks, and achievements
+- Settings and preferences
+- Keyboard shortcuts
