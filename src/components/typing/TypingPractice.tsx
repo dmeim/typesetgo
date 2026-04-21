@@ -1558,7 +1558,7 @@ export default function TypingPractice({
         generateTestRef.current();
       });
     }
-  }, [settings.mode, settings.difficulty, wordPool.length]);
+  }, [settings.mode, settings.difficulty, wordPool.length, settings.punctuation, settings.numbers, settings.capitalization]);
 
   // --- Timer ---
   useEffect(() => {
@@ -3139,8 +3139,11 @@ export default function TypingPractice({
                     setThemeSearchQuery("");
                     setCollapsedCategories(getDefaultCollapsedCategories());
                   }}
-                  className="hover:opacity-80 transition-opacity"
-                  style={{ color: tv.text.muted }}
+                  className="rounded-md px-2.5 py-1.5 text-xl leading-none transition-colors"
+                  style={{ color: tv.text.secondary }}
+                  aria-label="Close theme picker"
+                  onMouseEnter={(e) => e.currentTarget.style.color = tv.text.primary}
+                  onMouseLeave={(e) => e.currentTarget.style.color = tv.text.secondary}
                 >
                   ✕
                 </button>
@@ -3248,8 +3251,8 @@ export default function TypingPractice({
                             </span>
                             {!isSearchActive && (
                               <ChevronDown
-                                className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
-                                style={{ color: tv.text.muted }}
+                                className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
+                                style={{ color: tv.text.secondary }}
                               />
                             )}
                           </button>
@@ -3579,7 +3582,7 @@ export default function TypingPractice({
           onClick={closeSettingsModal}
         >
           <div
-            className="flex max-h-[min(90vh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-xl"
+            className="flex h-[min(90vh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-xl"
             style={{
               backgroundColor: tv.bg.surface,
               borderColor: tv.border.subtle,
@@ -3600,9 +3603,11 @@ export default function TypingPractice({
               </div>
               <button
                 onClick={closeSettingsModal}
-                className="rounded-md px-2 py-1 text-lg leading-none transition-opacity hover:opacity-80"
-                style={{ color: tv.text.muted }}
+                className="rounded-md px-2.5 py-1.5 text-xl leading-none transition-colors"
+                style={{ color: tv.text.secondary }}
                 aria-label="Close settings"
+                onMouseEnter={(e) => e.currentTarget.style.color = tv.text.primary}
+                onMouseLeave={(e) => e.currentTarget.style.color = tv.text.secondary}
               >
                 ✕
               </button>
