@@ -708,10 +708,20 @@ export default function TypingPractice({
   const lastProgressRef = useRef<number>(0);
   const lastProgressTimeRef = useRef<number>(0);
 
+  // Refs to decouple hot-path closures from render-cycle state
+  const wordsRef = useRef(words);
+  const typedTextRef = useRef(typedText);
+  const elapsedMsRef = useRef(elapsedMs);
+  const isRunningRef = useRef(isRunning);
+
   // Keep ref in sync with state
   useEffect(() => {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
+  useEffect(() => { wordsRef.current = words; }, [words]);
+  useEffect(() => { typedTextRef.current = typedText; }, [typedText]);
+  useEffect(() => { elapsedMsRef.current = elapsedMs; }, [elapsedMs]);
+  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
 
   // Clerk auth hooks
   const { isSignedIn, user } = useUser();
@@ -1096,13 +1106,17 @@ export default function TypingPractice({
   const finishSession = useCallback(() => {
     if (isFinished) return;
 
+    const currentTypedText = typedTextRef.current;
+    const currentWords = wordsRef.current;
+    const currentElapsedMs = elapsedMsRef.current;
+
     // If in plan mode, prepare the result to be recorded
     if (isPlanActive && !isPlanSplash) {
       const currentItem = plan[planIndex];
       if (currentItem && !planResults[currentItem.id]) {
-        const currentWpm = (typedText.length / 5) / (elapsedMs / 60000 || 0.01);
-        const currentStats = computeStats(typedText, words);
-        const currentAccuracy = typedText.length > 0 ? (currentStats.correct / typedText.length) * 100 : 100;
+        const currentWpm = (currentTypedText.length / 5) / (currentElapsedMs / 60000 || 0.01);
+        const currentStats = computeStats(currentTypedText, currentWords);
+        const currentAccuracy = currentTypedText.length > 0 ? (currentStats.correct / currentTypedText.length) * 100 : 100;
 
         pendingPlanResultRef.current = {
           itemId: currentItem.id,
@@ -1111,7 +1125,7 @@ export default function TypingPractice({
             accuracy: currentAccuracy || 100,
             raw: Math.round(currentWpm) || 0,
             consistency: 0,
-            time: elapsedMs,
+            time: currentElapsedMs,
             date: Date.now(),
             mode: currentItem.mode,
             metadata: currentItem.metadata,
@@ -1121,8 +1135,8 @@ export default function TypingPractice({
     }
 
     // Record final progress before finishing (use ref to avoid dependency cycle)
-    if (sessionIdRef.current && typedText.length > lastProgressRef.current) {
-      recordProgressMutation({ sessionId: sessionIdRef.current, typedTextLength: typedText.length })
+    if (sessionIdRef.current && currentTypedText.length > lastProgressRef.current) {
+      recordProgressMutation({ sessionId: sessionIdRef.current, typedTextLength: currentTypedText.length })
         .catch(() => {}); // Silently ignore errors
     }
 
@@ -1139,7 +1153,10 @@ export default function TypingPractice({
       }));
       pendingPlanResultRef.current = null;
     }
-  }, [isFinished, isPlanActive, isPlanSplash, plan, planIndex, planResults, typedText, words, elapsedMs, recordProgressMutation]);
+  }, [isFinished, isPlanActive, isPlanSplash, plan, planIndex, planResults, recordProgressMutation]);
+
+  const finishSessionRef = useRef(finishSession);
+  useEffect(() => { finishSessionRef.current = finishSession; }, [finishSession]);
 
   const playClickSound = useCallback(() => {
     if (!settings.soundEnabled || !settings.typingSound || !soundManifest) return;
@@ -1557,14 +1574,19 @@ export default function TypingPractice({
     }
   }, [disableKidMode, enableKidMode, generateTest, isKidMode, settings.mode, updateSettings]);
 
-  // Generate test on mode/difficulty change
+  // Keep generateTest ref fresh without triggering the effect below
+  const generateTestRef = useRef(generateTest);
+  useEffect(() => { generateTestRef.current = generateTest; }, [generateTest]);
+
+  // Generate test on mode/difficulty change (NOT on generateTest identity change)
   useEffect(() => {
+    if (isRunningRef.current) return;
     if (wordPool.length > 0 || settings.mode === "quote" || settings.mode === "preset") {
       requestAnimationFrame(() => {
-        generateTest();
+        generateTestRef.current();
       });
     }
-  }, [settings.mode, settings.difficulty, wordPool.length, generateTest]);
+  }, [settings.mode, settings.difficulty, wordPool.length]);
 
   // --- Timer ---
   useEffect(() => {
@@ -1576,7 +1598,7 @@ export default function TypingPractice({
       setElapsedMs(elapsed);
 
       if (settings.mode === "time" && elapsed >= settings.duration * 1000) {
-        finishSession();
+        finishSessionRef.current();
       }
 
       if (
@@ -1591,7 +1613,7 @@ export default function TypingPractice({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [isRunning, startTime, settings.mode, settings.duration, finishSession, playWarningSound, isWarningPlayed]);
+  }, [isRunning, startTime, settings.mode, settings.duration, playWarningSound, isWarningPlayed]);
 
   // --- Ghost Writer ---
   useEffect(() => {
@@ -1648,37 +1670,42 @@ export default function TypingPractice({
     if (isFinished) return;
     if (connectMode && !isTestActive) return;
 
+    // Collapse consecutive spaces to prevent word-index misalignment
+    const sanitized = value.replace(/  +/g, " ");
+
     if (!isRunning) {
       setIsRunning(true);
       setStartTime(Date.now());
     }
 
-    setTypedText(value);
+    setTypedText(sanitized);
     playClickSound();
 
     if (settings.mode === "quote" || settings.mode === "preset") {
-      if (value.length === words.length) {
+      if (sanitized.length === words.length) {
         finishSession();
       }
       return;
     }
 
     if (settings.mode === "time" || settings.mode === "zen") {
-      const currentWords = value.trim().split(/\s+/).length;
-      const totalWords = words.split(" ").length;
-      if (totalWords - currentWords < 50) {
+      const currentWordCount = sanitized.trim().split(/\s+/).length;
+      const totalWords = wordsRef.current.split(" ").length;
+      if (totalWords - currentWordCount < 50) {
         const newWords = generateWords(50, wordPool, {
           punctuation: settings.punctuation,
           numbers: settings.numbers,
           capitalization: settings.capitalization,
         });
-        setWords((prev) => prev + " " + newWords);
+        if (newWords) {
+          setWords((prev) => prev + " " + newWords);
+        }
       }
     }
 
     if (settings.mode === "words" && settings.wordTarget > 0) {
-      const typedWords = value.trim().split(/\s+/).length;
-      if (value.endsWith(" ") && typedWords >= settings.wordTarget) {
+      const typedWordCount = sanitized.trim().split(/\s+/).length;
+      if (sanitized.endsWith(" ") && typedWordCount >= settings.wordTarget) {
         finishSession();
       }
     }
