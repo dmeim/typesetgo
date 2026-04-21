@@ -2,7 +2,7 @@
 // Player card component for the race lobby
 import { useState } from "react";
 import EmojiPicker from "./EmojiPicker";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import { Crown, Check, Loader2 } from "lucide-react";
 
 interface PlayerCardProps {
@@ -16,7 +16,6 @@ interface PlayerCardProps {
   onReadyToggle?: () => void;
   onEmojiChange?: (emoji: string) => void;
   onNameChange?: (name: string) => void;
-  theme: LegacyTheme;
 }
 
 export default function PlayerCard({
@@ -30,7 +29,6 @@ export default function PlayerCard({
   onReadyToggle,
   onEmojiChange,
   onNameChange,
-  theme,
 }: PlayerCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
@@ -46,18 +44,18 @@ export default function PlayerCard({
     <div
       className="relative rounded-xl p-4 flex flex-col items-center gap-3 transition-all duration-300"
       style={{
-        backgroundColor: theme.surfaceColor,
-        border: `2px solid ${isReady ? theme.statusSuccess : theme.borderDefault}`,
-        boxShadow: isReady ? `0 0 20px ${theme.statusSuccessMuted}` : "none",
+        backgroundColor: tv.bg.surface,
+        border: `2px solid ${isReady ? tv.status.success.DEFAULT : tv.border.default}`,
+        boxShadow: isReady ? `0 0 20px ${tv.status.success.muted}` : "none",
       }}
     >
       {/* Host crown */}
       {isHost && (
         <div
           className="absolute -top-3 left-1/2 -translate-x-1/2"
-          style={{ color: theme.statusWarning }}
+          style={{ color: tv.status.warning.DEFAULT }}
         >
-          <Crown size={24} fill={theme.statusWarning} />
+          <Crown size={24} fill={tv.status.warning.DEFAULT} />
         </div>
       )}
 
@@ -65,9 +63,9 @@ export default function PlayerCard({
       {isReady && !isCountingDown && (
         <div
           className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: theme.statusSuccess }}
+          style={{ backgroundColor: tv.status.success.DEFAULT }}
         >
-          <Check size={14} color={theme.textInverse} strokeWidth={3} />
+          <Check size={14} color={tv.text.inverse} strokeWidth={3} />
         </div>
       )}
 
@@ -76,13 +74,12 @@ export default function PlayerCard({
         <EmojiPicker
           selectedEmoji={emoji}
           onSelect={onEmojiChange}
-          theme={theme}
           disabled={isReady || isCountingDown}
         />
       ) : (
         <div
           className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
-          style={{ backgroundColor: theme.elevatedColor }}
+          style={{ backgroundColor: tv.bg.elevated }}
         >
           {emoji}
         </div>
@@ -99,9 +96,9 @@ export default function PlayerCard({
             onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
             className="w-full text-center font-bold text-base rounded px-2 py-1 focus:outline-none"
             style={{
-              backgroundColor: theme.elevatedColor,
-              color: theme.textPrimary,
-              border: `1px solid ${theme.accentColor}`,
+              backgroundColor: tv.bg.elevated,
+              color: tv.text.primary,
+              border: `1px solid ${tv.interactive.accent.DEFAULT}`,
             }}
             maxLength={15}
             autoFocus
@@ -110,7 +107,7 @@ export default function PlayerCard({
           <button
             onClick={() => setIsEditingName(true)}
             className="font-bold text-base hover:opacity-80 transition-opacity"
-            style={{ color: theme.textPrimary }}
+            style={{ color: tv.text.primary }}
             title="Click to edit name"
           >
             {name}
@@ -119,7 +116,7 @@ export default function PlayerCard({
       ) : (
         <p
           className="font-bold text-base"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           {name}
         </p>
@@ -132,8 +129,8 @@ export default function PlayerCard({
             <div
               className="w-full py-2.5 rounded-lg text-center font-black text-3xl animate-pulse"
               style={{
-                backgroundColor: theme.accentMuted,
-                color: theme.accentColor,
+                backgroundColor: tv.interactive.accent.muted,
+                color: tv.interactive.accent.DEFAULT,
               }}
             >
               {countdownValue}
@@ -142,9 +139,9 @@ export default function PlayerCard({
               onClick={onReadyToggle}
               className="w-full py-2 rounded-lg font-medium text-sm transition-all duration-200"
               style={{
-                backgroundColor: theme.statusErrorMuted,
-                color: theme.statusError,
-                border: `1px solid ${theme.statusError}`,
+                backgroundColor: tv.status.error.muted,
+                color: tv.status.error.DEFAULT,
+                border: `1px solid ${tv.status.error.DEFAULT}`,
               }}
             >
               Cancel Ready
@@ -155,9 +152,9 @@ export default function PlayerCard({
             onClick={onReadyToggle}
             className="w-full py-2.5 rounded-lg font-bold transition-all duration-200 flex items-center justify-center gap-2"
             style={{
-              backgroundColor: isReady ? theme.statusSuccessMuted : theme.accentColor,
-              color: isReady ? theme.statusSuccess : theme.textInverse,
-              border: `2px solid ${isReady ? theme.statusSuccess : "transparent"}`,
+              backgroundColor: isReady ? tv.status.success.muted : tv.interactive.accent.DEFAULT,
+              color: isReady ? tv.status.success.DEFAULT : tv.text.inverse,
+              border: `2px solid ${isReady ? tv.status.success.DEFAULT : "transparent"}`,
             }}
           >
             {isReady ? (
@@ -177,12 +174,12 @@ export default function PlayerCard({
         <div
           className="w-full py-2 rounded-lg text-center font-medium text-sm"
           style={{
-            backgroundColor: isReady ? theme.statusSuccessMuted : theme.elevatedColor,
-            color: isReady ? theme.statusSuccess : theme.textSecondary,
+            backgroundColor: isReady ? tv.status.success.muted : tv.bg.elevated,
+            color: isReady ? tv.status.success.DEFAULT : tv.text.secondary,
           }}
         >
           {isCountingDown && countdownValue !== undefined ? (
-            <span className="text-2xl font-black" style={{ color: theme.accentColor }}>
+            <span className="text-2xl font-black" style={{ color: tv.interactive.accent.DEFAULT }}>
               {countdownValue}
             </span>
           ) : isReady ? (

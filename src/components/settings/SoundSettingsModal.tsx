@@ -1,7 +1,8 @@
 import type { SettingsState } from "@/lib/typing-constants";
-import type { LegacyTheme } from "@/types/theme";
 import { getRandomSoundUrl } from "@/lib/sounds";
 import type { SoundManifest } from "@/lib/sounds";
+import { tv } from "@/lib/theme-vars";
+import { useTheme } from "@/hooks/useTheme";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,6 @@ interface SoundSettingsModalProps {
   settings: SettingsState;
   onUpdateSettings: (updates: Partial<SettingsState>) => void;
   soundManifest: SoundManifest | null;
-  theme: LegacyTheme;
 }
 
 export default function SoundSettingsModal({
@@ -34,8 +34,9 @@ export default function SoundSettingsModal({
   settings,
   onUpdateSettings,
   soundManifest,
-  theme,
 }: SoundSettingsModalProps) {
+  const { colors } = useTheme();
+
   const playPreview = (category: string, pack: string) => {
     const soundUrl = getRandomSoundUrl(soundManifest, category, pack);
     if (!soundUrl) return;
@@ -72,15 +73,15 @@ export default function SoundSettingsModal({
       <DialogContent
         className="max-w-md"
         style={{
-          backgroundColor: theme.surfaceColor,
-          borderColor: theme.borderSubtle,
+          backgroundColor: tv.bg.surface,
+          borderColor: tv.border.subtle,
         }}
       >
         <DialogHeader>
-          <DialogTitle style={{ color: theme.textPrimary }}>
+          <DialogTitle style={{ color: tv.text.primary }}>
             Sound Settings
           </DialogTitle>
-          <DialogDescription style={{ color: theme.textSecondary }}>
+          <DialogDescription style={{ color: tv.text.secondary }}>
             Customize the audio feedback for typing, warnings, and errors.
           </DialogDescription>
         </DialogHeader>
@@ -92,9 +93,9 @@ export default function SoundSettingsModal({
               onClick={() => onUpdateSettings({ soundEnabled: false })}
               className="group relative inline-flex items-center justify-center px-6 py-2 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{
-                backgroundColor: !settings.soundEnabled ? `${theme.buttonSelected}30` : `${theme.defaultText}20`,
-                color: !settings.soundEnabled ? theme.correctText : theme.defaultText,
-                boxShadow: !settings.soundEnabled ? `0 0 0 2px ${theme.buttonSelected}` : "none",
+                backgroundColor: !settings.soundEnabled ? `${colors.interactive.secondary.DEFAULT}30` : `${colors.typing.default}20`,
+                color: !settings.soundEnabled ? tv.typing.correct : tv.typing.default,
+                boxShadow: !settings.soundEnabled ? `0 0 0 2px ${colors.interactive.secondary.DEFAULT}` : "none",
               }}
             >
               Off
@@ -104,16 +105,16 @@ export default function SoundSettingsModal({
               onClick={() => onUpdateSettings({ soundEnabled: true })}
               className="group relative inline-flex items-center justify-center px-6 py-2 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{
-                backgroundColor: settings.soundEnabled ? `${theme.buttonSelected}30` : `${theme.defaultText}20`,
-                color: settings.soundEnabled ? theme.correctText : theme.defaultText,
-                boxShadow: settings.soundEnabled ? `0 0 0 2px ${theme.buttonSelected}` : "none",
+                backgroundColor: settings.soundEnabled ? `${colors.interactive.secondary.DEFAULT}30` : `${colors.typing.default}20`,
+                color: settings.soundEnabled ? tv.typing.correct : tv.typing.default,
+                boxShadow: settings.soundEnabled ? `0 0 0 2px ${colors.interactive.secondary.DEFAULT}` : "none",
               }}
             >
               On
               {settings.soundEnabled && (
                 <div
                   className="absolute bottom-0 left-0 h-1 w-full scale-x-100 rounded-b-lg transition-transform duration-200"
-                  style={{ backgroundColor: theme.buttonSelected }}
+                  style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
                 ></div>
               )}
             </button>
@@ -125,7 +126,7 @@ export default function SoundSettingsModal({
           >
             {/* Typing Sound */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm" style={{ color: theme.textSecondary }}>Typing Sound</label>
+              <label className="text-sm" style={{ color: tv.text.secondary }}>Typing Sound</label>
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedTypingSound}
@@ -135,21 +136,21 @@ export default function SoundSettingsModal({
                   <SelectTrigger
                     className="w-full"
                     style={{
-                      backgroundColor: `${theme.backgroundColor}80`,
-                      borderColor: theme.borderSubtle,
-                      color: theme.correctText,
+                      backgroundColor: `${colors.bg.base}80`,
+                      borderColor: tv.border.subtle,
+                      color: tv.typing.correct,
                     }}
                   >
                     <SelectValue placeholder={typingPacks.length === 0 ? "No packs found" : "Select typing sound"} />
                   </SelectTrigger>
                   <SelectContent
                     style={{
-                      backgroundColor: theme.surfaceColor,
-                      borderColor: theme.borderSubtle,
+                      backgroundColor: tv.bg.surface,
+                      borderColor: tv.border.subtle,
                     }}
                   >
                     {typingPacks.map((pack) => (
-                      <SelectItem key={pack} value={pack} style={{ color: theme.correctText }}>
+                      <SelectItem key={pack} value={pack} style={{ color: tv.typing.correct }}>
                         {pack.charAt(0).toUpperCase() + pack.slice(1)}
                       </SelectItem>
                     ))}
@@ -159,7 +160,7 @@ export default function SoundSettingsModal({
                   type="button"
                   onClick={() => selectedTypingSound && playPreview("typing", selectedTypingSound)}
                   className="p-2 rounded hover:opacity-75 transition"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                   title="Preview sound"
                   disabled={!selectedTypingSound || typingPacks.length === 0}
                 >
@@ -183,7 +184,7 @@ export default function SoundSettingsModal({
 
             {/* Warning Sound */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm" style={{ color: theme.textSecondary }}>Warning Sound</label>
+              <label className="text-sm" style={{ color: tv.text.secondary }}>Warning Sound</label>
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedWarningSound}
@@ -193,21 +194,21 @@ export default function SoundSettingsModal({
                   <SelectTrigger
                     className="w-full"
                     style={{
-                      backgroundColor: `${theme.backgroundColor}80`,
-                      borderColor: theme.borderSubtle,
-                      color: theme.correctText,
+                      backgroundColor: `${colors.bg.base}80`,
+                      borderColor: tv.border.subtle,
+                      color: tv.typing.correct,
                     }}
                   >
                     <SelectValue placeholder={warningPacks.length === 0 ? "No packs found" : "Select warning sound"} />
                   </SelectTrigger>
                   <SelectContent
                     style={{
-                      backgroundColor: theme.surfaceColor,
-                      borderColor: theme.borderSubtle,
+                      backgroundColor: tv.bg.surface,
+                      borderColor: tv.border.subtle,
                     }}
                   >
                     {warningPacks.map((pack) => (
-                      <SelectItem key={pack} value={pack} style={{ color: theme.correctText }}>
+                      <SelectItem key={pack} value={pack} style={{ color: tv.typing.correct }}>
                         {pack.charAt(0).toUpperCase() + pack.slice(1)}
                       </SelectItem>
                     ))}
@@ -217,7 +218,7 @@ export default function SoundSettingsModal({
                   type="button"
                   onClick={() => selectedWarningSound && playPreview("warning", selectedWarningSound)}
                   className="p-2 rounded hover:opacity-75 transition"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                   title="Preview sound"
                   disabled={!selectedWarningSound || warningPacks.length === 0}
                 >
@@ -241,7 +242,7 @@ export default function SoundSettingsModal({
 
             {/* Error Sound (Placeholder) */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm" style={{ color: theme.textSecondary }}>Error Sound</label>
+              <label className="text-sm" style={{ color: tv.text.secondary }}>Error Sound</label>
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedErrorSound || NONE_SOUND_VALUE}
@@ -252,24 +253,24 @@ export default function SoundSettingsModal({
                   <SelectTrigger
                     className="w-full"
                     style={{
-                      backgroundColor: `${theme.backgroundColor}80`,
-                      borderColor: theme.borderSubtle,
-                      color: theme.correctText,
+                      backgroundColor: `${colors.bg.base}80`,
+                      borderColor: tv.border.subtle,
+                      color: tv.typing.correct,
                     }}
                   >
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent
                     style={{
-                      backgroundColor: theme.surfaceColor,
-                      borderColor: theme.borderSubtle,
+                      backgroundColor: tv.bg.surface,
+                      borderColor: tv.border.subtle,
                     }}
                   >
-                    <SelectItem value={NONE_SOUND_VALUE} style={{ color: theme.correctText }}>
+                    <SelectItem value={NONE_SOUND_VALUE} style={{ color: tv.typing.correct }}>
                       None
                     </SelectItem>
                     {errorPacks.map((pack) => (
-                      <SelectItem key={pack} value={pack} style={{ color: theme.correctText }}>
+                      <SelectItem key={pack} value={pack} style={{ color: tv.typing.correct }}>
                         {pack.charAt(0).toUpperCase() + pack.slice(1)}
                       </SelectItem>
                     ))}
@@ -282,7 +283,7 @@ export default function SoundSettingsModal({
                     playPreview("error", selectedErrorSound)
                   }
                   className={`p-2 rounded hover:opacity-75 transition ${!selectedErrorSound ? "opacity-50 cursor-not-allowed" : ""}`}
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                   title="Preview sound"
                   disabled={!selectedErrorSound || errorPacks.length === 0}
                 >

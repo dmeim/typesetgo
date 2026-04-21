@@ -7,67 +7,35 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Header from "@/components/layout/Header";
 import { useTheme } from "@/hooks/useTheme";
+import { tv } from "@/lib/theme-vars";
 import { useSessionId } from "@/hooks/useSessionId";
-import type { LegacyTheme } from "@/types/theme";
 import { Flag, LogIn } from "lucide-react";
 
-// Default theme fallback
-const DEFAULT_THEME: LegacyTheme = {
-  cursor: "#3cb5ee",
-  defaultText: "#4b5563",
-  upcomingText: "#4b5563",
-  correctText: "#d1d5db",
-  incorrectText: "#ef4444",
-  ghostCursor: "#a855f7",
-  buttonUnselected: "#3cb5ee",
-  buttonSelected: "#0097b2",
-  accentColor: "#a855f7",
-  accentMuted: "rgba(168, 85, 247, 0.3)",
-  accentSubtle: "rgba(168, 85, 247, 0.1)",
-  backgroundColor: "#323437",
-  surfaceColor: "#2c2e31",
-  elevatedColor: "#37383b",
-  overlayColor: "rgba(0, 0, 0, 0.5)",
-  textPrimary: "#d1d5db",
-  textSecondary: "#4b5563",
-  textMuted: "rgba(75, 85, 99, 0.6)",
-  textInverse: "#ffffff",
-  borderDefault: "rgba(75, 85, 99, 0.3)",
-  borderSubtle: "rgba(75, 85, 99, 0.15)",
-  borderFocus: "#3cb5ee",
-  statusSuccess: "#22c55e",
-  statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-  statusError: "#ef4444",
-  statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-  statusWarning: "#f59e0b",
-  statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-};
-
 // Host Card Component
-function RaceHostCard({ theme }: { theme: LegacyTheme }) {
+function RaceHostCard() {
   const { user: clerkUser, isSignedIn } = useUser();
   const [hostName, setHostName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const navigate = useNavigate();
   const sessionId = useSessionId();
-  
+
   const createRoom = useMutation(api.rooms.create);
   const joinRoom = useMutation(api.participants.join);
-  
+
   // Use clerk username if signed in
-  const displayName = isSignedIn && clerkUser?.username 
-    ? clerkUser.username 
+  const displayName = isSignedIn && clerkUser?.username
+    ? clerkUser.username
     : hostName;
   const canHost = isSignedIn || hostName.trim().length > 0;
 
   const handleHost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canHost || isLoading) return;
-    
+
     const name = displayName.trim();
     if (!name) return;
-    
+
     setIsLoading(true);
     try {
       // Create the room with race mode
@@ -76,14 +44,14 @@ function RaceHostCard({ theme }: { theme: LegacyTheme }) {
         hostSessionId: sessionId,
         gameMode: "race",
       });
-      
+
       // Join as participant
       await joinRoom({
         roomCode: code,
         sessionId,
         name,
       });
-      
+
       // Navigate to lobby as host
       navigate(`/race/lobby/${roomId}?host=true`);
     } catch (error) {
@@ -97,20 +65,20 @@ function RaceHostCard({ theme }: { theme: LegacyTheme }) {
       className={`relative rounded-2xl p-10 flex flex-col items-center group transition-all duration-300 min-h-96 ${
         isFocused ? "justify-start pt-10" : "justify-center"
       }`}
-      style={{ 
-        backgroundColor: theme.surfaceColor,
-        border: `1px solid ${theme.borderDefault}`,
+      style={{
+        backgroundColor: tv.bg.surface,
+        border: `1px solid ${tv.border.default}`,
       }}
     >
       <div
         className="text-xs font-bold uppercase tracking-widest mb-6"
-        style={{ color: theme.textSecondary }}
+        style={{ color: tv.text.secondary }}
       >
         Create Race
       </div>
       <h2
         className="text-5xl font-black mb-8"
-        style={{ color: theme.accentColor }}
+        style={{ color: tv.interactive.accent.DEFAULT }}
       >
         HOST
       </h2>
@@ -120,11 +88,11 @@ function RaceHostCard({ theme }: { theme: LegacyTheme }) {
         className="w-full max-w-xs flex flex-col gap-4 z-10"
       >
         {isSignedIn ? (
-          <div 
+          <div
             className="text-center py-3 rounded font-medium"
-            style={{ color: theme.textPrimary }}
+            style={{ color: tv.text.primary }}
           >
-            Hosting as <span style={{ color: theme.accentColor }}>{displayName}</span>
+            Hosting as <span style={{ color: tv.interactive.accent.DEFAULT }}>{displayName}</span>
           </div>
         ) : (
           <input
@@ -133,10 +101,10 @@ function RaceHostCard({ theme }: { theme: LegacyTheme }) {
             onChange={(e) => setHostName(e.target.value)}
             placeholder="YOUR NAME"
             className="w-full px-4 py-3 rounded text-center text-lg font-bold tracking-wide focus:outline-none placeholder-gray-600"
-            style={{ 
-              backgroundColor: theme.elevatedColor,
-              color: theme.textPrimary,
-              borderColor: isFocused ? theme.accentColor : "transparent",
+            style={{
+              backgroundColor: tv.bg.elevated,
+              color: tv.text.primary,
+              borderColor: isFocused ? tv.interactive.accent.DEFAULT : "transparent",
               border: "1px solid",
             }}
             maxLength={15}
@@ -151,9 +119,9 @@ function RaceHostCard({ theme }: { theme: LegacyTheme }) {
           disabled={!canHost || isLoading}
           className="w-full px-8 py-3 font-bold rounded-lg transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           style={{
-            backgroundColor: theme.accentColor,
-            color: theme.textInverse,
-            boxShadow: `0 10px 15px -3px ${theme.accentMuted}`,
+            backgroundColor: tv.interactive.accent.DEFAULT,
+            color: tv.text.inverse,
+            boxShadow: `0 10px 15px -3px ${tv.interactive.accent.muted}`,
           }}
         >
           {isLoading ? "Creating..." : "Start Race"}
@@ -161,9 +129,9 @@ function RaceHostCard({ theme }: { theme: LegacyTheme }) {
       </form>
 
       {/* Background decoration */}
-      <div 
+      <div
         className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none"
-        style={{ color: theme.textPrimary }}
+        style={{ color: tv.text.primary }}
       >
         <Flag size={150} strokeWidth={1} />
       </div>
@@ -172,7 +140,7 @@ function RaceHostCard({ theme }: { theme: LegacyTheme }) {
 }
 
 // Join Card Component
-function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
+function RaceJoinCard() {
   const { user: clerkUser, isSignedIn } = useUser();
   const [searchParams] = useSearchParams();
   const [code, setCode] = useState(searchParams.get("code") || "");
@@ -182,46 +150,46 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
   const [isFocused, setIsFocused] = useState(false);
   const navigate = useNavigate();
   const sessionId = useSessionId();
-  
+
   const joinRoom = useMutation(api.participants.join);
-  
+
   // Use clerk username if signed in
-  const displayName = isSignedIn && clerkUser?.username 
-    ? clerkUser.username 
+  const displayName = isSignedIn && clerkUser?.username
+    ? clerkUser.username
     : joinName;
   const canJoin = code.trim().length > 0 && (isSignedIn || joinName.trim().length > 0);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canJoin || isLoading) return;
-    
+
     const name = displayName.trim();
     const roomCode = code.trim().toUpperCase();
     if (!name || !roomCode) return;
-    
+
     setIsLoading(true);
     setError("");
-    
+
     try {
       const result = await joinRoom({
         roomCode,
         sessionId,
         name,
       });
-      
+
       if (!result?.room) {
         setError("Room not found");
         setIsLoading(false);
         return;
       }
-      
+
       // Check if it's a race room
       if (result.room.gameMode !== "race") {
         setError("This is not a race room");
         setIsLoading(false);
         return;
       }
-      
+
       // Navigate to lobby
       navigate(`/race/lobby/${result.room._id}`);
     } catch (err) {
@@ -236,20 +204,20 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
       className={`relative rounded-2xl p-10 flex flex-col items-center group transition-all duration-300 min-h-96 ${
         isFocused ? "justify-start pt-10" : "justify-center"
       }`}
-      style={{ 
-        backgroundColor: theme.surfaceColor,
-        border: `1px solid ${theme.borderDefault}`,
+      style={{
+        backgroundColor: tv.bg.surface,
+        border: `1px solid ${tv.border.default}`,
       }}
     >
       <div
         className="text-xs font-bold uppercase tracking-widest mb-6"
-        style={{ color: theme.textSecondary }}
+        style={{ color: tv.text.secondary }}
       >
         Join Race
       </div>
       <h2
         className="text-5xl font-black mb-8"
-        style={{ color: theme.buttonSelected }}
+        style={{ color: tv.interactive.secondary.DEFAULT }}
       >
         JOIN
       </h2>
@@ -259,11 +227,11 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
         className="w-full max-w-xs flex flex-col gap-4 z-10"
       >
         {isSignedIn ? (
-          <div 
+          <div
             className="text-center py-3 rounded font-medium"
-            style={{ color: theme.textPrimary }}
+            style={{ color: tv.text.primary }}
           >
-            Joining as <span style={{ color: theme.accentColor }}>{displayName}</span>
+            Joining as <span style={{ color: tv.interactive.accent.DEFAULT }}>{displayName}</span>
           </div>
         ) : (
           <input
@@ -272,10 +240,10 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
             onChange={(e) => setJoinName(e.target.value)}
             placeholder="YOUR NAME"
             className="w-full px-4 py-3 rounded text-center text-lg font-bold tracking-wide focus:outline-none placeholder-gray-600"
-            style={{ 
-              backgroundColor: theme.elevatedColor,
-              color: theme.textPrimary,
-              borderColor: isFocused ? theme.accentColor : "transparent",
+            style={{
+              backgroundColor: tv.bg.elevated,
+              color: tv.text.primary,
+              borderColor: isFocused ? tv.interactive.accent.DEFAULT : "transparent",
               border: "1px solid",
             }}
             onFocus={() => {
@@ -294,10 +262,10 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
           }}
           placeholder="ENTER CODE"
           className="w-full px-4 py-3 rounded text-center text-xl font-bold tracking-widest uppercase focus:outline-none placeholder-gray-600"
-          style={{ 
-            backgroundColor: theme.elevatedColor,
-            color: theme.textPrimary,
-            borderColor: error ? theme.statusError : (isFocused ? theme.accentColor : "transparent"),
+          style={{
+            backgroundColor: tv.bg.elevated,
+            color: tv.text.primary,
+            borderColor: error ? tv.status.error.DEFAULT : (isFocused ? tv.interactive.accent.DEFAULT : "transparent"),
             border: "1px solid",
           }}
           onFocus={() => {
@@ -307,7 +275,7 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
           maxLength={6}
         />
         {error && (
-          <p className="text-sm text-center" style={{ color: theme.statusError }}>
+          <p className="text-sm text-center" style={{ color: tv.status.error.DEFAULT }}>
             {error}
           </p>
         )}
@@ -316,8 +284,8 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
           disabled={!canJoin || isLoading}
           className="w-full px-8 py-3 font-bold rounded-lg transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
-            backgroundColor: theme.elevatedColor,
-            color: theme.textPrimary,
+            backgroundColor: tv.bg.elevated,
+            color: tv.text.primary,
           }}
         >
           {isLoading ? "Joining..." : "Join Race"}
@@ -325,9 +293,9 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
       </form>
 
       {/* Background decoration */}
-      <div 
+      <div
         className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none"
-        style={{ color: theme.textPrimary }}
+        style={{ color: tv.text.primary }}
       >
         <LogIn size={150} strokeWidth={1} />
       </div>
@@ -336,13 +304,12 @@ function RaceJoinCard({ theme }: { theme: LegacyTheme }) {
 }
 
 export default function Race() {
-  const { legacyTheme } = useTheme();
-  const theme: LegacyTheme = legacyTheme ?? DEFAULT_THEME;
+  useTheme();
 
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ backgroundColor: theme.backgroundColor }}
+      style={{ backgroundColor: tv.bg.base }}
     >
       <Header />
 
@@ -352,25 +319,25 @@ export default function Race() {
           <div className="text-center mb-12">
             <h1
               className="text-4xl font-bold mb-2"
-              style={{ color: theme.accentColor }}
+              style={{ color: tv.interactive.accent.DEFAULT }}
             >
               Race Mode
             </h1>
-            <p style={{ color: theme.textSecondary }}>
+            <p style={{ color: tv.text.secondary }}>
               Challenge your friends to real-time typing races
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <RaceHostCard theme={theme} />
-            <RaceJoinCard theme={theme} />
+            <RaceHostCard />
+            <RaceJoinCard />
           </div>
 
           <div className="text-center mt-12">
             <Link
               to="/"
               className="transition text-sm hover:opacity-80"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
             >
               ← Back to Typing
             </Link>
@@ -383,21 +350,21 @@ export default function Race() {
         <Link
           to="/about"
           className="text-sm transition-colors hover:opacity-80"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           About
         </Link>
         <Link
           to="/privacy"
           className="text-sm transition-colors hover:opacity-80"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           Privacy
         </Link>
         <Link
           to="/tos"
           className="text-sm transition-colors hover:opacity-80"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           Terms
         </Link>

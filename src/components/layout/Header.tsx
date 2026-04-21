@@ -3,7 +3,7 @@ import { useUser } from "@clerk/clerk-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import { UserButton } from "@/components/auth";
 import NotificationCenter from "@/components/layout/NotificationCenter";
 import { Sun, Moon, Keyboard, Flag, GraduationCap, Palette } from "lucide-react";
@@ -26,9 +26,9 @@ export default function Header({
   onOpenSettings,
 }: HeaderProps) {
   const { user: clerkUser, isSignedIn, isLoaded } = useUser();
-  const { legacyTheme, mode, toggleMode, supportsLightMode } = useTheme();
+  const { mode, toggleMode, supportsLightMode } = useTheme();
   const location = useLocation();
-  
+
   // Determine active tab based on current path
   const getActiveTab = () => {
     if (location.pathname === "/") return "/";
@@ -36,41 +36,9 @@ export default function Header({
     if (location.pathname.startsWith("/lessons")) return "/lessons";
     return "/"; // Default to Type tab for other pages
   };
-  
+
   const activeTab = getActiveTab();
-  
-  // Fallback theme for when context is loading
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
-  
+
   // Fetch current user's Convex ID for stats link
   const accountFeaturesEnabled = isLoaded && isSignedIn;
   const convexUser = useQuery(
@@ -100,7 +68,7 @@ export default function Header({
             <button
               onClick={onOpenSettings}
               className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-              style={{ color: theme.buttonUnselected }}
+              style={{ color: tv.interactive.primary.DEFAULT }}
               title="Settings"
             >
               <svg
@@ -125,7 +93,7 @@ export default function Header({
             <button
               onClick={onOpenThemeModal}
               className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-              style={{ color: theme.buttonUnselected }}
+              style={{ color: tv.interactive.primary.DEFAULT }}
               title="Change Theme"
             >
               <Palette className="w-5 h-5" />
@@ -138,7 +106,7 @@ export default function Header({
             className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
               supportsLightMode ? "hover:bg-gray-800/50 cursor-pointer" : "opacity-40 cursor-not-allowed"
             }`}
-            style={{ color: supportsLightMode ? theme.buttonUnselected : theme.textMuted }}
+            style={{ color: supportsLightMode ? tv.interactive.primary.DEFAULT : tv.text.muted }}
             title={
               supportsLightMode
                 ? `Switch to ${mode === "dark" ? "light" : "dark"} mode`
@@ -156,12 +124,12 @@ export default function Header({
       </div>
 
       {/* Center Section: Navigation Tabs (page-centered) */}
-      <nav 
+      <nav
         className={`absolute left-1/2 -translate-x-1/2 ${hidden ? "" : "pointer-events-auto"}`}
       >
-        <div 
+        <div
           className="flex items-center gap-1 rounded-lg p-1"
-          style={{ backgroundColor: theme.surfaceColor }}
+          style={{ backgroundColor: tv.bg.surface }}
         >
           {NAV_TABS.map((tab) => {
             const isActive = activeTab === tab.path;
@@ -175,7 +143,7 @@ export default function Header({
                   className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium cursor-not-allowed select-none"
                   style={{
                     backgroundColor: "transparent",
-                    color: theme.textMuted,
+                    color: tv.text.muted,
                     opacity: 0.5,
                   }}
                   title="Coming Soon"
@@ -193,8 +161,8 @@ export default function Header({
                 to={tab.path}
                 className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200"
                 style={{
-                  backgroundColor: isActive ? theme.elevatedColor : "transparent",
-                  color: isActive ? theme.buttonSelected : theme.buttonUnselected,
+                  backgroundColor: isActive ? tv.bg.elevated : "transparent",
+                  color: isActive ? tv.interactive.secondary.DEFAULT : tv.interactive.primary.DEFAULT,
                   boxShadow: isActive ? "0 1px 3px rgba(0, 0, 0, 0.2)" : "none",
                 }}
               >
@@ -212,7 +180,7 @@ export default function Header({
         <Link
           to="/leaderboard"
           className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-          style={{ color: theme.buttonUnselected }}
+          style={{ color: tv.interactive.primary.DEFAULT }}
           title="Leaderboard"
         >
           <svg
@@ -240,7 +208,7 @@ export default function Header({
           <Link
             to={statsUrl as string}
             className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-            style={{ color: theme.buttonUnselected }}
+            style={{ color: tv.interactive.primary.DEFAULT }}
             title="Your Stats"
           >
             <svg
@@ -264,7 +232,7 @@ export default function Header({
           <button
             type="button"
             className="flex h-10 w-10 items-center justify-center rounded-lg opacity-40 cursor-not-allowed"
-            style={{ color: theme.textMuted }}
+            style={{ color: tv.text.muted }}
             title={accountFeaturesEnabled ? "Loading your stats" : "Sign in to view your stats"}
             disabled
             aria-disabled="true"

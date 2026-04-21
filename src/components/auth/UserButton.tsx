@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useEffect, useRef } from "react";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,39 +17,7 @@ export default function UserButton() {
   const { signOut, openUserProfile } = useClerk();
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const lastSyncedKeyRef = useRef<string | null>(null);
-  const { legacyTheme } = useTheme();
-
-  // Fallback theme for when context is loading
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
+  const { colors } = useTheme();
 
   // Sync user to Convex when they sign in
   useEffect(() => {
@@ -87,11 +55,11 @@ export default function UserButton() {
     return (
       <div
         className="flex h-10 w-10 items-center justify-center rounded-lg"
-        style={{ backgroundColor: `${theme.surfaceColor}80` }}
+        style={{ backgroundColor: `${colors.bg.surface}80` }}
       >
         <div
           className="h-5 w-5 rounded-full animate-pulse"
-          style={{ backgroundColor: theme.buttonUnselected }}
+          style={{ backgroundColor: tv.interactive.primary.DEFAULT }}
         />
       </div>
     );
@@ -104,7 +72,7 @@ export default function UserButton() {
         <button
           type="button"
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800/50 transition hover:bg-gray-700/50"
-          style={{ color: theme.buttonUnselected }}
+          style={{ color: tv.interactive.primary.DEFAULT }}
           title="Sign In"
         >
           <svg
@@ -146,14 +114,14 @@ export default function UserButton() {
           ) : (
             <div
               className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium"
-              style={{ backgroundColor: theme.buttonSelected, color: theme.backgroundColor }}
+              style={{ backgroundColor: tv.interactive.secondary.DEFAULT, color: tv.bg.base }}
             >
               {(user?.username ?? user?.firstName ?? "U")[0].toUpperCase()}
             </div>
           )}
           <span
             className="text-sm font-medium hidden sm:inline max-w-[100px] truncate"
-            style={{ color: theme.textPrimary }}
+            style={{ color: tv.text.primary }}
           >
             {user?.username ?? user?.firstName ?? "User"}
           </span>
@@ -167,7 +135,7 @@ export default function UserButton() {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ color: theme.buttonUnselected }}
+            style={{ color: tv.interactive.primary.DEFAULT }}
           >
             <path d="m6 9 6 6 6-6" />
           </svg>
@@ -176,21 +144,21 @@ export default function UserButton() {
       <DropdownMenuContent
         align="end"
         className="w-48"
-        style={{ backgroundColor: theme.surfaceColor, borderColor: theme.borderSubtle }}
+        style={{ backgroundColor: tv.bg.surface, borderColor: tv.border.subtle }}
       >
         <div className="px-3 py-2">
-          <p className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+          <p className="text-sm font-medium" style={{ color: tv.text.primary }}>
             {user?.username ?? user?.firstName ?? "User"}
           </p>
-          <p className="text-xs truncate" style={{ color: theme.textSecondary }}>
+          <p className="text-xs truncate" style={{ color: tv.text.secondary }}>
             {user?.primaryEmailAddress?.emailAddress}
           </p>
         </div>
-        <DropdownMenuSeparator style={{ backgroundColor: theme.borderSubtle }} />
+        <DropdownMenuSeparator style={{ backgroundColor: tv.border.subtle }} />
         <DropdownMenuItem
           onClick={() => openUserProfile()}
           className="cursor-pointer"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -209,11 +177,11 @@ export default function UserButton() {
           </svg>
           Account
         </DropdownMenuItem>
-        <DropdownMenuSeparator style={{ backgroundColor: theme.borderSubtle }} />
+        <DropdownMenuSeparator style={{ backgroundColor: tv.border.subtle }} />
         <DropdownMenuItem
           onClick={() => signOut()}
           className="cursor-pointer"
-          style={{ color: theme.statusError }}
+          style={{ color: tv.status.error.DEFAULT }}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

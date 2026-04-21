@@ -2,11 +2,8 @@ import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import { motion } from "framer-motion";
-
-// Local type alias for components
-type Theme = LegacyTheme;
 
 interface LeaderboardEntry {
   rank: number;
@@ -72,7 +69,6 @@ function getWeekRangeTitleET(): string {
 
 interface PodiumCardProps {
   entry: LeaderboardEntry;
-  theme: Theme;
   height: number;
 }
 
@@ -85,7 +81,8 @@ function getUsernameFontSize(username: string): string {
   return "7px";
 }
 
-function PodiumCard({ entry, theme, height }: PodiumCardProps) {
+function PodiumCard({ entry, height }: PodiumCardProps) {
+  const { colors } = useTheme();
   // Stagger delay: 3rd -> 2nd -> 1st (award ceremony style)
   const revealOrder = entry.rank === 3 ? 0 : entry.rank === 2 ? 1 : 2;
   const delay = revealOrder * 0.3;
@@ -94,8 +91,8 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
     <motion.div
       className="w-36 min-w-0 flex flex-col items-center rounded-t-xl pt-4 pb-3 px-2"
       style={{
-        backgroundColor: `${theme.backgroundColor}90`,
-        border: `1px solid ${theme.borderSubtle}`,
+        backgroundColor: `${colors.bg.base}90`,
+        border: `1px solid ${tv.border.subtle}`,
         borderBottom: "none",
         overflow: "hidden",
       }}
@@ -115,8 +112,8 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
           <div
             className="h-12 w-12 rounded-full flex items-center justify-center text-base font-medium"
             style={{
-              backgroundColor: theme.buttonSelected,
-              color: theme.backgroundColor,
+              backgroundColor: tv.interactive.secondary.DEFAULT,
+              color: tv.bg.base,
             }}
           >
             {entry.username.charAt(0).toUpperCase()}
@@ -128,8 +125,8 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
       {/* Row 2: Username */}
       <div
         className="font-medium w-full text-center mb-1.5 break-words leading-tight"
-        style={{ 
-          color: theme.textPrimary,
+        style={{
+          color: tv.text.primary,
           fontSize: getUsernameFontSize(entry.username),
         }}
       >
@@ -139,7 +136,7 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
       {/* Row 3: WPM Stat */}
       <div
         className="text-xl font-bold mb-1"
-        style={{ color: theme.buttonSelected }}
+        style={{ color: tv.interactive.secondary.DEFAULT }}
       >
         {entry.wpm} <span className="text-xs font-normal">WPM</span>
       </div>
@@ -147,7 +144,7 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
       {/* Row 4: Date */}
       <div
         className="text-xs"
-        style={{ color: theme.textSecondary }}
+        style={{ color: tv.text.secondary }}
       >
         {formatDate(entry.createdAt)}
       </div>
@@ -158,7 +155,6 @@ function PodiumCard({ entry, theme, height }: PodiumCardProps) {
 interface LeaderboardColumnProps {
   title: string;
   leaderboard: LeaderboardEntry[] | undefined;
-  theme: Theme;
   isLoading: boolean;
   emptyMessage: string;
 }
@@ -166,10 +162,10 @@ interface LeaderboardColumnProps {
 function LeaderboardColumn({
   title,
   leaderboard,
-  theme,
   isLoading,
   emptyMessage,
 }: LeaderboardColumnProps) {
+  const { colors } = useTheme();
   const top3 = leaderboard?.slice(0, 3) ?? [];
   const remaining = leaderboard?.slice(3) ?? [];
 
@@ -183,7 +179,7 @@ function LeaderboardColumn({
       <div className="shrink-0 mb-3">
         <h2
           className="text-lg font-semibold text-center"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           {title}
         </h2>
@@ -195,7 +191,7 @@ function LeaderboardColumn({
           <div
             className="h-8 w-8 rounded-full border-2 border-t-transparent animate-spin"
             style={{
-              borderColor: theme.buttonSelected,
+              borderColor: tv.interactive.secondary.DEFAULT,
               borderTopColor: "transparent",
             }}
           />
@@ -208,11 +204,11 @@ function LeaderboardColumn({
           <div className="text-3xl mb-2">🏆</div>
           <p
             className="text-sm font-medium text-center"
-            style={{ color: theme.textPrimary }}
+            style={{ color: tv.text.primary }}
           >
             No scores yet
           </p>
-          <p className="text-xs text-center px-4" style={{ color: theme.textSecondary }}>
+          <p className="text-xs text-center px-4" style={{ color: tv.text.secondary }}>
             {emptyMessage}
           </p>
         </div>
@@ -224,9 +220,9 @@ function LeaderboardColumn({
           {/* Podium Section */}
           {top3.length > 0 && (
             <div className="shrink-0 flex justify-center items-end gap-2 mb-4">
-              {second && <PodiumCard entry={second} theme={theme} height={180} />}
-              {first && <PodiumCard entry={first} theme={theme} height={210} />}
-              {third && <PodiumCard entry={third} theme={theme} height={160} />}
+              {second && <PodiumCard entry={second} height={180} />}
+              {first && <PodiumCard entry={first} height={210} />}
+              {third && <PodiumCard entry={third} height={160} />}
             </div>
           )}
 
@@ -234,14 +230,14 @@ function LeaderboardColumn({
           {remaining.length > 0 && (
             <div
               className="flex-1 rounded-xl overflow-hidden flex flex-col min-h-0"
-              style={{ backgroundColor: `${theme.backgroundColor}80` }}
+              style={{ backgroundColor: `${colors.bg.base}80` }}
             >
               {/* List Header */}
               <div
                 className="grid gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide border-b shrink-0"
                 style={{
-                  color: theme.textSecondary,
-                  borderColor: theme.borderSubtle,
+                  color: tv.text.secondary,
+                  borderColor: tv.border.subtle,
                   gridTemplateColumns: "28px 28px 1fr 50px",
                 }}
               >
@@ -258,7 +254,7 @@ function LeaderboardColumn({
                     key={`${entry.username}-${entry.rank}`}
                     className="grid gap-2 px-3 py-1.5 border-b last:border-b-0 items-center"
                     style={{
-                      borderColor: theme.borderSubtle,
+                      borderColor: tv.border.subtle,
                       gridTemplateColumns: "28px 28px 1fr 50px",
                     }}
                     initial={{ opacity: 0, x: -15 }}
@@ -268,7 +264,7 @@ function LeaderboardColumn({
                     {/* Rank */}
                     <div
                       className="text-center text-xs font-medium"
-                      style={{ color: theme.textSecondary }}
+                      style={{ color: tv.text.secondary }}
                     >
                       {entry.rank}
                     </div>
@@ -285,8 +281,8 @@ function LeaderboardColumn({
                         <div
                           className="h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-medium"
                           style={{
-                            backgroundColor: theme.buttonSelected,
-                            color: theme.backgroundColor,
+                            backgroundColor: tv.interactive.secondary.DEFAULT,
+                            color: tv.bg.base,
                           }}
                         >
                           {entry.username.charAt(0).toUpperCase()}
@@ -297,7 +293,7 @@ function LeaderboardColumn({
                     {/* Username */}
                     <div
                       className="font-medium truncate text-xs"
-                      style={{ color: theme.textPrimary }}
+                      style={{ color: tv.text.primary }}
                     >
                       {entry.username}
                     </div>
@@ -305,7 +301,7 @@ function LeaderboardColumn({
                     {/* WPM */}
                     <div
                       className="text-right font-bold text-xs"
-                      style={{ color: theme.buttonSelected }}
+                      style={{ color: tv.interactive.secondary.DEFAULT }}
                     >
                       {entry.wpm}
                     </div>
@@ -321,40 +317,6 @@ function LeaderboardColumn({
 }
 
 export default function Leaderboard() {
-  const { legacyTheme } = useTheme();
-  
-  // Fallback theme
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
-
   // Fetch all three leaderboards in parallel
   const allTimeLeaderboard = useQuery(api.testResults.getLeaderboard, {
     timeRange: "all-time",
@@ -376,14 +338,14 @@ export default function Leaderboard() {
   return (
     <div
       className="min-h-[100dvh] flex flex-col font-mono"
-      style={{ backgroundColor: theme.backgroundColor }}
+      style={{ backgroundColor: tv.bg.base }}
     >
       {/* Header */}
       <header className="shrink-0 px-4 py-4 md:px-6 md:py-5 flex items-center justify-between">
         <Link
           to="/"
           className="transition text-sm hover:opacity-100"
-          style={{ color: theme.textSecondary, opacity: 0.7 }}
+          style={{ color: tv.text.secondary, opacity: 0.7 }}
         >
           ← Back to Homepage
         </Link>
@@ -398,7 +360,7 @@ export default function Leaderboard() {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ color: theme.buttonSelected }}
+            style={{ color: tv.interactive.secondary.DEFAULT }}
           >
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
@@ -409,7 +371,7 @@ export default function Leaderboard() {
           </svg>
           <h1
             className="text-xl font-semibold"
-            style={{ color: theme.textPrimary }}
+            style={{ color: tv.text.primary }}
           >
             Leaderboard
           </h1>
@@ -421,7 +383,7 @@ export default function Leaderboard() {
       <div className="shrink-0 px-4 pb-3 md:px-6">
         <p
           className="text-xs text-center"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           Requires 90%+ accuracy and at least 30 seconds or 50 words to qualify
         </p>
@@ -433,12 +395,11 @@ export default function Leaderboard() {
           {/* All Time Column */}
           <div
             className="rounded-xl p-4 flex flex-col min-h-0 lg:flex"
-            style={{ backgroundColor: theme.surfaceColor }}
+            style={{ backgroundColor: tv.bg.surface }}
           >
             <LeaderboardColumn
               title="All-Time"
               leaderboard={allTimeLeaderboard}
-              theme={theme}
               isLoading={isAllTimeLoading}
               emptyMessage="Complete a typing test and save your results to appear on the leaderboard!"
             />
@@ -447,12 +408,11 @@ export default function Leaderboard() {
           {/* Today Column */}
           <div
             className="rounded-xl p-4 flex-col min-h-0 hidden lg:flex"
-            style={{ backgroundColor: theme.surfaceColor }}
+            style={{ backgroundColor: tv.bg.surface }}
           >
             <LeaderboardColumn
               title={getTodayTitleET()}
               leaderboard={todayLeaderboard}
-              theme={theme}
               isLoading={isTodayLoading}
               emptyMessage="No one has completed a test today yet. Be the first!"
             />
@@ -461,12 +421,11 @@ export default function Leaderboard() {
           {/* This Week Column */}
           <div
             className="rounded-xl p-4 flex-col min-h-0 hidden lg:flex"
-            style={{ backgroundColor: theme.surfaceColor }}
+            style={{ backgroundColor: tv.bg.surface }}
           >
             <LeaderboardColumn
               title={getWeekRangeTitleET()}
               leaderboard={weekLeaderboard}
-              theme={theme}
               isLoading={isWeekLoading}
               emptyMessage="No tests completed this week. Start typing to claim the top spot!"
             />
@@ -477,7 +436,7 @@ export default function Leaderboard() {
       {/* Footer */}
       <footer
         className="shrink-0 px-4 pb-4 md:px-6 text-center"
-        style={{ color: theme.textSecondary, opacity: 0.7 }}
+        style={{ color: tv.text.secondary, opacity: 0.7 }}
       >
         <div className="text-xs flex items-center justify-center gap-1">
           <svg

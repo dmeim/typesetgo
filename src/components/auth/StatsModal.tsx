@@ -4,11 +4,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import AchievementsGrid from "./AchievementsGrid";
-
-// Helper type for components that receive theme
-type Theme = LegacyTheme;
 
 interface StatsModalProps {
   onClose: () => void;
@@ -83,15 +80,15 @@ interface ChipData {
 // Order: Mode, Difficulty, Mode-specific value, Modifiers
 function getTestTypeChips(result: TestResult): ChipData[] {
   const chips: ChipData[] = [];
-  
+
   // 1. Mode (always first)
   chips.push({ label: result.mode.charAt(0).toUpperCase() + result.mode.slice(1) });
-  
+
   // 2. Difficulty (second, except for quote/preset)
   if (result.mode !== "quote" && result.mode !== "preset") {
     chips.push({ label: result.difficulty.charAt(0).toUpperCase() + result.difficulty.slice(1) });
   }
-  
+
   // 3. Mode-specific value (third)
   if (result.mode === "time") {
     const seconds = Math.round(result.duration / 1000);
@@ -99,22 +96,20 @@ function getTestTypeChips(result: TestResult): ChipData[] {
   } else if (result.mode === "words") {
     chips.push({ label: `${result.wordCount} words` });
   }
-  
+
   // 4. Modifiers
   if (result.capitalization) chips.push({ label: "caps" });
   if (result.punctuation) chips.push({ label: "punctuation" });
   if (result.numbers) chips.push({ label: "numbers" });
-  
+
   return chips;
 }
 
 // Chip component for test type
-function TestTypeChips({ 
-  result, 
-  theme 
-}: { 
-  result: TestResult; 
-  theme: Theme;
+function TestTypeChips({
+  result,
+}: {
+  result: TestResult;
 }) {
   const chips = getTestTypeChips(result);
   return (
@@ -123,9 +118,9 @@ function TestTypeChips({
         <span
           key={idx}
           className="px-2 py-0.5 rounded text-xs font-medium"
-          style={{ 
-            backgroundColor: theme.buttonSelected, 
-            color: theme.backgroundColor 
+          style={{
+            backgroundColor: tv.interactive.secondary.DEFAULT,
+            color: tv.bg.base,
           }}
         >
           {chip.label}
@@ -136,17 +131,15 @@ function TestTypeChips({
 }
 
 // Valid Icon Component - shows checkmark or X based on test validity
-function ValidIcon({ 
-  result, 
-  theme 
-}: { 
-  result: TestResult; 
-  theme: Theme;
+function ValidIcon({
+  result,
+}: {
+  result: TestResult;
 }) {
   const isValid = result.isValid !== false; // undefined = legacy (treated as valid)
-  
+
   return (
-    <div 
+    <div
       className="flex items-center justify-center"
       title={!isValid && result.invalidReason ? `Invalid: ${result.invalidReason}` : undefined}
     >
@@ -161,7 +154,7 @@ function ValidIcon({
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ color: theme.statusSuccess }}
+          style={{ color: tv.status.success.DEFAULT }}
         >
           <path d="M20 6 9 17l-5-5" />
         </svg>
@@ -176,7 +169,7 @@ function ValidIcon({
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ color: theme.statusError }}
+          style={{ color: tv.status.error.DEFAULT }}
         >
           <path d="M18 6 6 18" />
           <path d="m6 6 12 12" />
@@ -193,7 +186,6 @@ function SortableHeader({
   currentColumn,
   currentDirection,
   onSort,
-  theme,
   align = "left",
 }: {
   label: string;
@@ -201,18 +193,17 @@ function SortableHeader({
   currentColumn: SortColumn;
   currentDirection: SortDirection;
   onSort: (column: SortColumn) => void;
-  theme: Theme;
   align?: "left" | "right";
 }) {
   const isActive = currentColumn === column;
-  
+
   return (
     <button
       onClick={() => onSort(column)}
       className={`flex items-center gap-1 hover:opacity-80 transition-opacity ${
         align === "right" ? "justify-end ml-auto" : ""
       }`}
-      style={{ color: isActive ? theme.buttonSelected : theme.textSecondary }}
+      style={{ color: isActive ? tv.interactive.secondary.DEFAULT : tv.text.secondary }}
     >
       <span>{label}</span>
       <svg
@@ -225,10 +216,10 @@ function SortableHeader({
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ 
+        style={{
           opacity: isActive ? 1 : 0.4,
           transform: isActive && currentDirection === "asc" ? "rotate(180deg)" : "none",
-          transition: "transform 0.15s ease"
+          transition: "transform 0.15s ease",
         }}
       >
         <path d="m6 9 6 6 6-6" />
@@ -239,12 +230,10 @@ function SortableHeader({
 
 // Delete Confirmation Modal Component
 function DeleteConfirmModal({
-  theme,
   isDeleting,
   onConfirm,
   onCancel,
 }: {
-  theme: Theme;
   isDeleting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -256,10 +245,10 @@ function DeleteConfirmModal({
     >
       <div
         className="w-full max-w-sm rounded-lg p-6 shadow-xl mx-4"
-        style={{ backgroundColor: theme.surfaceColor }}
+        style={{ backgroundColor: tv.bg.surface }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-xl font-semibold text-center mb-6" style={{ color: theme.textPrimary }}>
+        <h3 className="text-xl font-semibold text-center mb-6" style={{ color: tv.text.primary }}>
           Are You Sure?
         </h3>
         <div className="flex gap-3">
@@ -267,9 +256,9 @@ function DeleteConfirmModal({
             onClick={onCancel}
             disabled={isDeleting}
             className="flex-1 py-3 px-4 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-            style={{ 
-              backgroundColor: theme.buttonSelected, 
-              color: theme.backgroundColor 
+            style={{
+              backgroundColor: tv.interactive.secondary.DEFAULT,
+              color: tv.bg.base,
             }}
           >
             NOOO!!!
@@ -278,9 +267,9 @@ function DeleteConfirmModal({
             onClick={onConfirm}
             disabled={isDeleting}
             className="flex-1 py-3 px-4 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-            style={{ 
-              backgroundColor: theme.statusError, 
-              color: theme.backgroundColor 
+            style={{
+              backgroundColor: tv.status.error.DEFAULT,
+              color: tv.bg.base,
             }}
           >
             {isDeleting ? "Deleting..." : "Yes, Delete"}
@@ -294,13 +283,13 @@ function DeleteConfirmModal({
 // Test Detail Modal Component
 function TestDetailModal({
   result,
-  theme,
+  colors,
   clerkId,
   onClose,
   onDeleted,
 }: {
   result: TestResult;
-  theme: Theme;
+  colors: ReturnType<typeof useTheme>["colors"];
   clerkId: string;
   onClose: () => void;
   onDeleted: () => void;
@@ -332,18 +321,18 @@ function TestDetailModal({
       >
         <div
           className="w-full max-w-lg rounded-lg p-8 shadow-xl mx-4"
-          style={{ backgroundColor: theme.surfaceColor }}
+          style={{ backgroundColor: tv.bg.surface }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-lg font-semibold" style={{ color: theme.textPrimary }}>
+            <h3 className="text-lg font-semibold" style={{ color: tv.text.primary }}>
               Test Details
             </h3>
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg transition hover:opacity-80"
-              style={{ color: theme.textMuted }}
+              style={{ color: tv.text.muted }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -364,7 +353,7 @@ function TestDetailModal({
 
           {/* Date & Test Type Chips */}
           <div className="mb-5 text-center">
-            <div className="text-sm mb-2" style={{ color: theme.textSecondary }}>
+            <div className="text-sm mb-2" style={{ color: tv.text.secondary }}>
               {formatDateTime(result.createdAt)}
             </div>
             <div className="flex flex-wrap gap-1.5 justify-center">
@@ -372,9 +361,9 @@ function TestDetailModal({
                 <span
                   key={idx}
                   className="px-3 py-1 rounded-full text-sm font-medium"
-                  style={{ 
-                    backgroundColor: theme.buttonSelected, 
-                    color: theme.backgroundColor 
+                  style={{
+                    backgroundColor: tv.interactive.secondary.DEFAULT,
+                    color: tv.bg.base,
                   }}
                 >
                   {chip.label}
@@ -387,23 +376,23 @@ function TestDetailModal({
           <div className="grid grid-cols-2 gap-4 mb-5">
             <div
               className="p-5 rounded-xl text-center"
-              style={{ backgroundColor: `${theme.backgroundColor}80` }}
+              style={{ backgroundColor: `${colors.bg.base}80` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: theme.textSecondary }}>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: tv.text.secondary }}>
                 WPM
               </div>
-              <div className="text-5xl font-bold" style={{ color: theme.buttonSelected }}>
+              <div className="text-5xl font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
                 {result.wpm}
               </div>
             </div>
             <div
               className="p-5 rounded-xl text-center"
-              style={{ backgroundColor: `${theme.backgroundColor}80` }}
+              style={{ backgroundColor: `${colors.bg.base}80` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: theme.textSecondary }}>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: tv.text.secondary }}>
                 Accuracy
               </div>
-              <div className="text-5xl font-bold" style={{ color: theme.buttonSelected }}>
+              <div className="text-5xl font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
                 {Math.round(result.accuracy)}%
               </div>
             </div>
@@ -414,23 +403,23 @@ function TestDetailModal({
             {/* Words */}
             <div
               className="p-4 rounded-xl"
-              style={{ backgroundColor: `${theme.backgroundColor}80` }}
+              style={{ backgroundColor: `${colors.bg.base}80` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-wide mb-3 text-center" style={{ color: theme.textSecondary }}>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-3 text-center" style={{ color: tv.text.secondary }}>
                 Words
               </div>
               <div className="flex justify-around">
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: theme.statusSuccess }}>
+                  <div className="text-2xl font-bold" style={{ color: tv.status.success.DEFAULT }}>
                     {result.wordsCorrect ?? 0}
                   </div>
-                  <div className="text-xs mt-1" style={{ color: theme.textSecondary }}>Correct</div>
+                  <div className="text-xs mt-1" style={{ color: tv.text.secondary }}>Correct</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: theme.statusError }}>
+                  <div className="text-2xl font-bold" style={{ color: tv.status.error.DEFAULT }}>
                     {result.wordsIncorrect ?? 0}
                   </div>
-                  <div className="text-xs mt-1" style={{ color: theme.textSecondary }}>Incorrect</div>
+                  <div className="text-xs mt-1" style={{ color: tv.text.secondary }}>Incorrect</div>
                 </div>
               </div>
             </div>
@@ -438,23 +427,23 @@ function TestDetailModal({
             {/* Characters */}
             <div
               className="p-4 rounded-xl"
-              style={{ backgroundColor: `${theme.backgroundColor}80` }}
+              style={{ backgroundColor: `${colors.bg.base}80` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-wide mb-3 text-center" style={{ color: theme.textSecondary }}>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-3 text-center" style={{ color: tv.text.secondary }}>
                 Characters
               </div>
               <div className="flex justify-around">
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: theme.textPrimary }}>
+                  <div className="text-2xl font-bold" style={{ color: tv.text.primary }}>
                     {result.charsMissed ?? 0}
                   </div>
-                  <div className="text-xs mt-1" style={{ color: theme.textSecondary }}>Missed</div>
+                  <div className="text-xs mt-1" style={{ color: tv.text.secondary }}>Missed</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: theme.textPrimary }}>
+                  <div className="text-2xl font-bold" style={{ color: tv.text.primary }}>
                     {result.charsExtra ?? 0}
                   </div>
-                  <div className="text-xs mt-1" style={{ color: theme.textSecondary }}>Extra</div>
+                  <div className="text-xs mt-1" style={{ color: tv.text.secondary }}>Extra</div>
                 </div>
               </div>
             </div>
@@ -464,9 +453,9 @@ function TestDetailModal({
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="w-full py-2.5 rounded-lg font-medium transition-opacity hover:opacity-80"
-            style={{ 
-              backgroundColor: theme.statusErrorMuted, 
-              color: theme.statusError 
+            style={{
+              backgroundColor: tv.status.error.muted,
+              color: tv.status.error.DEFAULT,
             }}
           >
             Delete
@@ -477,7 +466,6 @@ function TestDetailModal({
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <DeleteConfirmModal
-          theme={theme}
           isDeleting={isDeleting}
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
@@ -494,39 +482,8 @@ const PEEK_PERCENTAGE = 0.3; // Show 30% of 8th row
 
 export default function StatsModal({ onClose }: StatsModalProps) {
   const { user } = useUser();
-  const { legacyTheme } = useTheme();
+  const { colors } = useTheme();
 
-  // Fallback theme (complete)
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
   const stats = useQuery(
     api.testResults.getUserStats,
     user ? { clerkId: user.id } : "skip"
@@ -594,10 +551,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
     >
       <div
         className="w-full rounded-lg shadow-xl mx-4 max-h-[90vh] flex flex-col"
-        style={{ 
-          backgroundColor: theme.surfaceColor,
+        style={{
+          backgroundColor: tv.bg.surface,
           maxWidth: "clamp(320px, 85vw, 896px)",
-          padding: "clamp(1rem, 2vw, 1.5rem)"
+          padding: "clamp(1rem, 2vw, 1.5rem)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -612,10 +569,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
               />
             )}
             <div>
-              <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>
+              <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>
                 Your Stats
               </h2>
-              <p className="text-sm" style={{ color: theme.textSecondary }}>
+              <p className="text-sm" style={{ color: tv.text.secondary }}>
                 {user?.username ?? user?.firstName ?? "User"}
               </p>
             </div>
@@ -623,7 +580,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
           <button
             onClick={onClose}
             className="p-2 rounded-lg transition hover:opacity-80"
-            style={{ color: theme.textMuted }}
+            style={{ color: tv.text.muted }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -647,7 +604,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
           <div className="flex items-center justify-center py-12">
             <div
               className="h-8 w-8 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: theme.buttonSelected, borderTopColor: "transparent" }}
+              style={{ borderColor: tv.interactive.secondary.DEFAULT, borderTopColor: "transparent" }}
             />
           </div>
         )}
@@ -659,48 +616,48 @@ export default function StatsModal({ onClose }: StatsModalProps) {
             <div className="flex flex-col gap-3 w-36 flex-shrink-0">
               <div
                 className="p-4 rounded-xl flex-1 flex flex-col justify-center"
-                style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                style={{ backgroundColor: `${colors.bg.base}80` }}
               >
-                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.textSecondary }}>
+                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
                   Typing Time
                 </div>
-                <div className="text-2xl font-bold" style={{ color: theme.buttonSelected }}>
+                <div className="text-2xl font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
                   {formatDuration(stats.totalTimeTyped)}
                 </div>
               </div>
 
               <div
                 className="p-4 rounded-xl flex-1 flex flex-col justify-center"
-                style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                style={{ backgroundColor: `${colors.bg.base}80` }}
               >
-                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.textSecondary }}>
+                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
                   Best WPM
                 </div>
-                <div className="text-2xl font-bold" style={{ color: theme.buttonSelected }}>
+                <div className="text-2xl font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
                   {stats.bestWpm}
                 </div>
               </div>
 
               <div
                 className="p-4 rounded-xl flex-1 flex flex-col justify-center"
-                style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                style={{ backgroundColor: `${colors.bg.base}80` }}
               >
-                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.textSecondary }}>
+                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
                   Avg WPM
                 </div>
-                <div className="text-2xl font-bold" style={{ color: theme.textPrimary }}>
+                <div className="text-2xl font-bold" style={{ color: tv.text.primary }}>
                   {stats.averageWpm}
                 </div>
               </div>
 
               <div
                 className="p-4 rounded-xl flex-1 flex flex-col justify-center"
-                style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                style={{ backgroundColor: `${colors.bg.base}80` }}
               >
-                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.textSecondary }}>
+                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
                   Avg Accuracy
                 </div>
-                <div className="text-2xl font-bold" style={{ color: theme.textPrimary }}>
+                <div className="text-2xl font-bold" style={{ color: tv.text.primary }}>
                   {stats.averageAccuracy}%
                 </div>
               </div>
@@ -713,12 +670,12 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                 {/* Streak Card */}
                 <div
                   className="p-3 rounded-xl"
-                  style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                  style={{ backgroundColor: `${colors.bg.base}80` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.textSecondary }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
                     Day Streak
                   </div>
-                  <div className="text-lg font-bold flex items-center gap-1" style={{ color: theme.buttonSelected }}>
+                  <div className="text-lg font-bold flex items-center gap-1" style={{ color: tv.interactive.secondary.DEFAULT }}>
                     {streak?.currentStreak ?? 0}
                     <span
                       className="text-lg"
@@ -734,36 +691,36 @@ export default function StatsModal({ onClose }: StatsModalProps) {
 
                 <div
                   className="p-3 rounded-xl"
-                  style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                  style={{ backgroundColor: `${colors.bg.base}80` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.textSecondary }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
                     Saved Tests
                   </div>
-                  <div className="text-lg font-bold" style={{ color: theme.buttonSelected }}>
+                  <div className="text-lg font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
                     {stats.totalTests}
                   </div>
                 </div>
 
                 <div
                   className="p-3 rounded-xl"
-                  style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                  style={{ backgroundColor: `${colors.bg.base}80` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.textSecondary }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
                     Words Typed
                   </div>
-                  <div className="text-lg font-bold" style={{ color: theme.buttonSelected }}>
+                  <div className="text-lg font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
                     {stats.totalWordsTyped.toLocaleString()}
                   </div>
                 </div>
 
                 <div
                   className="p-3 rounded-xl"
-                  style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                  style={{ backgroundColor: `${colors.bg.base}80` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: theme.textSecondary }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
                     Characters Typed
                   </div>
-                  <div className="text-lg font-bold" style={{ color: theme.buttonSelected }}>
+                  <div className="text-lg font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
                     {stats.totalCharactersTyped.toLocaleString()}
                   </div>
                 </div>
@@ -772,15 +729,15 @@ export default function StatsModal({ onClose }: StatsModalProps) {
               {/* Test History Table */}
               <div
                 className="flex-1 rounded-xl overflow-hidden flex flex-col min-h-0 relative"
-                style={{ backgroundColor: `${theme.backgroundColor}80` }}
+                style={{ backgroundColor: `${colors.bg.base}80` }}
               >
                 {/* Table Header */}
                 <div
                   className="grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wide border-b"
-                  style={{ 
-                    color: theme.textSecondary, 
-                    borderColor: theme.borderSubtle,
-                    gridTemplateColumns: "80px 1fr 40px 50px 55px"
+                  style={{
+                    color: tv.text.secondary,
+                    borderColor: tv.border.subtle,
+                    gridTemplateColumns: "80px 1fr 40px 50px 55px",
                   }}
                 >
                   <SortableHeader
@@ -789,7 +746,6 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                     currentColumn={sortColumn}
                     currentDirection={sortDirection}
                     onSort={handleSort}
-                    theme={theme}
                   />
                   <div className="pl-2">Test Type</div>
                   <div className="text-center">Valid</div>
@@ -799,7 +755,6 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                     currentColumn={sortColumn}
                     currentDirection={sortDirection}
                     onSort={handleSort}
-                    theme={theme}
                     align="right"
                   />
                   <SortableHeader
@@ -808,17 +763,16 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                     currentColumn={sortColumn}
                     currentDirection={sortDirection}
                     onSort={handleSort}
-                    theme={theme}
                     align="right"
                   />
                 </div>
 
                 {/* Table Body - Scrollable (shows 7 entries + 8th peeking ~30% on large screens) */}
-                <div 
+                <div
                   className="overflow-y-auto flex-1"
-                  style={isLargeScreen ? { 
+                  style={isLargeScreen ? {
                     maxHeight: `calc(${VISIBLE_ROWS + PEEK_PERCENTAGE} * ${ROW_HEIGHT_PX}px)`,
-                    flex: "none"
+                    flex: "none",
                   } : undefined}
                 >
                   {sortedResults.length > 0 ? (
@@ -826,42 +780,42 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                       <div
                         key={result._id}
                         className="grid gap-4 px-4 py-2.5 border-b last:border-b-0 hover:bg-white/10 transition-colors cursor-pointer items-center"
-                        style={{ 
-                          borderColor: theme.borderSubtle,
-                          gridTemplateColumns: "80px 1fr 40px 50px 55px"
+                        style={{
+                          borderColor: tv.border.subtle,
+                          gridTemplateColumns: "80px 1fr 40px 50px 55px",
                         }}
                         onClick={() => setSelectedTest(result as TestResult)}
                       >
-                        <div className="text-sm" style={{ color: theme.textPrimary }}>
+                        <div className="text-sm" style={{ color: tv.text.primary }}>
                           {formatDate(result.createdAt)}
                         </div>
                         <div className="pl-2">
-                          <TestTypeChips result={result as TestResult} theme={theme} />
+                          <TestTypeChips result={result as TestResult} />
                         </div>
-                        <ValidIcon result={result as TestResult} theme={theme} />
-                        <div className="text-sm text-right font-medium" style={{ color: theme.textPrimary }}>
+                        <ValidIcon result={result as TestResult} />
+                        <div className="text-sm text-right font-medium" style={{ color: tv.text.primary }}>
                           {result.wpm}
                         </div>
-                        <div className="text-sm text-right font-medium" style={{ color: theme.buttonSelected }}>
+                        <div className="text-sm text-right font-medium" style={{ color: tv.interactive.secondary.DEFAULT }}>
                           {Math.round(result.accuracy)}%
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="flex items-center justify-center py-8">
-                      <p className="text-sm" style={{ color: theme.textSecondary }}>
+                      <p className="text-sm" style={{ color: tv.text.secondary }}>
                         No tests saved yet
                       </p>
                     </div>
                   )}
                 </div>
-                
+
                 {/* Fade overlay to indicate more content (only on large screens with peek effect) */}
                 {isLargeScreen && sortedResults.length > VISIBLE_ROWS && (
-                  <div 
+                  <div
                     className="absolute bottom-0 left-0 right-0 h-8 pointer-events-none rounded-b-xl"
-                    style={{ 
-                      background: `linear-gradient(transparent, ${theme.backgroundColor}80)` 
+                    style={{
+                      background: `linear-gradient(transparent, ${colors.bg.base}80)`,
                     }}
                   />
                 )}
@@ -884,10 +838,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
         {!isLoading && stats && stats.totalTests === 0 && (
           <div className="text-center py-8">
             <div className="text-4xl mb-3">📊</div>
-            <p className="text-lg font-medium" style={{ color: theme.textPrimary }}>
+            <p className="text-lg font-medium" style={{ color: tv.text.primary }}>
               No tests saved yet
             </p>
-            <p className="text-sm" style={{ color: theme.textSecondary }}>
+            <p className="text-sm" style={{ color: tv.text.secondary }}>
               Complete a typing test and click "Save Results" to track your progress!
             </p>
           </div>
@@ -898,7 +852,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
       {selectedTest && user && (
         <TestDetailModal
           result={selectedTest}
-          theme={theme}
+          colors={colors}
           clerkId={user.id}
           onClose={() => setSelectedTest(null)}
           onDeleted={() => setSelectedTest(null)}

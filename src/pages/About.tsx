@@ -1,52 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
+import type { ThemeColors } from "@/types/theme";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
-// Local type alias for components
-type Theme = LegacyTheme;
-
 export default function About() {
-  const { legacyTheme } = useTheme();
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState("validity");
 
   return (
     <div
       className="min-h-[100dvh] font-mono px-4 py-12 transition-colors duration-300"
       style={{
-        backgroundColor: theme.backgroundColor,
-        color: theme.correctText,
+        backgroundColor: tv.bg.base,
+        color: tv.typing.correct,
       }}
     >
       <div className="w-full max-w-4xl mx-auto animate-fade-in">
@@ -54,7 +22,7 @@ export default function About() {
           <Link
             to="/"
             className="transition text-sm hover:opacity-100"
-            style={{ color: theme.defaultText, opacity: 0.7 }}
+            style={{ color: tv.typing.default, opacity: 0.7 }}
           >
             ← Back to Homepage
           </Link>
@@ -63,11 +31,11 @@ export default function About() {
         <div className="text-center mb-12">
           <h1
             className="text-4xl font-bold mb-2"
-            style={{ color: theme.cursor }}
+            style={{ color: tv.typing.cursor }}
           >
             About TypeSetGo
           </h1>
-          <p style={{ color: theme.textSecondary }}>
+          <p style={{ color: tv.text.secondary }}>
             Learn more about how TypeSetGo works
           </p>
         </div>
@@ -76,15 +44,15 @@ export default function About() {
           <TabsList
             className="w-full justify-start mb-8 rounded-lg p-1"
             style={{
-              backgroundColor: `${theme.defaultText}15`,
+              backgroundColor: `${colors.typing.default}15`,
             }}
           >
             <TabsTrigger
               value="validity"
               className="rounded-md px-4 py-2 text-sm font-medium transition-all"
               style={{
-                color: activeTab === "validity" ? theme.cursor : theme.defaultText,
-                backgroundColor: activeTab === "validity" ? `${theme.cursor}20` : "transparent",
+                color: activeTab === "validity" ? tv.typing.cursor : tv.typing.default,
+                backgroundColor: activeTab === "validity" ? `${colors.typing.cursor}20` : "transparent",
               }}
             >
               Test Validity
@@ -92,7 +60,7 @@ export default function About() {
           </TabsList>
 
           <TabsContent value="validity">
-            <TestValidityContent theme={theme} />
+            <TestValidityContent colors={colors} />
           </TabsContent>
         </Tabs>
 
@@ -101,16 +69,16 @@ export default function About() {
   );
 }
 
-function TestValidityContent({ theme }: { theme: Theme }) {
+function TestValidityContent({ colors }: { colors: ThemeColors }) {
   return (
     <div
       className="space-y-8 text-sm leading-relaxed"
-      style={{ color: theme.textSecondary }}
+      style={{ color: tv.text.secondary }}
     >
       <section>
         <h2
           className="text-xl font-semibold mb-4"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           What is Test Validity?
         </h2>
@@ -130,7 +98,7 @@ function TestValidityContent({ theme }: { theme: Theme }) {
       <section>
         <h2
           className="text-xl font-semibold mb-4"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           Universal Requirements
         </h2>
@@ -139,17 +107,17 @@ function TestValidityContent({ theme }: { theme: Theme }) {
         </p>
         <div className="space-y-4">
           <ValidityItem
-            theme={theme}
+            colors={colors}
             title="WPM Ceiling"
             description="Your typing speed must not exceed 300 WPM. This threshold is well above the world record (~216 WPM sustained) to allow headroom for legitimate fast typists."
           />
           <ValidityItem
-            theme={theme}
+            colors={colors}
             title="Burst Character Limit"
             description="No more than 50 characters can be typed between progress events. This detects copy-paste or automated input while allowing for natural typing bursts."
           />
           <ValidityItem
-            theme={theme}
+            colors={colors}
             title="Session Tracking"
             description="You must be signed in to have your test verified. Guest tests cannot be validated for leaderboard eligibility."
           />
@@ -159,7 +127,7 @@ function TestValidityContent({ theme }: { theme: Theme }) {
       <section>
         <h2
           className="text-xl font-semibold mb-4"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           Mode-Specific Requirements
         </h2>
@@ -168,7 +136,7 @@ function TestValidityContent({ theme }: { theme: Theme }) {
         </p>
 
         <div className="space-y-6">
-          <ModeSection theme={theme} mode="Time Mode">
+          <ModeSection colors={colors} mode="Time Mode">
             <p className="mb-3">
               Time mode tests must run for the full duration (with a 2-second
               tolerance for network latency). If you select a 30-second test, the
@@ -180,7 +148,7 @@ function TestValidityContent({ theme }: { theme: Theme }) {
             </p>
           </ModeSection>
 
-          <ModeSection theme={theme} mode="Words Mode">
+          <ModeSection colors={colors} mode="Words Mode">
             <p className="mb-3">
               You must type at least as many words as your selected word target.
               Additionally, at least 3 progress events must be recorded during
@@ -188,7 +156,7 @@ function TestValidityContent({ theme }: { theme: Theme }) {
             </p>
           </ModeSection>
 
-          <ModeSection theme={theme} mode="Quote Mode">
+          <ModeSection colors={colors} mode="Quote Mode">
             <p className="mb-3">
               You must complete the entire quote — your typed text length must
               match or exceed the target quote length. At least 3 progress events
@@ -196,7 +164,7 @@ function TestValidityContent({ theme }: { theme: Theme }) {
             </p>
           </ModeSection>
 
-          <ModeSection theme={theme} mode="Preset Mode">
+          <ModeSection colors={colors} mode="Preset Mode">
             <p className="mb-3">
               Similar to quote mode, you must complete the entire preset text.
               Your typed text length must match or exceed the target text length,
@@ -204,7 +172,7 @@ function TestValidityContent({ theme }: { theme: Theme }) {
             </p>
           </ModeSection>
 
-          <ModeSection theme={theme} mode="Zen Mode">
+          <ModeSection colors={colors} mode="Zen Mode">
             <p className="mb-3">
               Zen mode has relaxed validation — only the universal requirements
               (WPM ceiling, burst limit) and minimum 3 progress events are checked.
@@ -217,7 +185,7 @@ function TestValidityContent({ theme }: { theme: Theme }) {
       <section>
         <h2
           className="text-xl font-semibold mb-4"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           Why Was My Test Unverified?
         </h2>
@@ -251,13 +219,13 @@ function TestValidityContent({ theme }: { theme: Theme }) {
       <section
         className="p-4 rounded-lg"
         style={{
-          backgroundColor: `${theme.cursor}15`,
-          borderLeft: `3px solid ${theme.cursor}`,
+          backgroundColor: `${colors.typing.cursor}15`,
+          borderLeft: `3px solid ${tv.typing.cursor}`,
         }}
       >
         <h3
           className="font-semibold mb-2"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           Note on False Positives
         </h3>
@@ -274,22 +242,22 @@ function TestValidityContent({ theme }: { theme: Theme }) {
 }
 
 function ValidityItem({
-  theme,
+  colors,
   title,
   description,
 }: {
-  theme: Theme;
+  colors: ThemeColors;
   title: string;
   description: string;
 }) {
   return (
     <div
       className="p-4 rounded-lg"
-      style={{ backgroundColor: `${theme.defaultText}08` }}
+      style={{ backgroundColor: `${colors.typing.default}08` }}
     >
       <h4
         className="font-semibold mb-1"
-        style={{ color: theme.textPrimary }}
+        style={{ color: tv.text.primary }}
       >
         {title}
       </h4>
@@ -299,11 +267,11 @@ function ValidityItem({
 }
 
 function ModeSection({
-  theme,
+  colors,
   mode,
   children,
 }: {
-  theme: Theme;
+  colors: ThemeColors;
   mode: string;
   children: React.ReactNode;
 }) {
@@ -311,17 +279,17 @@ function ModeSection({
     <div
       className="p-4 rounded-lg border"
       style={{
-        backgroundColor: `${theme.defaultText}05`,
-        borderColor: `${theme.defaultText}20`,
+        backgroundColor: `${colors.typing.default}05`,
+        borderColor: `${colors.typing.default}20`,
       }}
     >
       <h3
         className="font-semibold mb-3 flex items-center gap-2"
-        style={{ color: theme.cursor }}
+        style={{ color: tv.typing.cursor }}
       >
         {mode}
       </h3>
-      <div style={{ color: theme.textSecondary }}>{children}</div>
+      <div style={{ color: tv.text.secondary }}>{children}</div>
     </div>
   );
 }

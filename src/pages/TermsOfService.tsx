@@ -1,46 +1,16 @@
 import { Link } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 
 export default function TermsOfService() {
-  const { legacyTheme } = useTheme();
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
+  useTheme();
 
   return (
     <div
       className="min-h-[100dvh] font-mono px-4 py-12 transition-colors duration-300"
       style={{
-        backgroundColor: theme.backgroundColor,
-        color: theme.correctText,
+        backgroundColor: tv.bg.base,
+        color: tv.typing.correct,
       }}
     >
       <div className="w-full max-w-3xl mx-auto animate-fade-in">
@@ -48,7 +18,7 @@ export default function TermsOfService() {
           <Link
             to="/"
             className="transition text-sm hover:opacity-100"
-            style={{ color: theme.defaultText, opacity: 0.7 }}
+            style={{ color: tv.typing.default, opacity: 0.7 }}
           >
             ← Back to Homepage
           </Link>
@@ -57,23 +27,23 @@ export default function TermsOfService() {
         <div className="text-center mb-12">
           <h1
             className="text-4xl font-bold mb-2"
-            style={{ color: theme.cursor }}
+            style={{ color: tv.typing.cursor }}
           >
             Terms of Service
           </h1>
-          <p style={{ color: theme.textSecondary }}>
+          <p style={{ color: tv.text.secondary }}>
             Last updated: January 15, 2026
           </p>
         </div>
 
         <div
           className="space-y-8 text-sm leading-relaxed"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               1. Acceptance of Terms
             </h2>
@@ -87,7 +57,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               2. Description of Service
             </h2>
@@ -103,7 +73,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               3. User Conduct
             </h2>
@@ -132,7 +102,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               4. Intellectual Property
             </h2>
@@ -147,7 +117,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               5. User Data
             </h2>
@@ -157,7 +127,7 @@ export default function TermsOfService() {
               <Link
                 to="/privacy"
                 className="underline hover:opacity-100 transition"
-                style={{ color: theme.cursor }}
+                style={{ color: tv.typing.cursor }}
               >
                 Privacy Policy
               </Link>{" "}
@@ -168,7 +138,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               6. Disclaimer of Warranties
             </h2>
@@ -183,7 +153,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               7. Limitation of Liability
             </h2>
@@ -197,7 +167,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               8. Modifications to Service
             </h2>
@@ -212,7 +182,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               9. Changes to Terms
             </h2>
@@ -226,7 +196,7 @@ export default function TermsOfService() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               10. Contact Information
             </h2>

@@ -7,43 +7,10 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import Header from "@/components/layout/Header";
 import { PlayerCard } from "@/components/race";
-import { useTheme } from "@/hooks/useTheme";
 import { useSessionId } from "@/hooks/useSessionId";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import { Copy, Check, Settings, Users, ArrowLeft, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-// Default theme fallback
-const DEFAULT_THEME: LegacyTheme = {
-  cursor: "#3cb5ee",
-  defaultText: "#4b5563",
-  upcomingText: "#4b5563",
-  correctText: "#d1d5db",
-  incorrectText: "#ef4444",
-  ghostCursor: "#a855f7",
-  buttonUnselected: "#3cb5ee",
-  buttonSelected: "#0097b2",
-  accentColor: "#a855f7",
-  accentMuted: "rgba(168, 85, 247, 0.3)",
-  accentSubtle: "rgba(168, 85, 247, 0.1)",
-  backgroundColor: "#323437",
-  surfaceColor: "#2c2e31",
-  elevatedColor: "#37383b",
-  overlayColor: "rgba(0, 0, 0, 0.5)",
-  textPrimary: "#d1d5db",
-  textSecondary: "#4b5563",
-  textMuted: "rgba(75, 85, 99, 0.6)",
-  textInverse: "#ffffff",
-  borderDefault: "rgba(75, 85, 99, 0.3)",
-  borderSubtle: "rgba(75, 85, 99, 0.15)",
-  borderFocus: "#3cb5ee",
-  statusSuccess: "#22c55e",
-  statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-  statusError: "#ef4444",
-  statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-  statusWarning: "#f59e0b",
-  statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-};
 
 const DIFFICULTIES = [
   { value: "beginner", label: "Beginner" },
@@ -59,10 +26,7 @@ export default function RaceLobby() {
   const { lobbyId } = useParams<{ lobbyId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { legacyTheme } = useTheme();
   const sessionId = useSessionId();
-  
-  const theme: LegacyTheme = legacyTheme ?? DEFAULT_THEME;
   const isHost = searchParams.get("host") === "true";
 
   // State
@@ -242,9 +206,9 @@ export default function RaceLobby() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: theme.backgroundColor }}
+        style={{ backgroundColor: tv.bg.base }}
       >
-        <div className="flex items-center gap-3" style={{ color: theme.textSecondary }}>
+        <div className="flex items-center gap-3" style={{ color: tv.text.secondary }}>
           <Loader2 className="w-6 h-6 animate-spin" />
           <span>Loading lobby...</span>
         </div>
@@ -257,19 +221,19 @@ export default function RaceLobby() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: theme.backgroundColor }}
+        style={{ backgroundColor: tv.bg.base }}
       >
         <div className="text-center">
-          <h1 
+          <h1
             className="text-2xl font-bold mb-4"
-            style={{ color: theme.textPrimary }}
+            style={{ color: tv.text.primary }}
           >
             Room Not Found
           </h1>
           <Link
             to="/race"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium"
-            style={{ backgroundColor: theme.accentColor, color: theme.textInverse }}
+            style={{ backgroundColor: tv.interactive.accent.DEFAULT, color: tv.text.inverse }}
           >
             <ArrowLeft size={18} />
             Back to Race
@@ -282,7 +246,7 @@ export default function RaceLobby() {
   return (
     <div
       className="min-h-screen relative"
-      style={{ backgroundColor: theme.backgroundColor }}
+      style={{ backgroundColor: tv.bg.base }}
     >
       <Header />
 
@@ -292,7 +256,7 @@ export default function RaceLobby() {
           <Link
             to="/race"
             className="flex items-center gap-2 text-sm transition-opacity hover:opacity-80"
-            style={{ color: theme.textSecondary }}
+            style={{ color: tv.text.secondary }}
           >
             <ArrowLeft size={18} />
             Leave Race
@@ -303,21 +267,21 @@ export default function RaceLobby() {
             onClick={handleCopyCode}
             className="flex items-center gap-3 px-4 py-2 rounded-lg transition-all hover:opacity-90"
             style={{
-              backgroundColor: theme.surfaceColor,
-              border: `1px solid ${theme.borderDefault}`,
+              backgroundColor: tv.bg.surface,
+              border: `1px solid ${tv.border.default}`,
             }}
           >
-            <span style={{ color: theme.textSecondary }}>Room Code:</span>
+            <span style={{ color: tv.text.secondary }}>Room Code:</span>
             <span
               className="font-mono font-bold text-xl tracking-widest"
-              style={{ color: theme.accentColor }}
+              style={{ color: tv.interactive.accent.DEFAULT }}
             >
               {room.code}
             </span>
             {copied ? (
-              <Check size={18} style={{ color: theme.statusSuccess }} />
+              <Check size={18} style={{ color: tv.status.success.DEFAULT }} />
             ) : (
-              <Copy size={18} style={{ color: theme.textSecondary }} />
+              <Copy size={18} style={{ color: tv.text.secondary }} />
             )}
           </button>
         </div>
@@ -328,15 +292,15 @@ export default function RaceLobby() {
             <div
               className="rounded-xl p-6"
               style={{
-                backgroundColor: theme.surfaceColor,
-                border: `1px solid ${theme.borderDefault}`,
+                backgroundColor: tv.bg.surface,
+                border: `1px solid ${tv.border.default}`,
               }}
             >
               <div className="flex items-center gap-2 mb-6">
-                <Settings size={20} style={{ color: theme.accentColor }} />
+                <Settings size={20} style={{ color: tv.interactive.accent.DEFAULT }} />
                 <h2
                   className="font-bold text-lg"
-                  style={{ color: theme.textPrimary }}
+                  style={{ color: tv.text.primary }}
                 >
                   Race Settings
                 </h2>
@@ -346,7 +310,7 @@ export default function RaceLobby() {
               <div className="mb-6">
                 <label
                   className="block text-sm font-medium mb-2"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   Difficulty
                 </label>
@@ -360,12 +324,12 @@ export default function RaceLobby() {
                       style={{
                         backgroundColor:
                           room.settings.difficulty === value
-                            ? theme.accentColor
-                            : theme.elevatedColor,
+                            ? tv.interactive.accent.DEFAULT
+                            : tv.bg.elevated,
                         color:
                           room.settings.difficulty === value
-                            ? theme.textInverse
-                            : theme.textPrimary,
+                            ? tv.text.inverse
+                            : tv.text.primary,
                       }}
                     >
                       {label}
@@ -378,7 +342,7 @@ export default function RaceLobby() {
               <div>
                 <label
                   className="block text-sm font-medium mb-2"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   Word Count
                 </label>
@@ -392,12 +356,12 @@ export default function RaceLobby() {
                       style={{
                         backgroundColor:
                           room.settings.wordTarget === count
-                            ? theme.accentColor
-                            : theme.elevatedColor,
+                            ? tv.interactive.accent.DEFAULT
+                            : tv.bg.elevated,
                         color:
                           room.settings.wordTarget === count
-                            ? theme.textInverse
-                            : theme.textPrimary,
+                            ? tv.text.inverse
+                            : tv.text.primary,
                       }}
                     >
                       {count}
@@ -412,22 +376,22 @@ export default function RaceLobby() {
           <div
             className={`rounded-xl p-6 ${isHost ? "lg:col-span-2" : "lg:col-span-3"}`}
             style={{
-              backgroundColor: theme.surfaceColor,
-              border: `1px solid ${theme.borderDefault}`,
+              backgroundColor: tv.bg.surface,
+              border: `1px solid ${tv.border.default}`,
             }}
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                <Users size={20} style={{ color: theme.accentColor }} />
+                <Users size={20} style={{ color: tv.interactive.accent.DEFAULT }} />
                 <h2
                   className="font-bold text-lg"
-                  style={{ color: theme.textPrimary }}
+                  style={{ color: tv.text.primary }}
                 >
                   Racers
                 </h2>
                 <span
                   className="text-sm"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   ({connectedParticipants.length})
                 </span>
@@ -436,7 +400,7 @@ export default function RaceLobby() {
               {/* Ready status */}
               <div
                 className="text-sm"
-                style={{ color: theme.textSecondary }}
+                style={{ color: tv.text.secondary }}
               >
                 {connectedParticipants.filter(p => p.isReady).length} / {connectedParticipants.length} ready
               </div>
@@ -469,7 +433,6 @@ export default function RaceLobby() {
                         onReadyToggle={isCurrentUser ? handleReadyToggle : undefined}
                         onEmojiChange={isCurrentUser ? handleEmojiChange : undefined}
                         onNameChange={isCurrentUser ? handleNameChange : undefined}
-                        theme={theme}
                       />
                     </motion.div>
                   );
@@ -481,12 +444,12 @@ export default function RaceLobby() {
             {connectedParticipants.length === 0 && (
               <div
                 className="text-center py-12"
-                style={{ color: theme.textSecondary }}
+                style={{ color: tv.text.secondary }}
               >
                 <Users size={48} className="mx-auto mb-4 opacity-50" />
                 <p>Waiting for racers to join...</p>
                 <p className="text-sm mt-2">
-                  Share the room code: <strong style={{ color: theme.accentColor }}>{room.code}</strong>
+                  Share the room code: <strong style={{ color: tv.interactive.accent.DEFAULT }}>{room.code}</strong>
                 </p>
               </div>
             )}
@@ -498,7 +461,7 @@ export default function RaceLobby() {
           {countdown !== null && countdown > 0 && (
             <motion.div
               className="fixed inset-0 z-50 flex items-center justify-center"
-              style={{ backgroundColor: theme.overlayColor }}
+              style={{ backgroundColor: tv.bg.overlay }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -506,7 +469,7 @@ export default function RaceLobby() {
             >
               <motion.div
                 className="text-center p-12 rounded-2xl"
-                style={{ backgroundColor: theme.surfaceColor }}
+                style={{ backgroundColor: tv.bg.surface }}
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
@@ -514,7 +477,7 @@ export default function RaceLobby() {
               >
                 <p
                   className="text-lg font-medium mb-4"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   Race starting in...
                 </p>
@@ -522,7 +485,7 @@ export default function RaceLobby() {
                   <motion.div
                     key={countdown}
                     className="text-8xl font-black mb-6"
-                    style={{ color: theme.accentColor }}
+                    style={{ color: tv.interactive.accent.DEFAULT }}
                     initial={{ scale: 1.4, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.6, opacity: 0 }}
@@ -533,7 +496,7 @@ export default function RaceLobby() {
                 </AnimatePresence>
                 <p
                   className="text-sm mb-6 max-w-xs mx-auto"
-                  style={{ color: theme.textMuted }}
+                  style={{ color: tv.text.muted }}
                 >
                   All characters must be typed correctly in order to progress in the race.
                 </p>
@@ -543,9 +506,9 @@ export default function RaceLobby() {
                     onClick={handleReadyToggle}
                     className="px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:opacity-90"
                     style={{
-                      backgroundColor: theme.statusErrorMuted,
-                      color: theme.statusError,
-                      border: `1px solid ${theme.statusError}`,
+                      backgroundColor: tv.status.error.muted,
+                      color: tv.status.error.DEFAULT,
+                      border: `1px solid ${tv.status.error.DEFAULT}`,
                     }}
                   >
                     Cancel Ready

@@ -20,7 +20,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import type { LegacyTheme } from "@/types/theme";
+import { useTheme } from "@/hooks/useTheme";
 
 // Which stat card was clicked
 export type StatCardType =
@@ -47,7 +47,6 @@ interface UserStatsChartModalProps {
   cardType: StatCardType;
   cardValue: string;
   allResults: ChartTestResult[];
-  theme: LegacyTheme;
 }
 
 // Format date for x-axis ticks (e.g. "02/15")
@@ -152,8 +151,8 @@ export default function UserStatsChartModal({
   cardType,
   cardValue,
   allResults,
-  theme,
 }: UserStatsChartModalProps) {
+  const { colors } = useTheme();
   const [showBest, setShowBest] = useState(true);
   const [showLowest, setShowLowest] = useState(true);
 
@@ -222,21 +221,21 @@ export default function UserStatsChartModal({
     const config: ChartConfig = {
       value: {
         label: meta.yLabel,
-        color: theme.buttonSelected,
+        color: colors.interactive.secondary.DEFAULT,
       },
     };
     if (meta.hasHighlights) {
       config.best = {
         label: "Best / Highest",
-        color: theme.statusSuccess,
+        color: colors.status.success.DEFAULT,
       };
       config.lowest = {
         label: "Lowest",
-        color: theme.statusError,
+        color: colors.status.error.DEFAULT,
       };
     }
     return config;
-  }, [meta.yLabel, meta.hasHighlights, theme]);
+  }, [meta.yLabel, meta.hasHighlights, colors]);
 
   // Compute dynamic Y-axis domain with buffer
   const yDomain = useMemo((): [number, number] | undefined => {
@@ -287,17 +286,17 @@ export default function UserStatsChartModal({
       <DialogContent
         className="max-w-none sm:max-w-none flex flex-col"
         style={{
-          backgroundColor: theme.surfaceColor,
-          borderColor: theme.borderSubtle,
+          backgroundColor: colors.bg.surface,
+          borderColor: colors.border.subtle,
           width: "80vw",
           maxHeight: "80vh",
         }}
       >
         <DialogHeader>
-          <DialogTitle style={{ color: theme.textPrimary }}>
+          <DialogTitle style={{ color: colors.text.primary }}>
             {meta.title}
           </DialogTitle>
-          <DialogDescription style={{ color: theme.textSecondary }}>
+          <DialogDescription style={{ color: colors.text.secondary }}>
             {hasData
               ? `Showing ${chartData.length} test${chartData.length !== 1 ? "s" : ""} over time`
               : "No test data available yet"}
@@ -310,15 +309,17 @@ export default function UserStatsChartModal({
             <ToggleChip
               label="Best / Highest"
               active={showBest}
-              color={theme.statusSuccess}
-              theme={theme}
+              color={colors.status.success.DEFAULT}
+              inactiveColor={colors.typing.default}
+              inactiveTextColor={colors.text.secondary}
               onClick={() => setShowBest(!showBest)}
             />
             <ToggleChip
               label="Lowest"
               active={showLowest}
-              color={theme.statusError}
-              theme={theme}
+              color={colors.status.error.DEFAULT}
+              inactiveColor={colors.typing.default}
+              inactiveTextColor={colors.text.secondary}
               onClick={() => setShowLowest(!showLowest)}
             />
           </div>
@@ -337,7 +338,7 @@ export default function UserStatsChartModal({
             >
               <CartesianGrid
                 vertical={false}
-                stroke={theme.borderSubtle}
+                stroke={colors.border.subtle}
               />
               <XAxis
                 dataKey="time"
@@ -354,7 +355,7 @@ export default function UserStatsChartModal({
                       y={0}
                       dy={4}
                       textAnchor="middle"
-                      fill={theme.textSecondary}
+                      fill={colors.text.secondary}
                       fontSize={11}
                     >
                       {formatDate(payload.value)}
@@ -364,7 +365,7 @@ export default function UserStatsChartModal({
                       y={0}
                       dy={18}
                       textAnchor="middle"
-                      fill={theme.textSecondary}
+                      fill={colors.text.secondary}
                       fontSize={10}
                     >
                       {formatTime(payload.value)}
@@ -376,13 +377,13 @@ export default function UserStatsChartModal({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tick={{ fill: theme.textSecondary, fontSize: 11 }}
+                tick={{ fill: colors.text.secondary, fontSize: 11 }}
                 tickFormatter={formatYAxis}
                 domain={yDomain}
                 width={56}
               />
               <ChartTooltip
-                cursor={{ stroke: theme.borderDefault }}
+                cursor={{ stroke: colors.border.default }}
                 content={
                   <ChartTooltipContent
                     labelFormatter={(_value, payload) => {
@@ -400,7 +401,7 @@ export default function UserStatsChartModal({
               <Line
                 dataKey="value"
                 type="monotone"
-                stroke={theme.buttonSelected}
+                stroke={colors.interactive.secondary.DEFAULT}
                 strokeWidth={2}
                 dot={({ cx, cy, payload: dotPayload }) => {
                   const dp = dotPayload as {
@@ -416,8 +417,8 @@ export default function UserStatsChartModal({
                         cx={cx}
                         cy={cy}
                         r={6}
-                        fill={theme.statusSuccess}
-                        stroke={theme.statusSuccess}
+                        fill={colors.status.success.DEFAULT}
+                        stroke={colors.status.success.DEFAULT}
                       />
                     );
                   }
@@ -428,8 +429,8 @@ export default function UserStatsChartModal({
                         cx={cx}
                         cy={cy}
                         r={6}
-                        fill={theme.statusError}
-                        stroke={theme.statusError}
+                        fill={colors.status.error.DEFAULT}
+                        stroke={colors.status.error.DEFAULT}
                       />
                     );
                   }
@@ -440,15 +441,15 @@ export default function UserStatsChartModal({
                       cx={cx}
                       cy={cy}
                       r={3}
-                      fill={theme.buttonSelected}
-                      stroke={theme.buttonSelected}
+                      fill={colors.interactive.secondary.DEFAULT}
+                      stroke={colors.interactive.secondary.DEFAULT}
                     />
                   );
                 }}
                 activeDot={{
                   r: 5,
-                  fill: theme.buttonSelected,
-                  stroke: theme.surfaceColor,
+                  fill: colors.interactive.secondary.DEFAULT,
+                  stroke: colors.bg.surface,
                   strokeWidth: 2,
                 }}
               />
@@ -469,13 +470,13 @@ export default function UserStatsChartModal({
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                style={{ color: theme.textSecondary }}
+                style={{ color: colors.text.secondary }}
               >
                 <path d="M3 3v16a2 2 0 0 0 2 2h16" />
                 <path d="m19 9-5 5-4-4-3 3" />
               </svg>
             </div>
-            <p className="text-sm" style={{ color: theme.textSecondary }}>
+            <p className="text-sm" style={{ color: colors.text.secondary }}>
               Complete some typing tests to see your chart data
             </p>
           </div>
@@ -485,12 +486,12 @@ export default function UserStatsChartModal({
         {meta.hasHighlights && hasData && (
           <div
             className="flex items-center justify-center gap-6 text-xs"
-            style={{ color: theme.textSecondary }}
+            style={{ color: colors.text.secondary }}
           >
             <div className="flex items-center gap-1.5">
               <div
                 className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: theme.buttonSelected }}
+                style={{ backgroundColor: colors.interactive.secondary.DEFAULT }}
               />
               <span>All Tests</span>
             </div>
@@ -498,7 +499,7 @@ export default function UserStatsChartModal({
               <div className="flex items-center gap-1.5">
                 <div
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: theme.statusSuccess }}
+                  style={{ backgroundColor: colors.status.success.DEFAULT }}
                 />
                 <span>Best / Highest</span>
               </div>
@@ -507,7 +508,7 @@ export default function UserStatsChartModal({
               <div className="flex items-center gap-1.5">
                 <div
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: theme.statusError }}
+                  style={{ backgroundColor: colors.status.error.DEFAULT }}
                 />
                 <span>Lowest</span>
               </div>
@@ -519,18 +520,19 @@ export default function UserStatsChartModal({
   );
 }
 
-// Small toggle chip component for highlight controls
 function ToggleChip({
   label,
   active,
   color,
-  theme,
+  inactiveColor,
+  inactiveTextColor,
   onClick,
 }: {
   label: string;
   active: boolean;
   color: string;
-  theme: LegacyTheme;
+  inactiveColor: string;
+  inactiveTextColor: string;
   onClick: () => void;
 }) {
   return (
@@ -538,15 +540,15 @@ function ToggleChip({
       onClick={onClick}
       className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
       style={{
-        backgroundColor: active ? `${color}20` : `${theme.defaultText}15`,
-        color: active ? color : theme.textSecondary,
+        backgroundColor: active ? `${color}20` : `${inactiveColor}15`,
+        color: active ? color : inactiveTextColor,
         border: `1px solid ${active ? `${color}40` : "transparent"}`,
       }}
     >
       <div
         className="h-2 w-2 rounded-full transition-colors"
         style={{
-          backgroundColor: active ? color : theme.textSecondary,
+          backgroundColor: active ? color : inactiveTextColor,
           opacity: active ? 1 : 0.4,
         }}
       />

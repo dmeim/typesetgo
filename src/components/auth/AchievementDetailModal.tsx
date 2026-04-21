@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import {
   ACHIEVEMENT_CATEGORIES,
   TIER_COLORS,
@@ -36,11 +36,11 @@ function formatDateTime(timestamp: number): string {
 function AchievementSlide({
   achievement,
   earnedAt,
-  theme,
+  colors,
 }: {
   achievement: Achievement;
   earnedAt: number | null;
-  theme: LegacyTheme;
+  colors: ReturnType<typeof useTheme>["colors"];
 }) {
   const category = ACHIEVEMENT_CATEGORIES[achievement.category];
   const tierColors = TIER_COLORS[achievement.tier];
@@ -81,13 +81,13 @@ function AchievementSlide({
         <div className="flex flex-col min-w-0">
           <h3
             className="text-2xl font-bold mb-1 truncate"
-            style={{ color: theme.textPrimary }}
+            style={{ color: tv.text.primary }}
           >
             {achievement.title}
           </h3>
           <div
             className="text-sm flex items-center gap-1.5"
-            style={{ color: theme.textSecondary }}
+            style={{ color: tv.text.secondary }}
           >
             <span>{category.icon}</span>
             <span>{category.name}</span>
@@ -99,8 +99,8 @@ function AchievementSlide({
       <div
         className="text-base text-center px-5 py-4 rounded-lg mb-4 w-full"
         style={{
-          backgroundColor: `${theme.backgroundColor}80`,
-          color: theme.textPrimary,
+          backgroundColor: `${colors.bg.base}80`,
+          color: tv.text.primary,
         }}
       >
         {achievement.description}
@@ -108,14 +108,14 @@ function AchievementSlide({
 
       <div
         className="text-xs text-center"
-        style={{ color: theme.textSecondary }}
+        style={{ color: tv.text.secondary }}
       >
         {isLocked ? (
           <span className="opacity-70">Not yet earned</span>
         ) : (
           <>
             <span className="opacity-70">Earned on </span>
-            <span className="font-medium" style={{ color: theme.buttonSelected }}>
+            <span className="font-medium" style={{ color: tv.interactive.secondary.DEFAULT }}>
               {formatDateTime(earnedAt)}
             </span>
           </>
@@ -130,39 +130,7 @@ export default function AchievementDetailModal({
   initialIndex,
   onClose,
 }: AchievementDetailModalProps) {
-  const { legacyTheme } = useTheme();
-  
-  // Fallback theme
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
+  const { colors } = useTheme();
 
   const [api, setApi] = useState<CarouselApi>();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -227,7 +195,7 @@ export default function AchievementDetailModal({
     >
       <div
         className="w-full max-w-lg rounded-lg p-8 shadow-xl mx-4 min-h-[360px] flex flex-col"
-        style={{ backgroundColor: theme.surfaceColor }}
+        style={{ backgroundColor: tv.bg.surface }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with close button */}
@@ -235,7 +203,7 @@ export default function AchievementDetailModal({
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg transition hover:opacity-80"
-            style={{ color: theme.textMuted }}
+            style={{ color: tv.text.muted }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -270,7 +238,7 @@ export default function AchievementDetailModal({
                   <AchievementSlide
                     achievement={achievement}
                     earnedAt={earnedAt}
-                    theme={theme}
+                    colors={colors}
                   />
                 </CarouselItem>
               ))}
@@ -285,8 +253,8 @@ export default function AchievementDetailModal({
                 disabled={!canScrollPrev}
                 className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full transition-all disabled:opacity-20"
                 style={{
-                  backgroundColor: `${theme.surfaceColor}ee`,
-                  color: canScrollPrev ? theme.buttonSelected : theme.textMuted,
+                  backgroundColor: `${colors.bg.surface}ee`,
+                  color: canScrollPrev ? tv.interactive.secondary.DEFAULT : tv.text.muted,
                 }}
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -296,8 +264,8 @@ export default function AchievementDetailModal({
                 disabled={!canScrollNext}
                 className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full transition-all disabled:opacity-20"
                 style={{
-                  backgroundColor: `${theme.surfaceColor}ee`,
-                  color: canScrollNext ? theme.buttonSelected : theme.textMuted,
+                  backgroundColor: `${colors.bg.surface}ee`,
+                  color: canScrollNext ? tv.interactive.secondary.DEFAULT : tv.text.muted,
                 }}
               >
                 <ChevronRight className="w-5 h-5" />
@@ -317,8 +285,8 @@ export default function AchievementDetailModal({
                 style={{
                   backgroundColor:
                     index === currentIndex
-                      ? theme.buttonSelected
-                      : theme.textMuted,
+                      ? tv.interactive.secondary.DEFAULT
+                      : tv.text.muted,
                   transform: index === currentIndex ? "scale(1.2)" : "scale(1)",
                 }}
               />

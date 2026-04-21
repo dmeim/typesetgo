@@ -3,7 +3,7 @@ import { useUser } from "@clerk/clerk-react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import {
   getAchievementById,
   TIER_COLORS,
@@ -79,12 +79,10 @@ function getHighestInCategory(
 function CategoryCard({
   category,
   earnedIds,
-  theme,
   onClick,
 }: {
   category: AchievementCategory;
   earnedIds: string[];
-  theme: LegacyTheme;
   onClick: () => void;
 }) {
   const categoryInfo = ACHIEVEMENT_CATEGORIES[category];
@@ -106,11 +104,11 @@ function CategoryCard({
       style={{
         backgroundColor: hasEarned
           ? `${tierColors?.bg}15`
-          : theme.surfaceColor,
+          : tv.bg.surface,
         borderWidth: 1,
         borderColor: hasEarned
           ? `${tierColors?.border}40`
-          : theme.borderSubtle,
+          : tv.border.subtle,
       }}
     >
       {/* Category Header */}
@@ -118,13 +116,13 @@ function CategoryCard({
         <span className="text-lg">{categoryInfo.icon}</span>
         <span
           className="text-xs font-semibold truncate flex-1"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           {categoryInfo.name}
         </span>
         <span
           className="text-[10px] font-medium"
-          style={{ color: theme.buttonSelected }}
+          style={{ color: tv.interactive.secondary.DEFAULT }}
         >
           {earnedCount}/{categoryAchievements.length}
         </span>
@@ -147,7 +145,7 @@ function CategoryCard({
           <div className="flex-1 min-w-0">
             <div
               className="text-[11px] font-medium line-clamp-1"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               {highestAchievement.title}
             </div>
@@ -166,12 +164,12 @@ function CategoryCard({
         <div
           className="flex items-center justify-center p-2 rounded-lg opacity-40 flex-1"
           style={{
-            backgroundColor: theme.backgroundColor,
+            backgroundColor: tv.bg.base,
             borderWidth: 1,
-            borderColor: theme.borderSubtle,
+            borderColor: tv.border.subtle,
           }}
         >
-          <span className="text-xs" style={{ color: theme.textMuted }}>
+          <span className="text-xs" style={{ color: tv.text.muted }}>
             None yet
           </span>
         </div>
@@ -184,39 +182,7 @@ export default function AchievementsCategoryGrid({
   earnedAchievements,
 }: AchievementsCategoryGridProps) {
   const { user } = useUser();
-  const { legacyTheme } = useTheme();
-  
-  // Fallback theme (complete)
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
+  const { colors } = useTheme();
   const recheckAchievements = useMutation(
     api.achievements.recheckAllAchievements
   );
@@ -262,13 +228,13 @@ export default function AchievementsCategoryGrid({
           <div
             className="p-3 rounded-xl flex flex-col justify-center"
             style={{
-              backgroundColor: `${theme.backgroundColor}80`,
-              border: `1px solid ${theme.borderSubtle}`,
+              backgroundColor: `${colors.bg.base}80`,
+              border: `1px solid ${tv.border.subtle}`,
             }}
           >
             <div
               className="text-xs font-semibold uppercase tracking-wide mb-1"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
             >
               Achievements
             </div>
@@ -279,7 +245,7 @@ export default function AchievementsCategoryGrid({
                   setShowAchievementsModal(true);
                 }}
                 className="text-lg font-bold hover:underline transition-all cursor-pointer"
-                style={{ color: theme.buttonSelected }}
+                style={{ color: tv.interactive.secondary.DEFAULT }}
               >
                 {totalEarned} / {ALL_ACHIEVEMENTS.length}
               </button>
@@ -287,7 +253,7 @@ export default function AchievementsCategoryGrid({
                 onClick={handleRefresh}
                 disabled={isRefreshing || !user}
                 className="p-1.5 rounded transition-all hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ color: theme.textSecondary }}
+                style={{ color: tv.text.secondary }}
                 title="Refresh achievements"
               >
                 <svg
@@ -319,11 +285,11 @@ export default function AchievementsCategoryGrid({
             style={{
               backgroundColor: collectionAchievement
                 ? `${collectionTierColors?.bg}15`
-                : `${theme.backgroundColor}80`,
+                : `${colors.bg.base}80`,
               border: `1px solid ${
                 collectionAchievement
                   ? `${collectionTierColors?.border}40`
-                  : theme.borderSubtle
+                  : tv.border.subtle
               }`,
             }}
           >
@@ -344,7 +310,7 @@ export default function AchievementsCategoryGrid({
                 <div className="flex-1 min-w-0">
                   <div
                     className="text-sm font-semibold truncate"
-                    style={{ color: theme.textPrimary }}
+                    style={{ color: tv.text.primary }}
                   >
                     {collectionAchievement.title}
                   </div>
@@ -363,13 +329,13 @@ export default function AchievementsCategoryGrid({
               <div className="flex-1 flex flex-col justify-center">
                 <div
                   className="text-xs font-semibold uppercase tracking-wide mb-1"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   Collector
                 </div>
                 <div
                   className="text-sm opacity-60"
-                  style={{ color: theme.textMuted }}
+                  style={{ color: tv.text.muted }}
                 >
                   Earn achievements to unlock
                 </div>
@@ -385,7 +351,6 @@ export default function AchievementsCategoryGrid({
               key={category}
               category={category}
               earnedIds={earnedIds}
-              theme={theme}
               onClick={() => handleCategoryClick(category)}
             />
           ))}

@@ -8,52 +8,16 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { RaceCourse } from "@/components/race";
 import TypingArea from "@/components/typing/TypingArea";
 import type { TypingStats } from "@/components/typing/TypingArea";
-import { useTheme } from "@/hooks/useTheme";
 import { useSessionId } from "@/hooks/useSessionId";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import { Loader2, Clock, Flag, LogOut, X } from "lucide-react";
-
-// Default theme fallback
-const DEFAULT_THEME: LegacyTheme = {
-  cursor: "#3cb5ee",
-  defaultText: "#4b5563",
-  upcomingText: "#4b5563",
-  correctText: "#d1d5db",
-  incorrectText: "#ef4444",
-  ghostCursor: "#a855f7",
-  buttonUnselected: "#3cb5ee",
-  buttonSelected: "#0097b2",
-  accentColor: "#a855f7",
-  accentMuted: "rgba(168, 85, 247, 0.3)",
-  accentSubtle: "rgba(168, 85, 247, 0.1)",
-  backgroundColor: "#323437",
-  surfaceColor: "#2c2e31",
-  elevatedColor: "#37383b",
-  overlayColor: "rgba(0, 0, 0, 0.5)",
-  textPrimary: "#d1d5db",
-  textSecondary: "#4b5563",
-  textMuted: "rgba(75, 85, 99, 0.6)",
-  textInverse: "#ffffff",
-  borderDefault: "rgba(75, 85, 99, 0.3)",
-  borderSubtle: "rgba(75, 85, 99, 0.15)",
-  borderFocus: "#3cb5ee",
-  statusSuccess: "#22c55e",
-  statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-  statusError: "#ef4444",
-  statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-  statusWarning: "#f59e0b",
-  statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-};
 
 const FINAL_TIMER_DURATION = 10; // seconds after top 3 finish
 
 export default function RaceActive() {
   const { raceId } = useParams<{ raceId: string }>();
   const navigate = useNavigate();
-  const { legacyTheme } = useTheme();
   const sessionId = useSessionId();
-  
-  const theme: LegacyTheme = legacyTheme ?? DEFAULT_THEME;
 
   // State - Race starts immediately (countdown happens in lobby)
   const [raceStarted, setRaceStarted] = useState(true);
@@ -271,9 +235,9 @@ export default function RaceActive() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: theme.backgroundColor }}
+        style={{ backgroundColor: tv.bg.base }}
       >
-        <div className="flex items-center gap-3" style={{ color: theme.textSecondary }}>
+        <div className="flex items-center gap-3" style={{ color: tv.text.secondary }}>
           <Loader2 className="w-6 h-6 animate-spin" />
           <span>Loading race...</span>
         </div>
@@ -287,27 +251,27 @@ export default function RaceActive() {
   return (
     <div
       className="min-h-screen flex flex-col overflow-y-auto"
-      style={{ backgroundColor: theme.backgroundColor }}
+      style={{ backgroundColor: tv.bg.base }}
     >
       {/* Race header bar */}
       <div
         className="flex items-center justify-between px-6 py-3 shrink-0"
         style={{
-          backgroundColor: theme.surfaceColor,
-          borderBottom: `1px solid ${theme.borderDefault}`,
+          backgroundColor: tv.bg.surface,
+          borderBottom: `1px solid ${tv.border.default}`,
         }}
       >
         {/* Race info */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Flag size={18} style={{ color: theme.accentColor }} />
-            <span className="font-bold" style={{ color: theme.textPrimary }}>
+            <Flag size={18} style={{ color: tv.interactive.accent.DEFAULT }} />
+            <span className="font-bold" style={{ color: tv.text.primary }}>
               Race in Progress
             </span>
           </div>
           <span
             className="text-sm"
-            style={{ color: theme.textSecondary }}
+            style={{ color: tv.text.secondary }}
           >
             {finishedCount} / {totalRacers} finished
           </span>
@@ -319,9 +283,9 @@ export default function RaceActive() {
           {lastStats && raceStarted && (
             <div
               className="text-sm font-mono"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
             >
-              <span style={{ color: theme.accentColor }}>{lastStats.wpm}</span> WPM
+              <span style={{ color: tv.interactive.accent.DEFAULT }}>{lastStats.wpm}</span> WPM
             </div>
           )}
 
@@ -330,8 +294,8 @@ export default function RaceActive() {
             <div
               className="flex items-center gap-2 px-3 py-1 rounded-lg animate-pulse"
               style={{
-                backgroundColor: theme.statusWarningMuted,
-                color: theme.statusWarning,
+                backgroundColor: tv.status.warning.muted,
+                color: tv.status.warning.DEFAULT,
               }}
             >
               <Clock size={16} />
@@ -344,13 +308,12 @@ export default function RaceActive() {
       {/* Race course (flexible, takes remaining space) */}
       <div
         className="flex-1 min-h-[200px]"
-        style={{ 
-          backgroundColor: theme.backgroundColor,
+        style={{
+          backgroundColor: tv.bg.base,
         }}
       >
         <RaceCourse
           racers={racers}
-          theme={theme}
           isRaceActive={raceStarted && !isRaceEnded}
         />
       </div>
@@ -359,8 +322,8 @@ export default function RaceActive() {
       <div
         className="shrink-0 p-4"
         style={{
-          backgroundColor: theme.surfaceColor,
-          borderTop: `2px solid ${theme.borderDefault}`,
+          backgroundColor: tv.bg.surface,
+          borderTop: `2px solid ${tv.border.default}`,
           minHeight: "120px",
         }}
       >
@@ -370,11 +333,11 @@ export default function RaceActive() {
             <div className="text-center">
               <p
                 className="text-2xl font-bold mb-2"
-                style={{ color: theme.textPrimary }}
+                style={{ color: tv.text.primary }}
               >
                 Race Complete!
               </p>
-              <p style={{ color: theme.textSecondary }}>
+              <p style={{ color: tv.text.secondary }}>
                 Loading results...
               </p>
             </div>
@@ -402,25 +365,25 @@ export default function RaceActive() {
       {(hasLocallyFinished || currentParticipant?.stats?.isFinished) && !isRaceEnded && (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none"
-          style={{ backgroundColor: `${theme.overlayColor}` }}
+          style={{ backgroundColor: tv.bg.overlay }}
         >
           <div
             className="text-center p-8 rounded-2xl pointer-events-auto"
-            style={{ backgroundColor: theme.surfaceColor }}
+            style={{ backgroundColor: tv.bg.surface }}
           >
             <div className="text-6xl mb-4">🏁</div>
             <h2
               className="text-3xl font-black mb-2"
-              style={{ color: theme.statusSuccess }}
+              style={{ color: tv.status.success.DEFAULT }}
             >
               You Finished!
             </h2>
-            <p style={{ color: theme.textSecondary }}>
-              Position: <span style={{ color: theme.accentColor }}>#{currentParticipant?.position || "..."}</span>
+            <p style={{ color: tv.text.secondary }}>
+              Position: <span style={{ color: tv.interactive.accent.DEFAULT }}>#{currentParticipant?.position || "..."}</span>
             </p>
             <p
               className="text-sm mt-4"
-              style={{ color: theme.textMuted }}
+              style={{ color: tv.text.muted }}
             >
               Waiting for other racers...
             </p>
@@ -432,14 +395,14 @@ export default function RaceActive() {
       {showLeaveModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: theme.overlayColor }}
+          style={{ backgroundColor: tv.bg.overlay }}
           onClick={() => setShowLeaveModal(false)}
         >
           <div
             className="relative text-center p-8 rounded-2xl max-w-sm w-full mx-4"
             style={{
-              backgroundColor: theme.surfaceColor,
-              border: `1px solid ${theme.borderDefault}`,
+              backgroundColor: tv.bg.surface,
+              border: `1px solid ${tv.border.default}`,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -447,7 +410,7 @@ export default function RaceActive() {
             <button
               onClick={() => setShowLeaveModal(false)}
               className="absolute top-4 right-4 p-1 rounded-lg transition-opacity hover:opacity-80"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
             >
               <X size={20} />
             </button>
@@ -455,13 +418,13 @@ export default function RaceActive() {
             <div className="text-5xl mb-4">🚪</div>
             <h2
               className="text-2xl font-bold mb-2"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               Leave Race?
             </h2>
             <p
               className="text-sm mb-6"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
             >
               You'll be removed from the race and your progress will be lost.
             </p>
@@ -471,8 +434,8 @@ export default function RaceActive() {
                 onClick={() => setShowLeaveModal(false)}
                 className="px-5 py-2.5 rounded-lg font-medium transition-all hover:opacity-90"
                 style={{
-                  backgroundColor: theme.elevatedColor,
-                  color: theme.textPrimary,
+                  backgroundColor: tv.bg.elevated,
+                  color: tv.text.primary,
                 }}
               >
                 Keep Racing
@@ -481,9 +444,9 @@ export default function RaceActive() {
                 onClick={handleLeaveRace}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all hover:opacity-90"
                 style={{
-                  backgroundColor: theme.statusErrorMuted,
-                  color: theme.statusError,
-                  border: `1px solid ${theme.statusError}`,
+                  backgroundColor: tv.status.error.muted,
+                  color: tv.status.error.DEFAULT,
+                  border: `1px solid ${tv.status.error.DEFAULT}`,
                 }}
               >
                 <LogOut size={16} />
@@ -493,7 +456,7 @@ export default function RaceActive() {
 
             <p
               className="text-xs mt-4"
-              style={{ color: theme.textMuted }}
+              style={{ color: tv.text.muted }}
             >
               Press ESC to close
             </p>

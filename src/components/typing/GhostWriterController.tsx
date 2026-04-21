@@ -1,18 +1,16 @@
 import { useState } from "react";
 import type { SettingsState } from "@/lib/typing-constants";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import GhostWriterSettingsModal from "@/components/settings/GhostWriterSettingsModal";
 
 interface GhostWriterControllerProps {
   settings: SettingsState | Partial<SettingsState>;
   onUpdateSettings: (updates: Partial<SettingsState>) => void;
-  theme: LegacyTheme;
 }
 
 export default function GhostWriterController({
   settings,
   onUpdateSettings,
-  theme,
 }: GhostWriterControllerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -28,8 +26,8 @@ export default function GhostWriterController({
         className="flex h-[1.5em] w-[1.5em] items-center justify-center rounded transition hover:opacity-75 hover:text-white"
         style={{
           color: ghostWriterEnabled
-            ? theme.buttonSelected
-            : theme.buttonUnselected,
+            ? tv.interactive.secondary.DEFAULT
+            : tv.interactive.primary.DEFAULT,
         }}
         title="ghost writer settings"
       >
@@ -55,7 +53,6 @@ export default function GhostWriterController({
         onClose={() => setIsOpen(false)}
         settings={safeSettings}
         onUpdateSettings={onUpdateSettings}
-        theme={theme}
       />
     </>
   );

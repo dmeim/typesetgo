@@ -36,7 +36,6 @@ import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
 import { useSessionId } from "@/hooks/useSessionId";
 import { HostCard, UserHostCard } from "@/components/connect";
 import SoundController from "@/components/typing/SoundController";
-import type { LegacyTheme } from "@/types/theme";
 import ColorPicker from "@/components/typing/ColorPicker";
 import { PlanBuilderModal } from "@/components/plan";
 import type { Plan } from "@/types/plan";
@@ -151,29 +150,6 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   // Derived theme
   const theme = settings.theme || DEFAULT_THEME;
   
-  // Create a LegacyTheme-compatible object for components that need it
-  const legacyThemeForSound: LegacyTheme = {
-    ...theme,
-    // Add the new LegacyTheme properties using the existing theme values
-    textPrimary: theme.correctText,
-    textSecondary: theme.defaultText,
-    textMuted: theme.defaultText,
-    textInverse: theme.backgroundColor,
-    borderDefault: theme.defaultText,
-    borderSubtle: `${theme.defaultText}30`,
-    borderFocus: theme.buttonSelected,
-    statusSuccess: theme.correctText,
-    statusSuccessMuted: `${theme.correctText}20`,
-    statusError: theme.incorrectText,
-    statusErrorMuted: `${theme.incorrectText}20`,
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "#f59e0b20",
-    accentColor: theme.buttonSelected,
-    accentMuted: `${theme.buttonSelected}20`,
-    accentSubtle: `${theme.buttonSelected}10`,
-    elevatedColor: theme.surfaceColor,
-    overlayColor: `${theme.backgroundColor}cc`,
-  };
 
   // Theme presets - loaded dynamically
   const [themePresets, setThemePresets] = useState<ThemeDefinition[]>([]);
@@ -640,7 +616,6 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             settings={settings}
             onUpdateSettings={updateSettings}
             soundManifest={soundManifest}
-            theme={legacyThemeForSound}
           />
 
           {/* Ghost Toggle */}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { SettingsState } from "@/lib/typing-constants";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
+import { useTheme } from "@/hooks/useTheme";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,6 @@ interface GhostWriterSettingsModalProps {
   onClose: () => void;
   settings: SettingsState;
   onUpdateSettings: (updates: Partial<SettingsState>) => void;
-  theme: LegacyTheme;
 }
 
 const SPEED_PRESETS = [20, 40, 60, 80, 100, 120];
@@ -24,8 +24,8 @@ export default function GhostWriterSettingsModal({
   onClose,
   settings,
   onUpdateSettings,
-  theme,
 }: GhostWriterSettingsModalProps) {
+  const { colors } = useTheme();
   const [customSpeed, setCustomSpeed] = useState(settings.ghostWriterSpeed);
 
   // Derive customSpeed from settings when it changes
@@ -38,15 +38,15 @@ export default function GhostWriterSettingsModal({
       <DialogContent
         className="max-w-md"
         style={{
-          backgroundColor: theme.surfaceColor,
-          borderColor: theme.borderSubtle,
+          backgroundColor: tv.bg.surface,
+          borderColor: tv.border.subtle,
         }}
       >
         <DialogHeader>
-          <DialogTitle style={{ color: theme.textPrimary }}>
+          <DialogTitle style={{ color: tv.text.primary }}>
             Ghost Writer
           </DialogTitle>
-          <DialogDescription style={{ color: theme.textSecondary }}>
+          <DialogDescription style={{ color: tv.text.secondary }}>
             A visual guide that shows where you would be if typing at your target speed.
           </DialogDescription>
         </DialogHeader>
@@ -58,9 +58,9 @@ export default function GhostWriterSettingsModal({
               onClick={() => onUpdateSettings({ ghostWriterEnabled: false })}
               className="group relative inline-flex items-center justify-center px-6 py-2 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{
-                backgroundColor: !settings.ghostWriterEnabled ? `${theme.buttonSelected}30` : `${theme.defaultText}20`,
-                color: !settings.ghostWriterEnabled ? theme.correctText : theme.defaultText,
-                boxShadow: !settings.ghostWriterEnabled ? `0 0 0 2px ${theme.buttonSelected}` : "none",
+                backgroundColor: !settings.ghostWriterEnabled ? `${colors.interactive.secondary.DEFAULT}30` : `${colors.typing.default}20`,
+                color: !settings.ghostWriterEnabled ? tv.typing.correct : tv.typing.default,
+                boxShadow: !settings.ghostWriterEnabled ? `0 0 0 2px ${colors.interactive.secondary.DEFAULT}` : "none",
               }}
             >
               Off
@@ -70,16 +70,16 @@ export default function GhostWriterSettingsModal({
               onClick={() => onUpdateSettings({ ghostWriterEnabled: true })}
               className="group relative inline-flex items-center justify-center px-6 py-2 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{
-                backgroundColor: settings.ghostWriterEnabled ? `${theme.buttonSelected}30` : `${theme.defaultText}20`,
-                color: settings.ghostWriterEnabled ? theme.correctText : theme.defaultText,
-                boxShadow: settings.ghostWriterEnabled ? `0 0 0 2px ${theme.buttonSelected}` : "none",
+                backgroundColor: settings.ghostWriterEnabled ? `${colors.interactive.secondary.DEFAULT}30` : `${colors.typing.default}20`,
+                color: settings.ghostWriterEnabled ? tv.typing.correct : tv.typing.default,
+                boxShadow: settings.ghostWriterEnabled ? `0 0 0 2px ${colors.interactive.secondary.DEFAULT}` : "none",
               }}
             >
               On
               {settings.ghostWriterEnabled && (
                 <div
                   className="absolute bottom-0 left-0 h-1 w-full scale-x-100 rounded-b-lg transition-transform duration-200"
-                  style={{ backgroundColor: theme.buttonSelected }}
+                  style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
                 ></div>
               )}
             </button>
@@ -90,7 +90,7 @@ export default function GhostWriterSettingsModal({
             className={`space-y-4 transition-opacity duration-200 ${!settings.ghostWriterEnabled ? "opacity-50 pointer-events-none" : ""}`}
           >
             <div className="flex flex-col gap-3">
-              <label className="text-sm text-center" style={{ color: theme.textSecondary }}>
+              <label className="text-sm text-center" style={{ color: tv.text.secondary }}>
                 Target Speed (WPM)
               </label>
 
@@ -102,9 +102,9 @@ export default function GhostWriterSettingsModal({
                     onClick={() => onUpdateSettings({ ghostWriterSpeed: speed })}
                     className="px-4 py-2 rounded-lg font-medium transition-all duration-200"
                     style={{
-                      backgroundColor: settings.ghostWriterSpeed === speed ? `${theme.buttonSelected}30` : `${theme.defaultText}20`,
-                      color: settings.ghostWriterSpeed === speed ? theme.correctText : theme.defaultText,
-                      boxShadow: settings.ghostWriterSpeed === speed ? `0 0 0 2px ${theme.buttonSelected}` : "none",
+                      backgroundColor: settings.ghostWriterSpeed === speed ? `${colors.interactive.secondary.DEFAULT}30` : `${colors.typing.default}20`,
+                      color: settings.ghostWriterSpeed === speed ? tv.typing.correct : tv.typing.default,
+                      boxShadow: settings.ghostWriterSpeed === speed ? `0 0 0 2px ${colors.interactive.secondary.DEFAULT}` : "none",
                     }}
                   >
                     {speed}
@@ -114,7 +114,7 @@ export default function GhostWriterSettingsModal({
 
               {/* Custom Speed Input */}
               <div className="flex items-center justify-center gap-3 mt-2">
-                <span className="text-sm" style={{ color: theme.textSecondary }}>Custom:</span>
+                <span className="text-sm" style={{ color: tv.text.secondary }}>Custom:</span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -124,7 +124,7 @@ export default function GhostWriterSettingsModal({
                       onUpdateSettings({ ghostWriterSpeed: newSpeed });
                     }}
                     className="w-8 h-8 flex items-center justify-center rounded hover:opacity-75 transition"
-                    style={{ backgroundColor: `${theme.defaultText}20`, color: theme.correctText }}
+                    style={{ backgroundColor: `${colors.typing.default}20`, color: tv.typing.correct }}
                   >
                     −
                   </button>
@@ -157,10 +157,10 @@ export default function GhostWriterSettingsModal({
                     }}
                     className="w-20 text-center rounded px-3 py-2 text-sm focus:outline-none focus:ring-2"
                     style={{
-                      backgroundColor: `${theme.backgroundColor}80`,
-                      color: theme.correctText,
-                      boxShadow: isCustomSpeed ? `0 0 0 2px ${theme.buttonSelected}` : "none",
-                      ["--tw-ring-color" as string]: theme.buttonSelected,
+                      backgroundColor: `${colors.bg.base}80`,
+                      color: tv.typing.correct,
+                      boxShadow: isCustomSpeed ? `0 0 0 2px ${colors.interactive.secondary.DEFAULT}` : "none",
+                      ["--tw-ring-color" as string]: tv.interactive.secondary.DEFAULT,
                     }}
                   />
                   <button
@@ -171,12 +171,12 @@ export default function GhostWriterSettingsModal({
                       onUpdateSettings({ ghostWriterSpeed: newSpeed });
                     }}
                     className="w-8 h-8 flex items-center justify-center rounded hover:opacity-75 transition"
-                    style={{ backgroundColor: `${theme.defaultText}20`, color: theme.correctText }}
+                    style={{ backgroundColor: `${colors.typing.default}20`, color: tv.typing.correct }}
                   >
                     +
                   </button>
                 </div>
-                <span className="text-sm" style={{ color: theme.textSecondary }}>WPM</span>
+                <span className="text-sm" style={{ color: tv.text.secondary }}>WPM</span>
               </div>
             </div>
           </div>

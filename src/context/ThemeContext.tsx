@@ -10,9 +10,7 @@ import type {
   ThemeColors,
   ThemeDefinition,
   ThemeMode,
-  LegacyTheme,
 } from "@/types/theme";
-import { toLegacyTheme } from "@/types/theme";
 import { fetchTheme, fetchThemeManifest, getDefaultTheme } from "@/lib/themes";
 
 // Storage keys
@@ -21,16 +19,14 @@ const MODE_STORAGE_KEY = "typesetgo-theme-mode";
 
 // Context value type
 export type ThemeContextValue = {
-  theme: ThemeDefinition | null;
+  theme: ThemeDefinition;
   themeId: string;
   themeName: string;
   mode: ThemeMode;
   setTheme: (id: string) => Promise<void>;
   setMode: (mode: ThemeMode) => void;
   toggleMode: () => void;
-  colors: ThemeColors | null;
-  /** Legacy theme format for backward compatibility during migration */
-  legacyTheme: LegacyTheme | null;
+  colors: ThemeColors;
   supportsLightMode: boolean;
   isLoading: boolean;
 };
@@ -106,7 +102,7 @@ type ThemeProviderProps = {
 };
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<ThemeDefinition | null>(null);
+  const [theme, setThemeState] = useState<ThemeDefinition>(getDefaultTheme());
   const [themeId, setThemeId] = useState<string>("typesetgo");
   const [mode, setModeState] = useState<ThemeMode>("dark");
   const [isLoading, setIsLoading] = useState(true);
@@ -129,29 +125,23 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       // Fetch the theme
       const loadedTheme = await fetchTheme(validThemeId);
 
-      if (loadedTheme) {
-        setThemeState(loadedTheme);
-        setThemeId(validThemeId);
+      const resolvedTheme = loadedTheme ?? getDefaultTheme();
+      const resolvedId = loadedTheme ? validThemeId : "typesetgo";
 
-        // If stored mode is light but theme doesn't support it, fallback to dark
-        const effectiveMode = storedMode === "light" && loadedTheme.light
-          ? "light"
-          : "dark";
-        setModeState(effectiveMode);
+      setThemeState(resolvedTheme);
+      setThemeId(resolvedId);
 
-        // Apply CSS variables
-        const colors = effectiveMode === "light" && loadedTheme.light
-          ? loadedTheme.light
-          : loadedTheme.dark;
-        applyThemeCSS(colors);
-      } else {
-        // Fallback to default theme
-        const defaultTheme = getDefaultTheme();
-        setThemeState(defaultTheme);
-        setThemeId("typesetgo");
-        setModeState("dark");
-        applyThemeCSS(defaultTheme.dark);
-      }
+      // If stored mode is light but theme doesn't support it, fallback to dark
+      const effectiveMode = storedMode === "light" && resolvedTheme.light
+        ? "light"
+        : "dark";
+      setModeState(effectiveMode);
+
+      // Apply CSS variables
+      const colors = effectiveMode === "light" && resolvedTheme.light
+        ? resolvedTheme.light
+        : resolvedTheme.dark;
+      applyThemeCSS(colors);
 
       setIsLoading(false);
     }
@@ -213,19 +203,12 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   // Compute current colors based on mode
   const colors = useMemo(() => {
-    if (!theme) return null;
     return mode === "light" && theme.light ? theme.light : theme.dark;
   }, [theme, mode]);
 
-  // Compute legacy theme for backward compatibility
-  const legacyTheme = useMemo(() => {
-    if (!colors) return null;
-    return toLegacyTheme(colors);
-  }, [colors]);
-
   // Check if current theme supports light mode
   const supportsLightMode = useMemo(() => {
-    return theme?.light !== null && theme?.light !== undefined;
+    return theme.light !== null && theme.light !== undefined;
   }, [theme]);
 
   // Theme name for display
@@ -242,11 +225,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       setMode,
       toggleMode,
       colors,
-      legacyTheme,
       supportsLightMode,
       isLoading,
     }),
-    [theme, themeId, themeName, mode, setTheme, setMode, toggleMode, colors, legacyTheme, supportsLightMode, isLoading]
+    [theme, themeId, themeName, mode, setTheme, setMode, toggleMode, colors, supportsLightMode, isLoading]
   );
 
   return (

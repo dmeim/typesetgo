@@ -1,6 +1,6 @@
 // src/components/race/Podium.tsx
 // Podium display for race results
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import { Trophy, Medal, Award } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -18,7 +18,6 @@ interface RaceRanking {
 interface PodiumProps {
   rankings: RaceRanking[];
   currentSessionId: string;
-  theme: LegacyTheme;
   showTable?: boolean;
   showPodium?: boolean;
 }
@@ -35,7 +34,6 @@ function formatTime(ms: number | undefined): string {
 export default function Podium({
   rankings,
   currentSessionId,
-  theme,
   showTable = true,
   showPodium = true,
 }: PodiumProps) {
@@ -50,23 +48,23 @@ export default function Podium({
       case 1:
         return {
           height: "160px",
-          color: theme.statusWarning,
-          bgColor: theme.statusWarningMuted,
+          color: tv.status.warning.DEFAULT,
+          bgColor: tv.status.warning.muted,
           icon: Trophy,
           label: "1st",
         };
       case 2:
         return {
           height: "120px",
-          color: theme.textSecondary,
-          bgColor: theme.surfaceColor,
+          color: tv.text.secondary,
+          bgColor: tv.bg.surface,
           icon: Medal,
           label: "2nd",
         };
       case 3:
         return {
           height: "80px",
-          color: "#cd7f32", // Bronze color
+          color: "#cd7f32",
           bgColor: "rgba(205, 127, 50, 0.2)",
           icon: Award,
           label: "3rd",
@@ -74,8 +72,8 @@ export default function Podium({
       default:
         return {
           height: "60px",
-          color: theme.textMuted,
-          bgColor: theme.elevatedColor,
+          color: tv.text.muted,
+          bgColor: tv.bg.elevated,
           icon: Award,
           label: `${position}th`,
         };
@@ -120,7 +118,7 @@ export default function Podium({
               <motion.p
                 className={`font-bold mb-1 ${racer.position === 1 ? "text-lg" : "text-sm"}`}
                 style={{
-                  color: isCurrentUser ? theme.accentColor : theme.textPrimary,
+                  color: isCurrentUser ? tv.interactive.accent.DEFAULT : tv.text.primary,
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -173,34 +171,34 @@ export default function Podium({
         <div
           className="rounded-xl overflow-hidden"
           style={{
-            backgroundColor: theme.surfaceColor,
-            border: `1px solid ${theme.borderDefault}`,
+            backgroundColor: tv.bg.surface,
+            border: `1px solid ${tv.border.default}`,
           }}
         >
           <table className="w-full">
             <thead>
-              <tr style={{ backgroundColor: theme.elevatedColor }}>
+              <tr style={{ backgroundColor: tv.bg.elevated }}>
                 <th
                   className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   Rank
                 </th>
                 <th
                   className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   Racer
                 </th>
                 <th
                   className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   WPM
                 </th>
                 <th
                   className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider"
-                  style={{ color: theme.textSecondary }}
+                  style={{ color: tv.text.secondary }}
                 >
                   Time
                 </th>
@@ -217,10 +215,10 @@ export default function Podium({
                     transition={{ delay: 1.2 + index * 0.08, duration: 0.3 }}
                     style={{
                       backgroundColor: isCurrentUser
-                        ? theme.accentSubtle
+                        ? tv.interactive.accent.subtle
                         : index % 2 === 0
                         ? "transparent"
-                        : theme.elevatedColor,
+                        : tv.bg.elevated,
                     }}
                   >
                     <td className="px-4 py-3">
@@ -229,12 +227,12 @@ export default function Podium({
                         style={{
                           color:
                             racer.position === 1
-                              ? theme.statusWarning
+                              ? tv.status.warning.DEFAULT
                               : racer.position === 2
-                              ? theme.textSecondary
+                              ? tv.text.secondary
                               : racer.position === 3
                               ? "#cd7f32"
-                              : theme.textMuted,
+                              : tv.text.muted,
                         }}
                       >
                         {racer.position}
@@ -247,15 +245,15 @@ export default function Podium({
                           className="font-medium"
                           style={{
                             color: isCurrentUser
-                              ? theme.accentColor
-                              : theme.textPrimary,
+                              ? tv.interactive.accent.DEFAULT
+                              : tv.text.primary,
                           }}
                         >
                           {racer.name}
                           {isCurrentUser && (
                             <span
                               className="ml-2 text-xs"
-                              style={{ color: theme.textSecondary }}
+                              style={{ color: tv.text.secondary }}
                             >
                               (you)
                             </span>
@@ -265,7 +263,7 @@ export default function Podium({
                     </td>
                     <td
                       className="px-4 py-3 text-right font-mono font-bold"
-                      style={{ color: theme.textPrimary }}
+                      style={{ color: tv.text.primary }}
                     >
                       {racer.wpm}
                     </td>
@@ -273,8 +271,8 @@ export default function Podium({
                       className="px-4 py-3 text-right font-mono"
                       style={{
                         color: racer.didFinish
-                          ? theme.textPrimary
-                          : theme.statusError,
+                          ? tv.text.primary
+                          : tv.status.error.DEFAULT,
                       }}
                     >
                       {racer.didFinish ? formatTime(racer.finishTime) : "DNF"}

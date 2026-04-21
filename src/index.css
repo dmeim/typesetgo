@@ -92,26 +92,6 @@ html {
   --theme-typing-upcoming: #4b5563;
   --theme-typing-default: #4b5563;
 
-  /* === LEGACY VARIABLES (for backward compatibility during migration) === */
-  --bg-primary: var(--theme-bg-base);
-  --surface: var(--theme-bg-surface);
-  --text-primary: var(--theme-text-primary);
-  --text-secondary: var(--theme-text-secondary);
-  --text-body: var(--theme-text-primary);
-  --text-error: var(--theme-status-error);
-  --text-success: var(--theme-status-success);
-  --brand-primary: var(--theme-interactive-primary);
-  --brand-secondary: var(--theme-interactive-secondary);
-  --brand-accent: var(--theme-interactive-accent);
-  --cursor-color: var(--theme-typing-cursor);
-  --default-text: var(--theme-typing-default);
-  --upcoming-text: var(--theme-typing-upcoming);
-  --correct-text: var(--theme-typing-correct);
-  --incorrect-text: var(--theme-typing-incorrect);
-  --ghost-cursor: var(--theme-typing-cursor-ghost);
-  --button-unselected: var(--theme-interactive-primary);
-  --button-selected: var(--theme-interactive-secondary);
-
   /* Shadcn/UI theme variables */
   --background: 0 0% 20%;
   --foreground: 0 0% 83%;

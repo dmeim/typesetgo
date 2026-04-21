@@ -2,7 +2,7 @@
 // Horizontal lane-based race track visualization
 import { useMemo } from "react";
 import { motion, LayoutGroup } from "framer-motion";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 
 interface Racer {
   sessionId: string;
@@ -17,7 +17,6 @@ interface Racer {
 
 interface RaceCourseProps {
   racers: Racer[];
-  theme: LegacyTheme;
   isRaceActive: boolean;
 }
 
@@ -30,7 +29,6 @@ function getOrdinal(n: number): string {
 
 export default function RaceCourse({
   racers,
-  theme,
   isRaceActive,
 }: RaceCourseProps) {
   // Sort racers by progress (descending) for position labels
@@ -61,13 +59,13 @@ export default function RaceCourse({
       <div className="flex items-center justify-between px-4 mb-2">
         <div
           className="text-xs font-bold uppercase tracking-wider"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           Start
         </div>
         <div
           className="text-xs font-bold uppercase tracking-wider"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           Finish
         </div>
@@ -89,8 +87,8 @@ export default function RaceCourse({
               className="w-10 text-center font-bold text-sm shrink-0"
               style={{
                 color: racer.currentPosition <= 3
-                  ? [theme.statusWarning, theme.textSecondary, theme.statusError][racer.currentPosition - 1] || theme.textSecondary
-                  : theme.textMuted,
+                  ? [tv.status.warning.DEFAULT, tv.text.secondary, tv.status.error.DEFAULT][racer.currentPosition - 1] || tv.text.secondary
+                  : tv.text.muted,
               }}
             >
               {getOrdinal(racer.currentPosition)}
@@ -101,11 +99,11 @@ export default function RaceCourse({
               className="flex-1 relative h-12 rounded-lg overflow-hidden"
               style={{
                 backgroundColor: racer.isCurrentUser
-                  ? theme.accentSubtle
-                  : theme.elevatedColor,
+                  ? tv.interactive.accent.subtle
+                  : tv.bg.elevated,
                 border: racer.isCurrentUser
-                  ? `2px solid ${theme.accentColor}`
-                  : `1px solid ${theme.borderSubtle}`,
+                  ? `2px solid ${tv.interactive.accent.DEFAULT}`
+                  : `1px solid ${tv.border.subtle}`,
               }}
             >
               {/* Progress bar */}
@@ -116,30 +114,30 @@ export default function RaceCourse({
                 style={{
                   width: `${Math.min(100, racer.progress)}%`,
                   backgroundColor: racer.isFinished
-                    ? theme.statusSuccessMuted
+                    ? tv.status.success.muted
                     : racer.isCurrentUser
-                    ? theme.accentMuted
-                    : theme.borderSubtle,
+                    ? tv.interactive.accent.muted
+                    : tv.border.subtle,
                 }}
               />
 
               {/* Start line */}
               <div
                 className="absolute left-2 inset-y-0 w-0.5"
-                style={{ backgroundColor: theme.borderDefault }}
+                style={{ backgroundColor: tv.border.default }}
               />
 
               {/* Finish line (checkered pattern simulation) */}
               <div
                 className="absolute right-2 inset-y-0 w-1 flex flex-col"
-                style={{ backgroundColor: theme.textPrimary }}
+                style={{ backgroundColor: tv.text.primary }}
               >
                 {[...Array(6)].map((_, i) => (
                   <div
                     key={i}
                     className="flex-1"
                     style={{
-                      backgroundColor: i % 2 === 0 ? theme.textPrimary : theme.backgroundColor,
+                      backgroundColor: i % 2 === 0 ? tv.text.primary : tv.bg.base,
                     }}
                   />
                 ))}
@@ -164,9 +162,9 @@ export default function RaceCourse({
                   }`}
                   style={{
                     backgroundColor: racer.isCurrentUser
-                      ? theme.accentColor
-                      : theme.surfaceColor,
-                    border: `2px solid ${racer.isFinished ? theme.statusSuccess : theme.borderDefault}`,
+                      ? tv.interactive.accent.DEFAULT
+                      : tv.bg.surface,
+                    border: `2px solid ${racer.isFinished ? tv.status.success.DEFAULT : tv.border.default}`,
                     animationDuration: "0.5s",
                   }}
                 >
@@ -180,14 +178,14 @@ export default function RaceCourse({
               <p
                 className="font-bold text-sm truncate"
                 style={{
-                  color: racer.isCurrentUser ? theme.accentColor : theme.textPrimary,
+                  color: racer.isCurrentUser ? tv.interactive.accent.DEFAULT : tv.text.primary,
                 }}
               >
                 {racer.name}
               </p>
               <p
                 className="text-xs"
-                style={{ color: theme.textSecondary }}
+                style={{ color: tv.text.secondary }}
               >
                 {racer.wpm} WPM
               </p>
@@ -201,7 +199,7 @@ export default function RaceCourse({
       {racers.length > 0 && (
         <div
           className="flex items-center justify-center gap-4 mt-2 text-xs"
-          style={{ color: theme.textMuted }}
+          style={{ color: tv.text.muted }}
         >
           <span>Progress: {Math.round(racers.find(r => r.isCurrentUser)?.progress || 0)}%</span>
           <span>•</span>

@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
 import { loadSettings } from "@/lib/storage-utils";
 
@@ -130,38 +130,6 @@ function computeStats(typed: string, reference: string) {
   return { correct, incorrect, missed, extra };
 }
 
-// Default fallback theme
-const DEFAULT_THEME: LegacyTheme = {
-  cursor: "#3cb5ee",
-  defaultText: "#4b5563",
-  upcomingText: "#4b5563",
-  correctText: "#d1d5db",
-  incorrectText: "#ef4444",
-  ghostCursor: "#a855f7",
-  buttonUnselected: "#3cb5ee",
-  buttonSelected: "#0097b2",
-  accentColor: "#a855f7",
-  accentMuted: "rgba(168, 85, 247, 0.3)",
-  accentSubtle: "rgba(168, 85, 247, 0.1)",
-  backgroundColor: "#323437",
-  surfaceColor: "#2c2e31",
-  elevatedColor: "#37383b",
-  overlayColor: "rgba(0, 0, 0, 0.5)",
-  textPrimary: "#d1d5db",
-  textSecondary: "#4b5563",
-  textMuted: "rgba(75, 85, 99, 0.6)",
-  textInverse: "#ffffff",
-  borderDefault: "rgba(75, 85, 99, 0.3)",
-  borderSubtle: "rgba(75, 85, 99, 0.15)",
-  borderFocus: "#3cb5ee",
-  statusSuccess: "#22c55e",
-  statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-  statusError: "#ef4444",
-  statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-  statusWarning: "#f59e0b",
-  statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-};
-
 const LINE_HEIGHT = 1.6;
 
 // --- Component ---
@@ -184,8 +152,7 @@ export default function TypingArea({
   typingFontFamily: typingFontFamilyProp,
 }: TypingAreaProps) {
   // Theme
-  const { legacyTheme } = useTheme();
-  const theme: LegacyTheme = legacyTheme ?? DEFAULT_THEME;
+  const { colors } = useTheme();
 
   // Resolve typing font: use prop if provided, else read from persisted settings
   const resolvedFontFamily = useMemo(() => {
@@ -439,12 +406,12 @@ export default function TypingArea({
     const isCorrect = typedChar === char;
     const isCursor = isCurrentWord && charIdx === typedWord.length;
 
-    let charColor = theme.defaultText;
+    let charColor: string = tv.typing.default;
     if (!isTyped) {
-      if (isPastWord) charColor = theme.incorrectText;
-      else if (isCursor) charColor = theme.upcomingText;
+      if (isPastWord) charColor = tv.typing.incorrect;
+      else if (isCursor) charColor = tv.typing.upcoming;
     } else {
-      charColor = isCorrect ? theme.correctText : theme.incorrectText;
+      charColor = isCorrect ? tv.typing.correct : tv.typing.incorrect;
     }
 
     return (
@@ -453,12 +420,12 @@ export default function TypingArea({
         {isCursor && (
           <span
             className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-            style={{ backgroundColor: theme.cursor }}
+            style={{ backgroundColor: tv.typing.cursor }}
           />
         )}
       </span>
     );
-  }, [theme]);
+  }, []);
 
   // --- Render Standard Mode ---
   const renderStandardMode = () => {
@@ -484,14 +451,14 @@ export default function TypingArea({
             )}
             {/* Extra characters beyond the word */}
             {(isCurrentWord || isPastWord) && typedWord.length > word.length && (
-              <span style={{ color: theme.incorrectText }}>{typedWord.slice(word.length)}</span>
+              <span style={{ color: tv.typing.incorrect }}>{typedWord.slice(word.length)}</span>
             )}
             {/* Cursor at end of word */}
             {isCurrentWord && typedWord.length === word.length && (
               <span className="relative">
                 <span
                   className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                  style={{ backgroundColor: theme.cursor }}
+                  style={{ backgroundColor: tv.typing.cursor }}
                 />
               </span>
             )}
@@ -537,12 +504,12 @@ export default function TypingArea({
             const isCorrect = typedChar === char;
             const isCursor = isCurrentWord && charIdx === typedWord.length;
 
-            let charColor = theme.defaultText;
+            let charColor: string = tv.typing.default;
             if (!isTyped) {
-              if (isPastWord) charColor = theme.incorrectText;
-              else if (isCursor) charColor = theme.upcomingText;
+              if (isPastWord) charColor = tv.typing.incorrect;
+              else if (isCursor) charColor = tv.typing.upcoming;
             } else {
-              charColor = isCorrect ? theme.correctText : theme.incorrectText;
+              charColor = isCorrect ? tv.typing.correct : tv.typing.incorrect;
             }
 
             return (
@@ -552,7 +519,7 @@ export default function TypingArea({
                   <span
                     ref={cursorRef}
                     className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                    style={{ backgroundColor: theme.cursor }}
+                    style={{ backgroundColor: tv.typing.cursor }}
                   />
                 )}
               </span>
@@ -560,7 +527,7 @@ export default function TypingArea({
           })}
           {/* Extra characters beyond the word */}
           {(isCurrentWord || isPastWord) && typedWord.length > word.length && (
-            <span style={{ color: theme.incorrectText }}>{typedWord.slice(word.length)}</span>
+            <span style={{ color: tv.typing.incorrect }}>{typedWord.slice(word.length)}</span>
           )}
           {/* Cursor at end of word (after all characters typed) */}
           {isCurrentWord && typedWord.length === word.length && (
@@ -568,7 +535,7 @@ export default function TypingArea({
               <span
                 ref={cursorRef}
                 className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                style={{ backgroundColor: theme.cursor }}
+                style={{ backgroundColor: tv.typing.cursor }}
               />
             </span>
           )}
@@ -608,13 +575,13 @@ export default function TypingArea({
       {showStats && isRunning && (
         <div
           className="flex items-center justify-center gap-6 mb-4 text-sm font-medium"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           <span>
-            <span style={{ color: theme.textPrimary }}>{Math.round(wpm)}</span> WPM
+            <span style={{ color: tv.text.primary }}>{Math.round(wpm)}</span> WPM
           </span>
           <span>
-            <span style={{ color: theme.textPrimary }}>{Math.round(accuracy)}%</span> ACC
+            <span style={{ color: tv.text.primary }}>{Math.round(accuracy)}%</span> ACC
           </span>
         </div>
       )}
@@ -646,13 +613,13 @@ export default function TypingArea({
           <div
             className="absolute inset-y-0 left-0 w-24 pointer-events-none z-10"
             style={{
-              background: `linear-gradient(to right, ${theme.surfaceColor}, transparent)`,
+              background: `linear-gradient(to right, ${colors.bg.surface}, transparent)`,
             }}
           />
           <div
             className="absolute inset-y-0 right-0 w-24 pointer-events-none z-10"
             style={{
-              background: `linear-gradient(to left, ${theme.surfaceColor}, transparent)`,
+              background: `linear-gradient(to left, ${colors.bg.surface}, transparent)`,
             }}
           />
           {/* Center line indicator (the fixed cursor position) */}
@@ -660,7 +627,7 @@ export default function TypingArea({
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 pointer-events-none z-0"
             style={{
               height: `${fontSize * 1.2}rem`,
-              backgroundColor: `${theme.cursor}20`,
+              backgroundColor: `${colors.typing.cursor}20`,
             }}
           />
         </div>
@@ -688,11 +655,11 @@ export default function TypingArea({
           {!isFocused && isActive && !isFinished && (
             <div
               className="absolute inset-0 flex items-center justify-center backdrop-blur-sm cursor-pointer"
-              style={{ backgroundColor: `${theme.backgroundColor}80` }}
+              style={{ backgroundColor: `${colors.bg.base}80` }}
             >
               <p
                 className="text-lg font-medium"
-                style={{ color: theme.textSecondary }}
+                style={{ color: tv.text.secondary }}
               >
                 Click to focus
               </p>
@@ -705,13 +672,13 @@ export default function TypingArea({
       {mode === "race" && (
         <div
           className="mt-4 h-2 rounded-full overflow-hidden"
-          style={{ backgroundColor: theme.surfaceColor }}
+          style={{ backgroundColor: tv.bg.surface }}
         >
           <div
             className="h-full transition-all duration-100 rounded-full"
             style={{
               width: `${progress}%`,
-              backgroundColor: theme.accentColor,
+              backgroundColor: tv.interactive.accent.DEFAULT,
             }}
           />
         </div>

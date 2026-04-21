@@ -6,50 +6,14 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { Podium } from "@/components/race";
-import { useTheme } from "@/hooks/useTheme";
 import { useSessionId } from "@/hooks/useSessionId";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import { Loader2, RotateCcw, LogOut, Trophy, Users } from "lucide-react";
-
-// Default theme fallback
-const DEFAULT_THEME: LegacyTheme = {
-  cursor: "#3cb5ee",
-  defaultText: "#4b5563",
-  upcomingText: "#4b5563",
-  correctText: "#d1d5db",
-  incorrectText: "#ef4444",
-  ghostCursor: "#a855f7",
-  buttonUnselected: "#3cb5ee",
-  buttonSelected: "#0097b2",
-  accentColor: "#a855f7",
-  accentMuted: "rgba(168, 85, 247, 0.3)",
-  accentSubtle: "rgba(168, 85, 247, 0.1)",
-  backgroundColor: "#323437",
-  surfaceColor: "#2c2e31",
-  elevatedColor: "#37383b",
-  overlayColor: "rgba(0, 0, 0, 0.5)",
-  textPrimary: "#d1d5db",
-  textSecondary: "#4b5563",
-  textMuted: "rgba(75, 85, 99, 0.6)",
-  textInverse: "#ffffff",
-  borderDefault: "rgba(75, 85, 99, 0.3)",
-  borderSubtle: "rgba(75, 85, 99, 0.15)",
-  borderFocus: "#3cb5ee",
-  statusSuccess: "#22c55e",
-  statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-  statusError: "#ef4444",
-  statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-  statusWarning: "#f59e0b",
-  statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-};
 
 export default function RaceResults() {
   const { raceId } = useParams<{ raceId: string }>();
   const navigate = useNavigate();
-  const { legacyTheme } = useTheme();
   const sessionId = useSessionId();
-  
-  const theme: LegacyTheme = legacyTheme ?? DEFAULT_THEME;
 
   // State
   const [isResetting, setIsResetting] = useState(false);
@@ -121,9 +85,9 @@ export default function RaceResults() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: theme.backgroundColor }}
+        style={{ backgroundColor: tv.bg.base }}
       >
-        <div className="flex items-center gap-3" style={{ color: theme.textSecondary }}>
+        <div className="flex items-center gap-3" style={{ color: tv.text.secondary }}>
           <Loader2 className="w-6 h-6 animate-spin" />
           <span>Loading results...</span>
         </div>
@@ -134,22 +98,22 @@ export default function RaceResults() {
   return (
     <div
       className="min-h-screen"
-      style={{ backgroundColor: theme.backgroundColor }}
+      style={{ backgroundColor: tv.bg.base }}
     >
       {/* Header */}
       <header
         className="px-6 py-4"
         style={{
-          backgroundColor: theme.surfaceColor,
-          borderBottom: `1px solid ${theme.borderDefault}`,
+          backgroundColor: tv.bg.surface,
+          borderBottom: `1px solid ${tv.border.default}`,
         }}
       >
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Trophy size={24} style={{ color: theme.statusWarning }} />
+            <Trophy size={24} style={{ color: tv.status.warning.DEFAULT }} />
             <h1
               className="text-2xl font-bold"
-              style={{ color: theme.textPrimary }}
+              style={{ color: tv.text.primary }}
             >
               Race Results
             </h1>
@@ -158,7 +122,7 @@ export default function RaceResults() {
           {/* Participant count */}
           <div
             className="flex items-center gap-2 text-sm"
-            style={{ color: theme.textSecondary }}
+            style={{ color: tv.text.secondary }}
           >
             <Users size={18} />
             <span>{results.totalRacers} racers</span>
@@ -178,13 +142,13 @@ export default function RaceResults() {
                 <div
                   className="flex-1 p-8 rounded-xl text-center flex flex-col justify-center"
                   style={{
-                    backgroundColor: theme.surfaceColor,
-                    border: `1px solid ${theme.borderDefault}`,
+                    backgroundColor: tv.bg.surface,
+                    border: `1px solid ${tv.border.default}`,
                   }}
                 >
                   <p
                     className="text-sm font-medium mb-2"
-                    style={{ color: theme.textSecondary }}
+                    style={{ color: tv.text.secondary }}
                   >
                     Your Position
                   </p>
@@ -193,19 +157,19 @@ export default function RaceResults() {
                     style={{
                       color:
                         userRanking.position === 1
-                          ? theme.statusWarning
+                          ? tv.status.warning.DEFAULT
                           : userRanking.position === 2
                           ? "#c0c0c0"
                           : userRanking.position === 3
                           ? "#cd7f32"
-                          : theme.textPrimary,
+                          : tv.text.primary,
                     }}
                   >
                     #{userRanking.position}
                   </p>
                   <p
                     className="text-sm mt-2"
-                    style={{ color: theme.textMuted }}
+                    style={{ color: tv.text.muted }}
                   >
                     {userRanking.position === 1
                       ? "Winner!"
@@ -221,25 +185,25 @@ export default function RaceResults() {
                 <div
                   className="flex-1 p-8 rounded-xl text-center flex flex-col justify-center"
                   style={{
-                    backgroundColor: theme.accentSubtle,
-                    border: `2px solid ${theme.accentColor}`,
+                    backgroundColor: tv.interactive.accent.subtle,
+                    border: `2px solid ${tv.interactive.accent.DEFAULT}`,
                   }}
                 >
                   <p
                     className="text-sm font-medium mb-2"
-                    style={{ color: theme.textSecondary }}
+                    style={{ color: tv.text.secondary }}
                   >
                     Your Speed
                   </p>
                   <p
                     className="text-6xl font-black"
-                    style={{ color: theme.accentColor }}
+                    style={{ color: tv.interactive.accent.DEFAULT }}
                   >
                     {userRanking.wpm}
                   </p>
                   <p
                     className="text-sm mt-2"
-                    style={{ color: theme.textMuted }}
+                    style={{ color: tv.text.muted }}
                   >
                     words per minute
                   </p>
@@ -251,14 +215,13 @@ export default function RaceResults() {
             <div
               className="rounded-xl p-6 flex items-center justify-center"
               style={{
-                backgroundColor: theme.surfaceColor,
-                border: `1px solid ${theme.borderDefault}`,
+                backgroundColor: tv.bg.surface,
+                border: `1px solid ${tv.border.default}`,
               }}
             >
               <Podium
                 rankings={results.rankings || []}
                 currentSessionId={sessionId}
-                theme={theme}
                 showTable={false}
               />
             </div>
@@ -268,7 +231,6 @@ export default function RaceResults() {
           <Podium
             rankings={results.rankings || []}
             currentSessionId={sessionId}
-            theme={theme}
             showTable={true}
             showPodium={false}
           />
@@ -281,8 +243,8 @@ export default function RaceResults() {
                 disabled={isResetting}
                 className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all hover:opacity-90 disabled:opacity-50"
                 style={{
-                  backgroundColor: theme.accentColor,
-                  color: theme.textInverse,
+                  backgroundColor: tv.interactive.accent.DEFAULT,
+                  color: tv.text.inverse,
                 }}
               >
                 {isResetting ? (
@@ -301,8 +263,8 @@ export default function RaceResults() {
               <div
                 className="px-4 py-2 rounded-lg text-sm"
                 style={{
-                  backgroundColor: theme.elevatedColor,
-                  color: theme.textSecondary,
+                  backgroundColor: tv.bg.elevated,
+                  color: tv.text.secondary,
                 }}
               >
                 Waiting for host to start new race...
@@ -313,8 +275,8 @@ export default function RaceResults() {
               onClick={handleLeave}
               className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all hover:opacity-90"
               style={{
-                backgroundColor: theme.elevatedColor,
-                color: theme.textPrimary,
+                backgroundColor: tv.bg.elevated,
+                color: tv.text.primary,
               }}
             >
               <LogOut size={18} />
@@ -327,7 +289,7 @@ export default function RaceResults() {
             <Link
               to="/race"
               className="text-sm transition-opacity hover:opacity-80"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
             >
               ← Back to Race Home
             </Link>

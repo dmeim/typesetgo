@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import {
   ALL_ACHIEVEMENTS,
   ACHIEVEMENT_CATEGORIES,
@@ -23,14 +23,12 @@ interface AchievementsModalProps {
 function AchievementCard({
   achievement,
   isEarned,
-  theme,
   onClick,
   isHighlighted,
   cardRef,
 }: {
   achievement: Achievement;
   isEarned: boolean;
-  theme: LegacyTheme;
   onClick: () => void;
   isHighlighted?: boolean;
   cardRef?: (el: HTMLButtonElement | null) => void;
@@ -67,14 +65,14 @@ function AchievementCard({
         >
           {achievement.tier}
         </div>
-        
+
         {/* Icon (middle) */}
         <div className="text-2xl mb-1.5">{achievement.icon}</div>
-        
+
         {/* Title (bottom) */}
         <div
           className="text-xs font-medium text-center leading-tight line-clamp-2"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           {achievement.title}
         </div>
@@ -91,9 +89,9 @@ function AchievementCard({
         isHighlighted ? "ring-2 ring-offset-2 animate-pulse" : ""
       }`}
       style={{
-        backgroundColor: theme.surfaceColor,
+        backgroundColor: tv.bg.surface,
         borderWidth: 2,
-        borderColor: theme.borderSubtle,
+        borderColor: tv.border.subtle,
       }}
       title={`Locked: ${achievement.description}`}
     >
@@ -101,20 +99,20 @@ function AchievementCard({
       <div
         className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-1.5"
         style={{
-          backgroundColor: theme.textMuted,
-          color: theme.backgroundColor,
+          backgroundColor: tv.text.muted,
+          color: tv.bg.base,
         }}
       >
         {achievement.tier}
       </div>
-      
+
       {/* Icon (middle) */}
       <div className="text-2xl mb-1.5">{achievement.icon}</div>
-      
+
       {/* Title (bottom) */}
       <div
         className="text-xs font-medium text-center leading-tight line-clamp-2"
-        style={{ color: theme.textMuted }}
+        style={{ color: tv.text.muted }}
       >
         {achievement.title}
       </div>
@@ -126,7 +124,6 @@ function AchievementCard({
 function CategorySection({
   category,
   earnedIds,
-  theme,
   onAchievementClick,
   sectionRef,
   highlightedAchievementId,
@@ -134,7 +131,6 @@ function CategorySection({
 }: {
   category: AchievementCategory;
   earnedIds: Set<string>;
-  theme: LegacyTheme;
   onAchievementClick: (achievement: Achievement, index: number, allInCategory: Achievement[]) => void;
   sectionRef?: (el: HTMLDivElement | null) => void;
   highlightedAchievementId?: string | null;
@@ -151,13 +147,13 @@ function CategorySection({
         <span className="text-xl">{categoryInfo.icon}</span>
         <h3
           className="text-sm font-semibold"
-          style={{ color: theme.textPrimary }}
+          style={{ color: tv.text.primary }}
         >
           {categoryInfo.name}
         </h3>
         <span
           className="text-xs font-medium ml-auto"
-          style={{ color: theme.buttonSelected }}
+          style={{ color: tv.interactive.secondary.DEFAULT }}
         >
           {earnedCount} / {achievements.length}
         </span>
@@ -170,7 +166,6 @@ function CategorySection({
             key={achievement.id}
             achievement={achievement}
             isEarned={earnedIds.has(achievement.id)}
-            theme={theme}
             onClick={() => onAchievementClick(achievement, index, achievements)}
             isHighlighted={highlightedAchievementId === achievement.id}
             cardRef={(el) => {
@@ -191,39 +186,7 @@ export default function AchievementsModal({
   initialCategory,
   initialAchievementId,
 }: AchievementsModalProps) {
-  const { legacyTheme } = useTheme();
-  
-  // Fallback theme
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
+  const { colors } = useTheme();
 
   const earnedIds = new Set(Object.keys(earnedAchievements));
   const totalEarned = earnedIds.size;
@@ -344,26 +307,26 @@ export default function AchievementsModal({
       >
         <div
           className="w-full max-w-5xl rounded-lg shadow-xl mx-4 max-h-[90vh] flex flex-col"
-          style={{ backgroundColor: theme.surfaceColor }}
+          style={{ backgroundColor: tv.bg.surface }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div
             className="flex items-center justify-between p-6 border-b"
-            style={{ borderColor: theme.borderSubtle }}
+            style={{ borderColor: tv.border.subtle }}
           >
             <div>
               <h2
                 className="text-xl font-semibold"
-                style={{ color: theme.textPrimary }}
+                style={{ color: tv.text.primary }}
               >
                 All Achievements
               </h2>
-              <p className="text-sm mt-1" style={{ color: theme.textSecondary }}>
+              <p className="text-sm mt-1" style={{ color: tv.text.secondary }}>
                 Progress:{" "}
                 <span
                   className="font-medium"
-                  style={{ color: theme.buttonSelected }}
+                  style={{ color: tv.interactive.secondary.DEFAULT }}
                 >
                   {totalEarned} / {totalAchievements}
                 </span>
@@ -375,7 +338,7 @@ export default function AchievementsModal({
             <button
               onClick={onClose}
               className="p-2 rounded-lg transition hover:opacity-80"
-              style={{ color: theme.textMuted }}
+              style={{ color: tv.text.muted }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -398,14 +361,13 @@ export default function AchievementsModal({
           <div
             ref={scrollContainerRef}
             className="flex-1 overflow-y-auto p-6"
-            style={{ backgroundColor: `${theme.backgroundColor}40` }}
+            style={{ backgroundColor: `${colors.bg.base}40` }}
           >
             {categories.map((category) => (
               <CategorySection
                 key={category}
                 category={category}
                 earnedIds={earnedIds}
-                theme={theme}
                 onAchievementClick={handleAchievementClick}
                 sectionRef={(el) => {
                   if (el) {

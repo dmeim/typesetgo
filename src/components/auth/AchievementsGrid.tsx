@@ -3,7 +3,7 @@ import { useUser } from "@clerk/clerk-react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useTheme } from "@/hooks/useTheme";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 import {
   getAchievementById,
   TIER_COLORS,
@@ -27,39 +27,7 @@ export default function AchievementsGrid({
   maxVisibleRows,
 }: AchievementsGridProps) {
   const { user } = useUser();
-  const { legacyTheme } = useTheme();
-  
-  // Fallback theme (complete)
-  const theme: LegacyTheme = legacyTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
+  const { colors } = useTheme();
   const recheckAchievements = useMutation(api.achievements.recheckAllAchievements);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -68,7 +36,7 @@ export default function AchievementsGrid({
     achievements: { achievement: Achievement; earnedAt: number }[];
     initialIndex: number;
   } | null>(null);
-  
+
   // State for the full achievements board modal
   const [showAchievementsModal, setShowAchievementsModal] = useState(false);
 
@@ -103,7 +71,7 @@ export default function AchievementsGrid({
   const handleAchievementClick = (clickedAchievement: Achievement) => {
     // Get all earned achievements in the same progressive group
     const groupIds = getEarnedInProgressiveGroup(clickedAchievement.id, earnedIds);
-    
+
     // Map to achievement objects with earned timestamps
     const groupAchievements = groupIds
       .map((id) => {
@@ -128,18 +96,18 @@ export default function AchievementsGrid({
     return (
       <div
         className="p-4 rounded-xl flex flex-col items-center justify-center h-full"
-        style={{ backgroundColor: `${theme.backgroundColor}80` }}
+        style={{ backgroundColor: `${colors.bg.base}80` }}
       >
         <div className="text-3xl mb-2 opacity-50">🏆</div>
         <div
           className="text-sm text-center"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           No achievements yet
         </div>
         <div
           className="text-xs text-center mt-1 opacity-70"
-          style={{ color: theme.textSecondary }}
+          style={{ color: tv.text.secondary }}
         >
           Complete tests to earn achievements!
         </div>
@@ -151,13 +119,13 @@ export default function AchievementsGrid({
     <>
       <div
         className="p-3 rounded-xl h-full overflow-hidden flex flex-col"
-        style={{ backgroundColor: `${theme.backgroundColor}80` }}
+        style={{ backgroundColor: `${colors.bg.base}80` }}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-2 px-1">
           <div
             className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: theme.textSecondary }}
+            style={{ color: tv.text.secondary }}
           >
             Achievements
           </div>
@@ -166,7 +134,7 @@ export default function AchievementsGrid({
               onClick={handleRefresh}
               disabled={isRefreshing || !user}
               className="p-1 rounded transition-all hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
               title="Refresh achievements"
             >
               <svg
@@ -191,7 +159,7 @@ export default function AchievementsGrid({
             <button
               onClick={() => setShowAchievementsModal(true)}
               className="text-xs font-medium hover:underline transition-all cursor-pointer"
-              style={{ color: theme.buttonSelected }}
+              style={{ color: tv.interactive.secondary.DEFAULT }}
             >
               {earnedIds.length} / {ALL_ACHIEVEMENTS.length}
             </button>
@@ -200,14 +168,14 @@ export default function AchievementsGrid({
 
         {/* Scrollable Content - Flat Grid */}
         {/* Each achievement item is ~68px tall (p-2 + icon + title), gap-2 = 8px */}
-        <div 
+        <div
           className="flex-1 overflow-y-auto overflow-x-hidden"
           style={maxVisibleRows ? { maxHeight: `calc(${maxVisibleRows}.5 * 68px + ${maxVisibleRows - 1} * 8px)` } : undefined}
         >
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 p-1">
             {achievements.map(({ achievement }) => {
               const tierColors = TIER_COLORS[achievement.tier];
-              
+
               return (
                 <button
                   key={achievement.id}
@@ -235,7 +203,7 @@ export default function AchievementsGrid({
                   {/* Title (bottom) */}
                   <div
                     className="text-[10px] font-medium text-center leading-tight line-clamp-2"
-                    style={{ color: theme.textPrimary }}
+                    style={{ color: tv.text.primary }}
                   >
                     {achievement.title}
                   </div>

@@ -3,19 +3,17 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { RACE_EMOJIS } from "@/lib/race-emojis";
-import type { LegacyTheme } from "@/types/theme";
+import { tv } from "@/lib/theme-vars";
 
 interface EmojiPickerProps {
   selectedEmoji: string;
   onSelect: (emoji: string) => void;
-  theme: LegacyTheme;
   disabled?: boolean;
 }
 
 export default function EmojiPicker({
   selectedEmoji,
   onSelect,
-  theme,
   disabled = false,
 }: EmojiPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -55,8 +53,8 @@ export default function EmojiPicker({
         disabled={disabled}
         className="w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
-          backgroundColor: theme.elevatedColor,
-          border: `2px solid ${isOpen ? theme.accentColor : theme.borderDefault}`,
+          backgroundColor: tv.bg.elevated,
+          border: `2px solid ${isOpen ? tv.interactive.accent.DEFAULT : tv.border.default}`,
         }}
         title="Change avatar"
       >
@@ -79,8 +77,8 @@ export default function EmojiPicker({
               top: dropdownPosition.top,
               left: dropdownPosition.left,
               width: 320,
-              backgroundColor: theme.surfaceColor,
-              border: `1px solid ${theme.borderDefault}`,
+              backgroundColor: tv.bg.surface,
+              border: `1px solid ${tv.border.default}`,
             }}
           >
             {RACE_EMOJIS.map((emoji) => (
@@ -90,8 +88,8 @@ export default function EmojiPicker({
                 onClick={() => handleSelect(emoji)}
                 className="w-9 h-9 rounded-lg flex items-center justify-center text-xl transition-all duration-150 hover:scale-125"
                 style={{
-                  backgroundColor: emoji === selectedEmoji 
-                    ? theme.accentMuted 
+                  backgroundColor: emoji === selectedEmoji
+                    ? tv.interactive.accent.muted
                     : "transparent",
                 }}
               >

@@ -1,21 +1,19 @@
 import { useState } from "react";
 import type { SettingsState } from "@/lib/typing-constants";
-import type { LegacyTheme } from "@/types/theme";
 import type { SoundManifest } from "@/lib/sounds";
+import { tv } from "@/lib/theme-vars";
 import SoundSettingsModal from "@/components/settings/SoundSettingsModal";
 
 interface SoundControllerProps {
   settings: SettingsState | Partial<SettingsState>;
   onUpdateSettings: (updates: Partial<SettingsState>) => void;
   soundManifest: SoundManifest | null;
-  theme: LegacyTheme;
 }
 
 export default function SoundController({
   settings,
   onUpdateSettings,
   soundManifest,
-  theme,
 }: SoundControllerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -29,7 +27,7 @@ export default function SoundController({
         type="button"
         onClick={() => setIsOpen(true)}
         className="flex h-[1.5em] w-[1.5em] items-center justify-center rounded transition hover:opacity-75 hover:text-white"
-        style={{ color: theme.buttonUnselected }}
+        style={{ color: tv.interactive.primary.DEFAULT }}
         title="sound settings"
       >
         {soundEnabled ? (
@@ -74,7 +72,6 @@ export default function SoundController({
         settings={safeSettings}
         onUpdateSettings={onUpdateSettings}
         soundManifest={soundManifest}
-        theme={theme}
       />
     </>
   );

@@ -3,12 +3,12 @@ import { Sun, Moon, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
-import type { Quote, SettingsState } from "@/lib/typing-constants";
+import type { Quote, SettingsState, Theme } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { fetchAllThemes, groupThemesByCategory, CATEGORY_CONFIG, type ThemeDefinition, type GroupedThemes, type ThemeCategory } from "@/lib/themes";
-import type { LegacyTheme, ThemeMode } from "@/types/theme";
-import { toLegacyTheme } from "@/types/theme";
+import type { ThemeColors, ThemeMode } from "@/types/theme";
 import { useTheme } from "@/hooks/useTheme";
+import { tv } from "@/lib/theme-vars";
 import { fetchWordsManifest, fetchWords, type WordsManifest } from "@/lib/words";
 import { fetchQuotesManifest, fetchQuotes, type QuotesManifest } from "@/lib/quotes";
 import {
@@ -259,10 +259,9 @@ type NumberDialProps = {
   max: number;
   value: number;
   onChange: (value: number) => void;
-  theme: LegacyTheme;
 };
 
-function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps) {
+function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isSyncingRef = useRef(false);
   const options = useMemo(
@@ -298,7 +297,7 @@ function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps
         type="button"
         onClick={() => adjustValue(-1)}
         className="rounded-full p-1 transition-opacity hover:opacity-80"
-        style={{ color: theme.textSecondary, backgroundColor: theme.backgroundColor }}
+        style={{ color: tv.text.secondary, backgroundColor: tv.bg.base }}
         aria-label={`${label} up`}
       >
         <ChevronUp className="h-4 w-4" />
@@ -308,8 +307,8 @@ function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps
         className="relative w-20 overflow-hidden rounded-xl border"
         style={{
           height: `${DIAL_VIEWPORT_HEIGHT}px`,
-          borderColor: theme.borderSubtle,
-          backgroundColor: theme.backgroundColor,
+          borderColor: tv.border.subtle,
+          backgroundColor: tv.bg.base,
         }}
       >
         <div
@@ -343,7 +342,7 @@ function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps
                   lineHeight: `${DIAL_ROW_HEIGHT}px`,
                   fontSize: distance === 0 ? "1.6rem" : "1.2rem",
                   fontWeight: distance === 0 ? 700 : 500,
-                  color: distance === 0 ? theme.buttonSelected : theme.textSecondary,
+                  color: distance === 0 ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
                   opacity,
                 }}
               >
@@ -359,8 +358,8 @@ function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps
           className="pointer-events-none absolute inset-x-1 top-1/2 -translate-y-1/2 rounded-lg border"
           style={{
             height: `${DIAL_ROW_HEIGHT}px`,
-            borderColor: theme.buttonSelected,
-            backgroundColor: theme.elevatedColor,
+            borderColor: tv.interactive.secondary.DEFAULT,
+            backgroundColor: tv.bg.elevated,
             opacity: 0.75,
           }}
         />
@@ -369,7 +368,7 @@ function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps
           className="pointer-events-none absolute inset-x-0 top-0"
           style={{
             height: `${DIAL_SPACER_HEIGHT}px`,
-            background: `linear-gradient(to bottom, ${theme.backgroundColor}, transparent)`,
+            background: `linear-gradient(to bottom, ${tv.bg.base}, transparent)`,
           }}
         />
 
@@ -377,7 +376,7 @@ function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps
           className="pointer-events-none absolute inset-x-0 bottom-0"
           style={{
             height: `${DIAL_SPACER_HEIGHT}px`,
-            background: `linear-gradient(to top, ${theme.backgroundColor}, transparent)`,
+            background: `linear-gradient(to top, ${tv.bg.base}, transparent)`,
           }}
         />
       </div>
@@ -386,13 +385,13 @@ function NumberDial({ label, min, max, value, onChange, theme }: NumberDialProps
         type="button"
         onClick={() => adjustValue(1)}
         className="rounded-full p-1 transition-opacity hover:opacity-80"
-        style={{ color: theme.textSecondary, backgroundColor: theme.backgroundColor }}
+        style={{ color: tv.text.secondary, backgroundColor: tv.bg.base }}
         aria-label={`${label} down`}
       >
         <ChevronDown className="h-4 w-4" />
       </button>
 
-      <span className="text-xs uppercase tracking-wide" style={{ color: theme.textMuted }}>
+      <span className="text-xs uppercase tracking-wide" style={{ color: tv.text.muted }}>
         {label}
       </span>
     </div>
@@ -469,43 +468,11 @@ export default function TypingPractice({
 }: TypingPracticeProps) {
   // Theme context (replaces props and internal state)
   const {
-    legacyTheme: contextTheme,
+    colors,
     themeName: selectedThemeName,
     setTheme: setThemeById,
     setMode,
   } = useTheme();
-
-  // Fallback theme for when context is loading
-  const theme: LegacyTheme = contextTheme ?? {
-    cursor: "#3cb5ee",
-    defaultText: "#4b5563",
-    upcomingText: "#4b5563",
-    correctText: "#d1d5db",
-    incorrectText: "#ef4444",
-    ghostCursor: "#a855f7",
-    buttonUnselected: "#3cb5ee",
-    buttonSelected: "#0097b2",
-    accentColor: "#a855f7",
-    accentMuted: "rgba(168, 85, 247, 0.3)",
-    accentSubtle: "rgba(168, 85, 247, 0.1)",
-    backgroundColor: "#323437",
-    surfaceColor: "#2c2e31",
-    elevatedColor: "#37383b",
-    overlayColor: "rgba(0, 0, 0, 0.5)",
-    textPrimary: "#d1d5db",
-    textSecondary: "#4b5563",
-    textMuted: "rgba(75, 85, 99, 0.6)",
-    textInverse: "#ffffff",
-    borderDefault: "rgba(75, 85, 99, 0.3)",
-    borderSubtle: "rgba(75, 85, 99, 0.15)",
-    borderFocus: "#3cb5ee",
-    statusSuccess: "#22c55e",
-    statusSuccessMuted: "rgba(34, 197, 94, 0.3)",
-    statusError: "#ef4444",
-    statusErrorMuted: "rgba(239, 68, 68, 0.3)",
-    statusWarning: "#f59e0b",
-    statusWarningMuted: "rgba(245, 158, 11, 0.3)",
-  };
   // --- State ---
   const [settings, setSettings] = useState<SettingsState>({
     mode: "zen",
@@ -559,15 +526,25 @@ export default function TypingPractice({
     }
   }, []);
   
-  // Convert preview theme to legacy format for styling
-  const previewTheme: LegacyTheme | null = useMemo(() => {
-    if (!previewThemeDef) return null;
-    // Use preview mode if specified, otherwise default to dark
-    const colors = previewThemeDef.previewMode === "light" && previewThemeDef.light 
-      ? previewThemeDef.light 
-      : previewThemeDef.dark;
-    return toLegacyTheme(colors);
-  }, [previewThemeDef]);
+  // Resolve preview colors for the theme preview panel
+  const resolvedPreviewColors: ThemeColors = previewThemeDef
+    ? (previewThemeDef.previewMode === "light" && previewThemeDef.light
+        ? previewThemeDef.light
+        : previewThemeDef.dark)
+    : colors;
+
+  const planTheme: Theme = useMemo(() => ({
+    cursor: colors.typing.cursor,
+    defaultText: colors.typing.default,
+    upcomingText: colors.typing.upcoming,
+    correctText: colors.typing.correct,
+    incorrectText: colors.typing.incorrect,
+    buttonUnselected: colors.interactive.primary.DEFAULT,
+    buttonSelected: colors.interactive.secondary.DEFAULT,
+    backgroundColor: colors.bg.base,
+    surfaceColor: colors.bg.surface,
+    ghostCursor: colors.typing.cursorGhost,
+  }), [colors]);
   /*
    * TEMP_DISABLED_CATEGORIES_TAB
    * Keep categories mode wiring for easy restore; force all-themes mode for now.
@@ -769,12 +746,8 @@ export default function TypingPractice({
   const elapsedMinutes = elapsedMs / 60000 || 0.01;
   const wpm = (typedText.length / 5) / elapsedMinutes;
   const zenProgressGradient = useMemo(
-    () => `linear-gradient(120deg, ${theme.buttonSelected} 0%, ${theme.accentColor} 25%, ${theme.buttonUnselected} 50%, ${theme.accentColor} 75%, ${theme.buttonSelected} 100%)`,
-    [
-      theme.buttonSelected,
-      theme.accentColor,
-      theme.buttonUnselected,
-    ]
+    () => `linear-gradient(120deg, ${colors.interactive.secondary.DEFAULT} 0%, ${colors.interactive.accent.DEFAULT} 25%, ${colors.interactive.primary.DEFAULT} 50%, ${colors.interactive.accent.DEFAULT} 75%, ${colors.interactive.secondary.DEFAULT} 100%)`,
+    [colors]
   );
 
   const timeRemaining =
@@ -938,7 +911,7 @@ export default function TypingPractice({
           clerkId: user.id,
           preferences: {
             themeName: selectedThemeName,
-            customTheme: selectedThemeName === "Custom" ? theme : undefined,
+            customTheme: undefined,
             soundEnabled: settings.soundEnabled,
             typingSound: settings.typingSound,
             warningSound: settings.warningSound,
@@ -998,7 +971,6 @@ export default function TypingPractice({
     settings.textAlign,
     linePreview,
     maxWordsPerLine,
-    theme,
     selectedThemeName,
     getOrCreateUser,
     savePreferencesMutation,
@@ -1266,8 +1238,8 @@ export default function TypingPractice({
                 borderTop: `2px solid ${tierColor}40`,
                 borderRight: `2px solid ${tierColor}40`,
                 borderBottom: `2px solid ${tierColor}40`,
-                backgroundColor: theme.surfaceColor,
-                color: theme.textPrimary,
+                backgroundColor: tv.bg.surface,
+                color: tv.text.primary,
                 boxShadow: `0 0 20px ${tierColor}30`,
                 animation: "achievement-glow 2s ease-in-out",
               },
@@ -1337,7 +1309,7 @@ export default function TypingPractice({
       console.error("Failed to save result:", error);
       setSaveState("error");
     }
-  }, [user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, sessionId, finalizeSessionMutation, addNotification, theme.surfaceColor, theme.textPrimary]);
+  }, [user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, sessionId, finalizeSessionMutation, addNotification]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {
@@ -1938,12 +1910,12 @@ export default function TypingPractice({
               const isGhost =
                 settings.ghostWriterEnabled && Math.floor(ghostCharIndex) === globalCharIndex;
 
-              let charColor = theme.defaultText;
+              let charColor: string = tv.typing.default;
               if (!isTyped) {
-                if (isPastWord) charColor = theme.incorrectText;
-                else if (isCursor) charColor = theme.upcomingText;
+                if (isPastWord) charColor = tv.typing.incorrect;
+                else if (isCursor) charColor = tv.typing.upcoming;
               } else {
-                charColor = isCorrect ? theme.correctText : theme.incorrectText;
+                charColor = isCorrect ? tv.typing.correct : tv.typing.incorrect;
               }
 
               return (
@@ -1952,26 +1924,26 @@ export default function TypingPractice({
                   {isCursor && (
                     <span
                       className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                      style={{ backgroundColor: theme.cursor }}
+                      style={{ backgroundColor: tv.typing.cursor }}
                     />
                   )}
                   {isGhost && (
                     <span
                       className="absolute left-0 top-0 h-full w-0.5 opacity-70"
-                      style={{ backgroundColor: theme.ghostCursor }}
+                      style={{ backgroundColor: tv.typing.cursorGhost }}
                     />
                   )}
                 </span>
               );
             })}
             {(isCurrentWord || isPastWord) && typedWord.length > word.length && (
-              <span style={{ color: theme.incorrectText }}>{typedWord.slice(word.length)}</span>
+              <span style={{ color: tv.typing.incorrect }}>{typedWord.slice(word.length)}</span>
             )}
             {isCurrentWord && typedWord.length === word.length && (
               <span className="relative">
                 <span
                   className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                  style={{ backgroundColor: theme.cursor }}
+                  style={{ backgroundColor: tv.typing.cursor }}
                 />
               </span>
             )}
@@ -2048,7 +2020,7 @@ export default function TypingPractice({
   return (
     <div
       className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300`}
-      style={{ backgroundColor: theme.backgroundColor }}
+      style={{ backgroundColor: tv.bg.base }}
     >
       <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
       {/* Header clearance spacer */}
@@ -2069,7 +2041,7 @@ export default function TypingPractice({
               type="button"
               onClick={() => setShowQuickSettings(true)}
               className="rounded-lg px-4 py-2 text-sm transition hover:text-gray-200"
-              style={{ backgroundColor: theme.surfaceColor, color: theme.buttonUnselected }}
+              style={{ backgroundColor: tv.bg.surface, color: tv.interactive.primary.DEFAULT }}
               title="Quick Settings"
             >
               Quick Settings
@@ -2080,8 +2052,8 @@ export default function TypingPractice({
           {!isCompactMode && (
           <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400">
             {/* Test Modes */}
-            <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Mode</span>
-            <div className="flex rounded-lg p-1" style={{ backgroundColor: theme.surfaceColor }}>
+            <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Mode</span>
+            <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
               {MODE_SELECTOR_OPTIONS.map((m) => {
                 const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
                 return (
@@ -2090,7 +2062,7 @@ export default function TypingPractice({
                     type="button"
                     onClick={() => handleModeSelect(m)}
                     className={`px-3 py-1 rounded transition ${isModeActive ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                    style={{ color: isModeActive ? theme.buttonSelected : undefined }}
+                    style={{ color: isModeActive ? tv.interactive.secondary.DEFAULT : undefined }}
                   >
                     {m}
                   </button>
@@ -2103,20 +2075,20 @@ export default function TypingPractice({
                 <div className="w-px h-4 bg-gray-700"></div>
 
                 {/* Modifiers: Caps, Punctuation & Numbers */}
-                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Modifiers</span>
-                <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: theme.surfaceColor }}>
+                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Modifiers</span>
+                <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: tv.bg.surface }}>
                   <button
                     type="button"
                     onClick={() => updateSettings({ capitalization: !settings.capitalization })}
                     className={`flex items-center gap-2 transition ${settings.capitalization ? "" : "hover:text-gray-200"}`}
-                    style={{ color: settings.capitalization ? theme.buttonSelected : undefined }}
+                    style={{ color: settings.capitalization ? tv.interactive.secondary.DEFAULT : undefined }}
                     disabled={settings.mode === "quote"}
                     title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle capitalization"}
                   >
                     <span
                       className={settings.capitalization ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                      style={{ 
-                        backgroundColor: settings.capitalization ? theme.buttonSelected : undefined,
+                      style={{
+                        backgroundColor: settings.capitalization ? tv.interactive.secondary.DEFAULT : undefined,
                         opacity: settings.mode === "quote" ? 0.5 : 1
                       }}
                     >
@@ -2128,14 +2100,14 @@ export default function TypingPractice({
                     type="button"
                     onClick={() => updateSettings({ punctuation: !settings.punctuation })}
                     className={`flex items-center gap-2 transition ${settings.punctuation ? "" : "hover:text-gray-200"}`}
-                    style={{ color: settings.punctuation ? theme.buttonSelected : undefined }}
+                    style={{ color: settings.punctuation ? tv.interactive.secondary.DEFAULT : undefined }}
                     disabled={settings.mode === "quote"}
                     title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle punctuation"}
                   >
                     <span
                       className={settings.punctuation ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                      style={{ 
-                        backgroundColor: settings.punctuation ? theme.buttonSelected : undefined,
+                      style={{
+                        backgroundColor: settings.punctuation ? tv.interactive.secondary.DEFAULT : undefined,
                         opacity: settings.mode === "quote" ? 0.5 : 1
                       }}
                     >
@@ -2147,14 +2119,14 @@ export default function TypingPractice({
                     type="button"
                     onClick={() => updateSettings({ numbers: !settings.numbers })}
                     className={`flex items-center gap-2 transition ${settings.numbers ? "" : "hover:text-gray-200"}`}
-                    style={{ color: settings.numbers ? theme.buttonSelected : undefined }}
+                    style={{ color: settings.numbers ? tv.interactive.secondary.DEFAULT : undefined }}
                     disabled={settings.mode === "quote"}
                     title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle numbers"}
                   >
                     <span
                       className={settings.numbers ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                      style={{ 
-                        backgroundColor: settings.numbers ? theme.buttonSelected : undefined,
+                      style={{
+                        backgroundColor: settings.numbers ? tv.interactive.secondary.DEFAULT : undefined,
                         opacity: settings.mode === "quote" ? 0.5 : 1
                       }}
                     >
@@ -2174,8 +2146,8 @@ export default function TypingPractice({
             {/* Time Duration */}
             {settings.mode === "time" && (
               <>
-                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Duration</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: theme.surfaceColor }}>
+                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Duration</span>
+                <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
                   {TIME_PRESETS.map((d) => (
                     <button
                       key={d}
@@ -2185,7 +2157,7 @@ export default function TypingPractice({
                         else updateSettings({ duration: d });
                       }}
                       className={`px-3 py-1 rounded transition ${settings.duration === d ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                      style={{ color: settings.duration === d ? theme.buttonSelected : undefined }}
+                      style={{ color: settings.duration === d ? tv.interactive.secondary.DEFAULT : undefined }}
                     >
                       {d}s
                     </button>
@@ -2194,7 +2166,7 @@ export default function TypingPractice({
                     type="button"
                     onClick={openCustomCountModal}
                     className={`px-3 py-1 rounded transition ${isCustomDurationSelected ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                    style={{ color: isCustomDurationSelected ? theme.buttonSelected : undefined }}
+                    style={{ color: isCustomDurationSelected ? tv.interactive.secondary.DEFAULT : undefined }}
                   >
                     custom
                   </button>
@@ -2205,8 +2177,8 @@ export default function TypingPractice({
             {/* Word Count */}
             {settings.mode === "words" && (
               <>
-                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Word Count</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: theme.surfaceColor }}>
+                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Word Count</span>
+                <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
                   {WORD_PRESETS.map((w) => (
                     <button
                       key={w}
@@ -2216,7 +2188,7 @@ export default function TypingPractice({
                         else updateSettings({ wordTarget: w });
                       }}
                       className={`px-3 py-1 rounded transition ${settings.wordTarget === w ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                      style={{ color: settings.wordTarget === w ? theme.buttonSelected : undefined }}
+                      style={{ color: settings.wordTarget === w ? tv.interactive.secondary.DEFAULT : undefined }}
                     >
                       {w}
                     </button>
@@ -2225,7 +2197,7 @@ export default function TypingPractice({
                     type="button"
                     onClick={openCustomCountModal}
                     className={`px-3 py-1 rounded transition ${isCustomWordTargetSelected ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                    style={{ color: isCustomWordTargetSelected ? theme.buttonSelected : undefined }}
+                    style={{ color: isCustomWordTargetSelected ? tv.interactive.secondary.DEFAULT : undefined }}
                   >
                     custom
                   </button>
@@ -2236,8 +2208,8 @@ export default function TypingPractice({
             {/* Quote Length */}
             {settings.mode === "quote" && quotesManifest && (
               <>
-                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Quote Length</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: theme.surfaceColor }}>
+                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Quote Length</span>
+                <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
                   {["all", ...quotesManifest.lengths].map((l) => (
                     <button
                       key={l}
@@ -2247,7 +2219,7 @@ export default function TypingPractice({
                         else updateSettings({ quoteLength: l as typeof settings.quoteLength });
                       }}
                       className={`px-3 py-1 rounded transition ${settings.quoteLength === l ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                      style={{ color: settings.quoteLength === l ? theme.buttonSelected : undefined }}
+                      style={{ color: settings.quoteLength === l ? tv.interactive.secondary.DEFAULT : undefined }}
                     >
                       {l}
                     </button>
@@ -2259,9 +2231,9 @@ export default function TypingPractice({
             {/* Zen mode - show infinity symbol */}
             {settings.mode === "zen" && (
               <>
-                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Duration</span>
-                <div className="flex rounded-lg px-4 py-1.5" style={{ backgroundColor: theme.surfaceColor }}>
-                  <span className="text-lg" style={{ color: theme.buttonSelected }}>∞</span>
+                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Duration</span>
+                <div className="flex rounded-lg px-4 py-1.5" style={{ backgroundColor: tv.bg.surface }}>
+                  <span className="text-lg" style={{ color: tv.interactive.secondary.DEFAULT }}>∞</span>
                 </div>
               </>
             )}
@@ -2270,8 +2242,8 @@ export default function TypingPractice({
             {settings.mode !== "quote" && wordsManifest && (
               <>
                 <div className="w-px h-4 bg-gray-700"></div>
-                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>Difficulty</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: theme.surfaceColor }}>
+                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Difficulty</span>
+                <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
                   {wordsManifest.difficulties.map((d) => (
                     <button
                       key={d}
@@ -2281,7 +2253,7 @@ export default function TypingPractice({
                         else updateSettings({ difficulty: d as typeof settings.difficulty });
                       }}
                       className={`px-3 py-1 rounded transition ${settings.difficulty === d ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                      style={{ color: settings.difficulty === d ? theme.buttonSelected : undefined }}
+                      style={{ color: settings.difficulty === d ? tv.interactive.secondary.DEFAULT : undefined }}
                     >
                       {d}
                     </button>
@@ -2305,23 +2277,23 @@ export default function TypingPractice({
               {/* WPM Pill */}
               <div
                 className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.buttonSelected }}>
+                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.interactive.secondary.DEFAULT }}>
                   {Math.round(wpm)}
                 </span>
-                <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider" style={{ color: theme.textSecondary }}>wpm</span>
+                <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider" style={{ color: tv.text.secondary }}>wpm</span>
               </div>
 
               {/* Time Mode: Countdown Timer */}
               {settings.mode === "time" && (
                 <div
                   className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                  style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                  style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
                 >
                   <span
                     className="text-xl md:text-3xl font-bold tabular-nums leading-none"
-                    style={{ color: timeRemaining < 10 ? theme.statusError : theme.textPrimary }}
+                    style={{ color: timeRemaining < 10 ? tv.status.error.DEFAULT : tv.text.primary }}
                   >
                     {formatTime(timeRemaining)}
                   </span>
@@ -2332,15 +2304,15 @@ export default function TypingPractice({
               {settings.mode === "words" && (
                 <div
                   className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                  style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                  style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
                 >
-                  <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
+                  <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
                     {Math.min(typedWordCount, settings.wordTarget === 0 ? Infinity : settings.wordTarget)}
                   </span>
                   {settings.wordTarget > 0 && (
                     <>
-                      <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>/</span>
-                      <span className="text-lg md:text-xl font-semibold tabular-nums leading-none" style={{ color: theme.textSecondary }}>
+                      <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>/</span>
+                      <span className="text-lg md:text-xl font-semibold tabular-nums leading-none" style={{ color: tv.text.secondary }}>
                         {settings.wordTarget}
                       </span>
                     </>
@@ -2353,22 +2325,22 @@ export default function TypingPractice({
                 <>
                   <div
                     className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                    style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                    style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
                   >
-                    <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
+                    <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
                       {formatTime(Math.floor(elapsedMs / 1000))}
                     </span>
                   </div>
 
                   <div
                     className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                    style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                    style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
                   >
-                    <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
+                    <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
                       {typedWordCount}
                     </span>
-                    <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>/</span>
-                    <span className="text-lg md:text-xl font-semibold leading-none" style={{ color: theme.textSecondary }}>
+                    <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>/</span>
+                    <span className="text-lg md:text-xl font-semibold leading-none" style={{ color: tv.text.secondary }}>
                       {"\u221E"}
                     </span>
                   </div>
@@ -2378,12 +2350,12 @@ export default function TypingPractice({
               {/* Accuracy Pill */}
               <div
                 className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.buttonSelected }}>
+                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.interactive.secondary.DEFAULT }}>
                   {Math.round(accuracy)}%
                 </span>
-                <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider" style={{ color: theme.textSecondary }}>acc</span>
+                <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider" style={{ color: tv.text.secondary }}>acc</span>
               </div>
             </div>
           )}
@@ -2393,12 +2365,12 @@ export default function TypingPractice({
             <div className="flex gap-2 md:gap-3 items-center">
               <div
                 className="w-56 md:w-80 px-3 py-2.5 md:px-4 md:py-4 backdrop-blur-md rounded-full shadow-lg"
-                style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
                 {settings.mode === "zen" ? (
                   <div
                     className="relative h-2 md:h-2.5 w-full overflow-hidden rounded-full"
-                    style={{ backgroundColor: theme.borderSubtle }}
+                    style={{ backgroundColor: tv.border.subtle }}
                   >
                     <motion.div
                       className="absolute inset-0 w-[200%]"
@@ -2426,11 +2398,11 @@ export default function TypingPractice({
                           : 0
                     }
                     className="h-2 md:h-2.5"
-                    style={{ backgroundColor: theme.borderSubtle }}
+                    style={{ backgroundColor: tv.border.subtle }}
                     indicatorStyle={{
                       backgroundColor: settings.mode === "time" && timeRemaining < 10
-                        ? theme.statusError
-                        : theme.statusSuccess,
+                        ? tv.status.error.DEFAULT
+                        : tv.status.success.DEFAULT,
                     }}
                   />
                 )}
@@ -2443,22 +2415,22 @@ export default function TypingPractice({
             <div className="flex gap-2 md:gap-3">
               <div
                 className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
+                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
                   {formatTime(Math.floor(elapsedMs / 1000))}
                 </span>
               </div>
 
               <div
                 className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
-                style={{ backgroundColor: `${theme.surfaceColor}E6`, borderWidth: 1, borderColor: theme.borderSubtle }}
+                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: theme.textPrimary }}>
+                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
                   {typedWordCount}
                 </span>
-                <span className="text-sm font-medium" style={{ color: theme.textSecondary }}>/</span>
-                <span className="text-lg md:text-xl font-semibold leading-none" style={{ color: theme.textSecondary }}>
+                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>/</span>
+                <span className="text-lg md:text-xl font-semibold leading-none" style={{ color: tv.text.secondary }}>
                   {"\u221E"}
                 </span>
               </div>
@@ -2481,11 +2453,11 @@ export default function TypingPractice({
             className="mb-4 flex flex-col items-center text-center animate-fade-in transition-opacity duration-500"
             style={{ opacity: uiOpacity }}
           >
-            <div className="text-xl font-medium" style={{ color: theme.buttonSelected }}>
+            <div className="text-xl font-medium" style={{ color: tv.interactive.secondary.DEFAULT }}>
               {currentQuote.author}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm" style={{ color: theme.textSecondary }}>
+              <span className="text-sm" style={{ color: tv.text.secondary }}>
                 {currentQuote.source}, {currentQuote.date}
               </span>
             </div>
@@ -2559,16 +2531,16 @@ export default function TypingPractice({
               {/* WPM */}
               <motion.div
                 className="relative overflow-hidden rounded-2xl p-6 md:p-10 flex flex-col items-center justify-center group transition-colors"
-                style={{ backgroundColor: theme.surfaceColor, borderWidth: 1, borderColor: theme.borderSubtle }}
+                style={{ backgroundColor: tv.bg.surface, borderWidth: 1, borderColor: tv.border.subtle }}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
               >
-                <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: theme.textSecondary }}>
+                <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: tv.text.secondary }}>
                   Words Per Minute
                 </div>
-                <AnimatedWpmDisplay value={Math.round(wpm)} color={theme.buttonSelected} />
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" style={{ color: theme.textPrimary }}>
+                <AnimatedWpmDisplay value={Math.round(wpm)} color={tv.interactive.secondary.DEFAULT} />
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" style={{ color: tv.text.primary }}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
@@ -2579,16 +2551,16 @@ export default function TypingPractice({
               {/* Accuracy */}
               <motion.div
                 className="relative overflow-hidden rounded-2xl p-6 md:p-10 flex flex-col items-center justify-center group transition-colors"
-                style={{ backgroundColor: theme.surfaceColor, borderWidth: 1, borderColor: theme.borderSubtle }}
+                style={{ backgroundColor: tv.bg.surface, borderWidth: 1, borderColor: tv.border.subtle }}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
               >
-                <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: theme.textSecondary }}>
+                <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: tv.text.secondary }}>
                   Accuracy
                 </div>
-                <AnimatedAccuracyDisplay value={Math.round(accuracy)} color={theme.buttonSelected} />
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" style={{ color: theme.textPrimary }}>
+                <AnimatedAccuracyDisplay value={Math.round(accuracy)} color={tv.interactive.secondary.DEFAULT} />
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" style={{ color: tv.text.primary }}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                     <polyline points="22 4 12 14.01 9 11.01" />
@@ -2605,40 +2577,40 @@ export default function TypingPractice({
               transition={{ duration: 0.4, delay: 0.3, ease: "easeOut" }}
             >
               {/* Words Group */}
-              <div className="flex-1 rounded-xl p-4" style={{ backgroundColor: `${theme.surfaceColor}80`, borderWidth: 1, borderColor: theme.borderSubtle }}>
-                <div className="text-xs font-semibold uppercase tracking-wide text-center mb-3" style={{ color: theme.textSecondary }}>Words</div>
+              <div className="flex-1 rounded-xl p-4" style={{ backgroundColor: `${colors.bg.surface}80`, borderWidth: 1, borderColor: tv.border.subtle }}>
+                <div className="text-xs font-semibold uppercase tracking-wide text-center mb-3" style={{ color: tv.text.secondary }}>Words</div>
                 <div className="grid grid-cols-2 gap-4">
                   {/* Correct Words with Hover */}
                   <HoverCard openDelay={100} closeDelay={100}>
                     <HoverCardTrigger asChild>
                       <div className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
-                        <div className="text-3xl font-bold mb-1" style={{ color: theme.statusSuccess }}>{wordResults.correctWords.length}</div>
-                        <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: theme.textSecondary }}>Correct</div>
+                        <div className="text-3xl font-bold mb-1" style={{ color: tv.status.success.DEFAULT }}>{wordResults.correctWords.length}</div>
+                        <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.text.secondary }}>Correct</div>
                       </div>
                     </HoverCardTrigger>
-                    <HoverCardContent 
+                    <HoverCardContent
                       className="w-56 p-0"
-                      style={{ backgroundColor: theme.surfaceColor, borderColor: theme.borderSubtle }}
+                      style={{ backgroundColor: tv.bg.surface, borderColor: tv.border.subtle }}
                     >
-                      <div className="p-3" style={{ borderBottomWidth: 1, borderColor: theme.borderSubtle }}>
-                        <div className="text-sm font-semibold" style={{ color: theme.textPrimary }}>Correct Words</div>
-                        <div className="text-xs" style={{ color: theme.textSecondary }}>{wordResults.correctWords.length} words</div>
+                      <div className="p-3" style={{ borderBottomWidth: 1, borderColor: tv.border.subtle }}>
+                        <div className="text-sm font-semibold" style={{ color: tv.text.primary }}>Correct Words</div>
+                        <div className="text-xs" style={{ color: tv.text.secondary }}>{wordResults.correctWords.length} words</div>
                       </div>
                       <div className="max-h-32 overflow-y-auto">
                         {wordResults.correctWords.length > 0 ? (
                           <div className="p-2 flex flex-wrap gap-1.5">
                             {wordResults.correctWords.map((word, idx) => (
-                              <span 
+                              <span
                                 key={idx}
                                 className="px-2 py-0.5 text-xs rounded-md font-mono"
-                                style={{ backgroundColor: `${theme.buttonSelected}30`, color: theme.buttonSelected }}
+                                style={{ backgroundColor: `${colors.interactive.secondary.DEFAULT}30`, color: tv.interactive.secondary.DEFAULT }}
                               >
                                 {word}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <div className="p-3 text-center text-sm" style={{ color: theme.textSecondary }}>
+                          <div className="p-3 text-center text-sm" style={{ color: tv.text.secondary }}>
                             No correct words
                           </div>
                         )}
@@ -2650,35 +2622,35 @@ export default function TypingPractice({
                   <HoverCard openDelay={100} closeDelay={100}>
                     <HoverCardTrigger asChild>
                       <div className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
-                        <div className="text-3xl font-bold mb-1" style={{ color: theme.statusError }}>{wordResults.incorrectWords.length}</div>
-                        <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: theme.textSecondary }}>Incorrect</div>
+                        <div className="text-3xl font-bold mb-1" style={{ color: tv.status.error.DEFAULT }}>{wordResults.incorrectWords.length}</div>
+                        <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.text.secondary }}>Incorrect</div>
                       </div>
                     </HoverCardTrigger>
-                    <HoverCardContent 
+                    <HoverCardContent
                       className="w-64 p-0"
-                      style={{ backgroundColor: theme.surfaceColor, borderColor: theme.borderSubtle }}
+                      style={{ backgroundColor: tv.bg.surface, borderColor: tv.border.subtle }}
                     >
-                      <div className="p-3" style={{ borderBottomWidth: 1, borderColor: theme.borderSubtle }}>
-                        <div className="text-sm font-semibold" style={{ color: theme.textPrimary }}>Incorrect Words</div>
-                        <div className="text-xs" style={{ color: theme.textSecondary }}>{wordResults.incorrectWords.length} mistakes</div>
+                      <div className="p-3" style={{ borderBottomWidth: 1, borderColor: tv.border.subtle }}>
+                        <div className="text-sm font-semibold" style={{ color: tv.text.primary }}>Incorrect Words</div>
+                        <div className="text-xs" style={{ color: tv.text.secondary }}>{wordResults.incorrectWords.length} mistakes</div>
                       </div>
                       <div className="max-h-40 overflow-y-auto">
                         {wordResults.incorrectWords.length > 0 ? (
                           <div className="p-2 space-y-1.5">
                             {wordResults.incorrectWords.map((item, idx) => (
-                              <div 
+                              <div
                                 key={idx}
                                 className="flex items-center gap-2 px-2 py-1 rounded text-xs font-mono"
-                                style={{ backgroundColor: `${theme.surfaceColor}` }}
+                                style={{ backgroundColor: tv.bg.surface }}
                               >
-                                <span style={{ color: theme.statusError }}>{item.typed}</span>
-                                <span style={{ color: theme.textSecondary }}>→</span>
-                                <span style={{ color: theme.buttonSelected }}>{item.expected}</span>
+                                <span style={{ color: tv.status.error.DEFAULT }}>{item.typed}</span>
+                                <span style={{ color: tv.text.secondary }}>→</span>
+                                <span style={{ color: tv.interactive.secondary.DEFAULT }}>{item.expected}</span>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <div className="p-3 text-center text-sm" style={{ color: theme.textSecondary }}>
+                          <div className="p-3 text-center text-sm" style={{ color: tv.text.secondary }}>
                             No mistakes - perfect!
                           </div>
                         )}
@@ -2689,16 +2661,16 @@ export default function TypingPractice({
               </div>
 
               {/* Characters Group */}
-              <div className="flex-1 rounded-xl p-4" style={{ backgroundColor: `${theme.surfaceColor}80`, borderWidth: 1, borderColor: theme.borderSubtle }}>
-                <div className="text-xs font-semibold uppercase tracking-wide text-center mb-3" style={{ color: theme.textSecondary }}>Characters</div>
+              <div className="flex-1 rounded-xl p-4" style={{ backgroundColor: `${colors.bg.surface}80`, borderWidth: 1, borderColor: tv.border.subtle }}>
+                <div className="text-xs font-semibold uppercase tracking-wide text-center mb-3" style={{ color: tv.text.secondary }}>Characters</div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col items-center">
-                    <div className="text-3xl font-bold mb-1" style={{ color: theme.textPrimary }}>{stats.missed}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: theme.textSecondary }}>Missed</div>
+                    <div className="text-3xl font-bold mb-1" style={{ color: tv.text.primary }}>{stats.missed}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.text.secondary }}>Missed</div>
                   </div>
                   <div className="flex flex-col items-center">
-                    <div className="text-3xl font-bold mb-1" style={{ color: theme.textPrimary }}>{stats.extra}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: theme.textSecondary }}>Extra</div>
+                    <div className="text-3xl font-bold mb-1" style={{ color: tv.text.primary }}>{stats.extra}</div>
+                    <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.text.secondary }}>Extra</div>
                   </div>
                 </div>
               </div>
@@ -2706,7 +2678,7 @@ export default function TypingPractice({
 
             {/* Quote Attribution */}
             {settings.mode === "quote" && currentQuote && (
-              <div className="text-center mb-8" style={{ color: theme.textSecondary }}>
+              <div className="text-center mb-8" style={{ color: tv.text.secondary }}>
                 — {currentQuote.author}
                 {currentQuote.source && `, ${currentQuote.source}`}
               </div>
@@ -2717,8 +2689,8 @@ export default function TypingPractice({
               <div
                 className="w-full mb-6 p-4 rounded-lg border"
                 style={{
-                  backgroundColor: theme.statusErrorMuted,
-                  borderColor: theme.statusError,
+                  backgroundColor: colors.status.error.muted,
+                  borderColor: tv.status.error.DEFAULT,
                 }}
               >
                 <div className="flex items-center gap-3">
@@ -2733,17 +2705,17 @@ export default function TypingPractice({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className="flex-shrink-0"
-                    style={{ color: theme.statusError }}
+                    style={{ color: tv.status.error.DEFAULT }}
                   >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                   <div className="flex-1">
-                    <span className="font-medium" style={{ color: theme.statusError }}>
+                    <span className="font-medium" style={{ color: tv.status.error.DEFAULT }}>
                       Unverified
                     </span>
-                    <span className="text-sm ml-2" style={{ color: theme.textSecondary }}>
+                    <span className="text-sm ml-2" style={{ color: tv.text.secondary }}>
                       {lastResultInvalidReason?.includes("progress events")
                         ? "Not enough typing activity detected (need 3+ check-ins)"
                         : lastResultInvalidReason?.includes("WPM exceeds")
@@ -2773,21 +2745,21 @@ export default function TypingPractice({
                   onClick={() => saveResults()}
                   disabled={saveState === "saving" || saveState === "saved" || lastResultIsValid === false}
                   className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                  style={{ 
-                    backgroundColor: lastResultIsValid === false 
-                      ? theme.statusErrorMuted 
-                      : saveState === "saved" 
-                        ? theme.statusSuccessMuted 
-                        : saveState === "error" 
-                          ? theme.statusErrorMuted 
-                          : theme.buttonSelected, 
-                    color: lastResultIsValid === false 
-                      ? theme.statusError 
-                      : saveState === "saved" 
-                        ? theme.statusSuccess 
-                        : saveState === "error" 
-                          ? theme.statusError 
-                          : theme.textInverse 
+                  style={{
+                    backgroundColor: lastResultIsValid === false
+                      ? colors.status.error.muted
+                      : saveState === "saved"
+                        ? colors.status.success.muted
+                        : saveState === "error"
+                          ? colors.status.error.muted
+                          : tv.interactive.secondary.DEFAULT,
+                    color: lastResultIsValid === false
+                      ? tv.status.error.DEFAULT
+                      : saveState === "saved"
+                        ? tv.status.success.DEFAULT
+                        : saveState === "error"
+                          ? tv.status.error.DEFAULT
+                          : tv.text.inverse
                   }}
                 >
                   {lastResultIsValid === false && (
@@ -2888,11 +2860,11 @@ export default function TypingPractice({
                   type="button"
                   onClick={() => generateTest()}
                   className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ backgroundColor: theme.surfaceColor, color: theme.textPrimary }}
+                  style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}
                 >
                   <span className="mr-2 transition-transform group-hover:rotate-180">↻</span>
                   Next Test
-                  <div className="absolute bottom-0 left-0 h-1 w-full scale-x-0 transition-transform duration-200 group-hover:scale-x-100 rounded-b-lg" style={{ backgroundColor: theme.buttonSelected }}></div>
+                  <div className="absolute bottom-0 left-0 h-1 w-full scale-x-0 transition-transform duration-200 group-hover:scale-x-100 rounded-b-lg" style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}></div>
                 </button>
               )}
               {connectMode && onLeave && (
@@ -2900,7 +2872,7 @@ export default function TypingPractice({
                   type="button"
                   onClick={onLeave}
                   className="px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ color: theme.statusError, backgroundColor: theme.statusErrorMuted, borderWidth: 1, borderColor: theme.statusError }}
+                  style={{ color: tv.status.error.DEFAULT, backgroundColor: colors.status.error.muted, borderWidth: 1, borderColor: tv.status.error.DEFAULT }}
                 >
                   Leave Room
                 </button>
@@ -2909,7 +2881,7 @@ export default function TypingPractice({
 
             <motion.div
               className="mt-6 text-center text-sm"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, delay: 0.7 }}
@@ -2917,14 +2889,14 @@ export default function TypingPractice({
               <div>
                 {lastResultIsValid !== false && (
                   <>
-                    Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: theme.surfaceColor, color: theme.textPrimary }}>Space</kbd> to save
+                    Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}>Space</kbd> to save
                     {" · "}
                   </>
                 )}
-                <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: theme.surfaceColor, color: theme.textPrimary }}>Enter</kbd> to continue
+                <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}>Enter</kbd> to continue
               </div>
               <div className="mt-1">
-                Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: theme.surfaceColor, color: theme.textPrimary }}>Tab</kbd> to repeat this test
+                Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}>Tab</kbd> to repeat this test
               </div>
             </motion.div>
           </div>
@@ -2963,25 +2935,25 @@ export default function TypingPractice({
         >
           <div
             className="w-full max-w-xl rounded-lg p-6 shadow-xl mx-4"
-            style={{ backgroundColor: theme.surfaceColor }}
+            style={{ backgroundColor: tv.bg.surface }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-semibold mb-4" style={{ color: theme.textPrimary }}>Enter Custom Text</h2>
+            <h2 className="text-xl font-semibold mb-4" style={{ color: tv.text.primary }}>Enter Custom Text</h2>
             <textarea
               value={tempPresetText}
               onChange={(e) => setTempPresetText(e.target.value)}
               className="w-full h-48 rounded px-3 py-2 focus:outline-none focus:ring-2"
-              style={{ backgroundColor: theme.backgroundColor, color: theme.textPrimary, "--tw-ring-color": theme.buttonSelected } as React.CSSProperties}
+              style={{ backgroundColor: tv.bg.base, color: tv.text.primary, "--tw-ring-color": tv.interactive.secondary.DEFAULT } as React.CSSProperties}
               placeholder="Paste or type your custom text here..."
             />
             <div className="flex justify-end gap-4 mt-4">
-              <button onClick={() => setShowPresetInput(false)} className="px-4 py-2 hover:opacity-80 transition-opacity" style={{ color: theme.textSecondary }}>
+              <button onClick={() => setShowPresetInput(false)} className="px-4 py-2 hover:opacity-80 transition-opacity" style={{ color: tv.text.secondary }}>
                 Cancel
               </button>
               <button
                 onClick={() => handlePresetSubmit(tempPresetText)}
                 className="px-4 py-2 rounded text-white"
-                style={{ backgroundColor: theme.buttonSelected }}
+                style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
               >
                 Start
               </button>
@@ -3005,29 +2977,29 @@ export default function TypingPractice({
         >
           <div
             className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] lg:w-[calc(100vw-3rem)] max-h-[85vh] rounded-lg shadow-xl flex overflow-hidden"
-            style={{ backgroundColor: theme.surfaceColor }}
+            style={{ backgroundColor: tv.bg.surface }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Left: Preview Panel (40%) - Realistic Homepage Preview */}
             <div 
               className="w-2/5 overflow-hidden relative"
-              style={{ backgroundColor: (previewTheme ?? theme).backgroundColor }}
+              style={{ backgroundColor: resolvedPreviewColors.bg.base }}
             >
               {/* Mini Header - Absolute positioned at top */}
               <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 z-10">
                 {/* Theme name */}
-                <div 
+                <div
                   className="text-lg font-semibold"
-                  style={{ color: (previewTheme ?? theme).buttonSelected }}
+                  style={{ color: resolvedPreviewColors.interactive.secondary.DEFAULT }}
                 >
                   {previewThemeDef?.name ?? selectedThemeName}
                 </div>
                 {/* Header icons */}
                 <div className="flex items-center gap-3">
                   {/* Trophy icon */}
-                  <div 
+                  <div
                     className="w-8 h-8 flex items-center justify-center rounded"
-                    style={{ color: (previewTheme ?? theme).buttonUnselected }}
+                    style={{ color: resolvedPreviewColors.interactive.primary.DEFAULT }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
@@ -3041,7 +3013,7 @@ export default function TypingPractice({
                   {/* User avatar placeholder */}
                   <div 
                     className="w-8 h-8 rounded-full"
-                    style={{ backgroundColor: (previewTheme ?? theme).surfaceColor, border: `2px solid ${(previewTheme ?? theme).defaultText}40` }}
+                    style={{ backgroundColor: resolvedPreviewColors.bg.surface, border: `2px solid ${resolvedPreviewColors.typing.default}40` }}
                   />
                 </div>
               </div>
@@ -3050,18 +3022,18 @@ export default function TypingPractice({
               <div className="absolute top-16 left-0 right-0 flex flex-col items-center gap-2 px-6 py-2 z-10">
                 {/* Row 1: Mode Selector */}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium" style={{ color: (previewTheme ?? theme).defaultText }}>Mode</span>
-                  <div 
+                  <span className="text-xs font-medium" style={{ color: resolvedPreviewColors.typing.default }}>Mode</span>
+                  <div
                     className="flex rounded-lg p-1"
-                    style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
+                    style={{ backgroundColor: resolvedPreviewColors.bg.surface }}
                   >
                     {MODE_SELECTOR_OPTIONS.map((m, idx) => (
                       <span
                         key={m}
                         className="px-3 py-1 rounded text-xs"
-                        style={{ 
-                          color: idx === 1 ? (previewTheme ?? theme).buttonSelected : (previewTheme ?? theme).buttonUnselected,
-                          backgroundColor: idx === 1 ? (previewTheme ?? theme).backgroundColor : "transparent",
+                        style={{
+                          color: idx === 1 ? resolvedPreviewColors.interactive.secondary.DEFAULT : resolvedPreviewColors.interactive.primary.DEFAULT,
+                          backgroundColor: idx === 1 ? resolvedPreviewColors.bg.base : "transparent",
                           fontWeight: idx === 1 ? 500 : 400
                         }}
                       >
@@ -3073,26 +3045,26 @@ export default function TypingPractice({
 
                 {/* Row 2: Zen infinity + Difficulty */}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium" style={{ color: (previewTheme ?? theme).defaultText }}>Duration</span>
-                  <div 
+                  <span className="text-xs font-medium" style={{ color: resolvedPreviewColors.typing.default }}>Duration</span>
+                  <div
                     className="flex rounded-lg px-4 py-1.5"
-                    style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
+                    style={{ backgroundColor: resolvedPreviewColors.bg.surface }}
                   >
-                    <span className="text-base" style={{ color: (previewTheme ?? theme).buttonSelected }}>∞</span>
+                    <span className="text-base" style={{ color: resolvedPreviewColors.interactive.secondary.DEFAULT }}>∞</span>
                   </div>
-                  <div className="w-px h-4" style={{ backgroundColor: (previewTheme ?? theme).defaultText, opacity: 0.3 }} />
-                  <span className="text-xs font-medium" style={{ color: (previewTheme ?? theme).defaultText }}>Difficulty</span>
-                  <div 
+                  <div className="w-px h-4" style={{ backgroundColor: resolvedPreviewColors.typing.default, opacity: 0.3 }} />
+                  <span className="text-xs font-medium" style={{ color: resolvedPreviewColors.typing.default }}>Difficulty</span>
+                  <div
                     className="flex rounded-lg p-1"
-                    style={{ backgroundColor: (previewTheme ?? theme).surfaceColor }}
+                    style={{ backgroundColor: resolvedPreviewColors.bg.surface }}
                   >
                     {["easy", "medium", "hard"].map((d, idx) => (
                       <span
                         key={d}
                         className="px-3 py-1 rounded text-xs"
-                        style={{ 
-                          color: idx === 1 ? (previewTheme ?? theme).buttonSelected : (previewTheme ?? theme).buttonUnselected,
-                          backgroundColor: idx === 1 ? (previewTheme ?? theme).backgroundColor : "transparent",
+                        style={{
+                          color: idx === 1 ? resolvedPreviewColors.interactive.secondary.DEFAULT : resolvedPreviewColors.interactive.primary.DEFAULT,
+                          backgroundColor: idx === 1 ? resolvedPreviewColors.bg.base : "transparent",
                           fontWeight: idx === 1 ? 500 : 400
                         }}
                       >
@@ -3108,56 +3080,56 @@ export default function TypingPractice({
                 {/* Sample Typing Text */}
                 <div className="text-2xl font-mono leading-loose text-center">
                   {/* Line 1: correctly typed */}
-                  <span style={{ color: (previewTheme ?? theme).correctText }}>the quick brown fox </span>
+                  <span style={{ color: resolvedPreviewColors.typing.correct }}>the quick brown fox </span>
                   {/* Line 1: error */}
-                  <span style={{ color: (previewTheme ?? theme).incorrectText }}>jum</span>
+                  <span style={{ color: resolvedPreviewColors.typing.incorrect }}>jum</span>
                   {/* Cursor */}
-                  <span 
+                  <span
                     className="inline-block w-0.5 h-6 align-middle animate-pulse"
-                    style={{ backgroundColor: (previewTheme ?? theme).cursor }}
+                    style={{ backgroundColor: resolvedPreviewColors.typing.cursor }}
                   />
                   {/* Line 1: untyped */}
-                  <span style={{ color: (previewTheme ?? theme).defaultText }}>ps over the lazy dog</span>
+                  <span style={{ color: resolvedPreviewColors.typing.default }}>ps over the lazy dog</span>
                 </div>
               </div>
 
               {/* Color Swatches - Absolute positioned at bottom */}
-              <div 
+              <div
                 className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-4 px-6 py-4 border-t"
-                style={{ 
-                  backgroundColor: (previewTheme ?? theme).surfaceColor,
-                  borderColor: `${(previewTheme ?? theme).defaultText}20`
+                style={{
+                  backgroundColor: resolvedPreviewColors.bg.surface,
+                  borderColor: `${resolvedPreviewColors.typing.default}20`
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).cursor }} />
-                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>cursor</span>
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.typing.cursor }} />
+                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>cursor</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).correctText }} />
-                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>correct</span>
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.typing.correct }} />
+                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>correct</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).incorrectText }} />
-                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>incorrect</span>
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.typing.incorrect }} />
+                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>incorrect</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).defaultText }} />
-                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>untyped</span>
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.typing.default }} />
+                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>untyped</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: (previewTheme ?? theme).buttonSelected }} />
-                  <span className="text-xs" style={{ color: (previewTheme ?? theme).defaultText }}>selected</span>
+                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.interactive.secondary.DEFAULT }} />
+                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>selected</span>
                 </div>
               </div>
 
             </div>
 
             {/* Right: Theme Browser (60%) */}
-            <div className="w-3/5 p-6 flex flex-col overflow-hidden border-l" style={{ borderColor: theme.borderSubtle }}>
+            <div className="w-3/5 p-6 flex flex-col overflow-hidden border-l" style={{ borderColor: tv.border.subtle }}>
               {/* Header with close button */}
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>Theme</h2>
+                <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>Theme</h2>
                 <button
                   onClick={() => {
                     setShowThemeModal(false);
@@ -3168,7 +3140,7 @@ export default function TypingPractice({
                     setCollapsedCategories(getDefaultCollapsedCategories());
                   }}
                   className="hover:opacity-80 transition-opacity"
-                  style={{ color: theme.textMuted }}
+                  style={{ color: tv.text.muted }}
                 >
                   ✕
                 </button>
@@ -3190,10 +3162,10 @@ export default function TypingPractice({
                   }
                   className="flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
                   style={{
-                    backgroundColor: theme.backgroundColor,
-                    color: theme.textPrimary,
-                    border: `1px solid ${theme.borderSubtle}`,
-                    "--tw-ring-color": theme.buttonSelected,
+                    backgroundColor: tv.bg.base,
+                    color: tv.text.primary,
+                    border: `1px solid ${tv.border.subtle}`,
+                    "--tw-ring-color": tv.interactive.secondary.DEFAULT,
                   } as React.CSSProperties}
                 />
                 {themeViewMode === "all" && (
@@ -3203,9 +3175,9 @@ export default function TypingPractice({
                       onClick={() => setCollapsedCategories(new Set())}
                       className="px-2.5 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80 whitespace-nowrap"
                       style={{
-                        backgroundColor: theme.backgroundColor,
-                        color: theme.textSecondary,
-                        border: `1px solid ${theme.borderSubtle}`,
+                        backgroundColor: tv.bg.base,
+                        color: tv.text.secondary,
+                        border: `1px solid ${tv.border.subtle}`,
                       }}
                     >
                       Expand All
@@ -3218,9 +3190,9 @@ export default function TypingPractice({
                       }}
                       className="px-2.5 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80 whitespace-nowrap"
                       style={{
-                        backgroundColor: theme.backgroundColor,
-                        color: theme.textSecondary,
-                        border: `1px solid ${theme.borderSubtle}`,
+                        backgroundColor: tv.bg.base,
+                        color: tv.text.secondary,
+                        border: `1px solid ${tv.border.subtle}`,
                       }}
                     >
                       Collapse All
@@ -3235,7 +3207,7 @@ export default function TypingPractice({
                 {themeViewMode === "all" && (
                   <>
                     {filteredGroupedThemes.length === 0 && (
-                      <div className="text-sm py-6 text-center" style={{ color: theme.textMuted }}>
+                      <div className="text-sm py-6 text-center" style={{ color: tv.text.muted }}>
                         No themes found for "{themeSearchQuery.trim()}".
                       </div>
                     )}
@@ -3246,7 +3218,7 @@ export default function TypingPractice({
                         <div
                           key={group.category}
                           className={`last:mb-0 ${index === 0 ? "" : "mt-4 pt-4 border-t"}`}
-                          style={index === 0 ? undefined : { borderColor: theme.borderSubtle }}
+                          style={index === 0 ? undefined : { borderColor: tv.border.subtle }}
                         >
                           {/* Collapsible category header */}
                           <button
@@ -3266,18 +3238,18 @@ export default function TypingPractice({
                             className={`w-full flex items-center justify-between text-sm font-medium py-2 px-2 rounded-md sticky top-0 z-10 transition-colors ${
                               isSearchActive ? "cursor-default" : "cursor-pointer hover:opacity-80"
                             }`}
-                            style={{ backgroundColor: theme.surfaceColor, color: theme.textSecondary }}
+                            style={{ backgroundColor: tv.bg.surface, color: tv.text.secondary }}
                           >
                             <span className="flex items-center gap-2">
                               {group.displayName}
-                              <span className="text-xs font-normal" style={{ color: theme.textMuted }}>
+                              <span className="text-xs font-normal" style={{ color: tv.text.muted }}>
                                 ({group.themes.length})
                               </span>
                             </span>
                             {!isSearchActive && (
                               <ChevronDown
                                 className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
-                                style={{ color: theme.textMuted }}
+                                style={{ color: tv.text.muted }}
                               />
                             )}
                           </button>
@@ -3488,17 +3460,17 @@ export default function TypingPractice({
                 <div className="border-t border-gray-600 my-4" />
 
                 {/* Custom Theme Dropdown */}
-                <div className="border rounded-lg overflow-hidden mb-4" style={{ borderColor: theme.borderSubtle }}>
+                <div className="border rounded-lg overflow-hidden mb-4" style={{ borderColor: tv.border.subtle }}>
                   <button
                     type="button"
                     onClick={() => setIsCustomThemeOpen(!isCustomThemeOpen)}
                     className="w-full flex items-center justify-between px-4 py-3 transition-colors hover:opacity-90"
-                    style={{ backgroundColor: theme.backgroundColor }}
+                    style={{ backgroundColor: tv.bg.base }}
                   >
-                    <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>Custom Theme</span>
+                    <span className="text-sm font-medium" style={{ color: tv.text.primary }}>Custom Theme</span>
                     <svg
                       className={`w-5 h-5 transition-transform ${isCustomThemeOpen ? "rotate-180" : ""}`}
-                      style={{ color: theme.textMuted }}
+                      style={{ color: tv.text.muted }}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -3519,66 +3491,66 @@ export default function TypingPractice({
                         : "max-h-0 opacity-0"
                     }`}
                   >
-                    <div className="p-4 space-y-3" style={{ backgroundColor: theme.elevatedColor }}>
+                    <div className="p-4 space-y-3" style={{ backgroundColor: tv.bg.elevated }}>
                       {/* Current Theme Colors (Read-only preview) */}
-                      <p className="text-sm text-center mb-4" style={{ color: theme.textSecondary }}>
+                      <p className="text-sm text-center mb-4" style={{ color: tv.text.secondary }}>
                         Current theme colors (read-only)
                       </p>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: theme.textSecondary }}>Background</span>
+                          <span className="text-sm" style={{ color: tv.text.secondary }}>Background</span>
                           <div
                             className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: theme.backgroundColor, borderColor: theme.borderSubtle }}
+                            style={{ backgroundColor: tv.bg.base, borderColor: tv.border.subtle }}
                           />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: theme.textSecondary }}>Surface</span>
+                          <span className="text-sm" style={{ color: tv.text.secondary }}>Surface</span>
                           <div
                             className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: theme.surfaceColor, borderColor: theme.borderSubtle }}
+                            style={{ backgroundColor: tv.bg.surface, borderColor: tv.border.subtle }}
                           />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: theme.textSecondary }}>Cursor</span>
+                          <span className="text-sm" style={{ color: tv.text.secondary }}>Cursor</span>
                           <div
                             className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: theme.cursor, borderColor: theme.borderSubtle }}
+                            style={{ backgroundColor: tv.typing.cursor, borderColor: tv.border.subtle }}
                           />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: theme.textSecondary }}>Ghost Cursor</span>
+                          <span className="text-sm" style={{ color: tv.text.secondary }}>Ghost Cursor</span>
                           <div
                             className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: theme.ghostCursor, borderColor: theme.borderSubtle }}
+                            style={{ backgroundColor: tv.typing.cursorGhost, borderColor: tv.border.subtle }}
                           />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: theme.textSecondary }}>Default Text</span>
+                          <span className="text-sm" style={{ color: tv.text.secondary }}>Default Text</span>
                           <div
                             className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: theme.defaultText, borderColor: theme.borderSubtle }}
+                            style={{ backgroundColor: tv.typing.default, borderColor: tv.border.subtle }}
                           />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: theme.textSecondary }}>Correct Text</span>
+                          <span className="text-sm" style={{ color: tv.text.secondary }}>Correct Text</span>
                           <div
                             className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: theme.correctText, borderColor: theme.borderSubtle }}
+                            style={{ backgroundColor: tv.typing.correct, borderColor: tv.border.subtle }}
                           />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: theme.textSecondary }}>Incorrect Text</span>
+                          <span className="text-sm" style={{ color: tv.text.secondary }}>Incorrect Text</span>
                           <div
                             className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: theme.incorrectText, borderColor: theme.borderSubtle }}
+                            style={{ backgroundColor: tv.typing.incorrect, borderColor: tv.border.subtle }}
                           />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: theme.textSecondary }}>Btn Selected</span>
+                          <span className="text-sm" style={{ color: tv.text.secondary }}>Btn Selected</span>
                           <div
                             className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: theme.buttonSelected, borderColor: theme.borderSubtle }}
+                            style={{ backgroundColor: tv.interactive.secondary.DEFAULT, borderColor: tv.border.subtle }}
                           />
                         </div>
                       </div>
@@ -3587,7 +3559,7 @@ export default function TypingPractice({
                       <button
                         onClick={() => setThemeById("typesetgo")}
                         className="w-full py-2 mt-2 text-sm border rounded-lg transition-colors hover:opacity-80"
-                        style={{ color: theme.textSecondary, borderColor: theme.borderSubtle, backgroundColor: "transparent" }}
+                        style={{ color: tv.text.secondary, borderColor: tv.border.subtle, backgroundColor: "transparent" }}
                       >
                         Reset to TypeSetGo Theme
                       </button>
@@ -3609,27 +3581,27 @@ export default function TypingPractice({
           <div
             className="flex max-h-[min(90vh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-xl"
             style={{
-              backgroundColor: theme.surfaceColor,
-              borderColor: theme.borderSubtle,
+              backgroundColor: tv.bg.surface,
+              borderColor: tv.border.subtle,
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               className="flex items-start justify-between gap-4 border-b px-6 py-5"
-              style={{ borderColor: theme.borderSubtle }}
+              style={{ borderColor: tv.border.subtle }}
             >
               <div>
-                <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>
+                <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>
                   Settings
                 </h2>
-                <p className="mt-1 text-sm" style={{ color: theme.textSecondary }}>
+                <p className="mt-1 text-sm" style={{ color: tv.text.secondary }}>
                   Organize your typing preferences by area.
                 </p>
               </div>
               <button
                 onClick={closeSettingsModal}
                 className="rounded-md px-2 py-1 text-lg leading-none transition-opacity hover:opacity-80"
-                style={{ color: theme.textMuted }}
+                style={{ color: tv.text.muted }}
                 aria-label="Close settings"
               >
                 ✕
@@ -3640,8 +3612,8 @@ export default function TypingPractice({
               <div
                 className="mb-6 grid grid-cols-4 gap-2 rounded-xl border p-1"
                 style={{
-                  backgroundColor: theme.backgroundColor,
-                  borderColor: theme.borderSubtle,
+                  backgroundColor: tv.bg.base,
+                  borderColor: tv.border.subtle,
                 }}
               >
                 {SETTINGS_TABS.map((tab) => {
@@ -3654,9 +3626,9 @@ export default function TypingPractice({
                       onClick={() => setActiveSettingsTab(tab.id)}
                       className="rounded-lg px-3 py-2 text-sm font-medium transition-colors"
                       style={{
-                        color: isActive ? theme.textPrimary : theme.textSecondary,
-                        backgroundColor: isActive ? theme.elevatedColor : "transparent",
-                        boxShadow: isActive ? `inset 0 0 0 1px ${theme.borderDefault}` : "none",
+                        color: isActive ? tv.text.primary : tv.text.secondary,
+                        backgroundColor: isActive ? tv.bg.elevated : "transparent",
+                        boxShadow: isActive ? `inset 0 0 0 1px ${tv.border.default}` : "none",
                       }}
                     >
                       {tab.label}
@@ -3670,19 +3642,19 @@ export default function TypingPractice({
                   <section
                     className="rounded-xl border p-5"
                     style={{
-                      backgroundColor: theme.backgroundColor,
-                      borderColor: theme.borderSubtle,
+                      backgroundColor: tv.bg.base,
+                      borderColor: tv.border.subtle,
                     }}
                   >
                     <div className="mb-4 flex items-center justify-between gap-3">
-                      <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                      <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
                         Text
                       </h3>
                       <span
                         className="rounded-full px-2.5 py-1 text-xs font-medium"
                         style={{
-                          color: theme.textSecondary,
-                          backgroundColor: theme.surfaceColor,
+                          color: tv.text.secondary,
+                          backgroundColor: tv.bg.surface,
                         }}
                       >
                         Display
@@ -3691,7 +3663,7 @@ export default function TypingPractice({
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>
+                        <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
                           Typing Font
                         </label>
                         <Select
@@ -3701,9 +3673,9 @@ export default function TypingPractice({
                           <SelectTrigger
                             className="w-full"
                             style={{
-                              backgroundColor: theme.surfaceColor,
-                              borderColor: theme.borderSubtle,
-                              color: theme.textPrimary,
+                              backgroundColor: tv.bg.surface,
+                              borderColor: tv.border.subtle,
+                              color: tv.text.primary,
                               fontFamily: getTypingFontFamily(settings.typingFontFamily),
                             }}
                           >
@@ -3711,8 +3683,8 @@ export default function TypingPractice({
                           </SelectTrigger>
                           <SelectContent
                             style={{
-                              backgroundColor: theme.surfaceColor,
-                              borderColor: theme.borderSubtle,
+                              backgroundColor: tv.bg.surface,
+                              borderColor: tv.border.subtle,
                             }}
                           >
                             {TYPING_FONT_OPTIONS.map((font) => (
@@ -3720,7 +3692,7 @@ export default function TypingPractice({
                                 key={font.value}
                                 value={font.value}
                                 style={{
-                                  color: theme.textPrimary,
+                                  color: tv.text.primary,
                                   fontFamily: font.fontFamily,
                                 }}
                               >
@@ -3729,17 +3701,17 @@ export default function TypingPractice({
                             ))}
                           </SelectContent>
                         </Select>
-                        <p className="mt-1 text-xs" style={{ color: theme.textMuted }}>
+                        <p className="mt-1 text-xs" style={{ color: tv.text.muted }}>
                           Changes the font used in the typing area only.
                         </p>
                       </div>
 
                       <div>
                         <div className="mb-2 flex items-center justify-between">
-                          <label className="text-sm" style={{ color: theme.textSecondary }}>
+                          <label className="text-sm" style={{ color: tv.text.secondary }}>
                             Text Size
                           </label>
-                          <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+                          <span className="text-sm font-medium" style={{ color: tv.text.primary }}>
                             {formatRemValue(clampedTextSize)}
                           </span>
                         </div>
@@ -3752,22 +3724,22 @@ export default function TypingPractice({
                           aria-label="Text Size"
                           className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
                           style={{
-                            ["--slider-range" as string]: theme.buttonSelected,
-                            ["--slider-track" as string]: theme.surfaceColor,
+                            ["--slider-range" as string]: tv.interactive.secondary.DEFAULT,
+                            ["--slider-track" as string]: tv.bg.surface,
                           }}
                         />
-                        <p className="mt-1 text-xs" style={{ color: theme.textMuted }}>
+                        <p className="mt-1 text-xs" style={{ color: tv.text.muted }}>
                           Range: 3rem to 6rem
                         </p>
                       </div>
                     </div>
 
-                    <div className="mt-4 border-t pt-4" style={{ borderColor: theme.borderSubtle }}>
+                    <div className="mt-4 border-t pt-4" style={{ borderColor: tv.border.subtle }}>
                       <div className="mb-2 flex items-center justify-between">
-                        <label className="text-sm" style={{ color: theme.textSecondary }}>
+                        <label className="text-sm" style={{ color: tv.text.secondary }}>
                           Text Alignment
                         </label>
-                        <span className="text-xs uppercase tracking-wide" style={{ color: theme.textMuted }}>
+                        <span className="text-xs uppercase tracking-wide" style={{ color: tv.text.muted }}>
                           {settings.textAlign}
                         </span>
                       </div>
@@ -3783,9 +3755,9 @@ export default function TypingPractice({
                               onClick={() => updateSettings({ textAlign: align })}
                               className="rounded-md px-3 py-2 text-sm capitalize transition-colors"
                               style={{
-                                color: isActive ? theme.textPrimary : theme.textSecondary,
-                                backgroundColor: isActive ? theme.elevatedColor : theme.surfaceColor,
-                                boxShadow: isActive ? `inset 0 0 0 1px ${theme.buttonSelected}` : "none",
+                                color: isActive ? tv.text.primary : tv.text.secondary,
+                                backgroundColor: isActive ? tv.bg.elevated : tv.bg.surface,
+                                boxShadow: isActive ? `inset 0 0 0 1px ${tv.interactive.secondary.DEFAULT}` : "none",
                               }}
                             >
                               {align}
@@ -3799,16 +3771,16 @@ export default function TypingPractice({
                   <section
                     className="rounded-xl border p-5"
                     style={{
-                      backgroundColor: theme.backgroundColor,
-                      borderColor: theme.borderSubtle,
+                      backgroundColor: tv.bg.base,
+                      borderColor: tv.border.subtle,
                     }}
                   >
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                        <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
                           Sound
                         </h3>
-                        <p className="text-xs" style={{ color: theme.textMuted }}>
+                        <p className="text-xs" style={{ color: tv.text.muted }}>
                           Typing, warning, and error feedback.
                         </p>
                       </div>
@@ -3817,9 +3789,9 @@ export default function TypingPractice({
                         onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
                         className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
                         style={{
-                          color: settings.soundEnabled ? theme.textPrimary : theme.textSecondary,
-                          backgroundColor: settings.soundEnabled ? theme.elevatedColor : theme.surfaceColor,
-                          borderColor: settings.soundEnabled ? theme.buttonSelected : theme.borderSubtle,
+                          color: settings.soundEnabled ? tv.text.primary : tv.text.secondary,
+                          backgroundColor: settings.soundEnabled ? tv.bg.elevated : tv.bg.surface,
+                          borderColor: settings.soundEnabled ? tv.interactive.secondary.DEFAULT : tv.border.subtle,
                         }}
                       >
                         Sound {settings.soundEnabled ? "On" : "Off"}
@@ -3829,7 +3801,7 @@ export default function TypingPractice({
                     <div className={`space-y-3 ${!settings.soundEnabled ? "pointer-events-none opacity-50" : ""}`}>
                       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                         <div>
-                          <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>
+                          <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
                             Typing Sound
                           </label>
                           <Select
@@ -3840,21 +3812,21 @@ export default function TypingPractice({
                             <SelectTrigger
                               className="w-full"
                               style={{
-                                backgroundColor: theme.surfaceColor,
-                                borderColor: theme.borderSubtle,
-                                color: theme.textPrimary,
+                                backgroundColor: tv.bg.surface,
+                                borderColor: tv.border.subtle,
+                                color: tv.text.primary,
                               }}
                             >
                               <SelectValue placeholder={typingSoundOptions.length === 0 ? "No packs found" : "Select typing sound"} />
                             </SelectTrigger>
                             <SelectContent
                               style={{
-                                backgroundColor: theme.surfaceColor,
-                                borderColor: theme.borderSubtle,
+                                backgroundColor: tv.bg.surface,
+                                borderColor: tv.border.subtle,
                               }}
                             >
                               {typingSoundOptions.map((pack) => (
-                                <SelectItem key={pack} value={pack} style={{ color: theme.textPrimary }}>
+                                <SelectItem key={pack} value={pack} style={{ color: tv.text.primary }}>
                                   {pack.charAt(0).toUpperCase() + pack.slice(1)}
                                 </SelectItem>
                               ))}
@@ -3866,9 +3838,9 @@ export default function TypingPractice({
                           onClick={() => selectedTypingSound && playSettingsSoundPreview("typing", selectedTypingSound)}
                           className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
                           style={{
-                            color: theme.textPrimary,
-                            backgroundColor: theme.surfaceColor,
-                            borderColor: theme.borderSubtle,
+                            color: tv.text.primary,
+                            backgroundColor: tv.bg.surface,
+                            borderColor: tv.border.subtle,
                           }}
                           disabled={!selectedTypingSound || typingSoundOptions.length === 0}
                         >
@@ -3878,7 +3850,7 @@ export default function TypingPractice({
 
                       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                         <div>
-                          <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>
+                          <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
                             Warning Sound
                           </label>
                           <Select
@@ -3889,21 +3861,21 @@ export default function TypingPractice({
                             <SelectTrigger
                               className="w-full"
                               style={{
-                                backgroundColor: theme.surfaceColor,
-                                borderColor: theme.borderSubtle,
-                                color: theme.textPrimary,
+                                backgroundColor: tv.bg.surface,
+                                borderColor: tv.border.subtle,
+                                color: tv.text.primary,
                               }}
                             >
                               <SelectValue placeholder={warningSoundOptions.length === 0 ? "No packs found" : "Select warning sound"} />
                             </SelectTrigger>
                             <SelectContent
                               style={{
-                                backgroundColor: theme.surfaceColor,
-                                borderColor: theme.borderSubtle,
+                                backgroundColor: tv.bg.surface,
+                                borderColor: tv.border.subtle,
                               }}
                             >
                               {warningSoundOptions.map((pack) => (
-                                <SelectItem key={pack} value={pack} style={{ color: theme.textPrimary }}>
+                                <SelectItem key={pack} value={pack} style={{ color: tv.text.primary }}>
                                   {pack.charAt(0).toUpperCase() + pack.slice(1)}
                                 </SelectItem>
                               ))}
@@ -3915,9 +3887,9 @@ export default function TypingPractice({
                           onClick={() => selectedWarningSound && playSettingsSoundPreview("warning", selectedWarningSound)}
                           className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
                           style={{
-                            color: theme.textPrimary,
-                            backgroundColor: theme.surfaceColor,
-                            borderColor: theme.borderSubtle,
+                            color: tv.text.primary,
+                            backgroundColor: tv.bg.surface,
+                            borderColor: tv.border.subtle,
                           }}
                           disabled={!selectedWarningSound || warningSoundOptions.length === 0}
                         >
@@ -3927,7 +3899,7 @@ export default function TypingPractice({
 
                       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                         <div>
-                          <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>
+                          <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
                             Error Sound
                           </label>
                           <Select
@@ -3939,24 +3911,24 @@ export default function TypingPractice({
                             <SelectTrigger
                               className="w-full"
                               style={{
-                                backgroundColor: theme.surfaceColor,
-                                borderColor: theme.borderSubtle,
-                                color: theme.textPrimary,
+                                backgroundColor: tv.bg.surface,
+                                borderColor: tv.border.subtle,
+                                color: tv.text.primary,
                               }}
                             >
                               <SelectValue placeholder="None" />
                             </SelectTrigger>
                             <SelectContent
                               style={{
-                                backgroundColor: theme.surfaceColor,
-                                borderColor: theme.borderSubtle,
+                                backgroundColor: tv.bg.surface,
+                                borderColor: tv.border.subtle,
                               }}
                             >
-                              <SelectItem value={NONE_SOUND_VALUE} style={{ color: theme.textPrimary }}>
+                              <SelectItem value={NONE_SOUND_VALUE} style={{ color: tv.text.primary }}>
                                 None
                               </SelectItem>
                               {errorSoundOptions.map((pack) => (
-                                <SelectItem key={pack} value={pack} style={{ color: theme.textPrimary }}>
+                                <SelectItem key={pack} value={pack} style={{ color: tv.text.primary }}>
                                   {pack.charAt(0).toUpperCase() + pack.slice(1)}
                                 </SelectItem>
                               ))}
@@ -3968,9 +3940,9 @@ export default function TypingPractice({
                           onClick={() => selectedErrorSound && playSettingsSoundPreview("error", selectedErrorSound)}
                           className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
                           style={{
-                            color: theme.textPrimary,
-                            backgroundColor: theme.surfaceColor,
-                            borderColor: theme.borderSubtle,
+                            color: tv.text.primary,
+                            backgroundColor: tv.bg.surface,
+                            borderColor: tv.border.subtle,
                           }}
                           disabled={!selectedErrorSound || errorSoundOptions.length === 0}
                         >
@@ -3983,16 +3955,16 @@ export default function TypingPractice({
                   <section
                     className="rounded-xl border p-5"
                     style={{
-                      backgroundColor: theme.backgroundColor,
-                      borderColor: theme.borderSubtle,
+                      backgroundColor: tv.bg.base,
+                      borderColor: tv.border.subtle,
                     }}
                   >
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                        <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
                           Ghost
                         </h3>
-                        <p className="text-xs" style={{ color: theme.textMuted }}>
+                        <p className="text-xs" style={{ color: tv.text.muted }}>
                           Pace guidance while typing.
                         </p>
                       </div>
@@ -4001,9 +3973,9 @@ export default function TypingPractice({
                         onClick={() => updateSettings({ ghostWriterEnabled: !settings.ghostWriterEnabled })}
                         className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
                         style={{
-                          color: settings.ghostWriterEnabled ? theme.textPrimary : theme.textSecondary,
-                          backgroundColor: settings.ghostWriterEnabled ? theme.elevatedColor : theme.surfaceColor,
-                          borderColor: settings.ghostWriterEnabled ? theme.buttonSelected : theme.borderSubtle,
+                          color: settings.ghostWriterEnabled ? tv.text.primary : tv.text.secondary,
+                          backgroundColor: settings.ghostWriterEnabled ? tv.bg.elevated : tv.bg.surface,
+                          borderColor: settings.ghostWriterEnabled ? tv.interactive.secondary.DEFAULT : tv.border.subtle,
                         }}
                       >
                         Ghost {settings.ghostWriterEnabled ? "On" : "Off"}
@@ -4012,10 +3984,10 @@ export default function TypingPractice({
 
                     <div className={`${!settings.ghostWriterEnabled ? "pointer-events-none opacity-50" : ""}`}>
                       <div className="mb-2 flex items-center justify-between">
-                        <label className="text-sm" style={{ color: theme.textSecondary }}>
+                        <label className="text-sm" style={{ color: tv.text.secondary }}>
                           Target Speed
                         </label>
-                        <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+                        <span className="text-sm font-medium" style={{ color: tv.text.primary }}>
                           {Math.max(1, Math.min(200, settings.ghostWriterSpeed))} WPM
                         </span>
                       </div>
@@ -4032,8 +4004,8 @@ export default function TypingPractice({
                         aria-label="Target Speed"
                         className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
                         style={{
-                          ["--slider-range" as string]: theme.buttonSelected,
-                          ["--slider-track" as string]: theme.surfaceColor,
+                          ["--slider-range" as string]: tv.interactive.secondary.DEFAULT,
+                          ["--slider-track" as string]: tv.bg.surface,
                         }}
                       />
                     </div>
@@ -4045,24 +4017,24 @@ export default function TypingPractice({
                 <section
                   className="rounded-xl border p-5"
                   style={{
-                    backgroundColor: theme.backgroundColor,
-                    borderColor: theme.borderSubtle,
+                    backgroundColor: tv.bg.base,
+                    borderColor: tv.border.subtle,
                   }}
                 >
-                  <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                  <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
                     Type
                   </h3>
-                  <p className="mt-1 text-xs" style={{ color: theme.textMuted }}>
+                  <p className="mt-1 text-xs" style={{ color: tv.text.muted }}>
                     Control how much text is visible and how each line wraps.
                   </p>
 
                   <div className="mt-5 space-y-5">
                     <div>
                       <div className="mb-2 flex items-center justify-between">
-                        <label className="text-sm" style={{ color: theme.textSecondary }}>
+                        <label className="text-sm" style={{ color: tv.text.secondary }}>
                           Preview Lines
                         </label>
-                        <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+                        <span className="text-sm font-medium" style={{ color: tv.text.primary }}>
                           {clampedLinePreview}
                         </span>
                       </div>
@@ -4075,18 +4047,18 @@ export default function TypingPractice({
                         aria-label="Preview Lines"
                         className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
                         style={{
-                          ["--slider-range" as string]: theme.buttonSelected,
-                          ["--slider-track" as string]: theme.surfaceColor,
+                          ["--slider-range" as string]: tv.interactive.secondary.DEFAULT,
+                          ["--slider-track" as string]: tv.bg.surface,
                         }}
                       />
                     </div>
 
-                    <div className="border-t pt-4" style={{ borderColor: theme.borderSubtle }}>
+                    <div className="border-t pt-4" style={{ borderColor: tv.border.subtle }}>
                       <div className="mb-2 flex items-center justify-between">
-                        <label className="text-sm" style={{ color: theme.textSecondary }}>
+                        <label className="text-sm" style={{ color: tv.text.secondary }}>
                           Max Words Per Line
                         </label>
-                        <span className="text-sm font-medium" style={{ color: theme.textPrimary }}>
+                        <span className="text-sm font-medium" style={{ color: tv.text.primary }}>
                           {clampedMaxWordsPerLine}
                         </span>
                       </div>
@@ -4099,8 +4071,8 @@ export default function TypingPractice({
                         aria-label="Max Words Per Line"
                         className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
                         style={{
-                          ["--slider-range" as string]: theme.buttonSelected,
-                          ["--slider-track" as string]: theme.surfaceColor,
+                          ["--slider-range" as string]: tv.interactive.secondary.DEFAULT,
+                          ["--slider-track" as string]: tv.bg.surface,
                         }}
                       />
                     </div>
@@ -4112,14 +4084,14 @@ export default function TypingPractice({
                 <section
                   className="rounded-xl border p-5"
                   style={{
-                    backgroundColor: theme.backgroundColor,
-                    borderColor: theme.borderSubtle,
+                    backgroundColor: tv.bg.base,
+                    borderColor: tv.border.subtle,
                   }}
                 >
-                  <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                  <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
                     Race
                   </h3>
-                  <p className="mt-2 text-sm" style={{ color: theme.textSecondary }}>
+                  <p className="mt-2 text-sm" style={{ color: tv.text.secondary }}>
                     Race-specific controls are still handled in the race lobby. This tab is ready for that migration.
                   </p>
                 </section>
@@ -4129,14 +4101,14 @@ export default function TypingPractice({
                 <section
                   className="rounded-xl border p-5"
                   style={{
-                    backgroundColor: theme.backgroundColor,
-                    borderColor: theme.borderSubtle,
+                    backgroundColor: tv.bg.base,
+                    borderColor: tv.border.subtle,
                   }}
                 >
-                  <h3 className="text-base font-semibold" style={{ color: theme.textPrimary }}>
+                  <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
                     Lesson
                   </h3>
-                  <p className="mt-2 text-sm" style={{ color: theme.textSecondary }}>
+                  <p className="mt-2 text-sm" style={{ color: tv.text.secondary }}>
                     Lesson-specific controls can be centralized here next.
                   </p>
                 </section>
@@ -4155,17 +4127,17 @@ export default function TypingPractice({
           <div
             className="w-full max-w-2xl rounded-xl border p-6 shadow-2xl"
             style={{
-              backgroundColor: theme.surfaceColor,
-              borderColor: theme.borderSubtle,
+              backgroundColor: tv.bg.surface,
+              borderColor: tv.border.subtle,
             }}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>
+                <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>
                   {settings.mode === "time" ? "Custom Duration" : "Custom Word Count"}
                 </h2>
-                <p className="mt-1 text-sm" style={{ color: theme.textSecondary }}>
+                <p className="mt-1 text-sm" style={{ color: tv.text.secondary }}>
                   {settings.mode === "time"
                     ? "Scroll each dial or use arrows to set hours, minutes, and seconds."
                     : "Scroll each dial or use arrows to set a word count from 0001 to 9999."}
@@ -4175,7 +4147,7 @@ export default function TypingPractice({
                 type="button"
                 onClick={() => setShowCustomCountModal(false)}
                 className="rounded-md px-2 py-1 text-sm transition-opacity hover:opacity-80"
-                style={{ color: theme.textMuted }}
+                style={{ color: tv.text.muted }}
                 aria-label="Close custom selector"
               >
                 ✕
@@ -4184,9 +4156,9 @@ export default function TypingPractice({
 
             {settings.mode === "time" ? (
               <div className="space-y-5">
-                <div className="text-center" style={{ color: theme.textSecondary }}>
+                <div className="text-center" style={{ color: tv.text.secondary }}>
                   <span className="text-base sm:text-lg">Selected:</span>{" "}
-                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: theme.buttonSelected }}>
+                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: tv.interactive.secondary.DEFAULT }}>
                     {formattedCustomDuration}
                   </span>
                 </div>
@@ -4203,7 +4175,6 @@ export default function TypingPractice({
                         hours,
                       }))
                     }
-                    theme={theme}
                   />
                   <NumberDial
                     label="minutes"
@@ -4216,7 +4187,6 @@ export default function TypingPractice({
                         minutes,
                       }))
                     }
-                    theme={theme}
                   />
                   <NumberDial
                     label="seconds"
@@ -4229,15 +4199,14 @@ export default function TypingPractice({
                         seconds,
                       }))
                     }
-                    theme={theme}
                   />
                 </div>
               </div>
             ) : (
               <div className="space-y-5">
-                <div className="text-center" style={{ color: theme.textSecondary }}>
+                <div className="text-center" style={{ color: tv.text.secondary }}>
                   <span className="text-base sm:text-lg">Selected:</span>{" "}
-                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: theme.buttonSelected }}>
+                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: tv.interactive.secondary.DEFAULT }}>
                     {formattedCustomWordValue}
                   </span>
                 </div>
@@ -4254,7 +4223,6 @@ export default function TypingPractice({
                         thousands,
                       }))
                     }
-                    theme={theme}
                   />
                   <NumberDial
                     label="hundreds"
@@ -4267,7 +4235,6 @@ export default function TypingPractice({
                         hundreds,
                       }))
                     }
-                    theme={theme}
                   />
                   <NumberDial
                     label="tens"
@@ -4280,7 +4247,6 @@ export default function TypingPractice({
                         tens,
                       }))
                     }
-                    theme={theme}
                   />
                   <NumberDial
                     label="ones"
@@ -4293,7 +4259,6 @@ export default function TypingPractice({
                         ones,
                       }))
                     }
-                    theme={theme}
                   />
                 </div>
               </div>
@@ -4305,8 +4270,8 @@ export default function TypingPractice({
                 onClick={() => setShowCustomCountModal(false)}
                 className="rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
                 style={{
-                  color: theme.textSecondary,
-                  backgroundColor: theme.backgroundColor,
+                  color: tv.text.secondary,
+                  backgroundColor: tv.bg.base,
                 }}
               >
                 Cancel
@@ -4319,7 +4284,7 @@ export default function TypingPractice({
                   (settings.mode === "words" && customWordValue <= 0)
                 }
                 className="rounded-md px-4 py-2 text-sm font-medium text-gray-900 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ backgroundColor: theme.buttonSelected }}
+                style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
               >
                 Set {settings.mode === "time" ? "Duration" : "Word Count"}
               </button>
@@ -4336,12 +4301,12 @@ export default function TypingPractice({
         >
           <div
             className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg p-6 shadow-xl mx-4"
-            style={{ backgroundColor: theme.surfaceColor }}
+            style={{ backgroundColor: tv.bg.surface }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold" style={{ color: theme.textPrimary }}>Quick Settings</h2>
-              <button onClick={() => setShowQuickSettings(false)} className="hover:opacity-80 transition-opacity" style={{ color: theme.textMuted }}>
+              <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>Quick Settings</h2>
+              <button onClick={() => setShowQuickSettings(false)} className="hover:opacity-80 transition-opacity" style={{ color: tv.text.muted }}>
                 ✕
               </button>
             </div>
@@ -4349,7 +4314,7 @@ export default function TypingPractice({
             <div className="space-y-6">
               {/* Test Mode */}
               <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Mode</label>
+                <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Mode</label>
                 <div className="flex gap-2 flex-wrap justify-center">
                   {MODE_SELECTOR_OPTIONS.map((m) => {
                     const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
@@ -4358,9 +4323,9 @@ export default function TypingPractice({
                         key={m}
                         onClick={() => handleModeSelect(m)}
                         className={`rounded px-4 py-2 text-sm capitalize transition ${isModeActive ? "font-medium" : "hover:opacity-80"}`}
-                        style={{ 
-                          color: isModeActive ? theme.buttonSelected : theme.textSecondary,
-                          backgroundColor: isModeActive ? theme.elevatedColor : theme.backgroundColor
+                        style={{
+                          color: isModeActive ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                          backgroundColor: isModeActive ? tv.bg.elevated : tv.bg.base
                         }}
                       >
                         {m}
@@ -4373,7 +4338,7 @@ export default function TypingPractice({
               {/* Duration / Word Count / Quote Length */}
               {settings.mode === "time" && (
                 <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Duration</label>
+                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Duration</label>
                   <div className="flex gap-2 flex-wrap justify-center">
                     {TIME_PRESETS.map((d) => (
                       <button
@@ -4384,8 +4349,8 @@ export default function TypingPractice({
                         }}
                         className={`rounded px-4 py-2 text-sm transition ${settings.duration === d ? "font-medium" : "hover:opacity-80"}`}
                         style={{
-                          color: settings.duration === d ? theme.buttonSelected : theme.textSecondary,
-                          backgroundColor: settings.duration === d ? theme.elevatedColor : theme.backgroundColor
+                          color: settings.duration === d ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                          backgroundColor: settings.duration === d ? tv.bg.elevated : tv.bg.base
                         }}
                       >
                         {d}s
@@ -4398,8 +4363,8 @@ export default function TypingPractice({
                       }}
                       className={`rounded px-4 py-2 text-sm transition ${isCustomDurationSelected ? "font-medium" : "hover:opacity-80"}`}
                       style={{
-                        color: isCustomDurationSelected ? theme.buttonSelected : theme.textSecondary,
-                        backgroundColor: isCustomDurationSelected ? theme.elevatedColor : theme.backgroundColor,
+                        color: isCustomDurationSelected ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                        backgroundColor: isCustomDurationSelected ? tv.bg.elevated : tv.bg.base,
                       }}
                     >
                       custom
@@ -4410,7 +4375,7 @@ export default function TypingPractice({
 
               {settings.mode === "words" && (
                 <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Word Count</label>
+                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Word Count</label>
                   <div className="flex gap-2 flex-wrap justify-center">
                     {WORD_PRESETS.map((w) => (
                       <button
@@ -4421,8 +4386,8 @@ export default function TypingPractice({
                         }}
                         className={`rounded px-4 py-2 text-sm transition ${settings.wordTarget === w ? "font-medium" : "hover:opacity-80"}`}
                         style={{
-                          color: settings.wordTarget === w ? theme.buttonSelected : theme.textSecondary,
-                          backgroundColor: settings.wordTarget === w ? theme.elevatedColor : theme.backgroundColor
+                          color: settings.wordTarget === w ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                          backgroundColor: settings.wordTarget === w ? tv.bg.elevated : tv.bg.base
                         }}
                       >
                         {w}
@@ -4435,8 +4400,8 @@ export default function TypingPractice({
                       }}
                       className={`rounded px-4 py-2 text-sm transition ${isCustomWordTargetSelected ? "font-medium" : "hover:opacity-80"}`}
                       style={{
-                        color: isCustomWordTargetSelected ? theme.buttonSelected : theme.textSecondary,
-                        backgroundColor: isCustomWordTargetSelected ? theme.elevatedColor : theme.backgroundColor,
+                        color: isCustomWordTargetSelected ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                        backgroundColor: isCustomWordTargetSelected ? tv.bg.elevated : tv.bg.base,
                       }}
                     >
                       custom
@@ -4447,7 +4412,7 @@ export default function TypingPractice({
 
               {settings.mode === "quote" && quotesManifest && (
                 <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Quote Length</label>
+                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Quote Length</label>
                   <div className="flex gap-2 flex-wrap justify-center">
                     {["all", ...quotesManifest.lengths].map((l) => (
                       <button
@@ -4458,8 +4423,8 @@ export default function TypingPractice({
                         }}
                         className={`rounded px-4 py-2 text-sm transition ${settings.quoteLength === l ? "font-medium" : "hover:opacity-80"}`}
                         style={{
-                          color: settings.quoteLength === l ? theme.buttonSelected : theme.textSecondary,
-                          backgroundColor: settings.quoteLength === l ? theme.elevatedColor : theme.backgroundColor
+                          color: settings.quoteLength === l ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                          backgroundColor: settings.quoteLength === l ? tv.bg.elevated : tv.bg.base
                         }}
                       >
                         {l}
@@ -4472,7 +4437,7 @@ export default function TypingPractice({
               {/* Difficulty */}
               {settings.mode !== "quote" && wordsManifest && (
                 <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Difficulty</label>
+                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Difficulty</label>
                   <div className="flex gap-2 flex-wrap justify-center">
                     {wordsManifest.difficulties.map((d) => (
                       <button
@@ -4483,8 +4448,8 @@ export default function TypingPractice({
                         }}
                         className={`rounded px-4 py-2 text-sm capitalize transition ${settings.difficulty === d ? "font-medium" : "hover:opacity-80"}`}
                         style={{
-                          color: settings.difficulty === d ? theme.buttonSelected : theme.textSecondary,
-                          backgroundColor: settings.difficulty === d ? theme.elevatedColor : theme.backgroundColor
+                          color: settings.difficulty === d ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                          backgroundColor: settings.difficulty === d ? tv.bg.elevated : tv.bg.base
                         }}
                       >
                         {d}
@@ -4496,15 +4461,15 @@ export default function TypingPractice({
 
               {/* Modifiers */}
               <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Modifiers</label>
+                <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Modifiers</label>
                 <div className="flex gap-3 flex-wrap justify-center">
                   <button
                     onClick={() => updateSettings({ capitalization: !settings.capitalization })}
                     disabled={settings.mode === "quote"}
                     className={`rounded px-4 py-2 text-sm transition ${settings.capitalization ? "font-medium" : "hover:opacity-80"}`}
                     style={{
-                      color: settings.capitalization ? theme.buttonSelected : theme.textSecondary,
-                      backgroundColor: settings.capitalization ? theme.elevatedColor : theme.backgroundColor,
+                      color: settings.capitalization ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                      backgroundColor: settings.capitalization ? tv.bg.elevated : tv.bg.base,
                       opacity: settings.mode === "quote" ? 0.5 : 1
                     }}
                   >
@@ -4515,8 +4480,8 @@ export default function TypingPractice({
                     disabled={settings.mode === "quote"}
                     className={`rounded px-4 py-2 text-sm transition ${settings.punctuation ? "font-medium" : "hover:opacity-80"}`}
                     style={{
-                      color: settings.punctuation ? theme.buttonSelected : theme.textSecondary,
-                      backgroundColor: settings.punctuation ? theme.elevatedColor : theme.backgroundColor,
+                      color: settings.punctuation ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                      backgroundColor: settings.punctuation ? tv.bg.elevated : tv.bg.base,
                       opacity: settings.mode === "quote" ? 0.5 : 1
                     }}
                   >
@@ -4527,8 +4492,8 @@ export default function TypingPractice({
                     disabled={settings.mode === "quote"}
                     className={`rounded px-4 py-2 text-sm transition ${settings.numbers ? "font-medium" : "hover:opacity-80"}`}
                     style={{
-                      color: settings.numbers ? theme.buttonSelected : theme.textSecondary,
-                      backgroundColor: settings.numbers ? theme.elevatedColor : theme.backgroundColor,
+                      color: settings.numbers ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                      backgroundColor: settings.numbers ? tv.bg.elevated : tv.bg.base,
                       opacity: settings.mode === "quote" ? 0.5 : 1
                     }}
                   >
@@ -4539,7 +4504,7 @@ export default function TypingPractice({
 
               {/* Line Preview */}
               <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Lines to Preview</label>
+                <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Lines to Preview</label>
                 <div className="flex gap-2 flex-wrap justify-center">
                   {[1, 2, 3, 4, 5, 6].map((num) => (
                     <button
@@ -4547,8 +4512,8 @@ export default function TypingPractice({
                       onClick={() => setLinePreview(num)}
                       className={`rounded px-3 py-2 text-sm transition ${linePreview === num ? "font-medium" : "hover:opacity-80"}`}
                       style={{
-                        color: linePreview === num ? theme.buttonSelected : theme.textSecondary,
-                        backgroundColor: linePreview === num ? theme.elevatedColor : theme.backgroundColor
+                        color: linePreview === num ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                        backgroundColor: linePreview === num ? tv.bg.elevated : tv.bg.base
                       }}
                     >
                       {num}
@@ -4559,7 +4524,7 @@ export default function TypingPractice({
 
               {/* Max Words per Line */}
               <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Max Words per Line</label>
+                <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Max Words per Line</label>
                 <div className="flex gap-2 flex-wrap justify-center">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                     <button
@@ -4567,8 +4532,8 @@ export default function TypingPractice({
                       onClick={() => setMaxWordsPerLine(num)}
                       className={`rounded px-3 py-2 text-sm transition ${maxWordsPerLine === num ? "font-medium" : "hover:opacity-80"}`}
                       style={{
-                        color: maxWordsPerLine === num ? theme.buttonSelected : theme.textSecondary,
-                        backgroundColor: maxWordsPerLine === num ? theme.elevatedColor : theme.backgroundColor
+                        color: maxWordsPerLine === num ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                        backgroundColor: maxWordsPerLine === num ? tv.bg.elevated : tv.bg.base
                       }}
                     >
                       {num}
@@ -4580,7 +4545,7 @@ export default function TypingPractice({
               {/* Font Size & Text Alignment */}
               <div className="flex gap-4 justify-center flex-wrap">
                 <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Text Size (rem)</label>
+                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Text Size (rem)</label>
                   <input
                     type="number"
                     min="1"
@@ -4589,11 +4554,11 @@ export default function TypingPractice({
                     value={settings.typingFontSize}
                     onChange={(e) => updateSettings({ typingFontSize: parseFloat(e.target.value) || 3 })}
                     className="w-28 rounded px-3 py-2 text-center focus:outline-none focus:ring-2"
-                    style={{ backgroundColor: theme.backgroundColor, color: theme.textPrimary, "--tw-ring-color": theme.buttonSelected } as React.CSSProperties}
+                    style={{ backgroundColor: tv.bg.base, color: tv.text.primary, "--tw-ring-color": tv.interactive.secondary.DEFAULT } as React.CSSProperties}
                   />
                 </div>
                 <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: theme.textSecondary }}>Text Alignment</label>
+                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Text Alignment</label>
                   <div className="flex gap-2 justify-center">
                     {(["left", "center", "right", "justify"] as const).map((align) => (
                       <button
@@ -4601,8 +4566,8 @@ export default function TypingPractice({
                         onClick={() => updateSettings({ textAlign: align })}
                         className={`rounded px-3 py-2 text-sm capitalize transition ${settings.textAlign === align ? "font-medium" : "hover:opacity-80"}`}
                         style={{
-                          color: settings.textAlign === align ? theme.buttonSelected : theme.textSecondary,
-                          backgroundColor: settings.textAlign === align ? theme.elevatedColor : theme.backgroundColor
+                          color: settings.textAlign === align ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                          backgroundColor: settings.textAlign === align ? tv.bg.elevated : tv.bg.base
                         }}
                       >
                         {align}
@@ -4627,12 +4592,12 @@ export default function TypingPractice({
 
       {/* Plan Splash Screen */}
       {isPlanActive && isPlanSplash && plan[planIndex] && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: theme.backgroundColor }}>
+        <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: tv.bg.base }}>
           <div className="absolute top-4 right-4">
             <button
               onClick={exitPlanMode}
               className="px-4 py-2 transition-colors hover:opacity-80"
-              style={{ color: theme.textSecondary }}
+              style={{ color: tv.text.secondary }}
             >
               Exit Plan
             </button>
@@ -4641,7 +4606,7 @@ export default function TypingPractice({
             item={plan[planIndex]}
             progress={{ current: planIndex + 1, total: plan.length }}
             onStart={handlePlanStepStart}
-            theme={theme}
+            theme={planTheme}
           />
         </div>
       )}
@@ -4652,7 +4617,7 @@ export default function TypingPractice({
           user={{ id: "local", name: "You" }}
           plan={plan}
           results={planResults}
-          theme={theme}
+          theme={planTheme}
           onClose={() => {
             setShowPlanResultsModal(false);
             exitPlanMode();
@@ -4667,7 +4632,7 @@ export default function TypingPractice({
             <button
               onClick={handlePlanPrev}
               className="px-6 py-3 rounded-lg font-medium transition-colors hover:opacity-90"
-              style={{ backgroundColor: theme.surfaceColor, color: theme.textPrimary }}
+              style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}
             >
               ← Previous
             </button>
@@ -4675,7 +4640,7 @@ export default function TypingPractice({
           <button
             onClick={handlePlanNext}
             className="px-6 py-3 text-white rounded-lg font-medium transition-colors hover:opacity-90"
-            style={{ backgroundColor: theme.buttonSelected }}
+            style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
           >
             {planIndex < plan.length - 1 ? "Next →" : "View Results"}
           </button>
