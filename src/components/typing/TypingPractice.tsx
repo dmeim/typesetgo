@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Sun, Moon, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
@@ -17,6 +17,9 @@ import {
 } from "@/lib/storage-utils";
 import { TYPING_FONT_OPTIONS, DEFAULT_TYPING_FONT, getTypingFontFamily } from "@/lib/typing-fonts";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
+import ThemeCard from "@/components/typing/ThemeCard";
+import VariantDrawer from "@/components/typing/VariantDrawer";
+import { useGridColumns } from "@/hooks/useGridColumns";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 import type { Plan, PlanItem, PlanStepResult } from "@/types/plan";
 import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
@@ -523,6 +526,7 @@ export default function TypingPractice({
   const [, setAvailableThemes] = useState<ThemeDefinition[]>([]);
   const [groupedThemes, setGroupedThemes] = useState<GroupedThemes[]>([]);
   const [expandedThemeId, setExpandedThemeId] = useState<string | null>(null);
+  const themeGridColumns = useGridColumns();
   const [previewThemeDef, setPreviewThemeDef] = useState<(ThemeDefinition & { previewMode?: ThemeMode; previewVariantId?: string }) | null>(null);
 
   // Helper to set preview theme with optional mode and variant
@@ -3360,184 +3364,97 @@ export default function TypingPractice({
                             }`}
                           >
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                              {group.themes.map((themeData) => {
-                                const isMultiVariant = themeData.variants.length > 1;
-                                const isThemeExpanded = expandedThemeId === themeData.id;
-                                const isSelected = selectedThemeId === themeData.id;
-                                const defaultVariant = themeData.variants.find(v => v.id === themeData.defaultVariantId) || themeData.variants[0];
-                                const matchingVariants = normalizedThemeSearchQuery
-                                  ? themeData.variants.filter(v =>
-                                      v.id.toLowerCase().includes(normalizedThemeSearchQuery) ||
-                                      v.label.toLowerCase().includes(normalizedThemeSearchQuery)
-                                    )
-                                  : themeData.variants;
-                                const displayedVariants = isThemeExpanded
-                                  ? (normalizedThemeSearchQuery && matchingVariants.length > 0 ? matchingVariants : themeData.variants)
-                                  : [];
+                              {(() => {
+                                const elements: React.ReactNode[] = [];
+                                const expandedIndex = group.themes.findIndex(t => t.id === expandedThemeId);
+                                const expandedRow = expandedIndex >= 0 ? Math.floor(expandedIndex / themeGridColumns) : -1;
+                                const drawerAfterIndex = expandedRow >= 0
+                                  ? Math.min((expandedRow + 1) * themeGridColumns - 1, group.themes.length - 1)
+                                  : -1;
+                                const expandedThemeData = expandedIndex >= 0 ? group.themes[expandedIndex] : null;
 
-                                return (
-                                  <div
-                                    key={themeData.id}
-                                    className="flex flex-col transition-opacity duration-200"
-                                    style={{
-                                      opacity: expandedThemeId && expandedThemeId !== themeData.id ? 0.5 : 1,
-                                    }}
-                                  >
-                                    {/* Collapsed card */}
+                                group.themes.forEach((themeData, idx) => {
+                                  const isMultiVariant = themeData.variants.length > 1;
+                                  const isThemeExpanded = expandedThemeId === themeData.id;
+                                  const isSelected = selectedThemeId === themeData.id;
+                                  const defaultVariant = themeData.variants.find(v => v.id === themeData.defaultVariantId) || themeData.variants[0];
+                                  const matchingVariants = normalizedThemeSearchQuery
+                                    ? themeData.variants.filter(v =>
+                                        v.id.toLowerCase().includes(normalizedThemeSearchQuery) ||
+                                        v.label.toLowerCase().includes(normalizedThemeSearchQuery)
+                                      )
+                                    : themeData.variants;
+
+                                  elements.push(
                                     <div
-                                      className={`flex rounded-lg border transition overflow-hidden min-h-[64px] ${
-                                        isSelected
-                                          ? "border-gray-400 ring-1 ring-gray-400"
-                                          : "border-gray-700 hover:border-gray-500"
-                                      }`}
-                                      style={{ backgroundColor: defaultVariant.dark.bg.base }}
+                                      key={themeData.id}
+                                      className="transition-opacity duration-200"
+                                      style={{
+                                        opacity: expandedThemeId && expandedThemeId !== themeData.id ? 0.5 : 1,
+                                      }}
                                     >
-                                      {/* Left column - theme info */}
-                                      <button
-                                        onClick={() => {
+                                      <ThemeCard
+                                        themeData={themeData}
+                                        variant={defaultVariant}
+                                        label={themeData.name}
+                                        isSelected={isSelected}
+                                        isMultiVariant={isMultiVariant}
+                                        isExpanded={isThemeExpanded}
+                                        variantCount={themeData.variants.length}
+                                        matchingVariantCount={
+                                          normalizedThemeSearchQuery && matchingVariants.length > 0 && matchingVariants.length < themeData.variants.length
+                                            ? matchingVariants.length
+                                            : undefined
+                                        }
+                                        onCardClick={() => {
                                           if (isMultiVariant) {
                                             setExpandedThemeId(isThemeExpanded ? null : themeData.id);
                                           } else {
                                             handleThemeSelect(themeData.id);
                                           }
                                         }}
+                                        onLightClick={() => {
+                                          if (defaultVariant.light) handleThemeSelect(themeData.id, defaultVariant.id, "light");
+                                        }}
+                                        onDarkClick={() => handleThemeSelect(themeData.id, defaultVariant.id, "dark")}
                                         onMouseEnter={() => setPreviewTheme(themeData)}
                                         onMouseLeave={() => setPreviewTheme(null)}
-                                        className="flex-1 min-w-0 p-2 text-left"
-                                      >
-                                        <div className="flex items-center gap-1.5 mb-2">
-                                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: defaultVariant.dark.typing.cursor }} />
-                                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: defaultVariant.dark.interactive.secondary.DEFAULT }} />
-                                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: defaultVariant.dark.typing.correct }} />
-                                        </div>
-                                        <div className="text-xs whitespace-normal break-words leading-tight" style={{ color: defaultVariant.dark.typing.correct }}>
-                                          {themeData.name}
-                                        </div>
-                                      </button>
-
-                                      {/* Right column */}
-                                      {!isMultiVariant ? (
-                                        <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${defaultVariant.dark.typing.correct}30` }}>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (defaultVariant.light) handleThemeSelect(themeData.id, defaultVariant.id, "light");
-                                            }}
-                                            onMouseEnter={() => defaultVariant.light && setPreviewTheme(themeData, "light", defaultVariant.id)}
-                                            onMouseLeave={() => setPreviewTheme(null)}
-                                            disabled={!defaultVariant.light}
-                                            className={`flex-1 flex items-center justify-center transition-colors ${
-                                              !defaultVariant.light
-                                                ? "opacity-30 cursor-not-allowed"
-                                                : "hover:bg-white/10 cursor-pointer"
-                                            }`}
-                                            title={defaultVariant.light ? "Light mode" : "Light mode not available"}
-                                          >
-                                            <Sun className="w-3 h-3" style={{ color: defaultVariant.dark.typing.correct }} />
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleThemeSelect(themeData.id, defaultVariant.id, "dark");
-                                            }}
-                                            onMouseEnter={() => setPreviewTheme(themeData, "dark", defaultVariant.id)}
-                                            onMouseLeave={() => setPreviewTheme(null)}
-                                            className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
-                                            title="Dark mode"
-                                          >
-                                            <Moon className="w-3 h-3" style={{ color: defaultVariant.dark.typing.correct }} />
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <div
-                                          className="w-10 shrink-0 flex items-center justify-center border-l cursor-pointer hover:bg-white/5 transition-colors"
-                                          style={{ borderColor: `${defaultVariant.dark.typing.correct}30` }}
-                                          onClick={() => setExpandedThemeId(isThemeExpanded ? null : themeData.id)}
-                                        >
-                                          <span
-                                            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                                            style={{
-                                              backgroundColor: defaultVariant.dark.interactive.primary.subtle,
-                                              color: defaultVariant.dark.interactive.primary.DEFAULT,
-                                            }}
-                                          >
-                                            {normalizedThemeSearchQuery && matchingVariants.length > 0 && matchingVariants.length < themeData.variants.length
-                                              ? matchingVariants.length
-                                              : themeData.variants.length}
-                                          </span>
-                                        </div>
-                                      )}
+                                        onLightMouseEnter={() => defaultVariant.light && setPreviewTheme(themeData, "light", defaultVariant.id)}
+                                        onDarkMouseEnter={() => setPreviewTheme(themeData, "dark", defaultVariant.id)}
+                                      />
                                     </div>
+                                  );
 
-                                    {/* Expanded variant rows */}
-                                    {isMultiVariant && isThemeExpanded && (
-                                      <div className="mt-1 ml-2 space-y-1">
-                                        {displayedVariants.map((variant) => {
-                                          const isVariantSelected = isSelected && selectedVariantId === variant.id;
-                                          return (
-                                            <div
-                                              key={variant.id}
-                                              className={`flex rounded-md border overflow-hidden transition ${
-                                                isVariantSelected
-                                                  ? "border-gray-400 ring-1 ring-gray-400"
-                                                  : "border-gray-700 hover:border-gray-500"
-                                              }`}
-                                              style={{ backgroundColor: variant.dark.bg.base }}
-                                            >
-                                              <button
-                                                onClick={() => handleThemeSelect(themeData.id, variant.id)}
-                                                onMouseEnter={() => setPreviewTheme(themeData, undefined, variant.id)}
-                                                onMouseLeave={() => setPreviewTheme(null)}
-                                                className="flex-1 min-w-0 p-1.5 text-left"
-                                              >
-                                                <div className="flex items-center gap-1.5">
-                                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: variant.dark.typing.cursor }} />
-                                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: variant.dark.interactive.secondary.DEFAULT }} />
-                                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: variant.dark.typing.correct }} />
-                                                  <span className="text-xs ml-1 truncate" style={{ color: variant.dark.typing.correct }}>
-                                                    {variant.label}
-                                                  </span>
-                                                </div>
-                                              </button>
-                                              <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${variant.dark.typing.correct}30` }}>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (variant.light) handleThemeSelect(themeData.id, variant.id, "light");
-                                                  }}
-                                                  onMouseEnter={() => variant.light && setPreviewTheme(themeData, "light", variant.id)}
-                                                  onMouseLeave={() => setPreviewTheme(null)}
-                                                  disabled={!variant.light}
-                                                  className={`flex-1 flex items-center justify-center transition-colors ${
-                                                    !variant.light
-                                                      ? "opacity-30 cursor-not-allowed"
-                                                      : "hover:bg-white/10 cursor-pointer"
-                                                  }`}
-                                                  title={variant.light ? "Light mode" : "Light mode not available"}
-                                                >
-                                                  <Sun className="w-3 h-3" style={{ color: variant.dark.typing.correct }} />
-                                                </button>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleThemeSelect(themeData.id, variant.id, "dark");
-                                                  }}
-                                                  onMouseEnter={() => setPreviewTheme(themeData, "dark", variant.id)}
-                                                  onMouseLeave={() => setPreviewTheme(null)}
-                                                  className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
-                                                  title="Dark mode"
-                                                >
-                                                  <Moon className="w-3 h-3" style={{ color: variant.dark.typing.correct }} />
-                                                </button>
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                                  if (idx === drawerAfterIndex && expandedThemeData) {
+                                    const expandedMatchingVariants = normalizedThemeSearchQuery
+                                      ? expandedThemeData.variants.filter(v =>
+                                          v.id.toLowerCase().includes(normalizedThemeSearchQuery) ||
+                                          v.label.toLowerCase().includes(normalizedThemeSearchQuery)
+                                        )
+                                      : expandedThemeData.variants;
+                                    const displayedVariants = normalizedThemeSearchQuery && expandedMatchingVariants.length > 0
+                                      ? expandedMatchingVariants
+                                      : expandedThemeData.variants;
+
+                                    elements.push(
+                                      <VariantDrawer
+                                        key={`drawer-${expandedThemeData.id}`}
+                                        themeData={expandedThemeData}
+                                        variants={displayedVariants}
+                                        selectedThemeId={selectedThemeId}
+                                        selectedVariantId={selectedVariantId}
+                                        isOpen={true}
+                                        onClose={() => setExpandedThemeId(null)}
+                                        onVariantSelect={handleThemeSelect}
+                                        onPreviewEnter={setPreviewTheme}
+                                        onPreviewLeave={() => setPreviewTheme(null)}
+                                      />
+                                    );
+                                  }
+                                });
+
+                                return elements;
+                              })()}
                             </div>
                           </div>
                         </div>
