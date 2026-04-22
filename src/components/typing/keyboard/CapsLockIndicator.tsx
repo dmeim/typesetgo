@@ -29,8 +29,8 @@ export default function CapsLockIndicator({
             animate={{ opacity: [0.5, 1, 0.5] }}
             transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
           >
-            <span className="leading-none">CAPS</span>
-            <span className="leading-none" style={{ fontSize: fontSize * 1.1 }}>
+            <span className="leading-none">CAPS LOCK</span>
+            <span className="leading-none" style={{ fontSize: fontSize * 0.8 }}>
               {"▶"}
             </span>
           </motion.div>

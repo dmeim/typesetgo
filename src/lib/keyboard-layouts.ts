@@ -5,7 +5,7 @@ export interface KeyDefinition {
   label: string;
   shiftKey?: string;
   width?: number;
-  type?: "letter" | "number" | "symbol" | "space" | "caps" | "shift";
+  type?: "letter" | "number" | "symbol" | "space" | "caps" | "shift" | "backspace";
 }
 
 export interface KeyboardLayout {
@@ -32,6 +32,7 @@ const QWERTY_LAYOUT: KeyboardLayout = {
       { key: "0", label: "0", shiftKey: ")", type: "number" },
       { key: "-", label: "-", shiftKey: "_", type: "symbol" },
       { key: "=", label: "=", shiftKey: "+", type: "symbol" },
+      { key: "Backspace", label: "⌫", type: "backspace", width: 1.5 },
     ],
     [
       { key: "q", label: "Q", type: "letter" },
@@ -99,6 +100,7 @@ const DVORAK_LAYOUT: KeyboardLayout = {
       { key: "0", label: "0", shiftKey: ")", type: "number" },
       { key: "[", label: "[", shiftKey: "{", type: "symbol" },
       { key: "]", label: "]", shiftKey: "}", type: "symbol" },
+      { key: "Backspace", label: "⌫", type: "backspace", width: 1.5 },
     ],
     [
       { key: "'", label: "'", shiftKey: "\"", type: "symbol" },
@@ -166,6 +168,7 @@ const COLEMAK_LAYOUT: KeyboardLayout = {
       { key: "0", label: "0", shiftKey: ")", type: "number" },
       { key: "-", label: "-", shiftKey: "_", type: "symbol" },
       { key: "=", label: "=", shiftKey: "+", type: "symbol" },
+      { key: "Backspace", label: "⌫", type: "backspace", width: 1.5 },
     ],
     [
       { key: "q", label: "Q", type: "letter" },
@@ -228,6 +231,17 @@ export function findKeyForChar(
   char: string
 ): { key: KeyDefinition; requiresShift: boolean; rowIndex: number } | null {
   if (!char) return null;
+
+  if (char === "Backspace") {
+    for (let rowIndex = 0; rowIndex < layout.rows.length; rowIndex++) {
+      for (const keyDef of layout.rows[rowIndex]) {
+        if (keyDef.type === "backspace") {
+          return { key: keyDef, requiresShift: false, rowIndex };
+        }
+      }
+    }
+    return null;
+  }
 
   for (let rowIndex = 0; rowIndex < layout.rows.length; rowIndex++) {
     for (const keyDef of layout.rows[rowIndex]) {

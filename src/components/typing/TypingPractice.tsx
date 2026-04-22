@@ -1742,15 +1742,23 @@ export default function TypingPractice({
     }
   };
 
+  const hasErrors = useMemo(() => {
+    for (let i = 0; i < typedText.length; i++) {
+      if (typedText[i] !== words[i]) return true;
+    }
+    return false;
+  }, [typedText, words]);
+
   const nextChar = useMemo(() => {
     if (isFinished || !words) return null;
+    if (hasErrors) return "Backspace";
     return words[typedText.length] ?? null;
-  }, [typedText.length, words, isFinished]);
+  }, [typedText.length, words, isFinished, hasErrors]);
 
   useEffect(() => {
     const handleKeyEvent = (e: KeyboardEvent) => {
       setCapsLockOn(e.getModifierState("CapsLock"));
-      if (e.type === "keydown" && e.key.length === 1 || e.key === " ") {
+      if (e.type === "keydown" && (e.key.length === 1 || e.key === " " || e.key === "Backspace")) {
         setActiveKey(e.key);
         clearTimeout(activeKeyTimeoutRef.current);
         activeKeyTimeoutRef.current = setTimeout(() => setActiveKey(null), 150);
