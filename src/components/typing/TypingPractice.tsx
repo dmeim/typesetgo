@@ -646,6 +646,7 @@ export default function TypingPractice({
   const [isRepeated, setIsRepeated] = useState(false);
   const [ghostCharIndex, setGhostCharIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const [isWarningPlayed, setIsWarningPlayed] = useState(false);
   const [uiOpacity, setUiOpacity] = useState(1);
 
@@ -1729,6 +1730,16 @@ export default function TypingPractice({
     }
   };
 
+  useEffect(() => {
+    const updateCapsLock = (e: KeyboardEvent) => setCapsLockOn(e.getModifierState("CapsLock"));
+    window.addEventListener("keydown", updateCapsLock);
+    window.addEventListener("keyup", updateCapsLock);
+    return () => {
+      window.removeEventListener("keydown", updateCapsLock);
+      window.removeEventListener("keyup", updateCapsLock);
+    };
+  }, []);
+
   // --- Global keyboard listener for results screen ---
   useEffect(() => {
     if (!isFinished) return;
@@ -2535,6 +2546,16 @@ export default function TypingPractice({
                 onClick={() => inputRef.current?.focus()}
               >
                 <span className="text-gray-500 text-lg">Click here to start typing</span>
+              </div>
+            )}
+
+            {capsLockOn && (
+              <div
+                className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
+                style={{ color: tv.status.warning.DEFAULT }}
+              >
+                <span>&#9888;</span>
+                <span>CAPS Lock is ON</span>
               </div>
             )}
           </div>

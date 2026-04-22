@@ -169,6 +169,7 @@ export default function TypingArea({
   const [scrollOffset, setScrollOffset] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [tapeOffset, setTapeOffset] = useState(0);
+  const [capsLockOn, setCapsLockOn] = useState(false);
 
   // Refs
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -371,6 +372,16 @@ export default function TypingArea({
 
     setTypedText(value);
   }, [isFinished, isActive, isRunning, targetText.length, onStart]);
+
+  useEffect(() => {
+    const updateCapsLock = (e: KeyboardEvent) => setCapsLockOn(e.getModifierState("CapsLock"));
+    window.addEventListener("keydown", updateCapsLock);
+    window.addEventListener("keyup", updateCapsLock);
+    return () => {
+      window.removeEventListener("keydown", updateCapsLock);
+      window.removeEventListener("keyup", updateCapsLock);
+    };
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Prevent default tab behavior
@@ -665,6 +676,16 @@ export default function TypingArea({
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {capsLockOn && (
+        <div
+          className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
+          style={{ color: tv.status.warning.DEFAULT }}
+        >
+          <span>&#9888;</span>
+          <span>CAPS Lock is ON</span>
         </div>
       )}
 
