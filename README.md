@@ -33,7 +33,53 @@ A modern, open-source typing practice platform with a clean, distraction-free in
 
 ## Screenshots
 
-> *Screenshots coming soon — the app is actively evolving and new captures will be added here in a 2×2 grid.*
+<table>
+  <tr>
+    <td width="40%" valign="top">
+      <h3>Home</h3>
+      <p>The main typing screen with test mode selection (Kid, Zen, Time, Words, Quote), modifier toggles for caps, punctuation, and numbers, adjustable duration or word count, and five difficulty levels from Beginner to Expert.</p>
+    </td>
+    <td width="60%">
+      <img src="public/assets/showcase-homepage.png" alt="TypeSetGo homepage" />
+    </td>
+  </tr>
+  <tr>
+    <td width="40%" valign="top">
+      <h3>Typing Test</h3>
+      <p>A distraction-free typing view with live WPM, elapsed time, word count, and accuracy displayed in the stats bar. Correctly typed text turns white while errors are highlighted in red.</p>
+    </td>
+    <td width="60%">
+      <img src="public/assets/showcase-typing.png" alt="Typing test in progress" />
+    </td>
+  </tr>
+  <tr>
+    <td width="40%" valign="top">
+      <h3>On-Screen Keyboard</h3>
+      <p>An optional on-screen keyboard that highlights each key as you type, perfect for younger users learning proper finger placement, but useful for anyone looking to improve their touch typing.</p>
+    </td>
+    <td width="60%">
+      <img src="public/assets/showcase-keyboard.png" alt="On-screen keyboard" />
+    </td>
+  </tr>
+  <tr>
+    <td width="40%" valign="top">
+      <h3>Results</h3>
+      <p>After each test, see your Words Per Minute, accuracy percentage, correct and incorrect word counts, and missed or extra characters. Save your results to track progress or jump straight into the next test.</p>
+    </td>
+    <td width="60%">
+      <img src="public/assets/showcase-results.png" alt="Test results screen" />
+    </td>
+  </tr>
+  <tr>
+    <td width="40%" valign="top">
+      <h3>Leaderboard</h3>
+      <p>A ranked leaderboard showing All-Time, Daily, and Weekly standings. Players who save their results and meet the minimum requirements earn a spot on the board.</p>
+    </td>
+    <td width="60%">
+      <img src="public/assets/showcase-leaderboard.png" alt="Leaderboard" />
+    </td>
+  </tr>
+</table>
 
 ## Quick Start
 
