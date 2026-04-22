@@ -56,6 +56,10 @@ const preferencesValidator = v.object({
   // Text layout settings
   linePreview: v.optional(v.number()),
   maxWordsPerLine: v.optional(v.number()),
+
+  // On-screen keyboard
+  showOnScreenKeyboard: v.optional(v.boolean()),
+  keyboardLayout: v.optional(v.string()),
 });
 
 // Save or update user preferences

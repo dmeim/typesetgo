@@ -1,5 +1,6 @@
 import { GLOBAL_COLORS } from "@/lib/colors";
 import type { Plan } from "@/types/plan";
+import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 
 export type Mode = "time" | "words" | "quote" | "zen" | "preset" | "plan";
 export type Difficulty = "beginner" | "easy" | "medium" | "hard" | "expert";
@@ -49,6 +50,8 @@ export type SettingsState = {
   errorSound: string;
   presetText: string;
   presetModeType: "time" | "finish";
+  showOnScreenKeyboard: boolean;
+  keyboardLayout: KeyboardLayoutId;
   theme?: Theme;
   plan?: Plan;
   planIndex?: number;

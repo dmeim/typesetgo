@@ -7,6 +7,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
 import { loadSettings } from "@/lib/storage-utils";
+import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
+import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
 
 // --- Types ---
 export interface TypingStats {
@@ -57,6 +59,10 @@ export interface TypingAreaProps {
   textAlign?: "left" | "center" | "right";
   /** Font family key from typing-fonts (reads from localStorage if not provided) */
   typingFontFamily?: string;
+  /** Show on-screen keyboard below typing area */
+  showOnScreenKeyboard?: boolean;
+  /** Keyboard layout to use */
+  keyboardLayout?: KeyboardLayoutId;
 }
 
 // --- Helper Functions ---
@@ -150,6 +156,8 @@ export default function TypingArea({
   className = "",
   textAlign = "left",
   typingFontFamily: typingFontFamilyProp,
+  showOnScreenKeyboard = false,
+  keyboardLayout = "qwerty",
 }: TypingAreaProps) {
   // Theme
   const { colors } = useTheme();
@@ -170,6 +178,8 @@ export default function TypingArea({
   const [isFocused, setIsFocused] = useState(false);
   const [tapeOffset, setTapeOffset] = useState(0);
   const [capsLockOn, setCapsLockOn] = useState(false);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const activeKeyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Refs
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -373,13 +383,26 @@ export default function TypingArea({
     setTypedText(value);
   }, [isFinished, isActive, isRunning, targetText.length, onStart]);
 
+  const nextChar = useMemo(() => {
+    if (isFinished || !targetText) return null;
+    return targetText[typedText.length] ?? null;
+  }, [typedText.length, targetText, isFinished]);
+
   useEffect(() => {
-    const updateCapsLock = (e: KeyboardEvent) => setCapsLockOn(e.getModifierState("CapsLock"));
-    window.addEventListener("keydown", updateCapsLock);
-    window.addEventListener("keyup", updateCapsLock);
+    const handleKeyEvent = (e: KeyboardEvent) => {
+      setCapsLockOn(e.getModifierState("CapsLock"));
+      if (e.type === "keydown" && e.key.length === 1 || e.key === " ") {
+        setActiveKey(e.key);
+        clearTimeout(activeKeyTimeoutRef.current);
+        activeKeyTimeoutRef.current = setTimeout(() => setActiveKey(null), 150);
+      }
+    };
+    window.addEventListener("keydown", handleKeyEvent);
+    window.addEventListener("keyup", handleKeyEvent);
     return () => {
-      window.removeEventListener("keydown", updateCapsLock);
-      window.removeEventListener("keyup", updateCapsLock);
+      window.removeEventListener("keydown", handleKeyEvent);
+      window.removeEventListener("keyup", handleKeyEvent);
+      clearTimeout(activeKeyTimeoutRef.current);
     };
   }, []);
 
@@ -679,7 +702,7 @@ export default function TypingArea({
         </div>
       )}
 
-      {capsLockOn && (
+      {capsLockOn && !showOnScreenKeyboard && (
         <div
           className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
           style={{ color: tv.status.warning.DEFAULT }}
@@ -687,6 +710,16 @@ export default function TypingArea({
           <span>&#9888;</span>
           <span>CAPS Lock is ON</span>
         </div>
+      )}
+
+      {showOnScreenKeyboard && (
+        <OnScreenKeyboard
+          nextChar={nextChar}
+          capsLockOn={capsLockOn}
+          layoutId={keyboardLayout}
+          activeKey={activeKey}
+          visible={isFocused}
+        />
       )}
 
       {/* Progress bar for race mode */}

@@ -191,6 +191,10 @@ export default defineSchema({
     linePreview: v.optional(v.number()),
     maxWordsPerLine: v.optional(v.number()),
 
+    // On-screen keyboard
+    showOnScreenKeyboard: v.optional(v.boolean()),
+    keyboardLayout: v.optional(v.string()),
+
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 

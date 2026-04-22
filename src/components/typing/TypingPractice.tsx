@@ -16,6 +16,8 @@ import {
   saveSettings,
 } from "@/lib/storage-utils";
 import { TYPING_FONT_OPTIONS, DEFAULT_TYPING_FONT, getTypingFontFamily } from "@/lib/typing-fonts";
+import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
+import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 import type { Plan, PlanItem, PlanStepResult } from "@/types/plan";
 import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
 import PlanSplash from "@/components/plan/PlanSplash";
@@ -499,6 +501,8 @@ export default function TypingPractice({
     errorSound: "",
     presetText: "",
     presetModeType: "finish",
+    showOnScreenKeyboard: false,
+    keyboardLayout: "qwerty" as KeyboardLayoutId,
   });
 
   // Use external state if provided, otherwise use internal state
@@ -648,6 +652,8 @@ export default function TypingPractice({
   const [isFocused, setIsFocused] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [isWarningPlayed, setIsWarningPlayed] = useState(false);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const activeKeyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [uiOpacity, setUiOpacity] = useState(1);
 
   // Compact Mode (for zoomed/narrow viewports)
@@ -893,6 +899,8 @@ export default function TypingPractice({
             iconFontSize: dbPreferences.iconFontSize,
             helpFontSize: dbPreferences.helpFontSize,
             textAlign: dbPreferences.textAlign as typeof prev.textAlign,
+            showOnScreenKeyboard: (dbPreferences as Record<string, unknown>).showOnScreenKeyboard as boolean ?? prev.showOnScreenKeyboard,
+            keyboardLayout: ((dbPreferences as Record<string, unknown>).keyboardLayout as KeyboardLayoutId) ?? prev.keyboardLayout,
           }));
 
           if (typeof dbPreferences.linePreview === "number") {
@@ -963,6 +971,8 @@ export default function TypingPractice({
             defaultPresetModeType: settings.presetModeType,
             linePreview: Math.max(1, Math.min(6, linePreview)),
             maxWordsPerLine: Math.max(1, Math.min(10, maxWordsPerLine)),
+            showOnScreenKeyboard: settings.showOnScreenKeyboard,
+            keyboardLayout: settings.keyboardLayout,
           },
         });
       } catch (error) {
@@ -998,6 +1008,8 @@ export default function TypingPractice({
     settings.iconFontSize,
     settings.helpFontSize,
     settings.textAlign,
+    settings.showOnScreenKeyboard,
+    settings.keyboardLayout,
     linePreview,
     maxWordsPerLine,
     selectedThemeId,
@@ -1730,13 +1742,26 @@ export default function TypingPractice({
     }
   };
 
+  const nextChar = useMemo(() => {
+    if (isFinished || !words) return null;
+    return words[typedText.length] ?? null;
+  }, [typedText.length, words, isFinished]);
+
   useEffect(() => {
-    const updateCapsLock = (e: KeyboardEvent) => setCapsLockOn(e.getModifierState("CapsLock"));
-    window.addEventListener("keydown", updateCapsLock);
-    window.addEventListener("keyup", updateCapsLock);
+    const handleKeyEvent = (e: KeyboardEvent) => {
+      setCapsLockOn(e.getModifierState("CapsLock"));
+      if (e.type === "keydown" && e.key.length === 1 || e.key === " ") {
+        setActiveKey(e.key);
+        clearTimeout(activeKeyTimeoutRef.current);
+        activeKeyTimeoutRef.current = setTimeout(() => setActiveKey(null), 150);
+      }
+    };
+    window.addEventListener("keydown", handleKeyEvent);
+    window.addEventListener("keyup", handleKeyEvent);
     return () => {
-      window.removeEventListener("keydown", updateCapsLock);
-      window.removeEventListener("keyup", updateCapsLock);
+      window.removeEventListener("keydown", handleKeyEvent);
+      window.removeEventListener("keyup", handleKeyEvent);
+      clearTimeout(activeKeyTimeoutRef.current);
     };
   }, []);
 
@@ -2049,7 +2074,7 @@ export default function TypingPractice({
     >
       <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
       {/* Header clearance spacer */}
-      <div className="shrink-0 w-full pt-20 md:pt-24" />
+      <div className={`shrink-0 w-full ${settings.showOnScreenKeyboard && isRunning && !isFinished ? "pt-8 md:pt-10" : "pt-20 md:pt-24"}`} />
 
       {/* Settings Controls */}
       {!connectMode && !isRunning && !isFinished && (
@@ -2292,32 +2317,39 @@ export default function TypingPractice({
       )}
 
       {/* Live Stats Widget - Unified 2-row layout */}
-      {isRunning && !isFinished && (
-        <div 
-          className="shrink-0 w-full flex flex-col items-center gap-2 select-none transition-opacity duration-300 pb-2"
+      {isRunning && !isFinished && (() => {
+        const kb = settings.showOnScreenKeyboard;
+        const pillCls = "flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center";
+        const numCls = "text-xl md:text-3xl font-bold tabular-nums leading-none";
+        const labelCls = "text-[10px] md:text-xs font-semibold uppercase tracking-wider";
+        const subNumCls = "text-lg md:text-xl font-semibold tabular-nums leading-none";
+        const dividerCls = "text-sm font-medium";
+        return (
+        <div
+          className={`shrink-0 w-full flex flex-col items-center gap-2 select-none transition-opacity duration-300 ${kb ? "pb-8" : "pb-2"}`}
         >
           {/* Row 1: WPM + Mode-specific stat + Accuracy - hidden in kid mode */}
           {!isKidMode && (
             <div className="flex gap-2 md:gap-3">
               {/* WPM Pill */}
               <div
-                className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                className={pillCls}
                 style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                <span className={numCls} style={{ color: tv.interactive.secondary.DEFAULT }}>
                   {Math.round(wpm)}
                 </span>
-                <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider" style={{ color: tv.text.secondary }}>wpm</span>
+                <span className={labelCls} style={{ color: tv.text.secondary }}>wpm</span>
               </div>
 
               {/* Time Mode: Countdown Timer */}
               {settings.mode === "time" && (
                 <div
-                  className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                  className={pillCls}
                   style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
                 >
                   <span
-                    className="text-xl md:text-3xl font-bold tabular-nums leading-none"
+                    className={numCls}
                     style={{ color: timeRemaining < 10 ? tv.status.error.DEFAULT : tv.text.primary }}
                   >
                     {formatTime(timeRemaining)}
@@ -2328,16 +2360,16 @@ export default function TypingPractice({
               {/* Words Mode: Word Counter */}
               {settings.mode === "words" && (
                 <div
-                  className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                  className={pillCls}
                   style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
                 >
-                  <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
+                  <span className={numCls} style={{ color: tv.text.primary }}>
                     {Math.min(typedWordCount, settings.wordTarget === 0 ? Infinity : settings.wordTarget)}
                   </span>
                   {settings.wordTarget > 0 && (
                     <>
-                      <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>/</span>
-                      <span className="text-lg md:text-xl font-semibold tabular-nums leading-none" style={{ color: tv.text.secondary }}>
+                      <span className={dividerCls} style={{ color: tv.text.secondary }}>/</span>
+                      <span className={subNumCls} style={{ color: tv.text.secondary }}>
                         {settings.wordTarget}
                       </span>
                     </>
@@ -2349,23 +2381,23 @@ export default function TypingPractice({
               {settings.mode === "zen" && (
                 <>
                   <div
-                    className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                    className={pillCls}
                     style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
                   >
-                    <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
+                    <span className={numCls} style={{ color: tv.text.primary }}>
                       {formatTime(Math.floor(elapsedMs / 1000))}
                     </span>
                   </div>
 
                   <div
-                    className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                    className={pillCls}
                     style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
                   >
-                    <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
+                    <span className={numCls} style={{ color: tv.text.primary }}>
                       {typedWordCount}
                     </span>
-                    <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>/</span>
-                    <span className="text-lg md:text-xl font-semibold leading-none" style={{ color: tv.text.secondary }}>
+                    <span className={dividerCls} style={{ color: tv.text.secondary }}>/</span>
+                    <span className={subNumCls} style={{ color: tv.text.secondary }}>
                       {"\u221E"}
                     </span>
                   </div>
@@ -2374,27 +2406,27 @@ export default function TypingPractice({
 
               {/* Accuracy Pill */}
               <div
-                className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                className={pillCls}
                 style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                <span className={numCls} style={{ color: tv.interactive.secondary.DEFAULT }}>
                   {Math.round(accuracy)}%
                 </span>
-                <span className="text-[10px] md:text-xs font-semibold uppercase tracking-wider" style={{ color: tv.text.secondary }}>acc</span>
+                <span className={labelCls} style={{ color: tv.text.secondary }}>acc</span>
               </div>
             </div>
           )}
 
           {/* Row 2: Progress Bar - shown in time/words/zen modes, hidden in kid mode */}
           {(settings.mode === "time" || settings.mode === "words" || settings.mode === "zen") && !isKidMode && (
-            <div className="flex gap-2 md:gap-3 items-center">
+            <div className={`flex ${kb ? "gap-1.5" : "gap-2 md:gap-3"} items-center`}>
               <div
-                className="w-56 md:w-80 px-3 py-2.5 md:px-4 md:py-4 backdrop-blur-md rounded-full shadow-lg"
+                className={kb ? "w-48 px-2.5 py-1.5 backdrop-blur-md rounded-full shadow-lg" : "w-56 md:w-80 px-3 py-2.5 md:px-4 md:py-4 backdrop-blur-md rounded-full shadow-lg"}
                 style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
                 {settings.mode === "zen" ? (
                   <div
-                    className="relative h-2 md:h-2.5 w-full overflow-hidden rounded-full"
+                    className={`relative ${kb ? "h-1.5" : "h-2 md:h-2.5"} w-full overflow-hidden rounded-full`}
                     style={{ backgroundColor: tv.border.subtle }}
                   >
                     <motion.div
@@ -2422,7 +2454,7 @@ export default function TypingPractice({
                           ? Math.min((typedWordCount / settings.wordTarget) * 100, 100)
                           : 0
                     }
-                    className="h-2 md:h-2.5"
+                    className={kb ? "h-1.5" : "h-2 md:h-2.5"}
                     style={{ backgroundColor: tv.border.subtle }}
                     indicatorStyle={{
                       backgroundColor: settings.mode === "time" && timeRemaining < 10
@@ -2437,40 +2469,41 @@ export default function TypingPractice({
 
           {/* Kid Mode: Count-up Timer + Infinite Word Counter */}
           {isKidMode && (
-            <div className="flex gap-2 md:gap-3">
+            <div className={`flex ${kb ? "gap-1.5" : "gap-2 md:gap-3"}`}>
               <div
-                className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                className={pillCls}
                 style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
+                <span className={numCls} style={{ color: tv.text.primary }}>
                   {formatTime(Math.floor(elapsedMs / 1000))}
                 </span>
               </div>
 
               <div
-                className="flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center"
+                className={pillCls}
                 style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className="text-xl md:text-3xl font-bold tabular-nums leading-none" style={{ color: tv.text.primary }}>
+                <span className={numCls} style={{ color: tv.text.primary }}>
                   {typedWordCount}
                 </span>
-                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>/</span>
-                <span className="text-lg md:text-xl font-semibold leading-none" style={{ color: tv.text.secondary }}>
+                <span className={dividerCls} style={{ color: tv.text.secondary }}>/</span>
+                <span className={subNumCls} style={{ color: tv.text.secondary }}>
                   {"\u221E"}
                 </span>
               </div>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
       </div>
 
       {/* Flexible spacer - balances content vertically */}
-      <div className="flex-1" />
+      <div className={settings.showOnScreenKeyboard && !isFinished ? "shrink-0" : "flex-1"} />
 
       <div
         className="w-full flex flex-col items-center transition-transform duration-300"
-        style={!isCompactMode && !isFinished ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
+        style={!isCompactMode && !isFinished && !settings.showOnScreenKeyboard ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
       >
         {/* Quote Info */}
         {settings.mode === "quote" && currentQuote && !isFinished && (
@@ -2549,7 +2582,7 @@ export default function TypingPractice({
               </div>
             )}
 
-            {capsLockOn && (
+            {capsLockOn && !settings.showOnScreenKeyboard && (
               <div
                 className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
                 style={{ color: tv.status.warning.DEFAULT }}
@@ -2557,6 +2590,16 @@ export default function TypingPractice({
                 <span>&#9888;</span>
                 <span>CAPS Lock is ON</span>
               </div>
+            )}
+
+            {settings.showOnScreenKeyboard && (
+              <OnScreenKeyboard
+                nextChar={nextChar}
+                capsLockOn={capsLockOn}
+                layoutId={settings.keyboardLayout}
+                activeKey={activeKey}
+                visible={isFocused}
+              />
             )}
           </div>
         ) : (
@@ -2939,7 +2982,7 @@ export default function TypingPractice({
         </div>
       </div>
 
-      <div ref={bottomLayoutRef} className="shrink-0 w-full flex flex-col items-center pt-10 md:pt-12">
+      <div ref={bottomLayoutRef} className={`shrink-0 w-full flex flex-col items-center ${settings.showOnScreenKeyboard && !isFinished && isRunning ? "" : settings.showOnScreenKeyboard && !isFinished ? "pt-2" : "pt-10 md:pt-12"}`}>
         {/* Instructions */}
         {!isRunning && !isFinished && (
           <div
@@ -2956,11 +2999,11 @@ export default function TypingPractice({
         )}
 
         {/* Bottom padding */}
-        <div className="shrink-0 h-8" />
+        <div className={`shrink-0 ${settings.showOnScreenKeyboard && !isFinished && isRunning ? "h-0" : settings.showOnScreenKeyboard && !isFinished ? "h-1" : "h-8"}`} />
       </div>
 
       {/* Flexible spacer - keeps typing area vertically centered */}
-      <div className="flex-1" />
+      <div className={settings.showOnScreenKeyboard && !isFinished ? "shrink-0" : "flex-1"} />
 
       {/* Preset Input Modal */}
       {showPresetInput && (
@@ -4172,6 +4215,60 @@ export default function TypingPractice({
                           ["--slider-track" as string]: tv.bg.surface,
                         }}
                       />
+                    </div>
+                  </section>
+
+                  <section
+                    className="rounded-xl border p-5"
+                    style={{
+                      backgroundColor: tv.bg.base,
+                      borderColor: tv.border.subtle,
+                    }}
+                  >
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
+                          Keyboard
+                        </h3>
+                        <p className="text-xs" style={{ color: tv.text.muted }}>
+                          On-screen keyboard guide.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateSettings({ showOnScreenKeyboard: !settings.showOnScreenKeyboard })}
+                        className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+                        style={{
+                          color: settings.showOnScreenKeyboard ? tv.text.primary : tv.text.secondary,
+                          backgroundColor: settings.showOnScreenKeyboard ? tv.bg.elevated : tv.bg.surface,
+                          borderColor: settings.showOnScreenKeyboard ? tv.interactive.secondary.DEFAULT : tv.border.subtle,
+                        }}
+                      >
+                        Keyboard {settings.showOnScreenKeyboard ? "On" : "Off"}
+                      </button>
+                    </div>
+
+                    <div className={`${!settings.showOnScreenKeyboard ? "pointer-events-none opacity-50" : ""}`}>
+                      <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
+                        Layout
+                      </label>
+                      <div className="flex gap-2">
+                        {(["qwerty", "dvorak", "colemak"] as const).map((layout) => (
+                          <button
+                            key={layout}
+                            type="button"
+                            onClick={() => updateSettings({ keyboardLayout: layout })}
+                            className="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+                            style={{
+                              color: settings.keyboardLayout === layout ? tv.text.primary : tv.text.secondary,
+                              backgroundColor: settings.keyboardLayout === layout ? tv.bg.elevated : tv.bg.surface,
+                              borderColor: settings.keyboardLayout === layout ? tv.interactive.secondary.DEFAULT : tv.border.subtle,
+                            }}
+                          >
+                            {layout.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </section>
                 </div>

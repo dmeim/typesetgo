@@ -1,6 +1,7 @@
 import type { SettingsState, Theme } from "@/lib/typing-constants";
 import { DEFAULT_THEME } from "@/lib/typing-constants";
 import { DEFAULT_TYPING_FONT } from "@/lib/typing-fonts";
+import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -34,6 +35,8 @@ export const DEFAULT_SETTINGS: Omit<
   warningSound: "clock",
   errorSound: "",
   presetModeType: "finish",
+  showOnScreenKeyboard: false,
+  keyboardLayout: "qwerty" as KeyboardLayoutId,
 };
 
 /**
