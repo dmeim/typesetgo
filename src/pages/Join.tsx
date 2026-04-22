@@ -45,6 +45,8 @@ function JoinRoomContent() {
 
   // Convex mutations
   const joinRoom = useMutation(api.participants.join);
+  // TODO: Local-first optimization — updateStats fires on every typing progress event.
+  // Batch locally and flush every 500ms–1s instead of per-keystroke writes.
   const updateStats = useMutation(api.participants.updateStats);
 
   // Convex queries

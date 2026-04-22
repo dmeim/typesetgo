@@ -44,6 +44,9 @@ export default function RaceActive() {
     raceId ? { roomId: raceId as Id<"rooms">, sessionId } : "skip"
   );
 
+  // TODO: Local-first optimization — updateProgress fires on every keystroke during a race.
+  // Batch locally and flush every 500ms–1s instead. Convex subscriptions already add latency,
+  // so a slight delay won't be noticeable to other racers.
   const updateProgress = useMutation(api.participants.updateProgress);
   const recordFinish = useMutation(api.participants.recordFinish);
   const endRace = useMutation(api.rooms.endRace);

@@ -6,9 +6,20 @@ import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 // Storage keys
 const STORAGE_KEYS = {
   SETTINGS: "typesetgo_settings",
+  LAYOUT: "typesetgo_layout",
   THEME: "typesetgo_theme",
   THEME_NAME: "typesetgo_theme_name",
 } as const;
+
+export interface LayoutSettings {
+  linePreview: number;
+  maxWordsPerLine: number;
+}
+
+const DEFAULT_LAYOUT: LayoutSettings = {
+  linePreview: 3,
+  maxWordsPerLine: 7,
+};
 
 // Default settings (matching TypingPractice initial state)
 export const DEFAULT_SETTINGS: Omit<
@@ -84,6 +95,8 @@ export function saveSettings(settings: SettingsState): void {
       warningSound: settings.warningSound,
       errorSound: settings.errorSound,
       presetModeType: settings.presetModeType,
+      showOnScreenKeyboard: settings.showOnScreenKeyboard,
+      keyboardLayout: settings.keyboardLayout,
     };
 
     window.localStorage.setItem(
@@ -195,6 +208,28 @@ export function loadThemeName(): string | null {
   }
 }
 
+export function saveLayoutSettings(layout: LayoutSettings): void {
+  if (!isLocalStorageAvailable()) return;
+  try {
+    window.localStorage.setItem(STORAGE_KEYS.LAYOUT, JSON.stringify(layout));
+  } catch {
+    // Silently handle errors
+  }
+}
+
+export function loadLayoutSettings(): LayoutSettings | null {
+  if (!isLocalStorageAvailable()) return null;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEYS.LAYOUT);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    return { ...DEFAULT_LAYOUT, ...parsed };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Clear all typesetgo settings from localStorage
  */
@@ -203,6 +238,7 @@ export function clearAllSettings(): void {
 
   try {
     window.localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+    window.localStorage.removeItem(STORAGE_KEYS.LAYOUT);
     window.localStorage.removeItem(STORAGE_KEYS.THEME);
     window.localStorage.removeItem(STORAGE_KEYS.THEME_NAME);
   } catch (error) {

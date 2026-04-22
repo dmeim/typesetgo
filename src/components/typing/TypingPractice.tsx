@@ -14,6 +14,8 @@ import { fetchQuotesManifest, fetchQuotes, type QuotesManifest } from "@/lib/quo
 import {
   loadSettings,
   saveSettings,
+  loadLayoutSettings,
+  saveLayoutSettings,
 } from "@/lib/storage-utils";
 import { TYPING_FONT_OPTIONS, DEFAULT_TYPING_FONT, getTypingFontFamily } from "@/lib/typing-fonts";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
@@ -42,11 +44,6 @@ import { Slider } from "@/components/ui/slider";
 import { useUser, useClerk } from "@clerk/clerk-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
-import {
-  PROGRESS_INTERVAL_MS,
-  PROGRESS_CHAR_THRESHOLD,
-} from "../../../convex/lib/antiCheatConstants";
 import { useNotifications } from "@/lib/notification-store";
 import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
 
@@ -704,12 +701,6 @@ export default function TypingPractice({
     charsExtra: number;
   } | null>(null);
 
-  // Anti-cheat session state
-  const [sessionId, setSessionId] = useState<Id<"typingSessions"> | null>(null);
-  const sessionIdRef = useRef<Id<"typingSessions"> | null>(null); // Mirror for use in callbacks without causing re-renders
-  const lastProgressRef = useRef<number>(0);
-  const lastProgressTimeRef = useRef<number>(0);
-
   // Refs to decouple hot-path closures from render-cycle state
   const wordsRef = useRef(words);
   const typedTextRef = useRef(typedText);
@@ -717,9 +708,6 @@ export default function TypingPractice({
   const isRunningRef = useRef(isRunning);
 
   // Keep ref in sync with state
-  useEffect(() => {
-    sessionIdRef.current = sessionId;
-  }, [sessionId]);
   useEffect(() => { wordsRef.current = words; }, [words]);
   useEffect(() => { typedTextRef.current = typedText; }, [typedText]);
   useEffect(() => { elapsedMsRef.current = elapsedMs; }, [elapsedMs]);
@@ -734,11 +722,7 @@ export default function TypingPractice({
   // Notification store for achievement toasts
   const { addNotification } = useNotifications();
 
-  // Anti-cheat session mutations
-  const startSessionMutation = useMutation(api.typingSessions.startSession);
-  const recordProgressMutation = useMutation(api.typingSessions.recordProgress);
-  const finalizeSessionMutation = useMutation(api.typingSessions.finalizeSession);
-  const cancelSessionMutation = useMutation(api.typingSessions.cancelSession);
+  // TODO: Anti-cheat will be re-implemented in a future update with a local-first approach
 
   // Preferences sync
   const dbPreferences = useQuery(
@@ -753,6 +737,7 @@ export default function TypingPractice({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeWordRef = useRef<HTMLSpanElement | null>(null);
   const hasLoadedFromStorage = useRef(false);
+  const initialPrefsSnapshot = useRef<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const topLayoutRef = useRef<HTMLDivElement | null>(null);
   const bottomLayoutRef = useRef<HTMLDivElement | null>(null);
@@ -793,6 +778,12 @@ export default function TypingPractice({
         }));
       }
 
+      const storedLayout = loadLayoutSettings();
+      if (storedLayout) {
+        setLinePreview(storedLayout.linePreview);
+        setMaxWordsPerLine(storedLayout.maxWordsPerLine);
+      }
+
       // Theme is now managed by ThemeContext, no need to load here
     });
   }, []);
@@ -806,6 +797,7 @@ export default function TypingPractice({
     }
     saveTimeoutRef.current = setTimeout(() => {
       saveSettings(settings);
+      saveLayoutSettings({ linePreview, maxWordsPerLine });
     }, 500);
 
     return () => {
@@ -813,7 +805,7 @@ export default function TypingPractice({
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [settings]);
+  }, [settings, linePreview, maxWordsPerLine]);
 
   // Theme saving is now handled by ThemeContext
 
@@ -835,16 +827,73 @@ export default function TypingPractice({
     return () => window.removeEventListener("resize", checkCompactMode);
   }, []);
 
+  // --- Preferences snapshot for dirty tracking ---
+  const lastSavedPrefsRef = useRef<string | null>(null);
+  const needsSnapshotStamp = useRef(false);
+
+  const buildPrefsSnapshot = useCallback(() => JSON.stringify({
+    themeId: selectedThemeId,
+    themeVariantId: selectedVariantId,
+    themeMode: selectedMode,
+    soundEnabled: settings.soundEnabled,
+    typingSound: settings.typingSound,
+    warningSound: settings.warningSound,
+    errorSound: settings.errorSound,
+    ghostWriterEnabled: settings.ghostWriterEnabled,
+    ghostWriterSpeed: settings.ghostWriterSpeed,
+    typingFontSize: settings.typingFontSize,
+    typingFontFamily: settings.typingFontFamily,
+    iconFontSize: settings.iconFontSize,
+    helpFontSize: settings.helpFontSize,
+    textAlign: settings.textAlign,
+    defaultMode: settings.mode,
+    defaultDuration: settings.duration,
+    defaultWordTarget: settings.wordTarget,
+    defaultDifficulty: settings.difficulty,
+    defaultQuoteLength: settings.quoteLength,
+    defaultPunctuation: settings.punctuation,
+    defaultNumbers: settings.numbers,
+    defaultCapitalization: settings.capitalization,
+    defaultPresetModeType: settings.presetModeType,
+    linePreview: Math.max(1, Math.min(6, linePreview)),
+    maxWordsPerLine: Math.max(1, Math.min(10, maxWordsPerLine)),
+    showOnScreenKeyboard: settings.showOnScreenKeyboard,
+    keyboardLayout: settings.keyboardLayout,
+  }), [
+    selectedThemeId, selectedVariantId, selectedMode,
+    settings.soundEnabled, settings.typingSound, settings.warningSound, settings.errorSound,
+    settings.ghostWriterEnabled, settings.ghostWriterSpeed,
+    settings.typingFontSize, settings.typingFontFamily,
+    settings.iconFontSize, settings.helpFontSize, settings.textAlign,
+    settings.mode, settings.duration, settings.wordTarget, settings.difficulty,
+    settings.quoteLength, settings.punctuation, settings.numbers, settings.capitalization,
+    settings.presetModeType, settings.showOnScreenKeyboard, settings.keyboardLayout,
+    linePreview, maxWordsPerLine,
+  ]);
+
   // --- Reset DB prefs sync state when user changes ---
   useEffect(() => {
     setHasResolvedDbPrefs(false);
   }, [user?.id]);
 
+  // --- Capture initial prefs snapshot after mount to detect anonymous modifications ---
+  useEffect(() => {
+    if (!hasLoadedFromStorage.current || initialPrefsSnapshot.current !== null) return;
+    initialPrefsSnapshot.current = buildPrefsSnapshot();
+  }, [buildPrefsSnapshot]);
+
   // --- Load Preferences from DB (for logged-in users) ---
   useEffect(() => {
     if (!user?.id || hasResolvedDbPrefs || dbPreferences === undefined) return;
 
-    if (!dbPreferences) {
+    // If user modified settings while anonymous, keep their local settings
+    // and let the save effect push them to DB instead of overwriting with DB values
+    const userModifiedWhileAnonymous =
+      initialPrefsSnapshot.current !== null &&
+      buildPrefsSnapshot() !== initialPrefsSnapshot.current;
+
+    if (!dbPreferences || userModifiedWhileAnonymous) {
+      needsSnapshotStamp.current = !userModifiedWhileAnonymous;
       setHasResolvedDbPrefs(true);
       return;
     }
@@ -917,6 +966,7 @@ export default function TypingPractice({
           }
         } finally {
           if (!isCancelled) {
+            needsSnapshotStamp.current = true;
             setHasResolvedDbPrefs(true);
           }
         }
@@ -926,11 +976,22 @@ export default function TypingPractice({
     return () => {
       isCancelled = true;
     };
-  }, [dbPreferences, hasResolvedDbPrefs, setThemeById, user?.id]);
+  }, [dbPreferences, hasResolvedDbPrefs, setThemeById, buildPrefsSnapshot, user?.id]);
 
-  // --- Save Preferences to DB (debounced, for logged-in users) ---
+  // --- Save Preferences to DB (debounced, dirty-checked, for logged-in users) ---
   useEffect(() => {
     if (!user || !hasLoadedFromStorage.current || !hasResolvedDbPrefs) return;
+
+    const currentSnapshot = buildPrefsSnapshot();
+
+    // After loading from DB, stamp the snapshot so we don't re-save what was just loaded
+    if (needsSnapshotStamp.current) {
+      needsSnapshotStamp.current = false;
+      lastSavedPrefsRef.current = currentSnapshot;
+      return;
+    }
+
+    if (currentSnapshot === lastSavedPrefsRef.current) return;
 
     if (prefsDebounceRef.current) {
       clearTimeout(prefsDebounceRef.current);
@@ -938,48 +999,11 @@ export default function TypingPractice({
 
     prefsDebounceRef.current = setTimeout(async () => {
       try {
-        // Ensure user exists in Convex first
-        await getOrCreateUser({
-          clerkId: user.id,
-          email: user.primaryEmailAddress?.emailAddress ?? "",
-          username: user.username ?? user.firstName ?? "User",
-          avatarUrl: user.imageUrl,
-        });
-
         await savePreferencesMutation({
           clerkId: user.id,
-          preferences: {
-            themeId: selectedThemeId,
-            themeVariantId: selectedVariantId,
-            themeMode: selectedMode,
-            themeName: undefined,
-            customTheme: undefined,
-            soundEnabled: settings.soundEnabled,
-            typingSound: settings.typingSound,
-            warningSound: settings.warningSound,
-            errorSound: settings.errorSound,
-            ghostWriterEnabled: settings.ghostWriterEnabled,
-            ghostWriterSpeed: settings.ghostWriterSpeed,
-            typingFontSize: settings.typingFontSize,
-            typingFontFamily: settings.typingFontFamily,
-            iconFontSize: settings.iconFontSize,
-            helpFontSize: settings.helpFontSize,
-            textAlign: settings.textAlign,
-            defaultMode: settings.mode,
-            defaultDuration: settings.duration,
-            defaultWordTarget: settings.wordTarget,
-            defaultDifficulty: settings.difficulty,
-            defaultQuoteLength: settings.quoteLength,
-            defaultPunctuation: settings.punctuation,
-            defaultNumbers: settings.numbers,
-            defaultCapitalization: settings.capitalization,
-            defaultPresetModeType: settings.presetModeType,
-            linePreview: Math.max(1, Math.min(6, linePreview)),
-            maxWordsPerLine: Math.max(1, Math.min(10, maxWordsPerLine)),
-            showOnScreenKeyboard: settings.showOnScreenKeyboard,
-            keyboardLayout: settings.keyboardLayout,
-          },
+          preferences: JSON.parse(currentSnapshot),
         });
+        lastSavedPrefsRef.current = currentSnapshot;
       } catch (error) {
         console.warn("Failed to save preferences to DB:", error);
       }
@@ -990,39 +1014,7 @@ export default function TypingPractice({
         clearTimeout(prefsDebounceRef.current);
       }
     };
-  }, [
-    user,
-    hasResolvedDbPrefs,
-    settings.mode,
-    settings.duration,
-    settings.wordTarget,
-    settings.difficulty,
-    settings.quoteLength,
-    settings.punctuation,
-    settings.numbers,
-    settings.capitalization,
-    settings.presetModeType,
-    settings.soundEnabled,
-    settings.typingSound,
-    settings.warningSound,
-    settings.errorSound,
-    settings.ghostWriterEnabled,
-    settings.ghostWriterSpeed,
-    settings.typingFontSize,
-    settings.typingFontFamily,
-    settings.iconFontSize,
-    settings.helpFontSize,
-    settings.textAlign,
-    settings.showOnScreenKeyboard,
-    settings.keyboardLayout,
-    linePreview,
-    maxWordsPerLine,
-    selectedThemeId,
-    selectedVariantId,
-    selectedMode,
-    getOrCreateUser,
-    savePreferencesMutation,
-  ]);
+  }, [user, hasResolvedDbPrefs, buildPrefsSnapshot, savePreferencesMutation]);
 
   // --- Load available themes ---
   useEffect(() => {
@@ -1107,15 +1099,8 @@ export default function TypingPractice({
     setSaveState("idle");
     setLastResultIsValid(null);
     setLastResultInvalidReason(undefined);
-    // Cancel any existing session (use ref to avoid dependency cycle)
-    if (sessionIdRef.current) {
-      cancelSessionMutation({ sessionId: sessionIdRef.current }).catch(() => {});
-    }
-    setSessionId(null);
-    lastProgressRef.current = 0;
-    lastProgressTimeRef.current = 0;
     inputRef.current?.focus();
-  }, [cancelSessionMutation]);
+  }, []);
 
   // Ref to store pending plan result
   const pendingPlanResultRef = useRef<{
@@ -1154,12 +1139,6 @@ export default function TypingPractice({
       }
     }
 
-    // Record final progress before finishing (use ref to avoid dependency cycle)
-    if (sessionIdRef.current && currentTypedText.length > lastProgressRef.current) {
-      recordProgressMutation({ sessionId: sessionIdRef.current, typedTextLength: currentTypedText.length })
-        .catch(() => {}); // Silently ignore errors
-    }
-
     setIsFinished(true);
     setIsRunning(false);
     setUiOpacity(1);
@@ -1173,7 +1152,7 @@ export default function TypingPractice({
       }));
       pendingPlanResultRef.current = null;
     }
-  }, [isFinished, isPlanActive, isPlanSplash, plan, planIndex, planResults, recordProgressMutation]);
+  }, [isFinished, isPlanActive, isPlanSplash, plan, planIndex, planResults]);
 
   const finishSessionRef = useRef(finishSession);
   useEffect(() => { finishSessionRef.current = finishSession; }, [finishSession]);
@@ -1303,40 +1282,9 @@ export default function TypingPractice({
         }
       };
 
-      // If we have a session, try the new finalize flow (server-authoritative)
-      if (sessionId) {
-        try {
-          const finalizeResult = await finalizeSessionMutation({
-            sessionId,
-            typedText,
-            clientElapsedMs: elapsedMs,
-            localDate,
-            localHour,
-            isWeekend,
-            dayOfWeek,
-            month,
-            day,
-          });
-          setLastResultIsValid(finalizeResult.isValid);
-          setLastResultInvalidReason(finalizeResult.invalidReason);
-          setSessionId(null);
-          setSaveState("saved");
-          pendingResultRef.current = null;
-          
-          // Show toasts for new achievements
-          if (finalizeResult.newAchievements && finalizeResult.newAchievements.length > 0) {
-            showAchievementToasts(finalizeResult.newAchievements);
-          }
-          return;
-        } catch (finalizeError) {
-          // Session may have been cancelled or expired - fall back to legacy save
-          console.warn("Finalize session failed, falling back to legacy save:", finalizeError);
-          setSessionId(null);
-        }
-      }
-
-      // Fall back to legacy save (no session or finalize failed) - result won't have server validation
-      const legacyResult = await saveResultMutation({
+      // TODO: Anti-cheat validation will be re-implemented in a future update
+      // For now, all results are saved directly without server-side session validation
+      const result = await saveResultMutation({
         clerkId: user.id,
         ...dataToSave,
         localDate,
@@ -1348,16 +1296,15 @@ export default function TypingPractice({
       });
       setSaveState("saved");
       pendingResultRef.current = null;
-      
-      // Show toasts for new achievements from legacy save
-      if (legacyResult.newAchievements && legacyResult.newAchievements.length > 0) {
-        showAchievementToasts(legacyResult.newAchievements);
+
+      if (result.newAchievements && result.newAchievements.length > 0) {
+        showAchievementToasts(result.newAchievements);
       }
     } catch (error) {
       console.error("Failed to save result:", error);
       setSaveState("error");
     }
-  }, [user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, sessionId, finalizeSessionMutation, addNotification]);
+  }, [user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, addNotification]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {
@@ -1367,74 +1314,6 @@ export default function TypingPractice({
       saveResults(pending);
     }
   }, [isSignedIn, user, saveResults]);
-
-  // Start anti-cheat session when test begins (for logged-in users)
-  useEffect(() => {
-    if (!isRunning || isFinished || !user || sessionId || connectMode) return;
-
-    const startSession = async () => {
-      try {
-        const result = await startSessionMutation({
-          clerkId: user.id,
-          settings: {
-            mode: settings.mode,
-            duration: settings.mode === "time" ? settings.duration : undefined,
-            wordTarget: settings.mode === "words" ? settings.wordTarget : undefined,
-            difficulty: settings.difficulty,
-            punctuation: settings.punctuation,
-            numbers: settings.numbers,
-            capitalization: settings.capitalization,
-          },
-          targetText: words,
-        });
-        setSessionId(result.sessionId);
-        lastProgressTimeRef.current = Date.now();
-      } catch (error) {
-        console.warn("Failed to start session:", error);
-        // Continue without session - result will be marked as unverified
-      }
-    };
-
-    startSession();
-  }, [
-    isRunning,
-    isFinished,
-    user,
-    sessionId,
-    connectMode,
-    startSessionMutation,
-    settings.mode,
-    settings.duration,
-    settings.wordTarget,
-    settings.difficulty,
-    settings.punctuation,
-    settings.numbers,
-    settings.capitalization,
-    words,
-  ]);
-
-  // Record progress periodically during typing (throttled)
-  useEffect(() => {
-    if (!isRunning || isFinished || !sessionId) return;
-
-    const charsSinceLastReport = typedText.length - lastProgressRef.current;
-    const timeSinceLastReport = Date.now() - lastProgressTimeRef.current;
-
-    const shouldReport =
-      charsSinceLastReport >= PROGRESS_CHAR_THRESHOLD ||
-      timeSinceLastReport >= PROGRESS_INTERVAL_MS;
-
-    if (shouldReport && charsSinceLastReport !== 0) {
-      recordProgressMutation({ sessionId, typedTextLength: typedText.length })
-        .then(() => {
-          lastProgressRef.current = typedText.length;
-          lastProgressTimeRef.current = Date.now();
-        })
-        .catch(() => {
-          // Silently ignore progress recording errors
-        });
-    }
-  }, [typedText, isRunning, isFinished, sessionId, recordProgressMutation]);
 
   const generateTest = useCallback(() => {
     if (settings.mode === "quote") {
