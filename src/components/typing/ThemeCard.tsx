@@ -63,34 +63,15 @@ export default function ThemeCard({
         </div>
       </button>
 
-      {showCountBadge ? (
+      {(showCountBadge || showExpandedIndicator) ? (
         <div
           className="w-10 shrink-0 flex items-center justify-center border-l cursor-pointer hover:bg-white/5 transition-colors"
           style={{ borderColor: `${variant.dark.typing.correct}30` }}
           onClick={onCardClick}
         >
           <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+            className="text-sm font-semibold"
             style={{
-              backgroundColor: variant.dark.interactive.primary.subtle,
-              color: variant.dark.interactive.primary.DEFAULT,
-            }}
-          >
-            {matchingVariantCount != null && matchingVariantCount < (variantCount ?? 0)
-              ? matchingVariantCount
-              : variantCount}
-          </span>
-        </div>
-      ) : showExpandedIndicator ? (
-        <div
-          className="w-10 shrink-0 flex items-center justify-center border-l cursor-pointer hover:bg-white/5 transition-colors"
-          style={{ borderColor: `${variant.dark.typing.correct}30` }}
-          onClick={onCardClick}
-        >
-          <span
-            className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-            style={{
-              backgroundColor: variant.dark.interactive.primary.subtle,
               color: variant.dark.interactive.primary.DEFAULT,
             }}
           >
