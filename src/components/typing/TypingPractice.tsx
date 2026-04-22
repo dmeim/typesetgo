@@ -672,6 +672,7 @@ export default function TypingPractice({
     ghostWriterEnabled: boolean;
     linePreview: number;
     maxWordsPerLine: number;
+    showOnScreenKeyboard: boolean;
   } | null>(null);
 
   // Plan Mode State
@@ -1537,11 +1538,13 @@ export default function TypingPractice({
       ghostWriterEnabled: settings.ghostWriterEnabled,
       linePreview,
       maxWordsPerLine,
+      showOnScreenKeyboard: settings.showOnScreenKeyboard,
     });
     updateSettings({
       mode: "zen",
       typingFontSize: 5.5,
       ghostWriterEnabled: false,
+      showOnScreenKeyboard: true,
     });
     setLinePreview(2);
     setMaxWordsPerLine(5);
@@ -1550,6 +1553,7 @@ export default function TypingPractice({
     settings.mode,
     settings.typingFontSize,
     settings.ghostWriterEnabled,
+    settings.showOnScreenKeyboard,
     linePreview,
     maxWordsPerLine,
     updateSettings,
@@ -1561,6 +1565,7 @@ export default function TypingPractice({
         mode: nextMode ?? preKidModeSettings.mode,
         typingFontSize: preKidModeSettings.typingFontSize,
         ghostWriterEnabled: preKidModeSettings.ghostWriterEnabled,
+        showOnScreenKeyboard: preKidModeSettings.showOnScreenKeyboard,
       });
       setLinePreview(preKidModeSettings.linePreview);
       setMaxWordsPerLine(preKidModeSettings.maxWordsPerLine);
