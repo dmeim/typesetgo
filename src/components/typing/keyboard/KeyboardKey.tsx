@@ -53,10 +53,10 @@ function KeyboardKeyInner({
         fontSize,
         backgroundColor,
         color,
-        borderWidth: 1.5,
+        borderWidth: 2.5,
         borderColor,
-        transition: "background-color 150ms, color 150ms, transform 150ms, border-color 150ms",
-        transform: isActive ? "scale(0.92)" : "scale(1)",
+        transition: "background-color 100ms, color 100ms, transform 100ms, border-color 100ms",
+        transform: isActive ? "scale(0.90)" : "scale(1)",
         fontWeight: 500,
         lineHeight: 1,
       }}
