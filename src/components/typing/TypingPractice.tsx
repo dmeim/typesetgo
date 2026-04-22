@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
@@ -3257,6 +3257,26 @@ export default function TypingPractice({
               {/* TEMP_DISABLED_CATEGORIES_TAB: view mode toggle hidden while only all-themes mode is active */}
 
               <div className="mb-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allThemes = groupedThemes.flatMap((g) => g.themes);
+                    if (allThemes.length === 0) return;
+                    const theme = allThemes[Math.floor(Math.random() * allThemes.length)];
+                    const variant = theme.variants[Math.floor(Math.random() * theme.variants.length)];
+                    handleThemeSelect(theme.id, variant.id, selectedMode);
+                  }}
+                  className="shrink-0 rounded-lg p-2 transition-colors hover:opacity-80"
+                  style={{
+                    backgroundColor: tv.bg.base,
+                    color: tv.text.secondary,
+                    border: `1px solid ${tv.border.subtle}`,
+                  }}
+                  aria-label="Random theme"
+                  title="Random theme"
+                >
+                  <Shuffle size={16} />
+                </button>
                 <input
                   type="text"
                   value={themeSearchQuery}
