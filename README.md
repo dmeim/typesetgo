@@ -119,6 +119,7 @@ bun run dev              # Terminal 2 — frontend (port 3000)
 
 ## Documentation
 
+- **[Tech Stack](docs/TECH-STACK.md)** — full technology inventory with versions and roles
 - **[Docker Deployment](docs/deployment/DOCKER_GUIDE.md)** — container setup and configuration
 - **[Core Typing Engine](docs/features/Core_Typing_Engine.md)** — modes, statistics, and architecture
 - **[Content Management](docs/features/Content_Management.md)** — word lists, quotes, and adding content

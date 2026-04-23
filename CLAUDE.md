@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick Reference
 
-**TypeSetGo** is a React + Convex typing practice platform with real-time multiplayer ("Connect"), user stats/leaderboards, and themes.
+**TypeSetGo** is a React + Convex typing practice platform featuring solo practice (Time, Words, Quotes, Zen, Preset modes), real-time multiplayer races ("Connect"), achievements/streaks, leaderboards, 1300+ themes with variants, sound packs, and an on-screen keyboard with multiple layouts.
 
 ## Commands
 
@@ -17,6 +17,7 @@ bun run dev             # Start Vite frontend (port 3000)
 bun run build           # TypeScript check + Vite build
 bun run test:run        # Unit tests (single run)
 bun run test            # Unit tests (watch mode)
+bun run test:e2e        # Playwright e2e tests
 bun run lint            # ESLint
 
 # Deployment
@@ -27,10 +28,11 @@ bun run convex:deploy   # Deploy Convex functions
 
 ## Architecture
 
-- **Frontend:** Vite SPA with React 19 + TypeScript (`src/`)
+- **Frontend:** Vite 7 SPA with React 19 + TypeScript 5.9 (`src/`)
 - **Backend:** Convex real-time functions (`convex/`)
 - **Auth:** Clerk (optional, enabled when `VITE_CLERK_PUBLISHABLE_KEY` is set)
-- **Styling:** Tailwind CSS v4 + Radix primitives + Shadcn patterns
+- **Styling:** Tailwind CSS v4 + Radix primitives + Shadcn/UI (new-york style)
+- **State:** React context (ThemeContext, NotificationProvider) + Convex reactive queries — no Redux/Zustand
 
 **Import alias:** `@/` → `src/`
 
@@ -38,12 +40,41 @@ bun run convex:deploy   # Deploy Convex functions
 
 | Path | Purpose |
 |------|---------|
-| `src/pages/` | Route-level pages |
+| `src/pages/` | Route-level pages (Home, Connect, Race, Leaderboard, Lessons, etc.) |
+| `src/components/` | Feature components organized by domain (typing/, race/, connect/, auth/, plan/, settings/, stats/) |
 | `src/components/ui/` | Shadcn/Radix UI primitives |
-| `src/hooks/` | Custom React hooks |
-| `src/lib/` | Utilities, schemas, stores |
-| `convex/schema.ts` | Database schema + indexes |
-| `public/themes/` | Theme JSON files (auto-manifested) |
+| `src/hooks/` | Custom React hooks (useTheme, useSound, useAnimatedCounter, useSessionId, useGridColumns) |
+| `src/lib/` | Utilities, schemas, constants, stores |
+| `src/context/` | React context providers |
+| `src/types/` | TypeScript domain types |
+| `convex/schema.ts` | Database schema (11 tables) + indexes |
+| `convex/*.ts` | Backend functions (users, testResults, rooms, participants, raceResults, achievements, streaks, etc.) |
+| `public/themes/` | 1300+ theme JSON files (auto-manifested) |
+| `public/words/` | Word lists (auto-manifested) |
+| `public/quotes/` | Quote sets (auto-manifested) |
+| `public/sounds/` | Sound packs (auto-manifested) |
+| `scripts/` | One-off migration scripts (theme consolidation, variant migration) |
+
+### Routes (`src/App.tsx`)
+
+| Route | Page |
+|-------|------|
+| `/` | Home (main typing practice) |
+| `/leaderboard` | Leaderboard |
+| `/user/:userId` | User stats profile |
+| `/connect` | Multiplayer hub |
+| `/connect/host` | Host a room |
+| `/connect/join` | Join a room |
+| `/race` | Race creation/selection |
+| `/race/lobby/:lobbyId` | Race lobby |
+| `/race/:raceId` | Active race |
+| `/race/results/:raceId` | Race results/podium |
+| `/lessons` | Lessons mode |
+| `/about`, `/privacy`, `/tos` | Info/legal pages |
+
+### Provider Stack (`src/main.tsx`)
+
+ConvexProvider → NotificationProvider → ClerkProvider (conditional) → BrowserRouter → App (ThemeProvider wraps inside App)
 
 ### Auto-Generated Files (Do Not Edit)
 
@@ -60,8 +91,7 @@ bun run convex:deploy   # Deploy Convex functions
 
 ## For Detailed Context
 
-See **docs/AGENTS.md** for comprehensive documentation including:
-- Full provider stack and bootstrap order
-- Convex schema tables and patterns
-- Testing methodology details
-- Complete project layout
+- **docs/AGENTS.md** — comprehensive agent handbook (testing methodology, backend patterns, safety rules, workflow)
+- **docs/TECH-STACK.md** — full technology inventory with versions
+- **docs/features/** — feature implementation docs
+- **docs/PRDs/** — product requirements documents
