@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { join, disconnect, setReady, updateStats, updateProgress, recordFinish } from "../../convex/participants";
-import { startRace, endRace, resetForNewRace, getById } from "../../convex/rooms";
+import { join, disconnect, setReady, updateStats, updateProgress, recordFinish, resetStats } from "../../convex/participants";
+import { startRace, endRace, resetForNewRace, getById, setStatus, resetPractice, updateSettings } from "../../convex/rooms";
 import { saveResults } from "../../convex/raceResults";
 import type { Id } from "../../convex/_generated/dataModel";
 import { multiplayerDb } from "./fixtures/multiplayer-db";
@@ -115,5 +115,51 @@ describe("attempt progress boundaries", () => {
     await updateProgress._handler(db.ctx, args);
     expect(await recordFinish._handler(db.ctx, { ...final, finishTime: 3000 })).toEqual({ position: 1 });
     expect(db.get(participantId)).toMatchObject({ typedText: "cxt dog", finishTime: 2000, stats: { isFinished: true, progress: 100 } });
+  });
+});
+
+
+describe("versioned host practice runs", () => {
+  const config = { mode: "time", duration: 30, wordTarget: 25, difficulty: "medium", punctuation: false,
+    numbers: false, quoteLength: "all", ghostWriterEnabled: false, ghostWriterSpeed: 60,
+    soundEnabled: false, typingFontSize: 3.5, textAlign: "left" };
+  const practiceRoom = { ...room, gameMode: "practice", settings: config };
+  const report = { ...stats, wpm: 40, timeElapsed: 1000 };
+
+  it("starts once, freezes on stop, and begins a fresh version on the next start", async () => {
+    const db = multiplayerDb({ rooms: [practiceRoom], participants: [{ ...participant, typedText: "old" }] });
+    await setStatus._handler(db.ctx, { roomId, status: "active", hostSessionId: "host" });
+    expect(db.get(roomId)?.runVersion).toBe(1);
+    expect(db.get(participantId)).toMatchObject({ resetVersion: 1, stats });
+    expect(db.get(participantId)?.typedText).toBeUndefined();
+    await setStatus._handler(db.ctx, { roomId, status: "active" });
+    expect(db.get(roomId)?.runVersion).toBe(1);
+    await updateStats._handler(db.ctx, { participantId, stats: report, typedText: "cat", runVersion: 1, resetVersion: 1 });
+    await setStatus._handler(db.ctx, { roomId, status: "waiting" });
+    expect(db.get(participantId)?.typedText).toBe("cat");
+    await setStatus._handler(db.ctx, { roomId, status: "active" });
+    expect(db.get(roomId)?.runVersion).toBe(2);
+    expect(db.get(participantId)?.typedText).toBeUndefined();
+  });
+
+  it("individual and room reset invalidate queued reports and atomically clear attempts", async () => {
+    const db = multiplayerDb({ rooms: [{ ...practiceRoom, status: "active", runVersion: 1 }], participants: [{ ...participant, resetVersion: 2 }] });
+    await resetStats._handler(db.ctx, { participantId });
+    expect(db.get(participantId)?.resetVersion).toBe(3);
+    await updateStats._handler(db.ctx, { participantId, stats: report, typedText: "stale", runVersion: 1, resetVersion: 2 });
+    expect(db.get(participantId)?.stats).toEqual(stats);
+    await resetPractice._handler(db.ctx, { roomId, hostSessionId: "host" });
+    expect(db.get(roomId)).toMatchObject({ status: "waiting", runVersion: 2 });
+    expect(db.get(participantId)?.resetVersion).toBe(4);
+  });
+
+  it("retains the host sound pack contract and rejects an invalid plan start", async () => {
+    const db = multiplayerDb({ rooms: [practiceRoom], participants: [] });
+    const sound = { soundEnabled: true, typingSound: "creamy", warningSound: "clock", errorSound: "" };
+    await updateSettings._handler(db.ctx, { roomId, settings: sound, hostSessionId: "host" });
+    expect(db.get(roomId)?.settings).toMatchObject(sound);
+    await updateSettings._handler(db.ctx, { roomId, settings: { mode: "plan", plan: [], planIndex: 0 } });
+    await expect(setStatus._handler(db.ctx, { roomId, status: "active" })).rejects.toThrow("valid plan step");
+    expect(db.get(roomId)?.status).toBe("waiting");
   });
 });

@@ -1,7 +1,7 @@
 // convex/participants.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { acceptsAttempt, validateParticipantStats } from "./lib/multiplayer";
+import { acceptsAttempt, resetParticipantAttempt, validateParticipantStats } from "./lib/multiplayer";
 
 const statsValidator = v.object({
   wpm: v.number(), accuracy: v.number(), progress: v.number(),
@@ -83,6 +83,7 @@ export const join = mutation({
       sessionId: args.sessionId,
       name,
       isConnected: true,
+      resetVersion: 0,
       stats: {
         wpm: 0,
         accuracy: 0,
@@ -147,18 +148,14 @@ export const kick = mutation({
 export const resetStats = mutation({
   args: { participantId: v.id("participants") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.participantId, {
-      stats: {
-        wpm: 0,
-        accuracy: 0,
-        progress: 0,
-        wordsTyped: 0,
-        timeElapsed: 0,
-        isFinished: false,
-      },
-      typedText: undefined,
-      targetText: undefined,
-    });
+    const participant = await ctx.db.get(args.participantId);
+    if (!participant) throw new Error("Participant not found");
+    const room = await ctx.db.get(participant.roomId);
+    if (!room) throw new Error("Room not found");
+    if (room.gameMode === "race" && (room.raceEndTime !== undefined || participant.finishTime !== undefined)) {
+      throw new Error("A completed race attempt cannot be restarted");
+    }
+    await resetParticipantAttempt(ctx, participant);
   },
 });
 

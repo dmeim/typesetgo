@@ -41,8 +41,8 @@ export type AttemptVersion = { runVersion?: number; resetVersion?: number; raceS
 
 /** Guards delayed client emissions after stop, reset, departure, or another run. */
 export function acceptsAttempt(
-  room: (Doc<"rooms"> & { runVersion?: number }) | null,
-  participant: Doc<"participants"> & { resetVersion?: number },
+  room: Doc<"rooms"> | null,
+  participant: Doc<"participants">,
   version: AttemptVersion,
 ) {
   if (!room || room.status !== "active" || !participant.isConnected) return false;
@@ -90,4 +90,16 @@ export function validatePracticeSettings(settings: Doc<"rooms">["settings"]) {
   if (selected.mode === "preset" && !selected.presetText?.trim()) {
     throw new Error("Enter preset text before starting");
   }
+}
+
+export async function resetParticipantAttempt(ctx: MutationCtx, participant: Doc<"participants">) {
+  await ctx.db.patch(participant._id, {
+    resetVersion: (participant.resetVersion ?? 0) + 1,
+    stats: emptyParticipantStats(),
+    typedText: undefined,
+    targetText: undefined,
+    typedProgress: undefined,
+    finishTime: undefined,
+    position: undefined,
+  });
 }
