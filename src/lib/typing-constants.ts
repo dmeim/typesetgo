@@ -69,3 +69,17 @@ export const DEFAULT_THEME: Theme = {
   surfaceColor: GLOBAL_COLORS.surface, // Darker Charcoal - Cards, Modals
   ghostCursor: GLOBAL_COLORS.brand.accent, // Purple
 };
+
+export const TEXT_SIZE_MIN = 1;
+export const TEXT_SIZE_MAX = 6;
+
+export function normalizePracticeSettings(settings: SettingsState): SettingsState {
+  const clamp = (value: number, min: number, max: number, fallback: number) =>
+    Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+  return { ...settings,
+    typingFontSize: clamp(settings.typingFontSize, TEXT_SIZE_MIN, TEXT_SIZE_MAX, 3.25),
+    duration: Math.round(clamp(settings.duration, 1, 21600, 30)),
+    wordTarget: Math.round(clamp(settings.wordTarget, 1, 9999, 25)),
+    ghostWriterSpeed: clamp(settings.ghostWriterSpeed, 1, 200, 40),
+  };
+}

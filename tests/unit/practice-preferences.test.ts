@@ -1,0 +1,27 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { DEFAULT_SETTINGS, loadLayoutSettings, loadSettings, saveSettings } from "@/lib/storage-utils";
+import { normalizePracticeSettings } from "@/lib/typing-constants";
+import { TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "@/components/typing/practice-config";
+
+afterEach(() => localStorage.clear());
+describe("practice preference boundaries", () => {
+  it("uses one supported text range for persisted settings and actual edits", () => {
+    expect([TEXT_SIZE_MIN, TEXT_SIZE_MAX]).toEqual([1, 6]);
+    localStorage.setItem("typesetgo_settings", JSON.stringify({ typingFontSize: 10 }));
+    expect(loadSettings()?.typingFontSize).toBe(6);
+    expect(normalizePracticeSettings({ ...DEFAULT_SETTINGS, presetText: "", typingFontSize: 0 }).typingFontSize).toBe(1);
+    for (const typingFontSize of [1, 2, 3.25, 5.5, 6]) {
+      saveSettings({ ...DEFAULT_SETTINGS, presetText: "", typingFontSize });
+      expect(loadSettings()?.typingFontSize).toBe(typingFontSize);
+    }
+  });
+  it("bounds invalid numeric configuration before generating a prompt", () => {
+    const settings = normalizePracticeSettings({ ...DEFAULT_SETTINGS, presetText: "", wordTarget: NaN, duration: -1,
+      ghostWriterSpeed: Infinity });
+    expect(settings.wordTarget).toBe(25);
+    expect(settings.duration).toBe(1);
+    expect(settings.ghostWriterSpeed).toBe(40);
+    localStorage.setItem("typesetgo_layout", JSON.stringify({ linePreview: 999, maxWordsPerLine: 0 }));
+    expect(loadLayoutSettings()).toEqual({ linePreview: 6, maxWordsPerLine: 1 });
+  });
+});
