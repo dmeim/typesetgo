@@ -1,106 +1,71 @@
-// src/components/connect/JoinCard.tsx
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { GLOBAL_COLORS } from "@/lib/colors";
+import { RoomButton } from "./RoomUI";
+import { fieldClass, fieldStyle, panelStyle } from "./room-styles";
+import { tv } from "@/lib/theme-vars";
 
 export default function JoinCard() {
-  const [searchParams] = useSearchParams();
-  const [code, setCode] = useState(searchParams.get("code") || "");
-  const [joinName, setJoinName] = useState(searchParams.get("name") || "");
-  const [isFocused, setIsFocused] = useState(false);
+  const [params] = useSearchParams();
+  const [code, setCode] = useState(params.get("code") ?? "");
+  const [name, setName] = useState(params.get("name") ?? "");
   const navigate = useNavigate();
-
-  const handleJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (code.trim() && joinName.trim()) {
-      navigate(
-        `/connect/join?code=${code.trim().toUpperCase()}&name=${encodeURIComponent(joinName.trim())}`
-      );
-    }
-  };
-
   return (
-    <div
-      className={`relative rounded-2xl p-10 flex flex-col items-center group border border-gray-800 hover:border-gray-700 transition-all duration-300 min-h-96 ${isFocused ? "justify-start pt-10" : "justify-center"}`}
-      style={{ backgroundColor: GLOBAL_COLORS.surface }}
+    <section
+      className="min-w-0 rounded-xl border p-5 sm:p-8"
+      style={panelStyle}
+      aria-labelledby="join-title"
     >
-      <div
-        className="text-xs font-bold uppercase tracking-widest mb-6"
-        style={{ color: GLOBAL_COLORS.text.secondary }}
-      >
-        Join Room
-      </div>
-      <h2
-        className="text-5xl font-black mb-8"
-        style={{ color: GLOBAL_COLORS.brand.primary }}
-      >
-        JOIN
+      <h2 id="join-title" className="text-2xl font-semibold">
+        Join a room
       </h2>
-
+      <p className="mt-2 text-sm" style={{ color: tv.ui.mutedForeground }}>
+        Enter the code shared by your host.
+      </p>
       <form
-        onSubmit={handleJoin}
-        className="w-full max-w-xs flex flex-col gap-4 z-10"
+        className="mt-6 space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (name.trim() && code.trim())
+            navigate(
+              `/connect/join?code=${encodeURIComponent(code.trim().toUpperCase())}&name=${encodeURIComponent(name.trim())}`,
+            );
+        }}
       >
-        <input
-          type="text"
-          value={joinName}
-          onChange={(e) => setJoinName(e.target.value)}
-          placeholder="YOUR NAME"
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-center text-lg font-bold tracking-wide focus:outline-none text-white placeholder-gray-600"
-          style={{ borderColor: "transparent" }}
-          onFocus={(e) => {
-            e.target.style.borderColor = GLOBAL_COLORS.brand.primary;
-            if (window.innerWidth < 768) setIsFocused(true);
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "transparent";
-            setTimeout(() => setIsFocused(false), 100);
-          }}
-          maxLength={15}
-        />
-        <input
-          type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="ENTER CODE"
-          className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded text-center text-xl font-bold tracking-widest uppercase focus:outline-none text-white placeholder-gray-600"
-          style={{ borderColor: "transparent" }}
-          onFocus={(e) => {
-            e.target.style.borderColor = GLOBAL_COLORS.brand.primary;
-            if (window.innerWidth < 768) setIsFocused(true);
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = "transparent";
-            setTimeout(() => setIsFocused(false), 100);
-          }}
-          maxLength={6}
-        />
-        <button
+        <label className="block space-y-2 text-sm">
+          Your name
+          <input
+            className={fieldClass}
+            style={fieldStyle}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={15}
+            autoComplete="nickname"
+            required
+          />
+        </label>
+        <label className="block space-y-2 text-sm">
+          Room code
+          <input
+            className={`${fieldClass} uppercase tracking-widest`}
+            style={fieldStyle}
+            value={code}
+            onChange={(event) => setCode(event.target.value.toUpperCase())}
+            maxLength={6}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+          />
+        </label>
+        <RoomButton
           type="submit"
-          disabled={!code.trim() || !joinName.trim()}
-          className="w-full px-8 py-3 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg transition"
+          selected
+          disabled={!name.trim() || !code.trim()}
+          className="w-full"
         >
-          Join Room
-        </button>
+          Join room
+        </RoomButton>
       </form>
-
-      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="150"
-          height="150"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-          <polyline points="10 17 15 12 10 7" />
-          <line x1="15" y1="12" x2="3" y2="12" />
-        </svg>
-      </div>
-    </div>
+    </section>
   );
 }

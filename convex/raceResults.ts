@@ -1,75 +1,18 @@
 // convex/raceResults.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { saveRaceSnapshot } from "./lib/multiplayer";
 
-// Save race results when race ends
+// Retained for older callers; endRace now persists this snapshot atomically.
 export const saveResults = mutation({
-  args: {
-    raceId: v.id("rooms"),
-  },
+  args: { raceId: v.id("rooms"), raceStartTime: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.raceId);
     if (!room) throw new Error("Room not found");
     if (room.gameMode !== "race") throw new Error("Room is not a race");
-
-    // Get all participants
-    const participants = await ctx.db
-      .query("participants")
-      .withIndex("by_room", (q) => q.eq("roomId", args.raceId))
-      .collect();
-
-    // Sort by position (finishers first, then by progress)
-    const sortedParticipants = [...participants].sort((a, b) => {
-      // Finished participants come first
-      if (a.stats.isFinished && !b.stats.isFinished) return -1;
-      if (!a.stats.isFinished && b.stats.isFinished) return 1;
-
-      // Among finished, sort by finish time
-      if (a.stats.isFinished && b.stats.isFinished) {
-        return (a.finishTime || Infinity) - (b.finishTime || Infinity);
-      }
-
-      // Among unfinished, sort by progress
-      return b.stats.progress - a.stats.progress;
-    });
-
-    // Build rankings array
-    const rankings = sortedParticipants.map((p, index) => ({
-      sessionId: p.sessionId,
-      name: p.name,
-      emoji: p.emoji,
-      position: index + 1,
-      wpm: p.stats.wpm,
-      accuracy: p.stats.accuracy,
-      finishTime: p.finishTime,
-      didFinish: p.stats.isFinished,
-    }));
-
-    // Check if results already exist for this race
-    const existingResults = await ctx.db
-      .query("raceResults")
-      .withIndex("by_race", (q) => q.eq("raceId", args.raceId))
-      .first();
-
-    if (existingResults) {
-      // Update existing results
-      await ctx.db.patch(existingResults._id, {
-        rankings,
-        totalRacers: participants.length,
-      });
-      return existingResults._id;
-    }
-
-    // Create new results
-    const resultsId = await ctx.db.insert("raceResults", {
-      raceId: args.raceId,
-      rankings,
-      targetText: room.targetText || "",
-      totalRacers: participants.length,
-      createdAt: Date.now(),
-    });
-
-    return resultsId;
+    if (args.raceStartTime !== undefined && args.raceStartTime !== room.raceStartTime) return null;
+    if (room.raceEndTime === undefined) throw new Error("Race has not ended");
+    return await saveRaceSnapshot(ctx, room);
   },
 });
 

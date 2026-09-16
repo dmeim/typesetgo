@@ -1,105 +1,145 @@
-// src/components/race/EmojiPicker.tsx
-// Emoji picker for selecting race avatars from a curated list
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useRef, useState } from "react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { RACE_EMOJIS } from "@/lib/race-emojis";
 import { tv } from "@/lib/theme-vars";
 
-interface EmojiPickerProps {
-  selectedEmoji: string;
-  onSelect: (emoji: string) => void;
-  disabled?: boolean;
-}
+const EMOJI_NAMES = [
+  "Racing car",
+  "Rocket",
+  "Airplane",
+  "Small airplane",
+  "Helicopter",
+  "Motorcycle",
+  "Bicycle",
+  "Scooter",
+  "Leopard",
+  "Horse",
+  "Eagle",
+  "Rabbit",
+  "Dog",
+  "Fox",
+  "Wolf",
+  "Lion",
+  "Lightning",
+  "Fire",
+  "Wind",
+  "Tornado",
+  "Comet",
+  "Dizzy star",
+  "Sparkles",
+  "Star",
+  "Runner",
+  "Wizard",
+  "Superhero",
+  "Ninja",
+  "Alien",
+  "Robot",
+  "Ghost",
+  "Target",
+];
 
 export default function EmojiPicker({
   selectedEmoji,
   onSelect,
   disabled = false,
-}: EmojiPickerProps) {
+}: {
+  selectedEmoji: string;
+  onSelect: (emoji: string) => void;
+  disabled?: boolean;
+}) {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  const handleSelect = (emoji: string) => {
-    if (disabled) return;
-    onSelect(emoji);
-    setIsOpen(false);
-  };
-
-  // Calculate dropdown position when opening
-  useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const dropdownWidth = 320; // approximate width of dropdown
-      
-      // Center dropdown below button, but keep it within viewport
-      let left = rect.left + rect.width / 2 - dropdownWidth / 2;
-      left = Math.max(8, Math.min(left, window.innerWidth - dropdownWidth - 8));
-      
-      setDropdownPosition({
-        top: rect.bottom + 8,
-        left,
-      });
-    }
-  }, [isOpen]);
+  const [focusedIndex, setFocusedIndex] = useState(
+    Math.max(0, RACE_EMOJIS.indexOf(selectedEmoji)),
+  );
+  const options = useRef<(HTMLButtonElement | null)[]>([]);
 
   return (
-    <div className="relative">
-      {/* Selected emoji button */}
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
-        className="w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+    <Popover open={isOpen && !disabled} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label="Change avatar"
+          className="size-12 rounded-full flex items-center justify-center text-2xl disabled:opacity-50"
+          style={{
+            backgroundColor: tv.ui.secondary,
+            border: `1px solid ${tv.ui.border}`,
+          }}
+        >
+          <span aria-hidden="true">{selectedEmoji}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        aria-label="Choose a racing avatar"
+        collisionPadding={12}
+        className="w-[min(20rem,calc(100vw-1.5rem))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-3"
         style={{
-          backgroundColor: tv.bg.elevated,
-          border: `2px solid ${isOpen ? tv.interactive.accent.DEFAULT : tv.border.default}`,
+          backgroundColor: tv.ui.card,
+          color: tv.ui.foreground,
+          borderColor: tv.ui.border,
         }}
-        title="Change avatar"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          const index = Math.max(0, RACE_EMOJIS.indexOf(selectedEmoji));
+          setFocusedIndex(index);
+          options.current[index]?.focus();
+        }}
       >
-        {selectedEmoji}
-      </button>
-
-      {/* Dropdown picker - rendered in portal to escape container overflow */}
-      {isOpen && createPortal(
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
-          />
-          
-          {/* Picker dropdown */}
-          <div
-            className="fixed z-50 p-3 rounded-xl shadow-xl grid grid-cols-8 gap-1"
-            style={{
-              top: dropdownPosition.top,
-              left: dropdownPosition.left,
-              width: 320,
-              backgroundColor: tv.bg.surface,
-              border: `1px solid ${tv.border.default}`,
-            }}
-          >
-            {RACE_EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => handleSelect(emoji)}
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-xl transition-all duration-150 hover:scale-125"
-                style={{
-                  backgroundColor: emoji === selectedEmoji
+        <p className="text-sm font-medium mb-2">Choose your avatar</p>
+        <div
+          className="grid grid-cols-4 gap-1"
+          onKeyDown={(event) => {
+            const moves: Record<string, number> = {
+              ArrowRight: 1,
+              ArrowLeft: -1,
+              ArrowDown: 4,
+              ArrowUp: -4,
+            };
+            let next: number;
+            if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = RACE_EMOJIS.length - 1;
+            else if (event.key in moves)
+              next =
+                (focusedIndex + moves[event.key] + RACE_EMOJIS.length) %
+                RACE_EMOJIS.length;
+            else return;
+            event.preventDefault();
+            setFocusedIndex(next);
+            options.current[next]?.focus();
+          }}
+        >
+          {RACE_EMOJIS.map((emoji, index) => (
+            <button
+              key={emoji}
+              ref={(element) => {
+                options.current[index] = element;
+              }}
+              type="button"
+              aria-label={EMOJI_NAMES[index]}
+              aria-pressed={emoji === selectedEmoji}
+              tabIndex={index === focusedIndex ? 0 : -1}
+              onFocus={() => setFocusedIndex(index)}
+              onClick={() => {
+                onSelect(emoji);
+                setIsOpen(false);
+              }}
+              className="h-10 rounded-md flex items-center justify-center text-xl"
+              style={{
+                backgroundColor:
+                  emoji === selectedEmoji
                     ? tv.interactive.accent.muted
-                    : "transparent",
-                }}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </>,
-        document.body
-      )}
-    </div>
+                    : tv.ui.secondary,
+              }}
+            >
+              <span aria-hidden="true">{emoji}</span>
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

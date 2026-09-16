@@ -170,7 +170,7 @@ function generateFromThresholds(
     category: meta.category,
     title: meta.titleFn
       ? meta.titleFn(value, tier, level)
-      : generateDefaultTitle(value, tier, level, meta.category),
+      : generateDefaultTitle(tier, level),
     description: meta.descriptionFn(value),
     icon: meta.icon,
     tier,
@@ -183,10 +183,8 @@ function generateFromThresholds(
  * Generate a default title based on value and tier
  */
 function generateDefaultTitle(
-  _value: number,
   tier: AchievementTier,
-  level: number,
-  _category: AchievementCategory
+  level: number
 ): string {
   const tierNames: Record<AchievementTier, string> = {
     copper: "Copper",
@@ -222,7 +220,7 @@ function generateSpeedAchievements(): Achievement[] {
         100: "Century Club",
       };
       if (specialNames[wpm]) return specialNames[wpm];
-      return generateDefaultTitle(wpm, tier, level, "speed");
+      return generateDefaultTitle(tier, level);
     },
   });
 }
@@ -248,7 +246,7 @@ function generateWordAchievements(): Achievement[] {
       };
       if (specialNames[words]) return specialNames[words];
       if (words >= 1000) return `${(words / 1000).toLocaleString()}K Words`;
-      return generateDefaultTitle(words, tier, level, "words");
+      return generateDefaultTitle(tier, level);
     },
   });
 }
@@ -281,7 +279,7 @@ function generateAccuracyAchievements(): Achievement[] {
         500: "Accuracy Legend",
       };
       if (specialNames[count]) return specialNames[count];
-      return generateDefaultTitle(count, tier, level, "accuracy");
+      return generateDefaultTitle(tier, level);
     },
   });
 
@@ -291,7 +289,7 @@ function generateAccuracyAchievements(): Achievement[] {
     progressiveGroup: "accuracy-streak",
     icon: "🎯",
     descriptionFn: (count) => `Get 100% accuracy on ${count} tests in a row`,
-    titleFn: (count, _tier, _level) => {
+    titleFn: (count) => {
       if (count >= 50) return "Untouchable";
       if (count >= 25) return "Flawless Master";
       return `Flawless Streak x${count}`;
@@ -314,7 +312,7 @@ function generateTimeAchievements(): Achievement[] {
       }
       return `Spend ${minutes} minute${minutes !== 1 ? "s" : ""} typing total`;
     },
-    titleFn: (minutes, _tier, _level) => {
+    titleFn: (minutes) => {
       // Special names for milestone times
       const specialNames: Record<number, string> = {
         10: "Ten Minutes",
@@ -341,7 +339,7 @@ function generateStreakAchievements(): Achievement[] {
     progressiveGroup: "streak",
     icon: "🔥",
     descriptionFn: (days) => `Maintain a ${days}-day typing streak`,
-    titleFn: (days, _tier, _level) => {
+    titleFn: (days) => {
       // Special names for milestone streaks
       const specialNames: Record<number, string> = {
         3: "Three Day Streak",
@@ -367,7 +365,7 @@ function generateTestAchievements(): Achievement[] {
     icon: "🏆",
     descriptionFn: (count) =>
       `Complete ${count.toLocaleString()} typing test${count > 1 ? "s" : ""}`,
-    titleFn: (count, _tier, _level) => {
+    titleFn: (count) => {
       // Special names for milestone test counts
       const specialNames: Record<number, string> = {
         1: "First Test",
@@ -530,7 +528,7 @@ function generateConsistencyAchievements(): Achievement[] {
         100: "Machine Precision",
       };
       if (specialNames[count]) return specialNames[count];
-      return generateDefaultTitle(count, tier, level, "consistency");
+      return generateDefaultTitle(tier, level);
     },
   });
 
@@ -548,7 +546,7 @@ function generateConsistencyAchievements(): Achievement[] {
         100: "Consistency King",
       };
       if (specialNames[count]) return specialNames[count];
-      return generateDefaultTitle(count, tier, level, "consistency");
+      return generateDefaultTitle(tier, level);
     },
   });
 
@@ -609,7 +607,7 @@ function generateImprovementAchievements(): Achievement[] {
         100: "Improvement Legend",
       };
       if (specialNames[count]) return specialNames[count];
-      return generateDefaultTitle(count, tier, level, "improvement");
+      return generateDefaultTitle(tier, level);
     },
   });
 
@@ -715,7 +713,7 @@ function generateEnduranceAchievements(): Achievement[] {
         100: "Endurance Legend",
       };
       if (specialNames[count]) return specialNames[count];
-      return generateDefaultTitle(count, tier, level, "endurance");
+      return generateDefaultTitle(tier, level);
     },
   });
 
@@ -953,7 +951,7 @@ function generateCollectionAchievements(): Achievement[] {
         1000: "Achievement Legend",
       };
       if (specialNames[count]) return specialNames[count];
-      return generateDefaultTitle(count, tier, level, "collection");
+      return generateDefaultTitle(tier, level);
     },
   });
 

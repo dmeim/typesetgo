@@ -2,6 +2,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { generateRaceText } from "./lib/raceWords";
+import { checkRoomHost, resetParticipantAttempt, saveRaceSnapshot, validatePracticeSettings } from "./lib/multiplayer";
 
 function generateRoomCode(): string {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -25,6 +26,7 @@ export const create = mutation({
       hostId: args.hostSessionId,
       hostName: args.hostName,
       status: "waiting",
+      runVersion: 0,
       gameMode,
       settings: {
         mode: "time",
@@ -38,6 +40,9 @@ export const create = mutation({
         ghostWriterEnabled: false,
         ghostWriterSpeed: 60,
         soundEnabled: false,
+        typingSound: "creamy",
+        warningSound: "clock",
+        errorSound: "",
         typingFontSize: 3.5,
         textAlign: "left",
       },
@@ -64,11 +69,14 @@ export const updateSettings = mutation({
   args: {
     roomId: v.id("rooms"),
     settings: v.any(),
+    hostSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("Room not found");
 
+    checkRoomHost(room, args.hostSessionId);
+    if (room.status === "active") throw new Error("Stop the run before changing its settings");
     await ctx.db.patch(args.roomId, {
       settings: { ...room.settings, ...args.settings },
     });
@@ -79,9 +87,38 @@ export const setStatus = mutation({
   args: {
     roomId: v.id("rooms"),
     status: v.union(v.literal("waiting"), v.literal("active")),
+    hostSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.roomId, { status: args.status });
+    const room = await ctx.db.get(args.roomId);
+    if (!room) throw new Error("Room not found");
+    checkRoomHost(room, args.hostSessionId);
+    if (room.gameMode === "race") throw new Error("Use race controls for this room");
+    if (args.status === room.status) return;
+    if (args.status === "waiting") {
+      await ctx.db.patch(room._id, { status: "waiting" });
+      return;
+    }
+    validatePracticeSettings(room.settings);
+    const participants = await ctx.db.query("participants")
+      .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
+    for (const participant of participants) await resetParticipantAttempt(ctx, participant);
+    await ctx.db.patch(room._id, { status: "active", runVersion: (room.runVersion ?? 0) + 1 });
+  },
+});
+
+// Reset all attempts atomically so no participant can report into a half-reset room.
+export const resetPractice = mutation({
+  args: { roomId: v.id("rooms"), hostSessionId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room) throw new Error("Room not found");
+    checkRoomHost(room, args.hostSessionId);
+    if (room.gameMode === "race") throw new Error("Use race controls for this room");
+    const participants = await ctx.db.query("participants")
+      .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
+    for (const participant of participants) await resetParticipantAttempt(ctx, participant);
+    await ctx.db.patch(room._id, { status: "waiting", runVersion: (room.runVersion ?? 0) + 1 });
   },
 });
 
@@ -102,11 +139,12 @@ export const deleteRoom = mutation({
   },
 });
 
-// Get room by ID
+// URL input can be malformed as well as reference a deleted room.
 export const getById = query({
-  args: { roomId: v.id("rooms") },
+  args: { roomId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.roomId);
+    const roomId = ctx.db.normalizeId("rooms", args.roomId);
+    return roomId ? await ctx.db.get(roomId) : null;
   },
 });
 
@@ -140,11 +178,15 @@ export const startRace = mutation({
   args: {
     roomId: v.id("rooms"),
     countdownSeconds: v.optional(v.number()), // Default 5 seconds
+    hostSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("Room not found");
     if (room.gameMode !== "race") throw new Error("Room is not a race");
+    checkRoomHost(room, args.hostSessionId);
+    if (room.raceEndTime !== undefined) throw new Error("Reset the room before starting another race");
+    if (room.raceStartTime !== undefined) return { raceStartTime: room.raceStartTime };
 
     // Verify all participants are ready
     const participants = await ctx.db
@@ -171,11 +213,16 @@ export const startRace = mutation({
       await ctx.db.patch(args.roomId, { targetText });
     }
 
-    const countdownMs = (args.countdownSeconds || 5) * 1000;
+    const countdownSeconds = args.countdownSeconds ?? 5;
+    if (!Number.isFinite(countdownSeconds) || countdownSeconds < 0 || countdownSeconds > 30) {
+      throw new Error("Countdown must be between 0 and 30 seconds");
+    }
+    const countdownMs = countdownSeconds * 1000;
     const raceStartTime = Date.now() + countdownMs;
 
     await ctx.db.patch(args.roomId, {
       status: "active",
+      runVersion: (room.runVersion ?? 0) + 1,
       raceStartTime,
     });
 
@@ -187,27 +234,37 @@ export const startRace = mutation({
 export const endRace = mutation({
   args: {
     roomId: v.id("rooms"),
+    raceStartTime: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("Room not found");
-
-    await ctx.db.patch(args.roomId, {
-      raceEndTime: Date.now(),
-    });
+    if (room.gameMode !== "race" || room.raceStartTime === undefined) throw new Error("Race has not started");
+    if (args.raceStartTime !== undefined && args.raceStartTime !== room.raceStartTime) return;
+    if (room.raceEndTime !== undefined) return;
+    await ctx.db.patch(args.roomId, { raceEndTime: Date.now() });
+    await saveRaceSnapshot(ctx, room);
   },
 });
 
 // Reset room for another race (return to lobby)
 export const resetForNewRace = mutation({
-  args: { roomId: v.id("rooms") },
+  args: { roomId: v.id("rooms"), hostSessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("Room not found");
 
+    checkRoomHost(room, args.hostSessionId);
+    if (room.gameMode !== "race") throw new Error("Room is not a race");
+    // A room represents the current race; remove the previous snapshot before reuse.
+    const results = await ctx.db.query("raceResults")
+      .withIndex("by_race", (q) => q.eq("raceId", room._id)).collect();
+    for (const result of results) await ctx.db.delete(result._id);
+
     // Reset room state
     await ctx.db.patch(args.roomId, {
       status: "waiting",
+      runVersion: (room.runVersion ?? 0) + 1,
       readyParticipants: [],
       raceStartTime: undefined,
       raceEndTime: undefined,
@@ -221,21 +278,8 @@ export const resetForNewRace = mutation({
       .collect();
 
     for (const p of participants) {
-      await ctx.db.patch(p._id, {
-        isReady: false,
-        stats: {
-          wpm: 0,
-          accuracy: 0,
-          progress: 0,
-          wordsTyped: 0,
-          timeElapsed: 0,
-          isFinished: false,
-        },
-        finishTime: undefined,
-        position: undefined,
-        typedProgress: undefined,
-        typedText: undefined,
-      });
+      await resetParticipantAttempt(ctx, p);
+      await ctx.db.patch(p._id, { isReady: false });
     }
   },
 });

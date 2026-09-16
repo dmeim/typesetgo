@@ -1,10 +1,6 @@
 import {
   createContext,
   useContext,
-  useState,
-  useEffect,
-  useCallback,
-  type ReactNode,
 } from "react";
 
 // =============================================================================
@@ -53,7 +49,7 @@ export interface NotificationStore {
 // =============================================================================
 
 const STORAGE_KEY = "typesetgo_notifications";
-const MAX_NOTIFICATIONS = 50; // Limit stored notifications
+export const MAX_NOTIFICATIONS = 50; // Limit stored notifications
 
 function isLocalStorageAvailable(): boolean {
   if (typeof window === "undefined") return false;
@@ -67,7 +63,7 @@ function isLocalStorageAvailable(): boolean {
   }
 }
 
-function saveNotifications(notifications: Notification[]): void {
+export function saveNotifications(notifications: Notification[]): void {
   if (!isLocalStorageAvailable()) return;
 
   try {
@@ -79,7 +75,7 @@ function saveNotifications(notifications: Notification[]): void {
   }
 }
 
-function loadNotifications(): Notification[] {
+export function loadNotifications(): Notification[] {
   if (!isLocalStorageAvailable()) return [];
 
   try {
@@ -109,71 +105,7 @@ function loadNotifications(): Notification[] {
 // Context
 // =============================================================================
 
-const NotificationContext = createContext<NotificationStore | null>(null);
-
-export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>(() =>
-    loadNotifications()
-  );
-
-  // Persist to localStorage when notifications change
-  useEffect(() => {
-    saveNotifications(notifications);
-  }, [notifications]);
-
-  const addNotification = useCallback(
-    (notification: Omit<Notification, "id" | "timestamp" | "read">) => {
-      const newNotification: Notification = {
-        ...notification,
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: Date.now(),
-        read: false,
-      };
-
-      setNotifications((prev) => [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS));
-      return newNotification;
-    },
-    []
-  );
-
-  const markAsRead = useCallback((id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  }, []);
-
-  const markAllAsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setNotifications([]);
-  }, []);
-
-  const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
-
-  const getUnreadCount = useCallback(() => {
-    return notifications.filter((n) => !n.read).length;
-  }, [notifications]);
-
-  const value: NotificationStore = {
-    notifications,
-    addNotification,
-    markAsRead,
-    markAllAsRead,
-    clearAll,
-    removeNotification,
-    getUnreadCount,
-  };
-
-  return (
-    <NotificationContext.Provider value={value}>
-      {children}
-    </NotificationContext.Provider>
-  );
-}
+export const NotificationContext = createContext<NotificationStore | null>(null);
 
 export function useNotifications(): NotificationStore {
   const context = useContext(NotificationContext);

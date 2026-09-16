@@ -9,6 +9,7 @@
 
 import { readFileSync, writeFileSync, readdirSync } from "fs";
 import { join } from "path";
+import type { ThemeColors } from "../src/types/theme";
 
 const THEMES_DIR = join(import.meta.dir, "../public/themes");
 
@@ -32,7 +33,7 @@ function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   if (max === min) return [0, 0, l];
   const d = max - min;
   const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h = 0;
+  let h: number;
   if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
   else if (max === g) h = ((b - r) / d + 2) / 6;
   else h = ((r - g) / d + 4) / 6;
@@ -75,12 +76,6 @@ function darkenForLight(hex: string, amount = 0.15): string {
   return rgbToHex(r, g, b);
 }
 
-function parseRgba(str: string): { r: number; g: number; b: number; a: number } | null {
-  const m = str.match(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/);
-  if (!m) return null;
-  return { r: +m[1], g: +m[2], b: +m[3], a: +m[4] };
-}
-
 function makeRgba(r: number, g: number, b: number, a: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
@@ -106,7 +101,7 @@ function darkenColorScale(scale: ColorScale): ColorScale {
   return makeColorScale(darkened, 0.2, 0.08);
 }
 
-function generateLightFromDark(dark: any): any {
+function generateLightFromDark(dark: ThemeColors): ThemeColors {
   const textPrimaryRgb = hexToRgb(dark.text.primary);
   const textSecondaryRgb = hexToRgb(dark.text.secondary);
   const bgBaseRgb = hexToRgb(dark.bg.base);

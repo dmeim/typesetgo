@@ -1,279 +1,111 @@
-import { useState } from "react";
-import {
-  BellIcon,
-  TrophyIcon,
-  WrenchIcon,
-  InfoIcon,
-  AlertTriangleIcon,
-  XCircleIcon,
-  CheckIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useUser } from "@clerk/clerk-react";
+import { useId, useRef, useState } from "react";
+import { BellIcon, TrophyIcon, WrenchIcon, InfoIcon, AlertTriangleIcon, XCircleIcon, CheckIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { tv } from "@/lib/theme-vars";
-import {
-  useNotifications,
-  getRelativeTime,
-  getNotificationColor,
-  type Notification,
-} from "@/lib/notification-store";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useAppAuth } from "@/components/layout/useAppAuth";
+import { useNotifications, getRelativeTime, getNotificationColor, type Notification } from "@/lib/notification-store";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { TIER_COLORS } from "@/lib/achievement-definitions";
 import AchievementsModal from "@/components/auth/AchievementsModal";
 
-interface NotificationCenterProps {
-  disabled?: boolean;
+function NotificationIcon({ notification }: { notification: Notification }) {
+  const color = notification.type === "achievement" && notification.metadata?.achievementTier
+    ? TIER_COLORS[notification.metadata.achievementTier as keyof typeof TIER_COLORS]?.bg || getNotificationColor(notification.type)
+    : getNotificationColor(notification.type);
+  const Icon = ({ achievement: TrophyIcon, maintenance: WrenchIcon, warning: AlertTriangleIcon, error: XCircleIcon, info: InfoIcon })[notification.type] ?? InfoIcon;
+  return <Icon className="mt-0.5 size-4 shrink-0" style={{ color }} aria-hidden="true" />;
 }
 
-function getNotificationIcon(notification: Notification) {
-  const color =
-    notification.type === "achievement" && notification.metadata?.achievementTier
-      ? TIER_COLORS[notification.metadata.achievementTier as keyof typeof TIER_COLORS]?.bg ||
-        getNotificationColor(notification.type)
-      : getNotificationColor(notification.type);
-
-  switch (notification.type) {
-    case "achievement":
-      return <TrophyIcon className="size-4 shrink-0" style={{ color }} />;
-    case "maintenance":
-      return <WrenchIcon className="size-4 shrink-0" style={{ color }} />;
-    case "warning":
-      return <AlertTriangleIcon className="size-4 shrink-0" style={{ color }} />;
-    case "error":
-      return <XCircleIcon className="size-4 shrink-0" style={{ color }} />;
-    case "info":
-    default:
-      return <InfoIcon className="size-4 shrink-0" style={{ color }} />;
-  }
-}
-
-export default function NotificationCenter({ disabled = false }: NotificationCenterProps) {
-  const { user: clerkUser, isSignedIn } = useUser();
-  const {
-    notifications,
-    markAsRead,
-    markAllAsRead,
-    clearAll,
-    removeNotification,
-    getUnreadCount,
-  } = useNotifications();
-
-  const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+export default function NotificationCenter({ disabled = false }: { disabled?: boolean }) {
+  const { user, isSignedIn, available } = useAppAuth();
+  const { notifications, markAsRead, markAllAsRead, clearAll, removeNotification, getUnreadCount } = useNotifications();
+  const [open, setOpen] = useState(false);
   const [selectedAchievementId, setSelectedAchievementId] = useState<string | null>(null);
-
-  // Fetch achievements for the modal (only when signed in)
-  // getUserAchievements returns Record<string, number> directly (achievementId -> timestamp)
+  if (disabled && (open || selectedAchievementId)) {
+    setOpen(false);
+    setSelectedAchievementId(null);
+  }
+  const headingId = useId();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const earnedAchievements = useQuery(
     api.achievements.getUserAchievements,
-    isSignedIn && clerkUser ? { clerkId: clerkUser.id } : "skip"
+    isSignedIn && user && selectedAchievementId ? { clerkId: user.id } : "skip"
   ) ?? {};
-
   const unreadCount = disabled ? 0 : getUnreadCount();
 
-  const handleNotificationClick = (notification: Notification) => {
+  const activate = (notification: Notification) => {
     markAsRead(notification.id);
-
     if (notification.type === "achievement" && notification.metadata?.achievementId) {
       setSelectedAchievementId(notification.metadata.achievementId);
-      setShowAchievementsModal(true);
+      setOpen(false);
     } else if (notification.metadata?.actionUrl) {
-      window.open(notification.metadata.actionUrl, "_blank");
+      const url = new URL(notification.metadata.actionUrl, window.location.href);
+      if (url.protocol === "https:" || url.protocol === "http:") {
+        window.open(url.href, "_blank", "noopener,noreferrer");
+      }
+      setOpen(false);
     }
   };
 
-  const handleCloseModal = () => {
-    setShowAchievementsModal(false);
-    setSelectedAchievementId(null);
-  };
-
   if (disabled) {
-    return (
-      <button
-        type="button"
-        className="relative flex h-10 w-10 items-center justify-center rounded-lg opacity-40 cursor-not-allowed"
-        style={{ color: tv.text.muted }}
-        title="Sign in to view notifications"
-        disabled
-        aria-disabled="true"
-      >
-        <BellIcon className="size-5" />
-      </button>
-    );
+    const label = available ? "Sign in to view notifications" : "Notifications unavailable in guest mode";
+    return <button type="button" className="inline-flex size-10 shrink-0 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground" disabled aria-label={label} title={label}><BellIcon className="size-5" aria-hidden="true" /></button>;
   }
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            className="relative flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-            style={{ color: tv.interactive.primary.DEFAULT }}
-            title="Notifications"
-          >
-            <BellIcon className="size-5" />
-            <AnimatePresence>
-              {unreadCount > 0 && (
-                <motion.span
-                  className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-bold"
-                  style={{
-                    backgroundColor: "#EF4444",
-                    color: "#FFFFFF",
-                  }}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                  key="notification-badge"
-                >
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </button>
-        </DropdownMenuTrigger>
-
-        <DropdownMenuContent
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button ref={triggerRef} variant="ghost" size="icon" className="relative size-10" aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`} title="Notifications">
+            <BellIcon className="size-5" aria-hidden="true" />
+            {unreadCount > 0 && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
           align="end"
-          className="w-80 max-h-96 overflow-y-auto"
-          style={{
-            backgroundColor: tv.bg.surface,
-            borderColor: tv.border.subtle,
-          }}
+          aria-labelledby={headingId}
+          className="w-80 max-w-[calc(100vw-1.5rem)] p-0"
+          onCloseAutoFocus={(event) => { if (selectedAchievementId) event.preventDefault(); }}
         >
-          <DropdownMenuLabel
-            className="flex items-center justify-between"
-            style={{ color: tv.text.primary }}
-          >
-            <span>Notifications</span>
-            {unreadCount > 0 && (
-              <span
-                className="text-xs px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: tv.interactive.accent.muted,
-                  color: tv.typing.correct,
-                }}
-              >
-                {unreadCount} new
-              </span>
-            )}
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator style={{ backgroundColor: tv.border.subtle }} />
-
-          {notifications.length === 0 ? (
-            <div
-              className="py-8 text-center text-sm"
-              style={{ color: tv.text.secondary }}
-            >
-              No notifications yet
-            </div>
-          ) : (
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+            <h2 id={headingId} ref={headingRef} tabIndex={-1} className="text-sm font-semibold">Notifications</h2>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => setOpen(false)} aria-label="Close notifications"><XIcon className="size-4" aria-hidden="true" /></Button>
+          </div>
+          {notifications.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">No notifications yet</p> : (
             <>
-              <div className="flex items-center gap-2 p-2">
-                {unreadCount > 0 && (
-                  <button
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-xs transition hover:bg-gray-800/50"
-                    style={{ color: tv.text.secondary }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      markAllAsRead();
-                    }}
-                  >
-                    <CheckIcon className="size-3" />
-                    Mark all read
-                  </button>
-                )}
-                <button
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded text-xs transition hover:bg-gray-800/50"
-                  style={{ color: tv.text.secondary }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    clearAll();
-                  }}
-                >
-                  <Trash2Icon className="size-3" />
-                  Clear all
-                </button>
+              <div className="flex flex-wrap gap-1 border-b border-border p-2">
+                {unreadCount > 0 && <Button variant="ghost" size="sm" onClick={() => { markAllAsRead(); headingRef.current?.focus(); }}><CheckIcon className="size-4" aria-hidden="true" />Mark all read</Button>}
+                <Button variant="ghost" size="sm" onClick={() => { clearAll(); headingRef.current?.focus(); }}><Trash2Icon className="size-4" aria-hidden="true" />Clear all</Button>
               </div>
-
-              <DropdownMenuSeparator style={{ backgroundColor: tv.border.subtle }} />
-
-              {notifications.slice(0, 20).map((notification) => (
-                <DropdownMenuItem
-                  key={notification.id}
-                  className="group flex items-start gap-3 p-3 cursor-pointer"
-                  style={{
-                    backgroundColor: notification.read
-                      ? "transparent"
-                      : tv.interactive.accent.subtle,
-                  }}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="mt-0.5">{getNotificationIcon(notification)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className="text-sm font-medium truncate"
-                      style={{ color: tv.text.primary }}
-                    >
-                      {notification.title}
-                    </div>
-                    <div
-                      className="text-xs mt-0.5 line-clamp-2"
-                      style={{ color: tv.text.secondary }}
-                    >
-                      {notification.description}
-                    </div>
-                    <div
-                      className="text-xs mt-1"
-                      style={{ color: tv.text.muted }}
-                    >
-                      {getRelativeTime(notification.timestamp)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 mt-0.5">
+              <ul aria-label="Notifications" className="max-h-72 overflow-y-auto overscroll-contain p-1">
+                {notifications.map((notification) => (
+                  <li key={notification.id} className={`flex items-start gap-1 rounded-md ${notification.read ? "" : "bg-muted"}`}>
                     <button
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity hover:bg-gray-800/50"
-                      style={{ color: tv.text.secondary }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeNotification(notification.id);
-                      }}
-                      title="Remove notification"
+                      type="button"
+                      className="flex min-w-0 flex-1 items-start gap-3 rounded-md p-3 text-left hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      onClick={() => activate(notification)}
+                      aria-label={`${notification.title}${notification.read ? "" : ", unread"}`}
                     >
-                      <XIcon className="size-3.5" />
+                      <NotificationIcon notification={notification} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block break-words text-sm font-medium">{notification.title}</span>
+                        <span className="mt-1 block break-words text-xs text-muted-foreground">{notification.description}</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">{getRelativeTime(notification.timestamp)}</span>
+                      </span>
                     </button>
-                    {!notification.read && (
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: "#3B82F6" }}
-                      />
-                    )}
-                  </div>
-                </DropdownMenuItem>
-              ))}
+                    <Button variant="ghost" size="icon" className="mr-1 mt-1 size-9 shrink-0" aria-label={`Remove notification: ${notification.title}`} onClick={() => { removeNotification(notification.id); headingRef.current?.focus(); }}>
+                      <XIcon className="size-4" aria-hidden="true" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
             </>
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Achievements Modal */}
-      {showAchievementsModal && (
-        <AchievementsModal
-          earnedAchievements={earnedAchievements}
-          onClose={handleCloseModal}
-          initialAchievementId={selectedAchievementId}
-        />
-      )}
+        </PopoverContent>
+      </Popover>
+      {selectedAchievementId && <AchievementsModal earnedAchievements={earnedAchievements} initialAchievementId={selectedAchievementId} onClose={() => setSelectedAchievementId(null)} onCloseAutoFocus={(event) => { event.preventDefault(); triggerRef.current?.focus(); }} />}
     </>
   );
 }

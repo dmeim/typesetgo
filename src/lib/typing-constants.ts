@@ -1,6 +1,9 @@
 import { GLOBAL_COLORS } from "@/lib/colors";
 import type { Plan } from "@/types/plan";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
+import { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED } from "./practice-limits";
+
+export { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED } from "./practice-limits";
 
 export type Mode = "time" | "words" | "quote" | "zen" | "preset" | "plan";
 export type Difficulty = "beginner" | "easy" | "medium" | "hard" | "expert";
@@ -69,3 +72,14 @@ export const DEFAULT_THEME: Theme = {
   surfaceColor: GLOBAL_COLORS.surface, // Darker Charcoal - Cards, Modals
   ghostCursor: GLOBAL_COLORS.brand.accent, // Purple
 };
+
+export function normalizePracticeSettings(settings: SettingsState): SettingsState {
+  const clamp = (value: number, min: number, max: number, fallback: number) =>
+    Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+  return { ...settings,
+    typingFontSize: clamp(settings.typingFontSize, TEXT_SIZE_MIN, TEXT_SIZE_MAX, 3.25),
+    duration: Math.round(clamp(settings.duration, 1, MAX_DURATION_SECONDS, 30)),
+    wordTarget: Math.round(clamp(settings.wordTarget, 1, MAX_WORD_TARGET, 25)),
+    ghostWriterSpeed: clamp(settings.ghostWriterSpeed, 1, MAX_GHOST_SPEED, 40),
+  };
+}

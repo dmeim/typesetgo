@@ -1,5 +1,5 @@
 import type { SettingsState, Theme } from "@/lib/typing-constants";
-import { DEFAULT_THEME } from "@/lib/typing-constants";
+import { DEFAULT_THEME, normalizePracticeSettings } from "@/lib/typing-constants";
 import { DEFAULT_TYPING_FONT } from "@/lib/typing-fonts";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 
@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: Omit<
   punctuation: false,
   numbers: false,
   capitalization: false,
-  typingFontSize: 4,
+  typingFontSize: 3.25,
   typingFontFamily: DEFAULT_TYPING_FONT,
   iconFontSize: 1,
   helpFontSize: 1,
@@ -128,10 +128,11 @@ export function loadSettings(): Partial<SettingsState> | null {
     }
 
     // Merge with defaults to handle schema changes
-    return {
+    return normalizePracticeSettings({
       ...DEFAULT_SETTINGS,
+      presetText: "",
       ...parsed,
-    };
+    });
   } catch (error) {
     console.warn("Failed to load settings from localStorage:", error);
     return null;
@@ -224,7 +225,10 @@ export function loadLayoutSettings(): LayoutSettings | null {
     if (!stored) return null;
     const parsed = JSON.parse(stored);
     if (typeof parsed !== "object" || parsed === null) return null;
-    return { ...DEFAULT_LAYOUT, ...parsed };
+    return {
+      linePreview: Number.isFinite(parsed.linePreview) ? Math.max(1, Math.min(6, Math.round(parsed.linePreview))) : DEFAULT_LAYOUT.linePreview,
+      maxWordsPerLine: Number.isFinite(parsed.maxWordsPerLine) ? Math.max(1, Math.min(10, Math.round(parsed.maxWordsPerLine))) : DEFAULT_LAYOUT.maxWordsPerLine,
+    };
   } catch {
     return null;
   }

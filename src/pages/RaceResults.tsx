@@ -1,301 +1,266 @@
-// src/pages/RaceResults.tsx
-// Race results page with podium, stats, and action buttons
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery, useMutation } from "convex/react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery } from "convex/react";
+import { RotateCcw, LogOut, Trophy } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { Podium } from "@/components/race";
+import RaceState, { RaceError } from "@/components/race/RaceState";
+import { useRaceDeparture } from "@/components/race/useRaceDeparture";
 import { useSessionId } from "@/hooks/useSessionId";
 import { tv } from "@/lib/theme-vars";
-import { Loader2, RotateCcw, LogOut, Trophy, Users } from "lucide-react";
 
 export default function RaceResults() {
   const { raceId } = useParams<{ raceId: string }>();
   const navigate = useNavigate();
   const sessionId = useSessionId();
-
-  // State
-  const [isResetting, setIsResetting] = useState(false);
-  const hasNavigatedRef = useRef(false);
-
-  // Convex queries and mutations
-  const room = useQuery(
-    api.rooms.getById,
-    raceId ? { roomId: raceId as Id<"rooms"> } : "skip"
-  );
+  const roomId = raceId as Id<"rooms"> | undefined;
+  const room = useQuery(api.rooms.getById, roomId ? { roomId } : "skip");
   const results = useQuery(
     api.raceResults.getResults,
-    raceId ? { raceId: raceId as Id<"rooms"> } : "skip"
+    room ? { raceId: room._id } : "skip",
   );
-  const participants = useQuery(
-    api.participants.listByRoom,
-    raceId ? { roomId: raceId as Id<"rooms"> } : "skip"
+  const participant = useQuery(
+    api.participants.getBySession,
+    room ? { roomId: room._id, sessionId } : "skip",
   );
-
   const resetForNewRace = useMutation(api.rooms.resetForNewRace);
-  const disconnectParticipant = useMutation(api.participants.disconnect);
-
-  // Check if current user is host
+  const saveResults = useMutation(api.raceResults.saveResults);
+  const { leave, isLeaving, leaveError } = useRaceDeparture(participant?._id);
+  const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
+  const [error, setError] = useState("");
   const isHost = room?.hostId === sessionId;
+  const userRanking = results?.rankings.find(
+    (racer) => racer.sessionId === sessionId,
+  );
 
-  // Get current participant
-  const currentParticipant = participants?.find(p => p.sessionId === sessionId);
-
-  // Find user's position in results
-  const userRanking = results?.rankings?.find(r => r.sessionId === sessionId);
-
-  // Handle room reset - navigate back to lobby
   useEffect(() => {
-    if (room?.status === "waiting" && !room.raceStartTime && !hasNavigatedRef.current) {
-      hasNavigatedRef.current = true;
-      // Room has been reset - go back to lobby
-      navigate(`/race/lobby/${raceId}${isHost ? "?host=true" : ""}`);
-    }
-  }, [room?.status, room?.raceStartTime, raceId, isHost, navigate]);
+    if (
+      room?.status === "waiting" &&
+      !room.raceStartTime &&
+      participant?.isConnected &&
+      !isLeaving
+    )
+      navigate(`/race/lobby/${raceId}`, { replace: true });
+  }, [
+    room?.status,
+    room?.raceStartTime,
+    participant?.isConnected,
+    isLeaving,
+    raceId,
+    navigate,
+  ]);
 
-  // Handle "Race Again" - only host can do this
-  const handleRaceAgain = useCallback(async () => {
-    if (!raceId || !isHost || isResetting) return;
-    
-    setIsResetting(true);
+  const runAction = async (action: () => Promise<unknown>, message: string) => {
+    if (pendingRef.current || isLeaving) return;
+    pendingRef.current = true;
+    setPending(true);
+    setError("");
     try {
-      await resetForNewRace({ roomId: raceId as Id<"rooms"> });
-      // Navigation will happen via the useEffect above
-    } catch (error) {
-      console.error("Failed to reset race:", error);
-      setIsResetting(false);
+      await action();
+    } catch {
+      setError(message);
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
     }
-  }, [raceId, isHost, isResetting, resetForNewRace]);
+  };
 
-  // Handle leave
-  const handleLeave = useCallback(async () => {
-    if (currentParticipant) {
-      try {
-        await disconnectParticipant({ participantId: currentParticipant._id });
-      } catch (error) {
-        // Silently fail - we're leaving anyway
-      }
-    }
-    navigate("/race");
-  }, [currentParticipant, disconnectParticipant, navigate]);
-
-  // Loading state
-  if (!room || !results) {
+  if (!raceId || room === null)
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: tv.bg.base }}
-      >
-        <div className="flex items-center gap-3" style={{ color: tv.text.secondary }}>
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span>Loading results...</span>
-        </div>
-      </div>
+      <RaceState
+        title="Race not found"
+        description="This room may have expired or been removed."
+      />
     );
-  }
+  if (room === undefined || results === undefined || participant === undefined)
+    return <RaceState loading title="Loading results…" />;
+  if (room.gameMode !== "race")
+    return <RaceState title="This is not a race room" />;
+  if (!results)
+    return (
+      <RaceState
+        title={
+          room.raceEndTime
+            ? "Results are not available yet"
+            : "This race has not ended"
+        }
+        description={
+          room.raceEndTime
+            ? "The race ended, but its results have not been saved."
+            : "Results appear after the race finishes."
+        }
+      >
+        <div className="space-y-4">
+          <RaceError>{error || leaveError}</RaceError>
+          {room.raceEndTime ? (
+            <button
+              disabled={pending || isLeaving}
+              className="block mx-auto underline"
+              onClick={() =>
+                void runAction(
+                  () =>
+                    saveResults({
+                      raceId: room._id,
+                      raceStartTime: room.raceStartTime,
+                    }),
+                  "Could not prepare results. Try again.",
+                )
+              }
+            >
+              {pending ? "Preparing…" : "Prepare results"}
+            </button>
+          ) : (
+            <Link
+              className="block underline"
+              to={
+                room.raceStartTime
+                  ? `/race/${room._id}`
+                  : `/race/lobby/${room._id}`
+              }
+            >
+              Return to {room.raceStartTime ? "race" : "lobby"}
+            </Link>
+          )}
+          <button
+            disabled={isLeaving || pending}
+            className="underline"
+            onClick={() => void leave()}
+          >
+            {isLeaving ? "Leaving…" : "Leave Race"}
+          </button>
+        </div>
+      </RaceState>
+    );
 
   return (
-    <div
-      className="min-h-screen"
-      style={{ backgroundColor: tv.bg.base }}
+    <main
+      className="min-h-screen px-4 py-6 sm:py-10"
+      style={{ backgroundColor: tv.ui.background, color: tv.ui.foreground }}
     >
-      {/* Header */}
-      <header
-        className="px-6 py-4"
-        style={{
-          backgroundColor: tv.bg.surface,
-          borderBottom: `1px solid ${tv.border.default}`,
-        }}
-      >
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Trophy size={24} style={{ color: tv.status.warning.DEFAULT }} />
-            <h1
-              className="text-2xl font-bold"
-              style={{ color: tv.text.primary }}
+      <div className="max-w-5xl mx-auto min-w-0">
+        <header className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <h1 className="text-2xl font-bold inline-flex items-center gap-2">
+            <Trophy size={24} />
+            Race Results
+          </h1>
+          <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+            {results.totalRacers} racers
+          </p>
+        </header>
+        <div
+          className={`grid gap-6 mb-6 ${userRanking ? "lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]" : "grid-cols-1"}`}
+        >
+          {userRanking && (
+            <section
+              aria-label="Your result"
+              className="min-w-0 flex flex-wrap lg:flex-col gap-4"
             >
-              Race Results
-            </h1>
-          </div>
-
-          {/* Participant count */}
-          <div
-            className="flex items-center gap-2 text-sm"
-            style={{ color: tv.text.secondary }}
-          >
-            <Users size={18} />
-            <span>{results.totalRacers} racers</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <main className="py-8 px-4">
-        <div className="max-w-5xl mx-auto">
-          {/* Top section: Two columns - Stats on left (30%), Podium on right (70%) */}
-          <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-6 mb-8">
-            {/* Left column: Position + Speed stacked */}
-            {userRanking && (
-              <div className="flex flex-col gap-4">
-                {/* Position Card */}
-                <div
-                  className="flex-1 p-8 rounded-xl text-center flex flex-col justify-center"
-                  style={{
-                    backgroundColor: tv.bg.surface,
-                    border: `1px solid ${tv.border.default}`,
-                  }}
-                >
-                  <p
-                    className="text-sm font-medium mb-2"
-                    style={{ color: tv.text.secondary }}
-                  >
-                    Your Position
-                  </p>
-                  <p
-                    className="text-6xl font-black"
-                    style={{
-                      color:
-                        userRanking.position === 1
-                          ? tv.status.warning.DEFAULT
-                          : userRanking.position === 2
-                          ? "#c0c0c0"
-                          : userRanking.position === 3
-                          ? "#cd7f32"
-                          : tv.text.primary,
-                    }}
-                  >
-                    #{userRanking.position}
-                  </p>
-                  <p
-                    className="text-sm mt-2"
-                    style={{ color: tv.text.muted }}
-                  >
-                    {userRanking.position === 1
-                      ? "Winner!"
-                      : userRanking.position === 2
-                      ? "Runner Up"
-                      : userRanking.position === 3
-                      ? "Bronze"
-                      : `of ${results.totalRacers} racers`}
-                  </p>
-                </div>
-
-                {/* Speed Card */}
-                <div
-                  className="flex-1 p-8 rounded-xl text-center flex flex-col justify-center"
-                  style={{
-                    backgroundColor: tv.interactive.accent.subtle,
-                    border: `2px solid ${tv.interactive.accent.DEFAULT}`,
-                  }}
-                >
-                  <p
-                    className="text-sm font-medium mb-2"
-                    style={{ color: tv.text.secondary }}
-                  >
-                    Your Speed
-                  </p>
-                  <p
-                    className="text-6xl font-black"
-                    style={{ color: tv.interactive.accent.DEFAULT }}
-                  >
-                    {userRanking.wpm}
-                  </p>
-                  <p
-                    className="text-sm mt-2"
-                    style={{ color: tv.text.muted }}
-                  >
-                    words per minute
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Right column: Podium visualization only */}
-            <div
-              className="rounded-xl p-6 flex items-center justify-center"
-              style={{
-                backgroundColor: tv.bg.surface,
-                border: `1px solid ${tv.border.default}`,
-              }}
-            >
-              <Podium
-                rankings={results.rankings || []}
-                currentSessionId={sessionId}
-                showTable={false}
-              />
-            </div>
-          </div>
-
-          {/* Bottom section: Full results table */}
-          <Podium
-            rankings={results.rankings || []}
-            currentSessionId={sessionId}
-            showTable={true}
-            showPodium={false}
-          />
-
-          {/* Action buttons */}
-          <div className="flex items-center justify-center gap-4 mt-8">
-            {isHost ? (
-              <button
-                onClick={handleRaceAgain}
-                disabled={isResetting}
-                className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all hover:opacity-90 disabled:opacity-50"
-                style={{
-                  backgroundColor: tv.interactive.accent.DEFAULT,
-                  color: tv.text.inverse,
-                }}
-              >
-                {isResetting ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Resetting...
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw size={18} />
-                    Race Again
-                  </>
-                )}
-              </button>
-            ) : (
               <div
-                className="px-4 py-2 rounded-lg text-sm"
+                className="flex-1 rounded-xl border p-5 text-center"
                 style={{
-                  backgroundColor: tv.bg.elevated,
-                  color: tv.text.secondary,
+                  borderColor: tv.ui.border,
+                  backgroundColor: tv.ui.card,
                 }}
               >
-                Waiting for host to start new race...
+                <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                  Your position
+                </p>
+                <p
+                  className="text-5xl font-bold my-2"
+                  style={{ color: tv.ui.primary }}
+                >
+                  #{userRanking.position}
+                </p>
+                <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                  {userRanking.didFinish
+                    ? `of ${results.totalRacers} racers`
+                    : "Did not finish"}
+                </p>
               </div>
-            )}
-
+              <div
+                className="flex-1 rounded-xl border p-5 text-center"
+                style={{
+                  borderColor: tv.ui.border,
+                  backgroundColor: tv.ui.card,
+                }}
+              >
+                <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                  Your speed
+                </p>
+                <p
+                  className="text-5xl font-bold my-2"
+                  style={{ color: tv.ui.primary }}
+                >
+                  {userRanking.wpm}
+                </p>
+                <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                  words per minute
+                </p>
+              </div>
+            </section>
+          )}
+          <section
+            aria-label="Race podium"
+            className="min-w-0 flex items-center rounded-xl border p-3 sm:p-6"
+            style={{ borderColor: tv.ui.border, backgroundColor: tv.ui.card }}
+          >
+            <Podium
+              rankings={results.rankings}
+              currentSessionId={sessionId}
+              showTable={false}
+            />
+          </section>
+        </div>
+        <Podium
+          rankings={results.rankings}
+          currentSessionId={sessionId}
+          showPodium={false}
+        />
+        <RaceError>{error || leaveError}</RaceError>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+          {isHost && participant?.isConnected ? (
             <button
-              onClick={handleLeave}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all hover:opacity-90"
+              disabled={pending || isLeaving}
+              onClick={() =>
+                void runAction(
+                  () =>
+                    resetForNewRace({
+                      roomId: room._id,
+                      hostSessionId: sessionId,
+                    }),
+                  "Could not reset this race. Try again.",
+                )
+              }
+              className="inline-flex items-center gap-2 px-4 py-3 rounded-lg font-semibold disabled:opacity-50"
               style={{
-                backgroundColor: tv.bg.elevated,
-                color: tv.text.primary,
+                backgroundColor: tv.ui.primary,
+                color: tv.ui.primaryForeground,
               }}
             >
-              <LogOut size={18} />
-              Leave
+              <RotateCcw size={18} />
+              {pending ? "Resetting…" : "Race Again"}
             </button>
-          </div>
-
-          {/* Back link */}
-          <div className="text-center mt-8">
-            <Link
-              to="/race"
-              className="text-sm transition-opacity hover:opacity-80"
-              style={{ color: tv.text.secondary }}
+          ) : participant?.isConnected ? (
+            <p
+              className="text-sm text-center"
+              style={{ color: tv.ui.mutedForeground }}
             >
-              ← Back to Race Home
-            </Link>
-          </div>
+              Waiting for the host to start a new race.
+            </p>
+          ) : null}
+          <button
+            disabled={isLeaving || pending}
+            onClick={() => void leave()}
+            className="inline-flex items-center gap-2 px-4 py-3 rounded-lg disabled:opacity-50"
+            style={{ backgroundColor: tv.ui.secondary }}
+          >
+            <LogOut size={18} />
+            {isLeaving ? "Leaving…" : "Leave Race"}
+          </button>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

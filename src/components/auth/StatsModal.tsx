@@ -515,9 +515,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
   const isLoading = stats === undefined;
 
   // Sort results based on current sort state
+  const allResults = stats?.allResults;
   const sortedResults = useMemo(() => {
-    if (!stats?.allResults) return [];
-    return [...stats.allResults].sort((a, b) => {
+    if (!allResults) return [];
+    return [...allResults].sort((a, b) => {
       let comparison = 0;
       switch (sortColumn) {
         case "date":
@@ -532,7 +533,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
       }
       return sortDirection === "desc" ? -comparison : comparison;
     });
-  }, [stats?.allResults, sortColumn, sortDirection]);
+  }, [allResults, sortColumn, sortDirection]);
 
   // Handle sort column click - toggle direction if same column, otherwise set new column with desc
   const handleSort = (column: SortColumn) => {
