@@ -9,7 +9,40 @@ export default defineConfig({
     {
       name: "connect-isolated-fixture",
       configureServer(server) {
-        server.middlewares.use((req, _res, next) => {
+        server.middlewares.use((req, res, next) => {
+          const url = req.url?.split("?")[0] ?? "";
+          const manifests: Record<string, unknown> = {
+            "/words/manifest.json": {
+              difficulties: ["beginner", "easy", "medium", "hard", "expert"],
+              default: "medium",
+            },
+            "/quotes/manifest.json": {
+              lengths: ["short", "medium", "long", "xl"],
+              default: "medium",
+            },
+            "/sounds/manifest.json": {
+              typing: {
+                creamy: ["creamy_01.wav"],
+                bubbles: ["bubbles_01.wav"],
+              },
+              warning: { clock: ["clock.wav"] },
+              error: {},
+            },
+            "/themes/manifest.json": {
+              themes: ["typesetgo", "github"],
+              default: "typesetgo",
+            },
+          };
+          if (url in manifests) {
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify(manifests[url]));
+            return;
+          }
+          if (url === "/favicon.ico") {
+            res.statusCode = 204;
+            res.end();
+            return;
+          }
           if (req.url?.split("?")[0].startsWith("/connect"))
             req.url = "/tests/fixtures/connect-browser/index.html";
           next();

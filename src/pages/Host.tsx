@@ -284,6 +284,23 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
     }
   };
 
+  const requestConfirmation = async (
+    action: NonNullable<typeof confirmation>,
+  ) => {
+    const trigger = document.activeElement;
+    // Dialog portals are outside the fullscreen element's top layer.
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+        if (trigger instanceof HTMLElement) trigger.focus();
+      } catch {
+        setActionError("Exit fullscreen to manage this participant.");
+        return;
+      }
+    }
+    setConfirmation(action);
+  };
+
   if (!roomCode)
     return (
       <RoomPage>
@@ -486,9 +503,19 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
         <section
           ref={cards}
           className="min-w-0 space-y-4 rounded-xl p-1 sm:p-3"
-          style={{ backgroundColor: tv.ui.background }}
+          style={{
+            backgroundColor: tv.ui.background,
+            ...(fullscreen
+              ? ({
+                  height: "100dvh",
+                  overflowY: "auto",
+                  padding: "1rem",
+                } as const)
+              : {}),
+          }}
           aria-label="Participants"
         >
+          {fullscreen && actionError && <p role="alert">{actionError}</p>}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 className="text-xl font-semibold">
               Participants ({users.length})
@@ -609,14 +636,14 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                       viewMode={viewMode}
                       cardSize={cardSize}
                       onKick={() =>
-                        setConfirmation({
+                        void requestConfirmation({
                           kind: "remove",
                           id: user.id,
                           name: user.name,
                         })
                       }
                       onReset={() =>
-                        setConfirmation({
+                        void requestConfirmation({
                           kind: "reset",
                           id: user.id,
                           name: user.name,

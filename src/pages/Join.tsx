@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -54,7 +54,10 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
   const runVersion = room?.runVersion ?? 0;
   const resetVersion = participant?.resetVersion ?? 0;
   const settings = room?.settings as Partial<SettingsState> | undefined;
-  const lockedSettings = settings ? resolveRoomSettings(settings) : undefined;
+  const lockedSettings = useMemo(
+    () => (settings ? resolveRoomSettings(settings) : undefined),
+    [settings],
+  );
   const sessionKey =
     room && settings
       ? practiceSessionKey(room._id, runVersion, resetVersion, settings)

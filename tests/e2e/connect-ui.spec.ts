@@ -1,6 +1,20 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+const pageErrors = new WeakMap<Page, string[]>();
+function trackErrors(page: Page) {
+  const errors: string[] = [];
+  pageErrors.set(page, errors);
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  return errors;
+}
+test.afterEach(async ({ page }) => {
+  expect(pageErrors.get(page) ?? []).toEqual([]);
+});
 
 test.beforeEach(async ({ page }) => {
+  trackErrors(page);
   await page.route("**/*", (route) => {
     const url = new URL(route.request().url());
     if (url.hostname === "127.0.0.1" || url.protocol === "data:")
@@ -188,6 +202,7 @@ test("touch swipes on card content scroll the page without dragging", async ({
     reducedMotion: "reduce",
   });
   const page = await context.newPage();
+  const errors = trackErrors(page);
   await page.route("**/*", (route) =>
     new URL(route.request().url()).hostname === "127.0.0.1"
       ? route.continue()
@@ -227,5 +242,72 @@ test("touch swipes on card content scroll the page without dragging", async ({
       exact: true,
     }),
   ).toBeAttached();
+  expect(errors).toEqual([]);
   await context.close();
+});
+
+test("fullscreen cards exit fullscreen before opening a participant dialog", async ({
+  page,
+}) => {
+  await page.goto("/connect/host?name=FixtureHost");
+  await page.getByRole("button", { name: "Fullscreen", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(document.fullscreenElement)))
+    .toBe(true);
+  await page
+    .getByRole("button", { name: "Reset Participant 2", exact: true })
+    .click();
+  await expect
+    .poll(() => page.evaluate(() => Boolean(document.fullscreenElement)))
+    .toBe(false);
+  await expect(
+    page.getByRole("dialog", { name: "Reset participant?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Reset Participant 2", exact: true }),
+  ).toBeFocused();
+});
+
+test("host loads the theme catalog on demand and sends the selected theme", async ({
+  page,
+}) => {
+  let githubRequests = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/themes/github.json")
+      githubRequests++;
+  });
+  await page.goto("/connect/host?name=FixtureHost");
+  await expect(page.getByRole("heading", { name: "Host panel" })).toBeVisible();
+  expect(githubRequests).toBe(0);
+  await page
+    .getByRole("button", { name: "Participant theme", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("option", { name: "GitHub", exact: true }),
+  ).toBeAttached();
+  expect(githubRequests).toBe(1);
+  await page
+    .getByRole("dialog")
+    .getByRole("combobox")
+    .selectOption({ label: "GitHub" });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Boolean(
+          (
+            window as unknown as {
+              connectFixture: { room: { settings: { theme?: unknown } } };
+            }
+          ).connectFixture.room.settings.theme,
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "Participant theme", exact: true }),
+  ).toBeFocused();
 });

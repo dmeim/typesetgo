@@ -163,9 +163,11 @@ describe("participant session lifecycle", () => {
     const input = await screen.findByLabelText("Practice input");
     fireEvent.change(input, { target: { value: "typed" } });
     const callback = state.props.onStatsUpdate;
+    const lockedSettings = state.props.lockedSettings;
     rendered.rerender(<View />);
     expect(state.mount).toHaveBeenCalledTimes(1);
     expect(state.props.onStatsUpdate).toBe(callback);
+    expect(state.props.lockedSettings).toBe(lockedSettings);
     state.room = { ...state.room, status: "waiting" };
     rendered.rerender(<View />);
     expect(state.props.isTestActive).toBe(false);
