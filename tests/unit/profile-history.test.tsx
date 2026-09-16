@@ -164,6 +164,23 @@ describe("profile recent charts", () => {
     expect(fixture.chartData[0].value).toBe(200);
   });
 
+  it("marks the earliest tied extrema without modifying saved results", () => {
+    const results = [90, 60, 90, 60].map((wpm, index) => Object.freeze({
+      ...baseResult, _id: `test-${index}`, wpm, createdAt: baseResult.createdAt - index * 60_000,
+    }));
+    Object.freeze(results);
+    fixture.stats = makeStats(results);
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: /^Best WPM:/ }));
+    expect(fixture.chartData.map(({ value, isBest, isLowest }) => ({ value, isBest, isLowest }))).toEqual([
+      { value: 60, isBest: false, isLowest: true },
+      { value: 90, isBest: true, isLowest: false },
+      { value: 60, isBest: false, isLowest: false },
+      { value: 90, isBest: false, isLowest: false },
+    ]);
+    expect(results.map((result) => result.wpm)).toEqual([90, 60, 90, 60]);
+  });
+
   it("keeps an invalid-only recent history distinct from missing history", () => {
     fixture.stats = makeStats([{ ...baseResult, isValid: false }]);
     mount();

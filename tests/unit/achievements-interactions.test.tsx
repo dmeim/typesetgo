@@ -11,26 +11,28 @@ vi.mock("framer-motion", () => ({ useReducedMotion: () => motion.reduced }));
 vi.mock("embla-carousel-react", async () => {
   const { useMemo } = await import("react");
   return {
-    default: (options: { startIndex: number }) => useMemo(() => {
-      let index = options.startIndex;
-      const listeners = new Map<string, Set<() => void>>();
-      const emit = () => listeners.get("select")?.forEach((listener) => listener());
-      const api = {
-        selectedScrollSnap: () => index,
-        canScrollPrev: () => index > 0,
-        canScrollNext: () => true,
-        scrollPrev: (jump: boolean) => { carouselCalls.previous(jump); index = Math.max(0, index - 1); emit(); },
-        scrollNext: (jump: boolean) => { carouselCalls.next(jump); index += 1; emit(); },
-        scrollTo: (target: number, jump: boolean) => { carouselCalls.to(target, jump); index = target; emit(); },
-        on: (event: string, listener: () => void) => {
-          if (!listeners.has(event)) listeners.set(event, new Set());
-          listeners.get(event)!.add(listener);
-          return api;
-        },
-        off: (event: string, listener: () => void) => { listeners.get(event)?.delete(listener); return api; },
-      };
-      return [() => {}, api];
-    }, []),
+    default: function useMockEmblaCarousel(options: { startIndex: number }) {
+      return useMemo(() => {
+        let index = options.startIndex;
+        const listeners = new Map<string, Set<() => void>>();
+        const emit = () => listeners.get("select")?.forEach((listener) => listener());
+        const api = {
+          selectedScrollSnap: () => index,
+          canScrollPrev: () => index > 0,
+          canScrollNext: () => true,
+          scrollPrev: (jump: boolean) => { carouselCalls.previous(jump); index = Math.max(0, index - 1); emit(); },
+          scrollNext: (jump: boolean) => { carouselCalls.next(jump); index += 1; emit(); },
+          scrollTo: (target: number, jump: boolean) => { carouselCalls.to(target, jump); index = target; emit(); },
+          on: (event: string, listener: () => void) => {
+            if (!listeners.has(event)) listeners.set(event, new Set());
+            listeners.get(event)!.add(listener);
+            return api;
+          },
+          off: (event: string, listener: () => void) => { listeners.get(event)?.delete(listener); return api; },
+        };
+        return [() => {}, api];
+      }, [options.startIndex]);
+    },
   };
 });
 

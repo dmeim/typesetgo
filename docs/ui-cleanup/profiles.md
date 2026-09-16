@@ -17,7 +17,7 @@ Both implementation workers are configured as GPT-6 Astra with XHigh reasoning. 
 - Missing optional historical metrics are rendered with zero fallbacks in the original detail dialog. The fixture distinguishes absent values from recorded zero.
 - `AchievementsCategoryGrid` originally calls the signed-in viewer's mutation while displaying the visited profile's achievements. Ownership must be supplied by the profile page.
 - Baseline browser check at 320 CSS pixels reproduces hidden Today/Week leaderboard sections and profile horizontal overflow (document width 334px). Source confirms fixed history columns, absolutely centered profile identity, 7px long-name podium text, non-button chart/history targets, and index-dependent list entrance delays.
-- Reachability inspection finds the active profile uses `AchievementsCategoryGrid`, `AchievementsModal`, `AchievementDetailModal`, and `UserStatsChartModal`. Legacy `StatsModal`, `AchievementsGrid`, and `StreakCard` have no active route callers and are deferred.
+- Reachability inspection finds the active profile uses `AchievementsCategoryGrid`, `AchievementsModal`, `AchievementDetailModal`, and `UserStatsChartModal`. Legacy `StatsModal`, `AchievementsGrid`, and `StreakCard` have no active route callers; their UI cleanup is deferred. The integration coordinator later assigned a minimal memo-dependency lint correction in `StatsModal`, without enabling it.
 
 ## Contracts and integration order
 
@@ -77,23 +77,33 @@ No addressed audit finding proved incorrect. The audit's dormant-code warning wa
 
 ## Final validation and review
 
-- **Build passed:** `bun run build`, including TypeScript and production bundle. With the integrated Foundations lazy routes, the entry is 449.66 kB (136.22 kB gzip), UserStats is a separate 407.02 kB chunk, and the baseline oversized-entry warning is absent. This is build evidence, not a measured loading-performance claim.
-- **Full unit suite passed:** `bun run test:run`, **137 tests across 16 files**, after the final shared submenu/IME Escape followup. This includes 27 scoped profiles/leaderboard/achievement regressions and the integrated Foundations tests. Earlier targeted checks passed before the full run.
+- **Build passed:** `bun run build`, including TypeScript and production bundle, rerun after the integration lint followup. With the integrated Foundations lazy routes, the entry is 449.66 kB (136.23 kB gzip), UserStats is a separate 407.14 kB chunk, and the baseline oversized-entry warning is absent. This is build evidence, not a measured loading-performance claim.
+- **Full unit suite passed:** `bun run test:run`, **138 tests across 16 files**, after the integration lint followup. This includes 28 scoped profiles/leaderboard/achievement regressions and the integrated Foundations tests. The two directly affected test files also passed separately (23 tests).
 - **Browser passed:** `node tests/browser/profiles/check.mjs`, Chrome 152.0.7977.84, 13 check groups. All requests were restricted to the local fixture origin; no unexpected external requests or page errors occurred.
 - **Layout/visual matrix:** 320×740 light/reduced motion; 390×844 dark/normal motion; 768×900 light/reduced; 1440×1000 dark/normal; and 640×450 CSS viewport equivalent to 200% zoom on 1280×900. No page horizontal overflow, all compact leaderboard ranges present, bounded dialogs, and readable long names. The zoom check verifies reflow dimensions, not browser-chrome zoom controls. Screenshots of light/dark profile, leaderboard, chart, achievement board and nested detail were visually inspected.
 - **Behavior matrix:** keyboard chart cards, sample-high/low toggles, 99-valid-test data disclosure, lifetime best outside the latest-100 sample, absent legacy metrics, nested delete confirmation focus/rapid Escape, owner/visitor/anonymous capabilities, failed refresh/delete recovery, loading/empty/missing profiles, independently loading achievements, nested achievement focus trap/restoration, real carousel one-step arrows/direct choice with reduced motion, and real notification→achievement→Escape→persistent-trigger restoration.
 - **Review cleared:** read-only GPT-6 Astra XHigh reviewer examined the integrated profiles diff and followups. Its single P2 finding (disappearing notification opener) was resolved by `0442965` + `c94498c`, with component regression and real-caller browser evidence. Final review found no profiles-owned blockers.
 - **Additional integration defect reproduced and resolved:** importing the shared animation runtime exposed a rapid keyboard Enter→Enter→Escape sequence that dismissed both nested test dialogs. The manager reproduced it without backend access and sent decisive Radix passive-layer registration evidence to Foundations. Shared commit `8244849` (`103f562` here) fixes ownership centrally; the original immediate reproduction now passes without test delays or screen-specific guards.
-- **Lint blocked:** final `bun run lint` still exits before source analysis with `typescript-eslint does not support TS 7.0`, identical to baseline. No lint pass is claimed.
+- **Lane lint passed with integration's repaired toolchain:** the four files assigned in the integration lint followup have zero errors or warnings using the coordinator's supported ESLint configuration. The unchanged local `bun run lint` configuration previously failed before source analysis with `typescript-eslint does not support TS 7.0`; repository-wide tooling and lint verification remain coordinator-owned. This lane does not claim a full-repository lint pass.
 - `git diff --check` passed.
 
-Final screenshot evidence from the local run is in `/var/folders/hb/0b1xdv1j0x71lfng992wcljc0000gn/T/typesetgo-profiles-SOKeXU`; the runner prints a fresh directory each run.
+Final screenshot evidence from the local run is in `/var/folders/hb/0b1xdv1j0x71lfng992wcljc0000gn/T/typesetgo-profiles-uwkgsH`; the runner prints a fresh directory each run.
+
+## Integration lint followup
+
+The integration coordinator supplied a working TypeScript parser and assigned the resulting profiles findings. No package, lint configuration, shared source, or integration-worktree files were changed by this lane.
+
+- `UserStatsChartModal` now computes extrema with immutable reductions and maps, satisfying the compiler lint rule while preserving first chronological ties, empty input, and saved-result immutability. A frozen newest-first history regression covers tied extrema and source ordering.
+- The Embla test double is an explicitly named custom hook with its actual `startIndex` dependency, satisfying hook naming and dependency rules.
+- Dormant `StatsModal` uses a stable local `allResults` alias consistently inside and outside its memo. This is the coordinator-requested minimal compiler-lint correction; no dormant feature was activated or polished.
+- Supported scoped lint command: `/Users/dimitri/Code/typesetgo-worktrees/integration-tooling/node_modules/.bin/eslint --config /Users/dimitri/Code/typesetgo-worktrees/integration-tooling/eslint.config.js src/components/auth/StatsModal.tsx src/components/stats/UserStatsChartModal.tsx tests/unit/achievements-interactions.test.tsx tests/unit/profile-history.test.tsx`.
+- Targeted tests, full build, full unit suite, all 13 isolated browser check groups, and whitespace checks passed. The read-only GPT-6 Astra XHigh reviewer found no actionable issues in this followup. No public interfaces changed, lint suppressions were added, or updates were deferred asynchronously.
 
 ## Disposition and remaining limits
 
 - **Implemented and verified:** every profiles-owned audit item in the table, including active dialog/matte/reduced-motion behavior, is covered by source evidence and scoped tests/browser checks as appropriate.
-- **Blocked gate:** ESLint startup incompatibility remains a repository tooling dependency; it did not analyze this lane's source.
-- **Deferred intentionally:** dormant `StatsModal`, `AchievementsGrid`, and `StreakCard`; race-list entrance behavior belongs to multiplayer. No dormant features were activated.
+- **Integration-owned gate:** the coordinator repaired the lint toolchain externally; assigned profiles findings are resolved and pass scoped lint. The coordinator owns package integration and full-repository lint verification.
+- **Deferred intentionally:** UI cleanup of dormant `StatsModal`, `AchievementsGrid`, and `StreakCard`; race-list entrance behavior belongs to multiplayer. No dormant features were activated.
 - **Unverified live behavior:** real Clerk sessions and live Convex mutation/deletion/recheck execution were not exercised. Ownership, >100 lifetime histories, missing values and failures use isolated fixtures. Query-error recovery comes from the integrated Foundations route boundary; no live service failures were induced.
 - **Integration:** consume the Foundations prerequisites above before the profiles commits, and the delegated notification callback after its modal contract. There are no remaining local implementation blockers or backend contract requests for this lane. No audit finding addressed here was rejected as incorrect.
 

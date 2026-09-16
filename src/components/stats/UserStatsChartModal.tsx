@@ -174,12 +174,7 @@ export default function UserStatsChartModal({
       .filter((r) => r.isValid !== false)
       .sort((a, b) => a.createdAt - b.createdAt);
 
-    let bestIdx = -1;
-    let lowestIdx = -1;
-    let bestVal = -Infinity;
-    let lowestVal = Infinity;
-
-    const data = validResults.map((r, i) => {
+    const data = validResults.map((r) => {
       let value: number;
       switch (meta.dataKey) {
         case "duration":
@@ -199,31 +194,25 @@ export default function UserStatsChartModal({
           break;
       }
 
-      if (value > bestVal) {
-        bestVal = value;
-        bestIdx = i;
-      }
-      if (value < lowestVal) {
-        lowestVal = value;
-        lowestIdx = i;
-      }
-
       return {
         time: r.createdAt,
         dateLabel: formatDate(r.createdAt),
         timeLabel: formatTime(r.createdAt),
         fullDate: formatFullDateTime(r.createdAt),
         value,
-        // These will be set after the loop
-        isBest: false,
-        isLowest: false,
       };
     });
 
-    if (bestIdx >= 0) data[bestIdx].isBest = true;
-    if (lowestIdx >= 0) data[lowestIdx].isLowest = true;
+    const { bestIndex, lowestIndex } = data.reduce((extrema, point, index) => ({
+      bestIndex: point.value > (data[extrema.bestIndex]?.value ?? -Infinity) ? index : extrema.bestIndex,
+      lowestIndex: point.value < (data[extrema.lowestIndex]?.value ?? Infinity) ? index : extrema.lowestIndex,
+    }), { bestIndex: -1, lowestIndex: -1 });
 
-    return { chartData: data };
+    return { chartData: data.map((point, index) => ({
+      ...point,
+      isBest: index === bestIndex,
+      isLowest: index === lowestIndex,
+    })) };
   }, [allResults, meta.dataKey]);
 
   // Chart config using theme colors
