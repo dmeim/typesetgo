@@ -25,11 +25,12 @@ try {
   });
 
   async function open(route, { scenario = "owner", theme = "dark", width = 390, height = 844, zoom = 1, reducedMotion = "reduce" } = {}) {
-    await page.setViewportSize({ width, height });
+    // Browser zoom changes the available CSS viewport; CSS zoom does not correctly
+    // emulate viewport units in fixed dialogs. Exercise the equivalent reflow size.
+    await page.setViewportSize({ width: Math.floor(width / zoom), height: Math.floor(height / zoom) });
     await page.emulateMedia({ reducedMotion });
     await page.goto(`${url}${route}?scenario=${scenario}&theme=${theme}`);
-    await page.locator("h1").waitFor();
-    await page.evaluate((value) => { document.documentElement.style.zoom = String(value); }, zoom);
+    await page.locator("#root > *").first().waitFor();
     await page.waitForTimeout(200);
   }
 
@@ -62,6 +63,8 @@ try {
     await card.focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("dialog", { name: "Recent WPM" })).toBeVisible();
+    await expect(page.getByText("Lifetime best WPM: 180", { exact: true })).toBeVisible();
+    await expect(page.getByText(/99 valid tests from the latest 100 saved tests/)).toBeVisible();
     await dialogWithinViewport(`chart ${label}`);
     await page.screenshot({ path: path.join(output, `chart-${label}.png`) });
     await page.keyboard.press("Escape");
@@ -76,6 +79,20 @@ try {
   }
 
   await open("/user/profile-owner");
+  await page.getByRole("button", { name: /^Best WPM:/ }).click();
+  const sampleToggle = page.getByRole("button", { name: "Highest in sample", exact: true });
+  await sampleToggle.focus();
+  await page.keyboard.press("Space");
+  await expect(sampleToggle).toHaveAttribute("aria-pressed", "false");
+  const disclosure = page.locator("summary", { hasText: "View chart data (99 tests)" });
+  await disclosure.focus();
+  await page.keyboard.press("Enter");
+  const dataTable = page.getByRole("table", { name: "Recent valid tests, oldest first" });
+  await expect(dataTable).toBeVisible();
+  await expect(dataTable.getByRole("row")).toHaveCount(100);
+  await expect(dataTable).toContainText("89 (highest in sample)");
+  await page.keyboard.press("Escape");
+  checks.push("lifetime best outside recent sample, sample toggles and keyboard chart-data disclosure");
   const row = page.getByRole("button", { name: /View details/ }).first();
   await row.focus();
   await page.keyboard.press("Enter");
@@ -122,6 +139,11 @@ try {
   const achievementDetail = page.getByRole("dialog", { name: "Achievement details", exact: true });
   await expect(achievementDetail).toBeVisible();
   await dialogWithinViewport("achievement details");
+  await achievementDetail.getByRole("button", { name: "Next achievement", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(achievementDetail.getByRole("status")).toHaveText(/^2 \//);
+  await achievementDetail.getByRole("combobox", { name: "Choose achievement" }).selectOption("3");
+  await expect(achievementDetail.getByRole("status")).toHaveText(/^4 \//);
   await page.screenshot({ path: path.join(output, "achievement-detail-320-light.png") });
   for (let index = 0; index < 8; index += 1) {
     await page.keyboard.press("Tab");
@@ -157,6 +179,18 @@ try {
     await page.screenshot({ path: path.join(output, `profile-${scenario}.png`) });
   }
   checks.push("empty, loading, missing, and independent achievement loading states");
+
+  await open("/notifications", { width: 320, theme: "light" });
+  const notificationTrigger = page.getByRole("button", { name: /^Notifications/ });
+  await notificationTrigger.focus();
+  await page.keyboard.press("Enter");
+  const notification = page.getByRole("button", { name: /^Fixture achievement unlocked/ });
+  await notification.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "All Achievements", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(notificationTrigger).toBeFocused();
+  checks.push("notification achievement dialog returns focus to surviving Notifications trigger");
 
   assert.deepEqual(errors, [], "Browser errors");
   assert.deepEqual(blockedRequests, [], "Unexpected external requests (blocked before leaving localhost)");

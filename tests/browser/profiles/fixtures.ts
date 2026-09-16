@@ -74,7 +74,7 @@ export function useQuery(reference: Parameters<typeof getFunctionName>[0], args:
       allResults: empty ? [] : recentResults,
     };
   }
-  if (name === "achievements:getUserAchievementsByUserId") {
+  if (name === "achievements:getUserAchievementsByUserId" || name === "achievements:getUserAchievements") {
     if (scenario === "achievements-loading") return undefined;
     return scenario === "empty" ? {} : Object.fromEntries(
       ALL_ACHIEVEMENTS.filter((_, index) => index % 3 === 0).map((a) => [a.id, now]),
