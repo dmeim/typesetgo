@@ -80,6 +80,58 @@ describe("theme loading lifecycle", () => {
     expect(fetch).toHaveBeenCalledTimes(19);
   });
 
+  it.each(["theme-17", "outside-catalog"])("prioritizes foreground %s ahead of catalog backlog without duplicate requests", async (selectedId) => {
+    const themes = await import("@/lib/themes");
+    const palette = themes.getDefaultTheme().dark;
+    const ids = Array.from({ length: 18 }, (_, i) => `theme-${i}`);
+    const pending = new Map<string, () => void>();
+    let active = 0;
+    let peak = 0;
+    let autoComplete = false;
+    const fetch = vi.fn((url: string) => {
+      active++;
+      peak = Math.max(peak, active);
+      if (autoComplete) {
+        active--;
+        return Promise.resolve(response({ dark: palette }));
+      }
+      const request = deferred<Response>();
+      pending.set(url, () => {
+        pending.delete(url);
+        active--;
+        request.resolve(response({ dark: palette }));
+      });
+      return request.promise;
+    });
+    vi.stubGlobal("fetch", fetch);
+    const catalog = themes.fetchThemeCatalog({ themeIds: ids });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(6));
+    const selection = themes.fetchTheme(selectedId);
+    const repeatedSelection = themes.fetchTheme(selectedId);
+    const selectedUrl = `/themes/${selectedId}.json`;
+    expect(fetch).toHaveBeenCalledTimes(6);
+
+    pending.get("/themes/theme-0.json")!();
+    await vi.waitFor(() => expect(fetch.mock.calls[6]?.[0]).toBe(selectedUrl));
+    expect(fetch.mock.calls.filter(([url]) => url === selectedUrl)).toHaveLength(1);
+    expect(peak).toBe(6);
+    pending.get(selectedUrl)!();
+    const [selected, repeated] = await Promise.all([selection, repeatedSelection]);
+    expect(selected?.id).toBe(selectedId);
+    expect(repeated).toBe(selected);
+
+    autoComplete = true;
+    for (const finish of [...pending.values()]) finish();
+    const completedCatalog = await catalog;
+    expect(completedCatalog.complete).toBe(true);
+    if (ids.includes(selectedId)) {
+      expect(completedCatalog.themes.find((theme) => theme.id === selectedId)).toBe(selected);
+    }
+    expect(fetch).toHaveBeenCalledTimes(ids.length + (ids.includes(selectedId) ? 0 : 1));
+    expect(fetch.mock.calls.filter(([url]) => url === selectedUrl)).toHaveLength(1);
+    expect(peak).toBe(6);
+  });
+
   it("distinguishes a failed manifest from an empty catalog and permits an explicit retry", async () => {
     const themes = await import("@/lib/themes");
     const fetch = vi.fn().mockResolvedValueOnce(response(null, false))
