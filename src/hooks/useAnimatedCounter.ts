@@ -1,53 +1,75 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-/**
- * Hook that animates a number from 0 to target value.
- * Returns the current animated value as a rounded integer.
- */
-export function useAnimatedCounter(
-  target: number,
-  duration = 1200,
-  delay = 0
-): number {
-  const [value, setValue] = useState(0);
-  const rafRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number | null>(null);
+const motionQuery = "(prefers-reduced-motion: reduce)";
+
+function subscribeToMotionPreference(onChange: () => void) {
+  const query = window.matchMedia?.(motionQuery);
+  query?.addEventListener("change", onChange);
+  return () => query?.removeEventListener("change", onChange);
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia?.(motionQuery).matches ?? false;
+}
+
+/** Return a rounded integer animated from the displayed value, with cancellable work. */
+export function useAnimatedCounter(target: number, duration = 1200, delay = 0): number {
+  const reducedMotion = useSyncExternalStore(
+    subscribeToMotionPreference,
+    prefersReducedMotion,
+    () => false
+  );
+  const endValue = Math.round(target);
+  const immediate = reducedMotion || duration <= 0 || endValue === 0;
+  const [value, setValue] = useState(immediate ? endValue : 0);
+  const displayedValueRef = useRef(value);
+
+  // Immediate values are derived during render, without scheduling a stale frame.
+  if (immediate && !Object.is(value, endValue)) {
+    setValue(endValue);
+  }
 
   useEffect(() => {
-    // Clean up any previous animation
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-
-    if (target === 0) {
-      // Use rAF to avoid synchronous setState in effect body
-      rafRef.current = requestAnimationFrame(() => setValue(0));
+    if (immediate) {
+      displayedValueRef.current = endValue;
       return;
     }
 
-    const timeout = setTimeout(() => {
-      startTimeRef.current = null;
+    const from = displayedValueRef.current;
+    let frameId: number | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    let startedAt: number | null = null;
+    let cancelled = false;
 
-      const step = (timestamp: number) => {
-        if (!startTimeRef.current) startTimeRef.current = timestamp;
-        const elapsed = timestamp - startTimeRef.current;
-        const progress = Math.min(elapsed / duration, 1);
+    const step = (timestamp: number) => {
+      if (cancelled) return;
+      frameId = null;
+      if (startedAt === null) startedAt = timestamp;
+      const progress = Math.min(Math.max((timestamp - startedAt) / duration, 0), 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const next = Math.round(from + (endValue - from) * eased);
+      displayedValueRef.current = next;
+      setValue(next);
+      if (progress < 1) frameId = requestAnimationFrame(step);
+    };
 
-        // Ease-out cubic
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setValue(Math.round(eased * target));
-
-        if (progress < 1) {
-          rafRef.current = requestAnimationFrame(step);
-        }
-      };
-
-      rafRef.current = requestAnimationFrame(step);
-    }, delay);
+    if (from !== endValue) {
+      if (delay > 0) {
+        timeout = setTimeout(() => {
+          timeout = null;
+          frameId = requestAnimationFrame(step);
+        }, delay);
+      } else {
+        frameId = requestAnimationFrame(step);
+      }
+    }
 
     return () => {
-      clearTimeout(timeout);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      cancelled = true;
+      if (timeout !== null) clearTimeout(timeout);
+      if (frameId !== null) cancelAnimationFrame(frameId);
     };
-  }, [target, duration, delay]);
+  }, [endValue, duration, delay, immediate]);
 
-  return value;
+  return immediate ? endValue : value;
 }

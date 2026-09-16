@@ -1,15 +1,16 @@
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
 import { useQuery } from "convex/react";
+import { Sun, Moon, Keyboard, Flag, GraduationCap, Palette, Settings, Trophy, ChartNoAxesColumn } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { useTheme } from "@/hooks/useTheme";
-import { tv } from "@/lib/theme-vars";
-import { UserButton } from "@/components/auth";
+import UserButton from "@/components/auth/UserButton";
 import NotificationCenter from "@/components/layout/NotificationCenter";
-import { Sun, Moon, Keyboard, Flag, GraduationCap, Palette } from "lucide-react";
+import { useAppAuth } from "@/components/layout/useAppAuth";
 
 interface HeaderProps {
   hidden?: boolean;
+  focusTargetRef?: RefObject<HTMLElement | null>;
   onOpenThemeModal?: () => void;
   onOpenSettings?: () => void;
 }
@@ -20,248 +21,123 @@ const NAV_TABS = [
   { label: "Lessons", path: "/lessons", icon: GraduationCap, enabled: false },
 ] as const;
 
-export default function Header({
-  hidden = false,
-  onOpenThemeModal,
-  onOpenSettings,
-}: HeaderProps) {
-  const { user: clerkUser, isSignedIn, isLoaded } = useUser();
+const iconButton = "inline-flex size-10 shrink-0 items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:text-muted-foreground";
+
+export default function Header({ hidden = false, focusTargetRef, onOpenThemeModal, onOpenSettings }: HeaderProps) {
+  const { user, isSignedIn, isLoaded, available } = useAppAuth();
   const { mode, toggleMode, supportsLightMode } = useTheme();
   const location = useLocation();
-
-  // Determine active tab based on current path
-  const getActiveTab = () => {
-    if (location.pathname === "/") return "/";
-    if (location.pathname.startsWith("/race")) return "/race";
-    if (location.pathname.startsWith("/lessons")) return "/lessons";
-    return "/"; // Default to Type tab for other pages
-  };
-
-  const activeTab = getActiveTab();
-
-  // Fetch current user's Convex ID for stats link
-  const accountFeaturesEnabled = isLoaded && isSignedIn;
+  const headerRef = useRef<HTMLElement>(null);
+  const hiddenFocusRef = useRef<HTMLElement | null>(null);
+  const chromeFocusRef = useRef<HTMLElement | null>(null);
+  const chromeTriggerRef = useRef<HTMLElement | null>(null);
+  const accountFeaturesEnabled = available && isLoaded && isSignedIn;
   const convexUser = useQuery(
     api.users.getUser,
-    accountFeaturesEnabled && clerkUser ? { clerkId: clerkUser.id } : "skip"
+    accountFeaturesEnabled && user ? { clerkId: user.id } : "skip"
   );
-
   const statsUrl = convexUser?._id ? `/user/${convexUser._id}` : null;
-  const isStatsEnabled = accountFeaturesEnabled && Boolean(statsUrl);
+
+  useLayoutEffect(() => {
+    const trackOutsideFocus = (event: FocusEvent) => {
+      if (event.target !== chromeFocusRef.current && !headerRef.current?.contains(event.target as Node)) {
+        chromeFocusRef.current = null;
+      }
+    };
+    document.addEventListener("focusin", trackOutsideFocus);
+    return () => document.removeEventListener("focusin", trackOutsideFocus);
+  }, []);
+
+  useLayoutEffect(() => {
+    const focusTarget = focusTargetRef?.current ?? document.querySelector<HTMLElement>("main");
+    if (hidden && (headerRef.current?.contains(document.activeElement) || chromeFocusRef.current)) {
+      hiddenFocusRef.current = chromeTriggerRef.current;
+      chromeFocusRef.current = null;
+      focusTarget?.focus({ preventScroll: true });
+    } else if (!hidden && hiddenFocusRef.current) {
+      if (document.activeElement === focusTarget || document.activeElement === document.body) {
+        hiddenFocusRef.current.focus({ preventScroll: true });
+      }
+      hiddenFocusRef.current = null;
+    }
+  }, [hidden, focusTargetRef]);
 
   return (
-    <header className="absolute top-0 inset-x-0 p-4 md:p-6 z-50 flex items-center justify-between transition-opacity duration-300 pointer-events-none gap-2" style={{ opacity: hidden ? 0 : 1 }}>
-      {/* Left Section: Logo + Settings + Theme + Light/Dark */}
-      <div className={`flex items-center gap-4 shrink-0 ${hidden ? "" : "pointer-events-auto"}`}>
-        {/* Logo */}
-        <Link to="/" className="w-[170px] md:w-[280px] shrink-0 md:-mr-9">
-          <img
-            src="/assets/Banner-Color.svg"
-            alt="TypeSetGo"
-            className="w-full h-auto"
-          />
-        </Link>
+    <header
+      ref={headerRef}
+      onFocusCapture={(event) => {
+        chromeFocusRef.current = event.target as HTMLElement;
+        chromeTriggerRef.current = headerRef.current?.contains(event.target)
+          ? event.target as HTMLElement
+          : headerRef.current?.querySelector<HTMLElement>('[aria-expanded="true"]') ?? null;
+      }}
+      inert={hidden}
+      aria-hidden={hidden || undefined}
+      className="relative z-40 grid shrink-0 grid-cols-2 items-center gap-x-2 gap-y-2 border-b border-transparent px-3 py-3 transition-opacity duration-200 motion-reduce:transition-none sm:px-6 lg:grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] lg:gap-x-4"
+      style={{ opacity: hidden ? 0 : 1 }}
+    >
+      <Link to="/" aria-label="TypeSetGo home" className="order-1 w-36 max-w-full rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:w-44">
+        <img src="/assets/Banner-Color.svg" alt="TypeSetGo" className="h-auto w-full" />
+      </Link>
 
-        <div className="flex items-center gap-2">
-          {/* Settings */}
-          {onOpenSettings && (
-            <button
-              onClick={onOpenSettings}
-              className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-              style={{ color: tv.interactive.primary.DEFAULT }}
-              title="Settings"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </button>
-          )}
-
-          {/* Theme Picker */}
-          {onOpenThemeModal && (
-            <button
-              onClick={onOpenThemeModal}
-              className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-              style={{ color: tv.interactive.primary.DEFAULT }}
-              title="Change Theme"
-            >
-              <Palette className="w-5 h-5" />
-            </button>
-          )}
-
-          {/* Light/Dark Mode Toggle */}
-          <button
-            onClick={supportsLightMode ? toggleMode : undefined}
-            className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
-              supportsLightMode ? "hover:bg-gray-800/50 cursor-pointer" : "opacity-40 cursor-not-allowed"
-            }`}
-            style={{ color: supportsLightMode ? tv.interactive.primary.DEFAULT : tv.text.muted }}
-            title={
-              supportsLightMode
-                ? `Switch to ${mode === "dark" ? "light" : "dark"} mode`
-                : "This theme doesn't support light mode"
-            }
-            disabled={!supportsLightMode}
-          >
-            {mode === "dark" ? (
-              <Sun className="w-5 h-5" />
-            ) : (
-              <Moon className="w-5 h-5" />
-            )}
+      <div className="order-3 flex flex-wrap items-center gap-1 lg:order-2">
+        {onOpenSettings && (
+          <button type="button" onClick={onOpenSettings} className={iconButton} aria-label="Settings" title="Settings">
+            <Settings className="size-5" aria-hidden="true" />
           </button>
-        </div>
+        )}
+        {onOpenThemeModal && (
+          <button type="button" onClick={onOpenThemeModal} className={iconButton} aria-label="Change theme" title="Change theme">
+            <Palette className="size-5" aria-hidden="true" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={toggleMode}
+          className={iconButton}
+          disabled={!supportsLightMode}
+          aria-label={supportsLightMode ? `Switch to ${mode === "dark" ? "light" : "dark"} mode` : "Light mode unavailable for this theme"}
+          title={supportsLightMode ? `Switch to ${mode === "dark" ? "light" : "dark"} mode` : "This theme supports dark mode only"}
+        >
+          {mode === "dark" ? <Sun className="size-5" aria-hidden="true" /> : <Moon className="size-5" aria-hidden="true" />}
+        </button>
       </div>
 
-      {/* Center Section: Navigation Tabs (page-centered) */}
-      <nav
-        className={`absolute left-1/2 -translate-x-1/2 ${hidden ? "" : "pointer-events-auto"}`}
-      >
-        <div
-          className="flex items-center gap-1 rounded-lg p-1"
-          style={{ backgroundColor: tv.bg.surface }}
-        >
-          {NAV_TABS.map((tab) => {
-            const isActive = activeTab === tab.path;
-            const Icon = tab.icon;
-            const isDisabled = !tab.enabled;
-
-            if (isDisabled) {
-              return (
-                <span
-                  key={tab.path}
-                  className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium cursor-not-allowed select-none"
-                  style={{
-                    backgroundColor: "transparent",
-                    color: tv.text.muted,
-                    opacity: 0.5,
-                  }}
-                  title="Coming Soon"
-                  aria-disabled="true"
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden md:inline">{tab.label}</span>
-                </span>
-              );
-            }
-
-            return (
-              <Link
-                key={tab.path}
-                to={tab.path}
-                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200"
-                style={{
-                  backgroundColor: isActive ? tv.bg.elevated : "transparent",
-                  color: isActive ? tv.interactive.secondary.DEFAULT : tv.interactive.primary.DEFAULT,
-                  boxShadow: isActive ? "0 1px 3px rgba(0, 0, 0, 0.2)" : "none",
-                }}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="hidden md:inline">{tab.label}</span>
-              </Link>
-            );
-          })}
+      <nav aria-label="Practice modes" className="order-5 col-span-2 flex min-w-0 justify-center lg:order-3 lg:col-span-1">
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 rounded-lg bg-muted p-1">
+          {NAV_TABS.map(({ label, path, icon: Icon, enabled }) => enabled ? (
+            <Link
+              key={path}
+              to={path}
+              aria-current={location.pathname === path ? "page" : undefined}
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-background"
+            >
+              <Icon className="size-4" aria-hidden="true" />{label}
+            </Link>
+          ) : (
+            <span key={path} aria-disabled="true" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground" title="Coming soon">
+              <Icon className="size-4" aria-hidden="true" />{label}<span className="sr-only"> — coming soon</span>
+            </span>
+          ))}
         </div>
       </nav>
 
-      {/* Right Section: Leaderboard + Stats + Notifications + User */}
-      <div className={`flex items-center gap-2 shrink-0 ${hidden ? "" : "pointer-events-auto"}`}>
-        {/* Leaderboard */}
-        <Link
-          to="/leaderboard"
-          className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-          style={{ color: tv.interactive.primary.DEFAULT }}
-          title="Leaderboard"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-            <path d="M4 22h16" />
-            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-          </svg>
+      <div className="order-4 flex flex-wrap items-center justify-end gap-1">
+        <Link to="/leaderboard" className={iconButton} aria-label="Leaderboard" title="Leaderboard">
+          <Trophy className="size-5" aria-hidden="true" />
         </Link>
-
-        {/* Stats */}
-        {isStatsEnabled ? (
-          <Link
-            to={statsUrl as string}
-            className="flex h-10 w-10 items-center justify-center rounded-lg transition hover:bg-gray-800/50"
-            style={{ color: tv.interactive.primary.DEFAULT }}
-            title="Your Stats"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-              <path d="M7 16h8" />
-              <path d="M7 11h12" />
-              <path d="M7 6h3" />
-            </svg>
+        {accountFeaturesEnabled && statsUrl ? (
+          <Link to={statsUrl} className={iconButton} aria-label="Your stats" title="Your stats">
+            <ChartNoAxesColumn className="size-5" aria-hidden="true" />
           </Link>
         ) : (
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-lg opacity-40 cursor-not-allowed"
-            style={{ color: tv.text.muted }}
-            title={accountFeaturesEnabled ? "Loading your stats" : "Sign in to view your stats"}
-            disabled
-            aria-disabled="true"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-              <path d="M7 16h8" />
-              <path d="M7 11h12" />
-              <path d="M7 6h3" />
-            </svg>
+          <button type="button" className={iconButton} disabled aria-label={accountFeaturesEnabled ? "Loading your stats" : "Sign in to view your stats"} title={accountFeaturesEnabled ? "Loading your stats" : "Sign in to view your stats"}>
+            <ChartNoAxesColumn className="size-5" aria-hidden="true" />
           </button>
         )}
-
-        {/* Notification Center */}
-        <NotificationCenter disabled={!accountFeaturesEnabled} />
-
-        {/* User Button - Sign In / Avatar Dropdown */}
-        <UserButton />
+        <NotificationCenter disabled={!accountFeaturesEnabled || hidden} />
       </div>
+      <div className="order-2 min-w-0 justify-self-end lg:order-5"><UserButton inactive={hidden} /></div>
     </header>
   );
 }
