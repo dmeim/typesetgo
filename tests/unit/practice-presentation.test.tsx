@@ -11,7 +11,7 @@ import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
 import { fetchThemeCatalog, retryThemeCatalog } from "@/lib/themes";
 import type { ThemeCatalogResult, ThemeDefinition } from "@/types/theme";
 import PracticeResults from "@/components/typing/PracticeResults";
-import type { SettingsState } from "@/lib/typing-constants";
+import { MAX_DURATION_SECONDS, normalizePracticeSettings, type SettingsState } from "@/lib/typing-constants";
 import theme from "../../public/themes/typesetgo.json";
 
 const themeActions = vi.hoisted(() => ({
@@ -567,4 +567,32 @@ it("accounts for Caps Lock when guiding Shift on letter keys", () => {
     "Next key: Shift + A. Caps Lock is on.",
   );
   expect(document.querySelector('[data-key="Shift"][data-next-key="true"]')).not.toBeNull();
+});
+
+describe("custom duration boundary", () => {
+  it("retains a user-selected 6:30 duration through preference normalization", () => {
+    const timedSettings = { ...settings, mode: "time" as const, duration: 6 * 3600 + 29 * 60 };
+    const onApply = vi.fn();
+    render(<PracticeCountDialog settings={timedSettings} setShowCustomCountModal={vi.fn()} onApply={onApply} />);
+    fireEvent.keyDown(screen.getByRole("spinbutton", { name: "minutes" }), { key: "ArrowUp" });
+    fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
+    expect(onApply).toHaveBeenCalledWith(23400);
+    const [duration] = onApply.mock.calls[0];
+    expect(normalizePracticeSettings({ ...timedSettings, duration }).duration).toBe(23400);
+  });
+
+  it("clamps the editor to the same supported duration maximum as preferences", () => {
+    const onApply = vi.fn();
+    render(
+      <PracticeCountDialog
+        settings={{ ...settings, mode: "time", duration: MAX_DURATION_SECONDS + 3600 }}
+        setShowCustomCountModal={vi.fn()}
+        onApply={onApply}
+      />,
+    );
+    expect(screen.getByRole("spinbutton", { name: "hours" })).toHaveAttribute("aria-valuemax", "6");
+    expect(screen.getByText("06:59:59")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
+    expect(onApply).toHaveBeenCalledWith(MAX_DURATION_SECONDS);
+  });
 });
