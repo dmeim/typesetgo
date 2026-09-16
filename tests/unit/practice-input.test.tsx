@@ -98,6 +98,18 @@ describe("TypingArea contracts", () => {
       isActive onProgress={onProgress} autoFocus={false} />);
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ elapsedMs: 600 }));
   });
+  it("preserves IME drafts until composition ends and completes only once", () => {
+    const onFinish = vi.fn();
+    render(<TypingArea targetText="猫" onFinish={onFinish} />);
+    const input = screen.getByRole("textbox");
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "猫" } });
+    expect(input).toHaveValue("猫");
+    expect(onFinish).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(input);
+    expect(input).toHaveValue("猫");
+    expect(onFinish).toHaveBeenCalledTimes(1);
+  });
   it("does not finish a restored completed run while inactive", () => {
     const onFinish = vi.fn();
     render(<TypingArea targetText="cat" initialInput="cat" isActive={false} onFinish={onFinish} />);
