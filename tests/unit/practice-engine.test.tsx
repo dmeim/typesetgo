@@ -88,9 +88,9 @@ describe("canonical practice prompt transitions", () => {
       expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("");
       expect(screen.queryByText("Words Per Minute")).not.toBeInTheDocument();
       random.mockReturnValue(0);
-      fireEvent.click(screen.getByRole("button", { name: "words", exact: true }));
+      fireEvent.click(screen.getByRole("radio", { name: "words", exact: true }));
       await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
-      fireEvent.click(screen.getByRole("button", { name: "quote", exact: true }));
+      fireEvent.click(screen.getByRole("radio", { name: "quote", exact: true }));
       await waitFor(() => expect(promptWords(container)).toBe("first quote"));
     } finally {
       random.mockRestore();
@@ -101,9 +101,9 @@ describe("canonical practice prompt transitions", () => {
     setLocal();
     const { container } = render(<TypingPractice />);
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
-    fireEvent.click(screen.getByRole("button", { name: "10", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "10", exact: true }));
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(10));
-    fireEvent.click(screen.getByRole("button", { name: "50", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "50", exact: true }));
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(50));
   });
   it("clears stale word prompts on first Quote entry until the selected dataset resolves", async () => {
@@ -112,7 +112,7 @@ describe("canonical practice prompt transitions", () => {
     mocks.quotes.mockImplementation(() => pending.promise);
     const { container } = render(<TypingPractice />);
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
-    fireEvent.click(screen.getByRole("button", { name: "quote", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "quote", exact: true }));
     expect(screen.getByRole("status")).toHaveTextContent("Loading prompt");
     expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(0);
     await act(async () => pending.resolve([{ quote: "cat dog", author: "Author", source: "Book", date: "2000", context: "" }]));
@@ -124,8 +124,8 @@ describe("canonical practice prompt transitions", () => {
     const long = deferred<Awaited<ReturnType<typeof mocks.quotes>>>();
     mocks.quotes.mockImplementation((length) => length === "short" ? short.promise : long.promise);
     const { container } = render(<TypingPractice />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "long", exact: true })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "long", exact: true }));
+    await waitFor(() => expect(screen.getByRole("radio", { name: "long", exact: true })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("radio", { name: "long", exact: true }));
     await act(async () => long.resolve([{ quote: "long quote text", author: "Long", source: "", date: "", context: "" }]));
     await waitFor(() => expect(promptWords(container)).toBe("long quote text"));
     await act(async () => short.resolve([{ quote: "short quote", author: "Short", source: "", date: "", context: "" }]));
@@ -178,7 +178,7 @@ describe("solo prompt and server session ownership", () => {
       ? previous.promise : Promise.resolve({ sessionId: "new-session", targetText: "dog cat" }));
     const { container } = render(<TypingPractice />);
     await waitFor(() => expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole("button", { name: "10", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "10", exact: true }));
     await waitFor(() => expect(promptWords(container)).toBe("dog cat"));
     await act(async () => previous.resolve({ sessionId: "old-session", targetText: "obsolete prompt" }));
     expect(promptWords(container)).toBe("dog cat");
@@ -249,7 +249,7 @@ describe("preference hydration and Connect boundaries", () => {
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "returning-user" }; mocks.preferences = accountPreferences();
     const { container, rerender } = render(<TypingPractice />);
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(50));
-    fireEvent.click(screen.getByRole("button", { name: "10", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "10", exact: true }));
     mocks.auth.isSignedIn = false; mocks.auth.user = null; mocks.preferences = undefined;
     rerender(<TypingPractice />);
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "returning-user" };
@@ -285,7 +285,7 @@ describe("preference hydration and Connect boundaries", () => {
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
     const { container, rerender } = render(<TypingPractice />);
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
-    fireEvent.click(screen.getByRole("button", { name: "kid", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "kid", exact: true }));
     mocks.preferences = accountPreferences({ typingFontFamily: "serif", linePreview: 6, maxWordsPerLine: 10 });
     rerender(<TypingPractice />);
     await waitFor(() => expect(JSON.parse(localStorage.getItem("typesetgo_settings")!).typingFontFamily).toBe("serif"));
@@ -357,7 +357,7 @@ describe("preference hydration and Connect boundaries", () => {
     setLocal({ typingFontSize: 2 });
     const { container, rerender } = render(<TypingPractice />);
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
-    fireEvent.click(screen.getByRole("button", { name: "10", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "10", exact: true }));
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
     mocks.preferences = accountPreferences();
     rerender(<TypingPractice />);
@@ -390,7 +390,7 @@ describe("preference hydration and Connect boundaries", () => {
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "first" }; mocks.preferences = accountPreferences();
     const { container, rerender } = render(<TypingPractice />);
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(50));
-    fireEvent.click(screen.getByRole("button", { name: "10", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "10", exact: true }));
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(10));
     mocks.auth.user = { id: "second" }; mocks.preferences = accountPreferences({ defaultWordTarget: 25, themeId: "second-theme" });
     rerender(<TypingPractice />);

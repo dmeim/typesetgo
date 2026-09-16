@@ -104,7 +104,7 @@ try {
   const deleteButton = page.getByRole("button", { name: "Delete test", exact: true });
   await deleteButton.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("dialog", { name: "Delete this test?" })).toBeVisible();
+  await expect(page.getByRole("alertdialog", { name: "Delete this test?" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(detail).toBeVisible();
   await expect(deleteButton).toBeFocused();
@@ -164,7 +164,7 @@ try {
   await page.getByRole("button", { name: /View details/ }).first().click();
   await page.getByRole("button", { name: "Delete test", exact: true }).click();
   await page.getByRole("button", { name: "Confirm delete", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Delete this test?" }).getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("alertdialog", { name: "Delete this test?" }).getByRole("alert")).toBeVisible();
   checks.push("refresh and delete mutation failures remain recoverable");
 
   for (const scenario of ["empty", "loading"]) {

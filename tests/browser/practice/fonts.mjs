@@ -62,7 +62,7 @@ await withFixtureBrowser(async (browser) => {
         if (request.resourceType() === "font") fontRequests.add(new URL(request.url()).pathname);
       });
       await prepare(page, "jetbrains-mono", mode);
-      await page.getByTitle("Settings", { exact: true }).click();
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
       const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
       await expectWithinViewport(page, dialog);
       await page.getByRole("combobox", { name: "Typing Font", exact: true }).click();

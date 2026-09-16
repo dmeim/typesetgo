@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { ACHIEVEMENT_CATEGORIES, TIER_COLORS, type Achievement } from "@/lib/achievement-definitions";
@@ -93,17 +95,19 @@ export default function AchievementDetailModal({ achievements, initialIndex, onC
         {achievements.length > 1 && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
-              <button type="button" aria-label="Previous achievement" disabled={currentIndex === 0} onClick={() => api?.scrollPrev(jump)} className="flex min-h-10 items-center gap-1 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring">
+              <Button
+                variant="outline" type="button" aria-label="Previous achievement" disabled={currentIndex === 0} onClick={() => api?.scrollPrev(jump)} className="flex min-h-10 items-center gap-1 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring">
                 <ChevronLeft aria-hidden="true" className="size-4" />Prev
-              </button>
+              </Button>
               <p role="status" className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{currentIndex + 1} / {achievements.length}</p>
-              <button type="button" aria-label="Next achievement" disabled={currentIndex === achievements.length - 1} onClick={() => api?.scrollNext(jump)} className="flex min-h-10 items-center gap-1 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring">
+              <Button
+                variant="outline" type="button" aria-label="Next achievement" disabled={currentIndex === achievements.length - 1} onClick={() => api?.scrollNext(jump)} className="flex min-h-10 items-center gap-1 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring">
                 Next<ChevronRight aria-hidden="true" className="size-4" />
-              </button>
+              </Button>
             </div>
-            <select aria-label="Choose achievement" value={currentIndex} onChange={(event) => api?.scrollTo(Number(event.target.value), jump)} className="min-w-0 w-full rounded-md border border-input bg-background px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-ring">
-              {achievements.map(({ achievement }, index) => <option key={achievement.id} value={index}>{achievement.title}</option>)}
-            </select>
+            <NativeSelect aria-label="Choose achievement" value={currentIndex} onChange={(event) => api?.scrollTo(Number(event.target.value), jump)} className="min-w-0 w-full rounded-md border border-input bg-background pl-2 pr-9 py-2 text-sm">
+              {achievements.map(({ achievement }, index) => <NativeSelectOption key={achievement.id} value={index}>{achievement.title}</NativeSelectOption>)}
+            </NativeSelect>
           </div>
         )}
       </DialogContent>

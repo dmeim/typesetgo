@@ -37,22 +37,22 @@ await withFixtureBrowser(async browser => {
   });
   await page.goto(fixtureOrigin);
   await expect(input).toBeEnabled();
-  await page.getByRole("button", {
+  await page.getByRole("radio", {
     name: "words",
     exact: true
   }).click();
   await expect(words).toHaveCount(25);
-  await page.getByRole("button", {
+  await page.getByRole("radio", {
     name: "10",
     exact: true
   }).click();
   await expect(words).toHaveCount(10);
-  await page.getByRole("button", {
+  await page.getByRole("radio", {
     name: "50",
     exact: true
   }).click();
   await expect(words).toHaveCount(50);
-  await page.getByRole("button", {
+  await page.getByRole("radio", {
     name: "10",
     exact: true
   }).click();
@@ -69,9 +69,7 @@ await withFixtureBrowser(async browser => {
   await input.fill(Array(10).fill("cat").join(" ") + " ");
   await expect(results).toBeVisible();
   const oldText = Array(10).fill("cat").join(" ");
-  await page.getByTitle("Settings", {
-    exact: true
-  }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.getByRole("slider", {
@@ -99,7 +97,7 @@ await withFixtureBrowser(async browser => {
     exact: true
   }).click();
   await expect(input).toBeEnabled();
-  await page.getByRole("button", {
+  await page.getByRole("radio", {
     name: "quote",
     exact: true
   }).click();

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { Trophy } from "lucide-react";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption } from "@/components/ui/table";
 import { api } from "../../convex/_generated/api";
 
 interface LeaderboardEntry {
@@ -112,30 +113,30 @@ function LeaderboardColumn({
             {top3.map((entry) => <PodiumCard key={`${entry.rank}-${entry.username}`} entry={entry} />)}
           </ol>
           {remaining.length > 0 && (
-            <table className="mt-4 w-full table-fixed text-sm">
-              <caption className="sr-only">{title} ranks 4 and below</caption>
-              <thead className="border-b border-border text-xs text-muted-foreground">
-                <tr>
-                  <th scope="col" className="w-10 py-2 text-left font-medium">Rank</th>
-                  <th scope="col" className="px-2 py-2 text-left font-medium">User</th>
-                  <th scope="col" className="w-12 py-2 text-right font-medium">WPM</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="mt-4 w-full table-fixed text-sm">
+              <TableCaption className="sr-only">{title} ranks 4 and below</TableCaption>
+              <TableHeader className="border-b border-border text-xs text-muted-foreground">
+                <TableRow>
+                  <TableHead scope="col" className="w-10 py-2 text-left font-medium">Rank</TableHead>
+                  <TableHead scope="col" className="px-2 py-2 text-left font-medium">User</TableHead>
+                  <TableHead scope="col" className="w-12 py-2 text-right font-medium">WPM</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {remaining.map((entry) => (
-                  <tr key={`${entry.rank}-${entry.username}`} className="border-b border-border last:border-b-0">
-                    <td className="py-3 text-muted-foreground">{entry.rank}</td>
-                    <th scope="row" className="px-2 py-3 text-left font-medium">
+                  <TableRow key={`${entry.rank}-${entry.username}`} className="border-b border-border last:border-b-0">
+                    <TableCell className="py-3 text-muted-foreground">{entry.rank}</TableCell>
+                    <TableHead scope="row" className="whitespace-normal px-2 py-3 text-left font-medium">
                       <span className="flex min-w-0 items-center gap-2">
                         <Avatar entry={entry} />
                         <span className="min-w-0 [overflow-wrap:anywhere]">{entry.username}</span>
                       </span>
-                    </th>
-                    <td className="py-3 text-right font-semibold tabular-nums">{entry.wpm}</td>
-                  </tr>
+                    </TableHead>
+                    <TableCell className="py-3 text-right font-semibold tabular-nums">{entry.wpm}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </>
       )}

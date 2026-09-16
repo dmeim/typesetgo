@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Dialog,
   DialogContent,
@@ -80,14 +81,14 @@ export default function AchievementsModal({
           </DialogDescription>
           <label className="mt-2 flex flex-wrap items-center gap-2 text-sm">
             Category
-            <select
+            <NativeSelect
               aria-label="Jump to achievement category"
               defaultValue={initialCategory ?? (initialAchievementId ? getAchievementById(initialAchievementId)?.category : undefined) ?? categories[0]}
-              className="min-w-0 max-w-full rounded-md border border-input bg-background px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+              className="min-w-0 max-w-full rounded-md border border-input bg-background pl-2 pr-9 py-2 text-sm"
               onChange={(event) => focusCategory(event.target.value as AchievementCategory)}
             >
-              {categories.map((category) => <option key={category} value={category}>{ACHIEVEMENT_CATEGORIES[category].name}</option>)}
-            </select>
+              {categories.map((category) => <NativeSelectOption key={category} value={category}>{ACHIEVEMENT_CATEGORIES[category].name}</NativeSelectOption>)}
+            </NativeSelect>
           </label>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">

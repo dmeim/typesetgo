@@ -86,7 +86,7 @@ try {
       try {
         await server.listen(); // strictPort prevents testing another checkout.
         await checkPracticeManifests();
-        const scenarios = suite === "fonts" ? ["fonts"] : ["journeys", "ranked", "preferences", "narrow", "secondary", "area", "color"];
+        const scenarios = suite === "fonts" ? ["fonts"] : ["journeys", "ranked", "preferences", "narrow", "secondary", "area", "color", "caret", "controls"];
         for (const scenario of scenarios) {
           await run(process.execPath, ["tests/browser/practice/" + scenario + ".mjs"]);
         }

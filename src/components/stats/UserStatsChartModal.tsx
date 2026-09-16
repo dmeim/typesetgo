@@ -7,6 +7,7 @@ import {
   YAxis,
   Dot,
 } from "recharts";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -512,16 +513,16 @@ export default function UserStatsChartModal({
           <details className="rounded-md border border-border text-sm">
             <summary className="cursor-pointer rounded-md px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">View chart data ({chartData.length} tests)</summary>
             <div className="max-h-60 overflow-auto px-3 pb-3">
-              <table className="w-full text-left text-xs">
-                <caption className="sr-only">Recent valid tests, oldest first</caption>
-                <thead><tr><th scope="col" className="py-2">Date</th><th scope="col" className="py-2 text-right">{meta.yLabel}</th></tr></thead>
-                <tbody>{chartData.map((point, index) => (
-                  <tr key={`${point.time}-${index}`} className="border-t border-border">
-                    <th scope="row" className="py-2 pr-2 font-normal">{point.fullDate}</th>
-                    <td className="py-2 text-right tabular-nums">{tooltipFormatter(point.value)}{meta.hasHighlights && point.isBest ? " (highest in sample)" : ""}{meta.hasHighlights && point.isLowest ? " (lowest in sample)" : ""}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
+              <Table className="w-full text-left text-xs">
+                <TableCaption className="sr-only">Recent valid tests, oldest first</TableCaption>
+                <TableHeader><TableRow><TableHead scope="col" className="py-2">Date</TableHead><TableHead scope="col" className="py-2 text-right">{meta.yLabel}</TableHead></TableRow></TableHeader>
+                <TableBody>{chartData.map((point, index) => (
+                  <TableRow key={`${point.time}-${index}`} className="border-t border-border">
+                    <TableHead scope="row" className="py-2 pr-2 font-normal">{point.fullDate}</TableHead>
+                    <TableCell className="py-2 text-right tabular-nums">{tooltipFormatter(point.value)}{meta.hasHighlights && point.isBest ? " (highest in sample)" : ""}{meta.hasHighlights && point.isLowest ? " (lowest in sample)" : ""}</TableCell>
+                  </TableRow>
+                ))}</TableBody>
+              </Table>
             </div>
           </details>
         )}

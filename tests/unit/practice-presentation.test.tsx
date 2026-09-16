@@ -142,10 +142,10 @@ describe("practice presentation command boundaries", () => {
     }
     const countControls =
       variant === "compact" ? within(screen.getByText("Word Count", { exact: true }).parentElement!) : screen;
-    fireEvent.click(countControls.getByRole("button", { name: "10", exact: true }));
+    fireEvent.click(countControls.getByRole("radio", { name: "10", exact: true }));
     expect(props.updateSettings).toHaveBeenCalledWith({ wordTarget: 10 });
     expect(props.generateTest).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "25", exact: true }));
+    fireEvent.click(screen.getByRole("radio", { name: "25", exact: true }));
     expect(props.generateTest).toHaveBeenCalledTimes(1);
   });
 
@@ -174,14 +174,14 @@ describe("practice presentation command boundaries", () => {
       soundManifest: null,
     };
     const { rerender } = render(<PracticeSettingsDialog {...props} />);
-    fireEvent.click(screen.getByRole("button", { name: "Type", exact: true }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Type", exact: true }), { button: 0, ctrlKey: false });
     expect(screen.getByLabelText("Preview Lines")).toBeInTheDocument();
     expect(updateSettings).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
     expect(props.setShowSettings).toHaveBeenCalledWith(false);
     rerender(<PracticeSettingsDialog {...props} showSettings={false} />);
     rerender(<PracticeSettingsDialog {...props} />);
-    expect(screen.getByRole("button", { name: "Sound On" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Sound", checked: true })).toBeInTheDocument();
   });
 
   it("results delegate save and next commands while invalid results cannot save", () => {
@@ -256,7 +256,7 @@ describe("accessible practice dialogs and results", () => {
     expect(slider).toHaveAttribute("aria-valuemin", "1");
     expect(slider).toHaveAttribute("aria-valuemax", "6");
     expect(slider).toHaveAttribute("aria-valuenow", "2");
-    expect(screen.getByRole("button", { name: "center", pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "center", checked: true })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Race", exact: true })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Error Sound" })).not.toBeInTheDocument();
   });
@@ -267,9 +267,9 @@ describe("accessible practice dialogs and results", () => {
     expect(screen.getByRole("combobox", { name: "Typing Sound" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "Warning Sound" })).toBeDisabled();
     screen.getAllByRole("button", { name: "Preview", exact: true }).forEach((button) => expect(button).toBeDisabled());
-    expect(screen.getByRole("button", { name: "QWERTY" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "QWERTY" })).toBeDisabled();
     expect(screen.getByRole("slider", { name: "Target Speed" })).not.toHaveAttribute("tabindex", "0");
-    fireEvent.click(screen.getByRole("button", { name: "Ghost Off", pressed: false }));
+    fireEvent.click(screen.getByRole("switch", { name: "Ghost", checked: false }));
     expect(props.updateSettings).toHaveBeenCalledWith({
       ghostWriterEnabled: true,
     });

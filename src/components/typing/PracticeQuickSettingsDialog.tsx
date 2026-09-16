@@ -1,3 +1,7 @@
+import { Input } from "@/components/ui/input";
+import { Toggle } from "@/components/ui/toggle";
+import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { tv } from "@/lib/theme-vars";
 import { MODE_SELECTOR_OPTIONS, TIME_PRESETS, WORD_PRESETS, TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "./practice-config";
@@ -43,13 +47,13 @@ export default function PracticeQuickSettingsDialog({
             <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
               Mode
             </label>
-            <div className="flex gap-2 flex-wrap justify-center">
+            <ToggleGroup type="single" value={isKidMode ? "kid" : settings.mode} aria-label="Mode" spacing={1} className="flex gap-2 flex-wrap justify-center">
               {MODE_SELECTOR_OPTIONS.map((m) => {
                 const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
                 return (
-                  <button
+                  <ToggleGroupItem
+                    value={String(m)}
                     key={m}
-                    aria-pressed={isModeActive}
                     onClick={() => handleModeSelect(m)}
                     className={`rounded px-4 py-2 text-sm capitalize transition ${isModeActive ? "font-medium" : "hover:opacity-80"}`}
                     style={{
@@ -58,10 +62,10 @@ export default function PracticeQuickSettingsDialog({
                     }}
                   >
                     {m}
-                  </button>
+                  </ToggleGroupItem>
                 );
               })}
-            </div>
+            </ToggleGroup>
           </div>
 
           {/* Duration / Word Count / Quote Length */}
@@ -70,11 +74,11 @@ export default function PracticeQuickSettingsDialog({
               <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
                 Duration
               </label>
-              <div className="flex gap-2 flex-wrap justify-center">
+              <ToggleGroup type="single" value={String(settings.duration)} aria-label="Duration" spacing={1} className="flex gap-2 flex-wrap justify-center">
                 {TIME_PRESETS.map((d) => (
-                  <button
+                  <ToggleGroupItem
+                    value={String(d)}
                     key={d}
-                    aria-pressed={typeof d === "number" ? settings.duration === d : settings.difficulty === d}
                     onClick={() => {
                       if (settings.duration === d) generateTest();
                       else updateSettings({ duration: d });
@@ -86,9 +90,10 @@ export default function PracticeQuickSettingsDialog({
                     }}
                   >
                     {d}s
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     openCustomCountModal();
                   }}
@@ -99,8 +104,8 @@ export default function PracticeQuickSettingsDialog({
                   }}
                 >
                   custom
-                </button>
-              </div>
+                </Button>
+              </ToggleGroup>
             </div>
           )}
 
@@ -109,11 +114,11 @@ export default function PracticeQuickSettingsDialog({
               <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
                 Word Count
               </label>
-              <div className="flex gap-2 flex-wrap justify-center">
+              <ToggleGroup type="single" value={String(settings.wordTarget)} aria-label="Word Count" spacing={1} className="flex gap-2 flex-wrap justify-center">
                 {WORD_PRESETS.map((w) => (
-                  <button
+                  <ToggleGroupItem
+                    value={String(w)}
                     key={w}
-                    aria-pressed={settings.wordTarget === w}
                     onClick={() => {
                       if (settings.wordTarget === w) generateTest();
                       else updateSettings({ wordTarget: w });
@@ -125,9 +130,10 @@ export default function PracticeQuickSettingsDialog({
                     }}
                   >
                     {w}
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     openCustomCountModal();
                   }}
@@ -138,8 +144,8 @@ export default function PracticeQuickSettingsDialog({
                   }}
                 >
                   custom
-                </button>
-              </div>
+                </Button>
+              </ToggleGroup>
             </div>
           )}
 
@@ -148,11 +154,11 @@ export default function PracticeQuickSettingsDialog({
               <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
                 Quote Length
               </label>
-              <div className="flex gap-2 flex-wrap justify-center">
+              <ToggleGroup type="single" value={settings.quoteLength} aria-label="Quote Length" spacing={1} className="flex gap-2 flex-wrap justify-center">
                 {["all", ...quotesManifest.lengths].map((l) => (
-                  <button
+                  <ToggleGroupItem
+                    value={String(l)}
                     key={l}
-                    aria-pressed={settings.quoteLength === l}
                     onClick={() => {
                       if (settings.quoteLength === l) generateTest();
                       else
@@ -167,9 +173,9 @@ export default function PracticeQuickSettingsDialog({
                     }}
                   >
                     {l}
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
             </div>
           )}
 
@@ -179,11 +185,11 @@ export default function PracticeQuickSettingsDialog({
               <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
                 Difficulty
               </label>
-              <div className="flex gap-2 flex-wrap justify-center">
+              <ToggleGroup type="single" value={settings.difficulty} aria-label="Difficulty" spacing={1} className="flex gap-2 flex-wrap justify-center">
                 {wordsManifest.difficulties.map((d) => (
-                  <button
+                  <ToggleGroupItem
+                    value={String(d)}
                     key={d}
-                    aria-pressed={typeof d === "number" ? settings.duration === d : settings.difficulty === d}
                     onClick={() => {
                       if (settings.difficulty === d) generateTest();
                       else
@@ -198,9 +204,9 @@ export default function PracticeQuickSettingsDialog({
                     }}
                   >
                     {d}
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
             </div>
           )}
 
@@ -210,9 +216,9 @@ export default function PracticeQuickSettingsDialog({
               Modifiers
             </label>
             <div className="flex gap-3 flex-wrap justify-center">
-              <button
-                aria-pressed={settings.capitalization}
-                onClick={() => updateSettings({ capitalization: !settings.capitalization })}
+              <Toggle
+                pressed={settings.capitalization}
+                onPressedChange={(pressed) => updateSettings({ capitalization: pressed })}
                 disabled={settings.mode === "quote"}
                 className={`rounded px-4 py-2 text-sm transition ${settings.capitalization ? "font-medium" : "hover:opacity-80"}`}
                 style={{
@@ -222,10 +228,10 @@ export default function PracticeQuickSettingsDialog({
                 }}
               >
                 Aa caps
-              </button>
-              <button
-                aria-pressed={settings.punctuation}
-                onClick={() => updateSettings({ punctuation: !settings.punctuation })}
+              </Toggle>
+              <Toggle
+                pressed={settings.punctuation}
+                onPressedChange={(pressed) => updateSettings({ punctuation: pressed })}
                 disabled={settings.mode === "quote"}
                 className={`rounded px-4 py-2 text-sm transition ${settings.punctuation ? "font-medium" : "hover:opacity-80"}`}
                 style={{
@@ -235,10 +241,10 @@ export default function PracticeQuickSettingsDialog({
                 }}
               >
                 @ punctuation
-              </button>
-              <button
-                aria-pressed={settings.numbers}
-                onClick={() => updateSettings({ numbers: !settings.numbers })}
+              </Toggle>
+              <Toggle
+                pressed={settings.numbers}
+                onPressedChange={(pressed) => updateSettings({ numbers: pressed })}
                 disabled={settings.mode === "quote"}
                 className={`rounded px-4 py-2 text-sm transition ${settings.numbers ? "font-medium" : "hover:opacity-80"}`}
                 style={{
@@ -248,7 +254,7 @@ export default function PracticeQuickSettingsDialog({
                 }}
               >
                 # numbers
-              </button>
+              </Toggle>
             </div>
           </div>
 
@@ -257,11 +263,11 @@ export default function PracticeQuickSettingsDialog({
             <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
               Lines to Preview
             </label>
-            <div className="flex gap-2 flex-wrap justify-center">
+            <ToggleGroup type="single" value={String(linePreview)} aria-label="Lines to Preview" spacing={1} className="flex gap-2 flex-wrap justify-center">
               {[1, 2, 3, 4, 5, 6].map((num) => (
-                <button
+                <ToggleGroupItem
+                  value={String(num)}
                   key={num}
-                  aria-pressed={linePreview === num}
                   onClick={() => setLinePreview(num)}
                   className={`rounded px-3 py-2 text-sm transition ${linePreview === num ? "font-medium" : "hover:opacity-80"}`}
                   style={{
@@ -270,9 +276,9 @@ export default function PracticeQuickSettingsDialog({
                   }}
                 >
                   {num}
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </div>
 
           {/* Max Words per Line */}
@@ -280,11 +286,11 @@ export default function PracticeQuickSettingsDialog({
             <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
               Max Words per Line
             </label>
-            <div className="flex gap-2 flex-wrap justify-center">
+            <ToggleGroup type="single" value={String(maxWordsPerLine)} aria-label="Max Words per Line" spacing={1} className="flex gap-2 flex-wrap justify-center">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                <button
+                <ToggleGroupItem
+                  value={String(num)}
                   key={num}
-                  aria-pressed={maxWordsPerLine === num}
                   onClick={() => setMaxWordsPerLine(num)}
                   className={`rounded px-3 py-2 text-sm transition ${maxWordsPerLine === num ? "font-medium" : "hover:opacity-80"}`}
                   style={{
@@ -293,9 +299,9 @@ export default function PracticeQuickSettingsDialog({
                   }}
                 >
                   {num}
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </div>
 
           {/* Font Size & Text Alignment */}
@@ -304,7 +310,7 @@ export default function PracticeQuickSettingsDialog({
               <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
                 Text Size (rem)
               </label>
-              <input
+              <Input
                 aria-label="Text Size (rem)"
                 type="number"
                 min={TEXT_SIZE_MIN}
@@ -333,11 +339,11 @@ export default function PracticeQuickSettingsDialog({
               <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
                 Text Alignment
               </label>
-              <div className="flex flex-wrap gap-2 justify-center">
+              <ToggleGroup type="single" value={settings.textAlign} aria-label="Text Alignment" spacing={1} className="flex flex-wrap gap-2 justify-center">
                 {(["left", "center", "right", "justify"] as const).map((align) => (
-                  <button
+                  <ToggleGroupItem
+                    value={String(align)}
                     key={align}
-                    aria-pressed={settings.textAlign === align}
                     onClick={() => updateSettings({ textAlign: align })}
                     className={`rounded px-3 py-2 text-sm capitalize transition ${settings.textAlign === align ? "font-medium" : "hover:opacity-80"}`}
                     style={{
@@ -346,9 +352,9 @@ export default function PracticeQuickSettingsDialog({
                     }}
                   >
                     {align}
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
             </div>
           </div>
         </div>

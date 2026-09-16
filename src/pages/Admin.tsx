@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useConvex } from "convex/react";
 import type { FunctionReference } from "convex/server";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { useTheme } from "@/hooks/useTheme";
@@ -280,56 +281,56 @@ export default function Admin() {
                 className="overflow-x-auto rounded-lg border"
                 style={{ borderColor: tv.border.subtle, backgroundColor: tv.bg.surface }}
               >
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ color: tv.text.secondary, borderBottom: `1px solid ${tv.border.subtle}` }}>
-                      <th className="text-left font-medium px-3 py-2">User</th>
-                      <th className="text-right font-medium px-3 py-2">WPM</th>
-                      <th className="text-right font-medium px-3 py-2">Acc</th>
-                      <th className="text-right font-medium px-3 py-2">Time</th>
-                      <th className="text-left font-medium px-3 py-2">Mode</th>
-                      <th className="text-left font-medium px-3 py-2">Status</th>
-                      <th className="text-left font-medium px-3 py-2">Reason</th>
-                      <th className="text-left font-medium px-3 py-2">When</th>
-                      <th className="text-right font-medium px-3 py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table className="w-full text-sm">
+                  <TableHeader>
+                    <TableRow style={{ color: tv.text.secondary, borderBottom: `1px solid ${tv.border.subtle}` }}>
+                      <TableHead className="text-left font-medium px-3 py-2">User</TableHead>
+                      <TableHead className="text-right font-medium px-3 py-2">WPM</TableHead>
+                      <TableHead className="text-right font-medium px-3 py-2">Acc</TableHead>
+                      <TableHead className="text-right font-medium px-3 py-2">Time</TableHead>
+                      <TableHead className="text-left font-medium px-3 py-2">Mode</TableHead>
+                      <TableHead className="text-left font-medium px-3 py-2">Status</TableHead>
+                      <TableHead className="text-left font-medium px-3 py-2">Reason</TableHead>
+                      <TableHead className="text-left font-medium px-3 py-2">When</TableHead>
+                      <TableHead className="text-right font-medium px-3 py-2">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {sortedRows.map((row) => (
-                      <tr
+                      <TableRow
                         key={row.resultId}
                         style={{ borderBottom: `1px solid ${tv.border.subtle}` }}
                       >
-                        <td className="px-3 py-2" style={{ color: tv.text.primary }}>
+                        <TableCell className="px-3 py-2" style={{ color: tv.text.primary }}>
                           {row.username || "Unknown"}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.primary }}>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.primary }}>
                           {Math.round(row.wpm)}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.primary }}>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.primary }}>
                           {Math.round(row.accuracy)}%
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.secondary }}>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.secondary }}>
                           {formatDuration(row.duration)}
-                        </td>
-                        <td className="px-3 py-2" style={{ color: tv.text.secondary }}>
+                        </TableCell>
+                        <TableCell className="px-3 py-2" style={{ color: tv.text.secondary }}>
                           {row.mode ?? "—"}
-                        </td>
-                        <td
+                        </TableCell>
+                        <TableCell
                           className="px-3 py-2"
                           style={{
                             color: row.isValid === false ? tv.status.error.DEFAULT : tv.status.success.DEFAULT,
                           }}
                         >
                           {row.isValid === false ? "Invalid" : "Valid"}
-                        </td>
-                        <td className="px-3 py-2 max-w-[16rem] truncate" style={{ color: tv.text.secondary }} title={row.invalidReason ?? undefined}>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 max-w-[16rem] truncate" style={{ color: tv.text.secondary }} title={row.invalidReason ?? undefined}>
                           {row.invalidReason || "—"}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: tv.text.secondary }}>
+                        </TableCell>
+                        <TableCell className="px-3 py-2 whitespace-nowrap" style={{ color: tv.text.secondary }}>
                           {formatDateTime(row.createdAt)}
-                        </td>
-                        <td className="px-3 py-2">
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
                           <div className="flex justify-end gap-2">
                             <Button
                               type="button"
@@ -356,11 +357,11 @@ export default function Admin() {
                               Invalid
                             </Button>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
           </div>

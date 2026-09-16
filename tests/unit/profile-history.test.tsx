@@ -210,10 +210,10 @@ describe("profile detail dialogs", () => {
     fireEvent.click(row);
     const deleteButton = screen.getByRole("button", { name: "Delete test" });
     fireEvent.click(deleteButton);
-    const confirmation = screen.getByRole("dialog", { name: "Delete this test?" });
+    const confirmation = screen.getByRole("alertdialog", { name: "Delete this test?" });
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
     fireEvent.keyDown(confirmation, { key: "Escape", code: "Escape" });
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Delete this test?" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("alertdialog", { name: "Delete this test?" })).not.toBeInTheDocument());
     expect(screen.getByRole("dialog", { name: "Test details" })).toBeInTheDocument();
     await waitFor(() => expect(deleteButton).toHaveFocus());
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
@@ -228,7 +228,7 @@ describe("profile detail dialogs", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete test" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not delete this test");
-    expect(screen.getByRole("dialog", { name: "Delete this test?" })).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog", { name: "Delete this test?" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(fixture.deleteResult).toHaveBeenCalledTimes(2);
@@ -245,8 +245,8 @@ describe("profile detail dialogs", () => {
     const pendingButton = screen.getByRole("button", { name: "Deleting…" });
     expect(pendingButton).toBeDisabled();
     fireEvent.click(pendingButton);
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Delete this test?" }), { key: "Escape", code: "Escape" });
-    expect(screen.getByRole("dialog", { name: "Delete this test?" })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("alertdialog", { name: "Delete this test?" }), { key: "Escape", code: "Escape" });
+    expect(screen.getByRole("alertdialog", { name: "Delete this test?" })).toBeInTheDocument();
     expect(fixture.deleteResult).toHaveBeenCalledTimes(1);
     finishDelete();
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());

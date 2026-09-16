@@ -20,13 +20,15 @@ export default function PracticeText({ targetText, typedText, caretRef, maxWords
     wordStarts.push(offset);
     offset += targetWords[index].length + 1;
   }
+  // Inline character boxes include font ascent/descent beyond 1em. Center the
+  // cursor within that box so its position follows the selected font metrics.
   const caret = (ghost = false) => (
     <span
       ref={ghost ? undefined : caretRef}
       data-typing-caret={ghost ? undefined : "true"}
       data-ghost-caret={ghost ? "true" : undefined}
       aria-hidden="true"
-      className={`absolute left-0 top-0 h-[1em] w-0.5 ${ghost ? "opacity-70" : "motion-safe:animate-pulse"}`}
+      className={`absolute left-0 top-1/2 h-[1em] w-0.5 -translate-y-1/2 ${ghost ? "opacity-70" : "motion-safe:animate-pulse"}`}
       style={{ backgroundColor: ghost ? tv.typing.cursorGhost : tv.typing.cursor }}
     />
   );

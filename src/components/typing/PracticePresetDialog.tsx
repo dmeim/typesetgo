@@ -1,5 +1,7 @@
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { tv } from "@/lib/theme-vars";
 
 interface PracticePresetDialogProps {
@@ -19,7 +21,7 @@ export default function PracticePresetDialog({
       <DialogContent>
         <DialogTitle>Enter Custom Text</DialogTitle>
         <DialogDescription>Type or paste the text you want to practice.</DialogDescription>
-        <textarea
+        <Textarea
           aria-label="Practice text"
           value={tempPresetText}
           onChange={(e) => setTempPresetText(e.target.value)}
@@ -34,20 +36,22 @@ export default function PracticePresetDialog({
           placeholder="Paste or type your custom text here..."
         />
         <div className="flex justify-end gap-4 mt-4">
-          <button
+          <Button
+            type="button" variant="ghost"
             onClick={() => setShowPresetInput(false)}
             className="px-4 py-2 hover:opacity-80 transition-opacity"
             style={{ color: tv.text.secondary }}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
             disabled={!tempPresetText.trim()}
             onClick={() => handlePresetSubmit(tempPresetText)}
             className="rounded bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
           >
             Start
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

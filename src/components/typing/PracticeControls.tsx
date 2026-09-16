@@ -1,3 +1,6 @@
+import { Toggle } from "@/components/ui/toggle";
+import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SettingsState } from "@/lib/typing-constants";
 import type { WordsManifest } from "@/lib/words";
 import type { QuotesManifest } from "@/lib/quotes";
@@ -57,7 +60,8 @@ export default function PracticeControls({
         >
           {/* Compact Mode: Quick Settings */}
           {isCompactMode && (
-            <button
+            <Button
+              variant="ghost"
               type="button"
               onClick={() => setShowQuickSettings(true)}
               className="rounded-lg px-4 py-2 text-sm transition hover:text-foreground"
@@ -68,7 +72,7 @@ export default function PracticeControls({
               title="Quick Settings"
             >
               Quick Settings
-            </button>
+            </Button>
           )}
 
           {/* Row 1: Mode | Modifiers (hidden in compact mode) */}
@@ -78,13 +82,13 @@ export default function PracticeControls({
               <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
                 Mode
               </span>
-              <div className="flex flex-wrap justify-center rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
+              <ToggleGroup type="single" value={isKidMode ? "kid" : settings.mode} aria-label="Mode" spacing={1} className="flex flex-wrap justify-center rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
                 {MODE_SELECTOR_OPTIONS.map((m) => {
                   const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
                   return (
-                    <button
+                    <ToggleGroupItem
+                      value={String(m)}
                       key={m}
-                      aria-pressed={isModeActive}
                       type="button"
                       onClick={() => handleModeSelect(m)}
                       className={`px-3 py-1 rounded transition ${isModeActive ? "font-medium bg-accent" : "hover:text-foreground"}`}
@@ -93,10 +97,10 @@ export default function PracticeControls({
                       }}
                     >
                       {m}
-                    </button>
+                    </ToggleGroupItem>
                   );
                 })}
-              </div>
+              </ToggleGroup>
 
               {!isKidMode && (
                 <>
@@ -107,14 +111,10 @@ export default function PracticeControls({
                     Modifiers
                   </span>
                   <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: tv.bg.surface }}>
-                    <button
+                    <Toggle
                       type="button"
-                      aria-pressed={settings.capitalization}
-                      onClick={() =>
-                        updateSettings({
-                          capitalization: !settings.capitalization,
-                        })
-                      }
+                      pressed={settings.capitalization}
+                      onPressedChange={(pressed) => updateSettings({ capitalization: pressed })}
                       className={`flex items-center gap-2 transition ${settings.capitalization ? "" : "hover:text-foreground"}`}
                       style={{
                         color: settings.capitalization ? tv.ui.primary : undefined,
@@ -136,11 +136,11 @@ export default function PracticeControls({
                         Aa
                       </span>
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>caps</span>
-                    </button>
-                    <button
+                    </Toggle>
+                    <Toggle
                       type="button"
-                      aria-pressed={settings.punctuation}
-                      onClick={() => updateSettings({ punctuation: !settings.punctuation })}
+                      pressed={settings.punctuation}
+                      onPressedChange={(pressed) => updateSettings({ punctuation: pressed })}
                       className={`flex items-center gap-2 transition ${settings.punctuation ? "" : "hover:text-foreground"}`}
                       style={{
                         color: settings.punctuation ? tv.ui.primary : undefined,
@@ -162,11 +162,11 @@ export default function PracticeControls({
                         @
                       </span>
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>punctuation</span>
-                    </button>
-                    <button
+                    </Toggle>
+                    <Toggle
                       type="button"
-                      aria-pressed={settings.numbers}
-                      onClick={() => updateSettings({ numbers: !settings.numbers })}
+                      pressed={settings.numbers}
+                      onPressedChange={(pressed) => updateSettings({ numbers: pressed })}
                       className={`flex items-center gap-2 transition ${settings.numbers ? "" : "hover:text-foreground"}`}
                       style={{
                         color: settings.numbers ? tv.ui.primary : undefined,
@@ -188,7 +188,7 @@ export default function PracticeControls({
                         #
                       </span>
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>numbers</span>
-                    </button>
+                    </Toggle>
                   </div>
                 </>
               )}
@@ -204,14 +204,14 @@ export default function PracticeControls({
                   <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
                     Duration
                   </span>
-                  <div
+                  <ToggleGroup type="single" value={String(settings.duration)} aria-label="Duration" spacing={1}
                     className="flex flex-wrap justify-center rounded-lg p-1"
                     style={{ backgroundColor: tv.bg.surface }}
                   >
                     {TIME_PRESETS.map((d) => (
-                      <button
+                      <ToggleGroupItem
+                        value={String(d)}
                         key={d}
-                        aria-pressed={typeof d === "number" ? settings.duration === d : settings.difficulty === d}
                         type="button"
                         onClick={() => {
                           if (settings.duration === d) generateTest();
@@ -223,9 +223,10 @@ export default function PracticeControls({
                         }}
                       >
                         {d}s
-                      </button>
+                      </ToggleGroupItem>
                     ))}
-                    <button
+                    <Button
+                      variant="ghost"
                       type="button"
                       onClick={openCustomCountModal}
                       className={`px-3 py-1 rounded transition ${isCustomDurationSelected ? "font-medium bg-accent" : "hover:text-foreground"}`}
@@ -234,8 +235,8 @@ export default function PracticeControls({
                       }}
                     >
                       custom
-                    </button>
-                  </div>
+                    </Button>
+                  </ToggleGroup>
                 </>
               )}
 
@@ -245,14 +246,14 @@ export default function PracticeControls({
                   <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
                     Word Count
                   </span>
-                  <div
+                  <ToggleGroup type="single" value={String(settings.wordTarget)} aria-label="Word Count" spacing={1}
                     className="flex flex-wrap justify-center rounded-lg p-1"
                     style={{ backgroundColor: tv.bg.surface }}
                   >
                     {WORD_PRESETS.map((w) => (
-                      <button
+                      <ToggleGroupItem
+                        value={String(w)}
                         key={w}
-                        aria-pressed={settings.wordTarget === w}
                         type="button"
                         onClick={() => {
                           if (settings.wordTarget === w) generateTest();
@@ -264,9 +265,10 @@ export default function PracticeControls({
                         }}
                       >
                         {w}
-                      </button>
+                      </ToggleGroupItem>
                     ))}
-                    <button
+                    <Button
+                      variant="ghost"
                       type="button"
                       onClick={openCustomCountModal}
                       className={`px-3 py-1 rounded transition ${isCustomWordTargetSelected ? "font-medium bg-accent" : "hover:text-foreground"}`}
@@ -275,8 +277,8 @@ export default function PracticeControls({
                       }}
                     >
                       custom
-                    </button>
-                  </div>
+                    </Button>
+                  </ToggleGroup>
                 </>
               )}
 
@@ -286,14 +288,14 @@ export default function PracticeControls({
                   <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
                     Quote Length
                   </span>
-                  <div
+                  <ToggleGroup type="single" value={settings.quoteLength} aria-label="Quote Length" spacing={1}
                     className="flex flex-wrap justify-center rounded-lg p-1"
                     style={{ backgroundColor: tv.bg.surface }}
                   >
                     {["all", ...quotesManifest.lengths].map((l) => (
-                      <button
+                      <ToggleGroupItem
+                        value={String(l)}
                         key={l}
-                        aria-pressed={settings.quoteLength === l}
                         type="button"
                         onClick={() => {
                           if (settings.quoteLength === l) generateTest();
@@ -308,9 +310,9 @@ export default function PracticeControls({
                         }}
                       >
                         {l}
-                      </button>
+                      </ToggleGroupItem>
                     ))}
-                  </div>
+                  </ToggleGroup>
                 </>
               )}
 
@@ -335,14 +337,14 @@ export default function PracticeControls({
                   <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
                     Difficulty
                   </span>
-                  <div
+                  <ToggleGroup type="single" value={settings.difficulty} aria-label="Difficulty" spacing={1}
                     className="flex flex-wrap justify-center rounded-lg p-1"
                     style={{ backgroundColor: tv.bg.surface }}
                   >
                     {wordsManifest.difficulties.map((d) => (
-                      <button
+                      <ToggleGroupItem
+                        value={String(d)}
                         key={d}
-                        aria-pressed={typeof d === "number" ? settings.duration === d : settings.difficulty === d}
                         type="button"
                         onClick={() => {
                           if (settings.difficulty === d) generateTest();
@@ -357,9 +359,9 @@ export default function PracticeControls({
                         }}
                       >
                         {d}
-                      </button>
+                      </ToggleGroupItem>
                     ))}
-                  </div>
+                  </ToggleGroup>
                 </>
               )}
             </div>

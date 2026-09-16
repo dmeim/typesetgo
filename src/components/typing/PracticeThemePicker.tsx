@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Shuffle } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   fetchThemeCatalog,
   retryThemeCatalog,
@@ -173,7 +174,7 @@ export default function PracticeThemePicker({
           </aside>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <input
+              <Input
                 aria-label="Search themes"
                 type="search"
                 placeholder="Search themes or categories…"

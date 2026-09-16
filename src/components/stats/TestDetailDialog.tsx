@@ -1,9 +1,13 @@
 import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { api } from "../../../convex/_generated/api";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { formatRecordedMetric, getTestTypeLabels, type ProfileTestResult } from "./profile-presentation";
 
@@ -23,7 +27,6 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const deletionPending = useRef(false);
-  const cancelRef = useRef<HTMLButtonElement>(null);
   const deleteResult = useMutation(api.testResults.deleteResult);
   const canDelete = isOwner && !!clerkId;
 
@@ -82,31 +85,31 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
           ))}
         </dl>
         {canDelete && (
-          <Dialog open={showDeleteConfirm} onOpenChange={(open) => {
+          <AlertDialog open={showDeleteConfirm} onOpenChange={(open) => {
             if (!deletionPending.current) {
               setShowDeleteConfirm(open);
               setDeleteError(null);
             }
           }}>
-            <DialogTrigger asChild>
-              <button type="button" className={`${actionClass} text-destructive`}>Delete test</button>
-            </DialogTrigger>
-            <DialogContent
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline" type="button" className={`${actionClass} text-destructive`}>Delete test</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent
               className="max-h-[calc(100dvh-2rem)] overflow-y-auto bg-card text-card-foreground shadow-none sm:max-w-sm"
-              showCloseButton={!isDeleting}
-              onOpenAutoFocus={(event) => { event.preventDefault(); cancelRef.current?.focus(); }}
+              onEscapeKeyDown={(event) => { if (deletionPending.current) event.preventDefault(); }}
             >
-              <DialogHeader>
-                <DialogTitle>Delete this test?</DialogTitle>
-                <DialogDescription>This removes the saved test and updates your statistics. This cannot be undone.</DialogDescription>
-              </DialogHeader>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this test?</AlertDialogTitle>
+                <AlertDialogDescription>This removes the saved test and updates your statistics. This cannot be undone.</AlertDialogDescription>
+              </AlertDialogHeader>
               {deleteError && <p role="alert" className="text-sm text-destructive">{deleteError}</p>}
-              <DialogFooter>
-                <button ref={cancelRef} type="button" disabled={isDeleting} onClick={() => setShowDeleteConfirm(false)} className={`${actionClass} bg-secondary text-secondary-foreground`}>Cancel</button>
-                <button type="button" disabled={isDeleting} onClick={handleDelete} className={`${actionClass} bg-destructive text-destructive-foreground`}>{isDeleting ? "Deleting…" : "Confirm delete"}</button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting} className={actionClass}>Cancel</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" disabled={isDeleting} onClick={(event) => { event.preventDefault(); void handleDelete(); }} className={actionClass}>{isDeleting ? "Deleting…" : "Confirm delete"}</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </DialogContent>
     </Dialog>

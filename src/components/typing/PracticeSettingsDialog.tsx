@@ -1,12 +1,16 @@
-import { TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "./practice-config";
 import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "./practice-config";
 import type { SettingsState } from "@/lib/typing-constants";
 import { getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { TYPING_FONT_OPTIONS, getTypingFontFamily } from "@/lib/typing-fonts";
 import { tv } from "@/lib/theme-vars";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const SETTINGS_TABS = [
@@ -100,7 +104,8 @@ export default function PracticeSettingsDialog({
             <DialogTitle className="text-xl font-semibold">Settings</DialogTitle>
             <DialogDescription className="mt-1">Choose your typing preferences.</DialogDescription>
           </div>
-          <button
+          <Button
+            variant="outline"
             onClick={closeSettingsModal}
             className="rounded-md px-2.5 py-1.5 text-xl leading-none transition-colors"
             style={{ color: tv.ui.mutedForeground }}
@@ -109,87 +114,200 @@ export default function PracticeSettingsDialog({
             onMouseLeave={(e) => (e.currentTarget.style.color = tv.ui.mutedForeground)}
           >
             ✕
-          </button>
+          </Button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-          <div
-            className="mb-6 grid grid-cols-2 gap-2 rounded-xl border p-1"
-            style={{
-              backgroundColor: tv.bg.base,
-              borderColor: tv.border.subtle,
-            }}
-          >
-            {SETTINGS_TABS.map((tab) => {
-              const isActive = activeSettingsTab === tab.id;
+        <Tabs value={activeSettingsTab} onValueChange={(value) => setActiveSettingsTab(value as SettingsTabId)} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+          <TabsList aria-label="Settings sections" className="mb-6 grid h-auto w-full grid-cols-2 gap-2 rounded-xl border border-border bg-background p-1">
+            {SETTINGS_TABS.map((tab) => (
+              <TabsTrigger key={tab.id} value={tab.id} className="py-2">
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-              return (
-                <button
-                  key={tab.id}
-                  aria-pressed={isActive}
-                  type="button"
-                  onClick={() => setActiveSettingsTab(tab.id)}
-                  className="rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+          <TabsContent value="all" className="space-y-4">
+            <section
+              className="rounded-xl border p-5"
+              style={{
+                backgroundColor: tv.bg.base,
+                borderColor: tv.border.subtle,
+              }}
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h3 className="text-base font-semibold" style={{ color: tv.ui.foreground }}>
+                  Text
+                </h3>
+                <span
+                  className="rounded-full px-2.5 py-1 text-xs font-medium"
                   style={{
-                    color: isActive ? tv.ui.foreground : tv.ui.mutedForeground,
-                    backgroundColor: isActive ? tv.bg.elevated : "transparent",
-                    boxShadow: isActive ? `inset 0 0 0 1px ${tv.border.default}` : "none",
+                    color: tv.ui.mutedForeground,
+                    backgroundColor: tv.bg.surface,
                   }}
                 >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+                  Display
+                </span>
+              </div>
 
-          {activeSettingsTab === "all" && (
-            <div className="space-y-4">
-              <section
-                className="rounded-xl border p-5"
-                style={{
-                  backgroundColor: tv.bg.base,
-                  borderColor: tv.border.subtle,
-                }}
-              >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h3 className="text-base font-semibold" style={{ color: tv.ui.foreground }}>
-                    Text
-                  </h3>
-                  <span
-                    className="rounded-full px-2.5 py-1 text-xs font-medium"
-                    style={{
-                      color: tv.ui.mutedForeground,
-                      backgroundColor: tv.bg.surface,
-                    }}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label
+                    htmlFor="typing-font"
+                    className="mb-2 block text-sm"
+                    style={{ color: tv.ui.mutedForeground }}
                   >
-                    Display
+                    Typing Font
+                  </Label>
+                  <Select
+                    value={settings.typingFontFamily}
+                    onValueChange={(value) => updateSettings({ typingFontFamily: value })}
+                  >
+                    <SelectTrigger
+                      id="typing-font"
+                      className="w-full"
+                      style={{
+                        backgroundColor: tv.bg.surface,
+                        borderColor: tv.border.subtle,
+                        color: tv.ui.foreground,
+                        fontFamily: getTypingFontFamily(settings.typingFontFamily),
+                      }}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent
+                      style={{
+                        backgroundColor: tv.bg.surface,
+                        borderColor: tv.border.subtle,
+                      }}
+                    >
+                      {TYPING_FONT_OPTIONS.map((font) => (
+                        <SelectItem
+                          key={font.value}
+                          value={font.value}
+                          style={{
+                            color: tv.ui.foreground,
+                            fontFamily: font.fontFamily,
+                          }}
+                        >
+                          {font.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs" style={{ color: tv.ui.mutedForeground }}>
+                    Changes the font used in the typing area only.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <Label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                      Text Size
+                    </Label>
+                    <span className="text-sm font-medium" style={{ color: tv.ui.foreground }}>
+                      {formatRemValue(clampedTextSize)}
+                    </span>
+                  </div>
+                  <Slider
+                    min={TEXT_SIZE_MIN}
+                    max={TEXT_SIZE_MAX}
+                    step={0.25}
+                    value={[clampedTextSize]}
+                    onValueChange={(value) => updateSettings({ typingFontSize: value[0] ?? 3 })}
+                    aria-label="Text Size"
+                    className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
+                    style={{
+                      ["--slider-range" as string]: tv.ui.primary,
+                      ["--slider-track" as string]: tv.bg.surface,
+                    }}
+                  />
+                  <p className="mt-1 text-xs" style={{ color: tv.ui.mutedForeground }}>
+                    Range: {TEXT_SIZE_MIN}rem to {TEXT_SIZE_MAX}rem
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 border-t pt-4" style={{ borderColor: tv.border.subtle }}>
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                    Text Alignment
+                  </Label>
+                  <span className="text-xs uppercase tracking-wide" style={{ color: tv.ui.mutedForeground }}>
+                    {settings.textAlign}
                   </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <ToggleGroup type="single" value={settings.textAlign} aria-label="Text Alignment" spacing={1} className="w-full grid grid-cols-2 gap-2 sm:grid-cols-2">
+                  {TEXT_ALIGN_OPTIONS.map((align) => {
+                    const isActive = settings.textAlign === align;
+
+                    return (
+                      <ToggleGroupItem
+                        value={String(align)}
+                        key={align}
+                        type="button"
+                        onClick={() => updateSettings({ textAlign: align })}
+                        className="rounded-md px-3 py-2 text-sm capitalize transition-colors"
+                        style={{
+                          color: isActive ? tv.ui.foreground : tv.ui.mutedForeground,
+                          backgroundColor: isActive ? tv.bg.elevated : tv.bg.surface,
+                          boxShadow: isActive ? `inset 0 0 0 1px ${tv.ui.primary}` : "none",
+                        }}
+                      >
+                        {align}
+                      </ToggleGroupItem>
+                    );
+                  })}
+                </ToggleGroup>
+              </div>
+            </section>
+
+            <section
+              className="rounded-xl border p-5"
+              style={{
+                backgroundColor: tv.bg.base,
+                borderColor: tv.border.subtle,
+              }}
+            >
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold" style={{ color: tv.ui.foreground }}>
+                    Sound
+                  </h3>
+                  <p className="text-xs" style={{ color: tv.ui.mutedForeground }}>
+                    Typing, warning, and error feedback.
+                  </p>
+                </div>
+                <Switch aria-label="Sound" checked={settings.soundEnabled} onCheckedChange={(checked) => updateSettings({ soundEnabled: checked })} />
+              </div>
+
+              <div className={`space-y-3 ${!settings.soundEnabled ? "opacity-60" : ""}`}>
+                <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                   <div>
-                    <label
-                      htmlFor="typing-font"
+                    <Label
+                      htmlFor="typing-sound"
                       className="mb-2 block text-sm"
                       style={{ color: tv.ui.mutedForeground }}
                     >
-                      Typing Font
-                    </label>
+                      Typing Sound
+                    </Label>
                     <Select
-                      value={settings.typingFontFamily}
-                      onValueChange={(value) => updateSettings({ typingFontFamily: value })}
+                      value={selectedTypingSound}
+                      onValueChange={(value) => updateSettings({ typingSound: value })}
+                      disabled={!settings.soundEnabled || typingSoundOptions.length === 0}
                     >
                       <SelectTrigger
-                        id="typing-font"
+                        id="typing-sound"
                         className="w-full"
                         style={{
                           backgroundColor: tv.bg.surface,
                           borderColor: tv.border.subtle,
                           color: tv.ui.foreground,
-                          fontFamily: getTypingFontFamily(settings.typingFontFamily),
                         }}
                       >
-                        <SelectValue />
+                        <SelectValue
+                          placeholder={typingSoundOptions.length === 0 ? "No packs found" : "Select typing sound"}
+                        />
                       </SelectTrigger>
                       <SelectContent
                         style={{
@@ -197,426 +315,249 @@ export default function PracticeSettingsDialog({
                           borderColor: tv.border.subtle,
                         }}
                       >
-                        {TYPING_FONT_OPTIONS.map((font) => (
-                          <SelectItem
-                            key={font.value}
-                            value={font.value}
-                            style={{
-                              color: tv.ui.foreground,
-                              fontFamily: font.fontFamily,
-                            }}
-                          >
-                            {font.label}
+                        {typingSoundOptions.map((pack) => (
+                          <SelectItem key={pack} value={pack} style={{ color: tv.ui.foreground }}>
+                            {pack.charAt(0).toUpperCase() + pack.slice(1)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="mt-1 text-xs" style={{ color: tv.ui.mutedForeground }}>
-                      Changes the font used in the typing area only.
-                    </p>
                   </div>
-
-                  <div>
-                    <div className="mb-2 flex items-center justify-between">
-                      <label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
-                        Text Size
-                      </label>
-                      <span className="text-sm font-medium" style={{ color: tv.ui.foreground }}>
-                        {formatRemValue(clampedTextSize)}
-                      </span>
-                    </div>
-                    <Slider
-                      min={TEXT_SIZE_MIN}
-                      max={TEXT_SIZE_MAX}
-                      step={0.25}
-                      value={[clampedTextSize]}
-                      onValueChange={(value) => updateSettings({ typingFontSize: value[0] ?? 3 })}
-                      aria-label="Text Size"
-                      className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
-                      style={{
-                        ["--slider-range" as string]: tv.ui.primary,
-                        ["--slider-track" as string]: tv.bg.surface,
-                      }}
-                    />
-                    <p className="mt-1 text-xs" style={{ color: tv.ui.mutedForeground }}>
-                      Range: {TEXT_SIZE_MIN}rem to {TEXT_SIZE_MAX}rem
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 border-t pt-4" style={{ borderColor: tv.border.subtle }}>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
-                      Text Alignment
-                    </label>
-                    <span className="text-xs uppercase tracking-wide" style={{ color: tv.ui.mutedForeground }}>
-                      {settings.textAlign}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-2">
-                    {TEXT_ALIGN_OPTIONS.map((align) => {
-                      const isActive = settings.textAlign === align;
-
-                      return (
-                        <button
-                          key={align}
-                          aria-pressed={isActive}
-                          type="button"
-                          onClick={() => updateSettings({ textAlign: align })}
-                          className="rounded-md px-3 py-2 text-sm capitalize transition-colors"
-                          style={{
-                            color: isActive ? tv.ui.foreground : tv.ui.mutedForeground,
-                            backgroundColor: isActive ? tv.bg.elevated : tv.bg.surface,
-                            boxShadow: isActive ? `inset 0 0 0 1px ${tv.ui.primary}` : "none",
-                          }}
-                        >
-                          {align}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </section>
-
-              <section
-                className="rounded-xl border p-5"
-                style={{
-                  backgroundColor: tv.bg.base,
-                  borderColor: tv.border.subtle,
-                }}
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold" style={{ color: tv.ui.foreground }}>
-                      Sound
-                    </h3>
-                    <p className="text-xs" style={{ color: tv.ui.mutedForeground }}>
-                      Typing, warning, and error feedback.
-                    </p>
-                  </div>
-                  <button
+                  <Button
+                    variant="outline"
                     type="button"
-                    aria-pressed={settings.soundEnabled}
-                    onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
-                    className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+                    onClick={() => selectedTypingSound && playSettingsSoundPreview("typing", selectedTypingSound)}
+                    className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
                     style={{
-                      color: settings.soundEnabled ? tv.ui.foreground : tv.ui.mutedForeground,
-                      backgroundColor: settings.soundEnabled ? tv.bg.elevated : tv.bg.surface,
-                      borderColor: settings.soundEnabled ? tv.ui.primary : tv.border.subtle,
+                      color: tv.ui.foreground,
+                      backgroundColor: tv.bg.surface,
+                      borderColor: tv.border.subtle,
                     }}
+                    disabled={!settings.soundEnabled || !selectedTypingSound || typingSoundOptions.length === 0}
                   >
-                    Sound {settings.soundEnabled ? "On" : "Off"}
-                  </button>
+                    Preview
+                  </Button>
                 </div>
 
-                <div className={`space-y-3 ${!settings.soundEnabled ? "opacity-60" : ""}`}>
-                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                    <div>
-                      <label
-                        htmlFor="typing-sound"
-                        className="mb-2 block text-sm"
-                        style={{ color: tv.ui.mutedForeground }}
-                      >
-                        Typing Sound
-                      </label>
-                      <Select
-                        value={selectedTypingSound}
-                        onValueChange={(value) => updateSettings({ typingSound: value })}
-                        disabled={!settings.soundEnabled || typingSoundOptions.length === 0}
-                      >
-                        <SelectTrigger
-                          id="typing-sound"
-                          className="w-full"
-                          style={{
-                            backgroundColor: tv.bg.surface,
-                            borderColor: tv.border.subtle,
-                            color: tv.ui.foreground,
-                          }}
-                        >
-                          <SelectValue
-                            placeholder={typingSoundOptions.length === 0 ? "No packs found" : "Select typing sound"}
-                          />
-                        </SelectTrigger>
-                        <SelectContent
-                          style={{
-                            backgroundColor: tv.bg.surface,
-                            borderColor: tv.border.subtle,
-                          }}
-                        >
-                          {typingSoundOptions.map((pack) => (
-                            <SelectItem key={pack} value={pack} style={{ color: tv.ui.foreground }}>
-                              {pack.charAt(0).toUpperCase() + pack.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => selectedTypingSound && playSettingsSoundPreview("typing", selectedTypingSound)}
-                      className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                      style={{
-                        color: tv.ui.foreground,
-                        backgroundColor: tv.bg.surface,
-                        borderColor: tv.border.subtle,
-                      }}
-                      disabled={!settings.soundEnabled || !selectedTypingSound || typingSoundOptions.length === 0}
+                <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                  <div>
+                    <Label
+                      htmlFor="warning-sound"
+                      className="mb-2 block text-sm"
+                      style={{ color: tv.ui.mutedForeground }}
                     >
-                      Preview
-                    </button>
-                  </div>
-
-                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                    <div>
-                      <label
-                        htmlFor="warning-sound"
-                        className="mb-2 block text-sm"
-                        style={{ color: tv.ui.mutedForeground }}
-                      >
-                        Warning Sound
-                      </label>
-                      <Select
-                        value={selectedWarningSound}
-                        onValueChange={(value) => updateSettings({ warningSound: value })}
-                        disabled={!settings.soundEnabled || warningSoundOptions.length === 0}
-                      >
-                        <SelectTrigger
-                          id="warning-sound"
-                          className="w-full"
-                          style={{
-                            backgroundColor: tv.bg.surface,
-                            borderColor: tv.border.subtle,
-                            color: tv.ui.foreground,
-                          }}
-                        >
-                          <SelectValue
-                            placeholder={warningSoundOptions.length === 0 ? "No packs found" : "Select warning sound"}
-                          />
-                        </SelectTrigger>
-                        <SelectContent
-                          style={{
-                            backgroundColor: tv.bg.surface,
-                            borderColor: tv.border.subtle,
-                          }}
-                        >
-                          {warningSoundOptions.map((pack) => (
-                            <SelectItem key={pack} value={pack} style={{ color: tv.ui.foreground }}>
-                              {pack.charAt(0).toUpperCase() + pack.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => selectedWarningSound && playSettingsSoundPreview("warning", selectedWarningSound)}
-                      className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                      style={{
-                        color: tv.ui.foreground,
-                        backgroundColor: tv.bg.surface,
-                        borderColor: tv.border.subtle,
-                      }}
-                      disabled={!settings.soundEnabled || !selectedWarningSound || warningSoundOptions.length === 0}
+                      Warning Sound
+                    </Label>
+                    <Select
+                      value={selectedWarningSound}
+                      onValueChange={(value) => updateSettings({ warningSound: value })}
+                      disabled={!settings.soundEnabled || warningSoundOptions.length === 0}
                     >
-                      Preview
-                    </button>
-                  </div>
-
-                  {errorSoundOptions.length > 0 && (
-                    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                      <div>
-                        <label
-                          htmlFor="error-sound"
-                          className="mb-2 block text-sm"
-                          style={{ color: tv.ui.mutedForeground }}
-                        >
-                          Error Sound
-                        </label>
-                        <Select
-                          disabled={!settings.soundEnabled}
-                          value={selectedErrorSound || NONE_SOUND_VALUE}
-                          onValueChange={(value) =>
-                            updateSettings({
-                              errorSound: value === NONE_SOUND_VALUE ? "" : value,
-                            })
-                          }
-                        >
-                          <SelectTrigger
-                            id="error-sound"
-                            className="w-full"
-                            style={{
-                              backgroundColor: tv.bg.surface,
-                              borderColor: tv.border.subtle,
-                              color: tv.ui.foreground,
-                            }}
-                          >
-                            <SelectValue placeholder="None" />
-                          </SelectTrigger>
-                          <SelectContent
-                            style={{
-                              backgroundColor: tv.bg.surface,
-                              borderColor: tv.border.subtle,
-                            }}
-                          >
-                            <SelectItem value={NONE_SOUND_VALUE} style={{ color: tv.ui.foreground }}>
-                              None
-                            </SelectItem>
-                            {errorSoundOptions.map((pack) => (
-                              <SelectItem key={pack} value={pack} style={{ color: tv.ui.foreground }}>
-                                {pack.charAt(0).toUpperCase() + pack.slice(1)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => selectedErrorSound && playSettingsSoundPreview("error", selectedErrorSound)}
-                        className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+                      <SelectTrigger
+                        id="warning-sound"
+                        className="w-full"
                         style={{
+                          backgroundColor: tv.bg.surface,
+                          borderColor: tv.border.subtle,
                           color: tv.ui.foreground,
+                        }}
+                      >
+                        <SelectValue
+                          placeholder={warningSoundOptions.length === 0 ? "No packs found" : "Select warning sound"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent
+                        style={{
                           backgroundColor: tv.bg.surface,
                           borderColor: tv.border.subtle,
                         }}
-                        disabled={!settings.soundEnabled || !selectedErrorSound || errorSoundOptions.length === 0}
                       >
-                        Preview
-                      </button>
+                        {warningSoundOptions.map((pack) => (
+                          <SelectItem key={pack} value={pack} style={{ color: tv.ui.foreground }}>
+                            {pack.charAt(0).toUpperCase() + pack.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => selectedWarningSound && playSettingsSoundPreview("warning", selectedWarningSound)}
+                    className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+                    style={{
+                      color: tv.ui.foreground,
+                      backgroundColor: tv.bg.surface,
+                      borderColor: tv.border.subtle,
+                    }}
+                    disabled={!settings.soundEnabled || !selectedWarningSound || warningSoundOptions.length === 0}
+                  >
+                    Preview
+                  </Button>
+                </div>
+
+                {errorSoundOptions.length > 0 && (
+                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                    <div>
+                      <Label
+                        htmlFor="error-sound"
+                        className="mb-2 block text-sm"
+                        style={{ color: tv.ui.mutedForeground }}
+                      >
+                        Error Sound
+                      </Label>
+                      <Select
+                        disabled={!settings.soundEnabled}
+                        value={selectedErrorSound || NONE_SOUND_VALUE}
+                        onValueChange={(value) =>
+                          updateSettings({
+                            errorSound: value === NONE_SOUND_VALUE ? "" : value,
+                          })
+                        }
+                      >
+                        <SelectTrigger
+                          id="error-sound"
+                          className="w-full"
+                          style={{
+                            backgroundColor: tv.bg.surface,
+                            borderColor: tv.border.subtle,
+                            color: tv.ui.foreground,
+                          }}
+                        >
+                          <SelectValue placeholder="None" />
+                        </SelectTrigger>
+                        <SelectContent
+                          style={{
+                            backgroundColor: tv.bg.surface,
+                            borderColor: tv.border.subtle,
+                          }}
+                        >
+                          <SelectItem value={NONE_SOUND_VALUE} style={{ color: tv.ui.foreground }}>
+                            None
+                          </SelectItem>
+                          {errorSoundOptions.map((pack) => (
+                            <SelectItem key={pack} value={pack} style={{ color: tv.ui.foreground }}>
+                              {pack.charAt(0).toUpperCase() + pack.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                </div>
-              </section>
-
-              <section
-                className="rounded-xl border p-5"
-                style={{
-                  backgroundColor: tv.bg.base,
-                  borderColor: tv.border.subtle,
-                }}
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold" style={{ color: tv.ui.foreground }}>
-                      Ghost
-                    </h3>
-                    <p className="text-xs" style={{ color: tv.ui.mutedForeground }}>
-                      Pace guidance while typing.
-                    </p>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => selectedErrorSound && playSettingsSoundPreview("error", selectedErrorSound)}
+                      className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+                      style={{
+                        color: tv.ui.foreground,
+                        backgroundColor: tv.bg.surface,
+                        borderColor: tv.border.subtle,
+                      }}
+                      disabled={!settings.soundEnabled || !selectedErrorSound || errorSoundOptions.length === 0}
+                    >
+                      Preview
+                    </Button>
                   </div>
-                  <button
-                    type="button"
-                    aria-pressed={settings.ghostWriterEnabled}
-                    onClick={() =>
-                      updateSettings({
-                        ghostWriterEnabled: !settings.ghostWriterEnabled,
-                      })
-                    }
-                    className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-                    style={{
-                      color: settings.ghostWriterEnabled ? tv.ui.foreground : tv.ui.mutedForeground,
-                      backgroundColor: settings.ghostWriterEnabled ? tv.bg.elevated : tv.bg.surface,
-                      borderColor: settings.ghostWriterEnabled ? tv.ui.primary : tv.border.subtle,
-                    }}
-                  >
-                    Ghost {settings.ghostWriterEnabled ? "On" : "Off"}
-                  </button>
-                </div>
+                )}
+              </div>
+            </section>
 
-                <div className={`${!settings.ghostWriterEnabled ? "opacity-60" : ""}`}>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
-                      Target Speed
-                    </label>
-                    <span className="text-sm font-medium" style={{ color: tv.ui.foreground }}>
-                      {Math.max(1, Math.min(200, settings.ghostWriterSpeed))} WPM
-                    </span>
-                  </div>
-                  <Slider
-                    disabled={!settings.ghostWriterEnabled}
-                    min={1}
-                    max={200}
-                    step={1}
-                    value={[Math.max(1, Math.min(200, settings.ghostWriterSpeed))]}
-                    onValueChange={(value) =>
-                      updateSettings({
-                        ghostWriterSpeed: Math.round(value[0] ?? 1),
-                      })
-                    }
-                    aria-label="Target Speed"
-                    className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
-                    style={{
-                      ["--slider-range" as string]: tv.ui.primary,
-                      ["--slider-track" as string]: tv.bg.surface,
-                    }}
-                  />
+            <section
+              className="rounded-xl border p-5"
+              style={{
+                backgroundColor: tv.bg.base,
+                borderColor: tv.border.subtle,
+              }}
+            >
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold" style={{ color: tv.ui.foreground }}>
+                    Ghost
+                  </h3>
+                  <p className="text-xs" style={{ color: tv.ui.mutedForeground }}>
+                    Pace guidance while typing.
+                  </p>
                 </div>
-              </section>
+                <Switch aria-label="Ghost" checked={settings.ghostWriterEnabled} onCheckedChange={(checked) => updateSettings({ ghostWriterEnabled: checked })} />
+              </div>
 
-              <section
-                className="rounded-xl border p-5"
-                style={{
-                  backgroundColor: tv.bg.base,
-                  borderColor: tv.border.subtle,
-                }}
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold" style={{ color: tv.ui.foreground }}>
-                      Keyboard
-                    </h3>
-                    <p className="text-xs" style={{ color: tv.ui.mutedForeground }}>
-                      On-screen keyboard guide.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    aria-pressed={settings.showOnScreenKeyboard}
-                    onClick={() =>
-                      updateSettings({
-                        showOnScreenKeyboard: !settings.showOnScreenKeyboard,
-                      })
-                    }
-                    className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-                    style={{
-                      color: settings.showOnScreenKeyboard ? tv.ui.foreground : tv.ui.mutedForeground,
-                      backgroundColor: settings.showOnScreenKeyboard ? tv.bg.elevated : tv.bg.surface,
-                      borderColor: settings.showOnScreenKeyboard ? tv.ui.primary : tv.border.subtle,
-                    }}
-                  >
-                    Keyboard {settings.showOnScreenKeyboard ? "On" : "Off"}
-                  </button>
+              <div className={`${!settings.ghostWriterEnabled ? "opacity-60" : ""}`}>
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                    Target Speed
+                  </Label>
+                  <span className="text-sm font-medium" style={{ color: tv.ui.foreground }}>
+                    {Math.max(1, Math.min(200, settings.ghostWriterSpeed))} WPM
+                  </span>
                 </div>
+                <Slider
+                  disabled={!settings.ghostWriterEnabled}
+                  min={1}
+                  max={200}
+                  step={1}
+                  value={[Math.max(1, Math.min(200, settings.ghostWriterSpeed))]}
+                  onValueChange={(value) =>
+                    updateSettings({
+                      ghostWriterSpeed: Math.round(value[0] ?? 1),
+                    })
+                  }
+                  aria-label="Target Speed"
+                  className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
+                  style={{
+                    ["--slider-range" as string]: tv.ui.primary,
+                    ["--slider-track" as string]: tv.bg.surface,
+                  }}
+                />
+              </div>
+            </section>
 
-                <div className={`${!settings.showOnScreenKeyboard ? "opacity-60" : ""}`}>
-                  <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
-                    Layout
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {(["qwerty", "dvorak", "colemak"] as const).map((layout) => (
-                      <button
-                        key={layout}
-                        disabled={!settings.showOnScreenKeyboard}
-                        aria-pressed={settings.keyboardLayout === layout}
-                        type="button"
-                        onClick={() => updateSettings({ keyboardLayout: layout })}
-                        className="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
-                        style={{
-                          color: settings.keyboardLayout === layout ? tv.ui.foreground : tv.ui.mutedForeground,
-                          backgroundColor: settings.keyboardLayout === layout ? tv.bg.elevated : tv.bg.surface,
-                          borderColor: settings.keyboardLayout === layout ? tv.ui.primary : tv.border.subtle,
-                        }}
-                      >
-                        {layout.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
+            <section
+              className="rounded-xl border p-5"
+              style={{
+                backgroundColor: tv.bg.base,
+                borderColor: tv.border.subtle,
+              }}
+            >
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold" style={{ color: tv.ui.foreground }}>
+                    Keyboard
+                  </h3>
+                  <p className="text-xs" style={{ color: tv.ui.mutedForeground }}>
+                    On-screen keyboard guide.
+                  </p>
                 </div>
-              </section>
-            </div>
-          )}
+                <Switch aria-label="Keyboard" checked={settings.showOnScreenKeyboard} onCheckedChange={(checked) => updateSettings({ showOnScreenKeyboard: checked })} />
+              </div>
 
-          {activeSettingsTab === "type" && (
+              <div className={`${!settings.showOnScreenKeyboard ? "opacity-60" : ""}`}>
+                <Label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
+                  Layout
+                </Label>
+                <ToggleGroup type="single" value={settings.keyboardLayout} aria-label="Keyboard layout" spacing={1} className="w-full flex flex-wrap gap-2">
+                  {(["qwerty", "dvorak", "colemak"] as const).map((layout) => (
+                    <ToggleGroupItem
+                      value={String(layout)}
+                      key={layout}
+                      disabled={!settings.showOnScreenKeyboard}
+                      type="button"
+                      onClick={() => updateSettings({ keyboardLayout: layout })}
+                      className="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+                      style={{
+                        color: settings.keyboardLayout === layout ? tv.ui.foreground : tv.ui.mutedForeground,
+                        backgroundColor: settings.keyboardLayout === layout ? tv.bg.elevated : tv.bg.surface,
+                        borderColor: settings.keyboardLayout === layout ? tv.ui.primary : tv.border.subtle,
+                      }}
+                    >
+                      {layout.toUpperCase()}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="type">
             <section
               className="rounded-xl border p-5"
               style={{
@@ -634,9 +575,9 @@ export default function PracticeSettingsDialog({
               <div className="mt-5 space-y-5">
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                    <Label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
                       Preview Lines
-                    </label>
+                    </Label>
                     <span className="text-sm font-medium" style={{ color: tv.ui.foreground }}>
                       {clampedLinePreview}
                     </span>
@@ -658,9 +599,9 @@ export default function PracticeSettingsDialog({
 
                 <div className="border-t pt-4" style={{ borderColor: tv.border.subtle }}>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+                    <Label className="text-sm" style={{ color: tv.ui.mutedForeground }}>
                       Max Words Per Line
-                    </label>
+                    </Label>
                     <span className="text-sm font-medium" style={{ color: tv.ui.foreground }}>
                       {clampedMaxWordsPerLine}
                     </span>
@@ -681,8 +622,8 @@ export default function PracticeSettingsDialog({
                 </div>
               </div>
             </section>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
