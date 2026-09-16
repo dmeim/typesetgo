@@ -83,7 +83,7 @@ const generateWords = (
   return words.join(" ");
 };
 
-// Prompt rendering is deterministic for a request; only an explicit next-test action changes its seed.
+// Prompt rendering is deterministic for a request; user actions sample a fresh seed.
 const createPromptRandom = (seed: number) => {
   let value = seed >>> 0;
   return () => {
@@ -226,12 +226,12 @@ export default function TypingPractice({
   const dataset = usePracticeDataset(settings, quotesManifest);
   const { wordPool, quotes } = dataset;
   const promptConfigKey = JSON.stringify(PROMPT_SETTING_KEYS.map((key) => settings[key]));
-  const [promptSeed, setPromptSeed] = useState(() => Math.floor(Math.random() * 4294967296));
+  const [promptSeed, setPromptSeed] = useState(() => ({ value: Math.floor(Math.random() * 4294967296) }));
   const preparedPrompt = useMemo(() => {
     const prompt = { configKey: promptConfigKey, seed: promptSeed, datasetStatus: dataset.status,
       wordPool, quotes, text: "", quote: null as Quote | null, needsPreset: false };
     if (dataset.status !== "ready" || settings.mode === "plan") return prompt;
-    const random = createPromptRandom(promptSeed);
+    const random = createPromptRandom(promptSeed.value);
     if (settings.mode === "quote") {
       prompt.quote = quotes[Math.floor(random() * quotes.length)] ?? null;
       prompt.text = prompt.quote?.quote.replace(/\s+/g, " ").trim() ?? "";
@@ -693,7 +693,10 @@ export default function TypingPractice({
     Object.keys(updates).forEach((key) => preferenceEditsRef.current.add(key));
     // Explicit prompt edits start a new attempt, so apply queued account defaults at that boundary too.
     const startsPrompt = PROMPT_SETTING_KEYS.some((key) => key in updates);
-    if (startsPrompt) setQueuedPromptPreferences(null);
+    if (startsPrompt) {
+      setQueuedPromptPreferences(null);
+      setPromptSeed({ value: Math.floor(Math.random() * 4294967296) });
+    }
     setSettings((prev) => normalizePracticeSettings({ ...prev, ...(startsPrompt ? pendingPromptPreferences : {}), ...updates }));
   }, [pendingPromptPreferences]);
 
@@ -1127,12 +1130,13 @@ export default function TypingPractice({
   }, [isFinished, connectMode, isSignedIn, saveResults]);
 
   const generateTest = useCallback(() => {
+    // Object identity makes this a new attempt even when two random samples happen to match.
+    setPromptSeed({ value: Math.floor(Math.random() * 4294967296) });
     if (pendingPromptPreferences) {
       setSettings((prev) => normalizePracticeSettings({ ...prev, ...pendingPromptPreferences }));
       setQueuedPromptPreferences(null);
       return; // The resolved configuration/dataset effect generates the next prompt.
     }
-    setPromptSeed((seed) => seed + 1);
   }, [pendingPromptPreferences]);
 
   const applyCustomCount = useCallback((value: number) => {

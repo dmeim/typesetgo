@@ -68,6 +68,35 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); });
 
 describe("canonical practice prompt transitions", () => {
+  it("samples a fresh quote for Next and starts a new attempt even when the next random sample repeats", async () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      setLocal({ mode: "quote", quoteLength: "short" });
+      mocks.quotes.mockResolvedValue([
+        { quote: "first quote", author: "First", source: "", date: "", context: "" },
+        { quote: "second quote", author: "Second", source: "", date: "", context: "" },
+      ]);
+      const { container } = render(<TypingPractice />);
+      await waitFor(() => expect(promptWords(container)).toBe("first quote"));
+      fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "first quote" } });
+      random.mockReturnValue(0.5);
+      fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+      expect(promptWords(container)).toBe("second quote");
+      fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "second quote" } });
+      fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+      expect(promptWords(container)).toBe("second quote");
+      expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("");
+      expect(screen.queryByText("Words Per Minute")).not.toBeInTheDocument();
+      random.mockReturnValue(0);
+      fireEvent.click(screen.getByRole("button", { name: "words", exact: true }));
+      await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
+      fireEvent.click(screen.getByRole("button", { name: "quote", exact: true }));
+      await waitFor(() => expect(promptWords(container)).toBe("first quote"));
+    } finally {
+      random.mockRestore();
+    }
+  });
+
   it("rebuilds exact word counts in both directions", async () => {
     setLocal();
     const { container } = render(<TypingPractice />);
