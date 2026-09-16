@@ -1,9 +1,5 @@
-import { useState } from "react";
-import { useUser } from "@clerk/clerk-react";
-import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { useTheme } from "@/hooks/useTheme";
-import { tv } from "@/lib/theme-vars";
+import { useRef, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import {
   getAchievementById,
   TIER_COLORS,
@@ -17,8 +13,9 @@ import {
 import AchievementsModal from "./AchievementsModal";
 
 interface AchievementsCategoryGridProps {
-  // Record of achievementId -> earnedAt timestamp
   earnedAchievements: Record<string, number>;
+  isLoading?: boolean;
+  onRefresh?: () => Promise<unknown>;
 }
 
 // 15 categories (excluding collection which is shown separately)
@@ -75,104 +72,49 @@ function getHighestInCategory(
   return highest || earnedInCategory[0];
 }
 
-// Category card component
 function CategoryCard({
   category,
   earnedIds,
   onClick,
+  isOpen,
 }: {
   category: AchievementCategory;
   earnedIds: string[];
   onClick: () => void;
+  isOpen: boolean;
 }) {
   const categoryInfo = ACHIEVEMENT_CATEGORIES[category];
   const categoryAchievements = getAchievementsByCategory(category);
-  const earnedCount = categoryAchievements.filter((a) =>
-    earnedIds.includes(a.id)
-  ).length;
+  const earnedCount = categoryAchievements.filter((achievement) => earnedIds.includes(achievement.id)).length;
   const highestAchievement = getHighestInCategory(category, earnedIds);
-
-  const hasEarned = earnedCount > 0;
-  const tierColors = highestAchievement
-    ? TIER_COLORS[highestAchievement.tier]
-    : null;
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="flex flex-col p-2.5 rounded-xl transition-all hover:scale-[1.02] hover:shadow-lg text-left h-full"
-      style={{
-        backgroundColor: hasEarned
-          ? `${tierColors?.bg}15`
-          : tv.bg.surface,
-        borderWidth: 1,
-        borderColor: hasEarned
-          ? `${tierColors?.border}40`
-          : tv.border.subtle,
-      }}
+      aria-haspopup="dialog"
+      aria-expanded={isOpen}
+      aria-label={`${categoryInfo.name}: ${earnedCount} of ${categoryAchievements.length} earned`}
+      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 text-left text-card-foreground hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
-      {/* Category Header */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-lg">{categoryInfo.icon}</span>
-        <span
-          className="text-xs font-semibold truncate flex-1"
-          style={{ color: tv.text.primary }}
-        >
-          {categoryInfo.name}
-        </span>
-        <span
-          className="text-[10px] font-medium"
-          style={{ color: tv.interactive.secondary.DEFAULT }}
-        >
-          {earnedCount}/{categoryAchievements.length}
-        </span>
-      </div>
-
-      {/* Achievement Level Card */}
-      {hasEarned && highestAchievement ? (
-        <div
-          className="flex items-center gap-2 p-2 rounded-lg flex-1"
-          style={{
-            backgroundColor: `${tierColors?.bg}20`,
-            borderWidth: 1,
-            borderColor: `${tierColors?.border}50`,
-          }}
-        >
-          {/* Achievement Icon */}
-          <div className="text-xl shrink-0">{highestAchievement.icon}</div>
-
-          {/* Achievement Info */}
-          <div className="flex-1 min-w-0">
-            <div
-              className="text-[11px] font-medium line-clamp-1"
-              style={{ color: tv.text.primary }}
-            >
-              {highestAchievement.title}
-            </div>
-            <div
-              className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider inline-block mt-0.5"
-              style={{
-                backgroundColor: tierColors?.bg,
-                color: tierColors?.text,
-              }}
-            >
+      <span className="flex w-full flex-wrap items-start gap-x-2 gap-y-1">
+        <span aria-hidden="true" className="text-xl">{categoryInfo.icon}</span>
+        <span className="min-w-0 flex-1 text-sm font-semibold [overflow-wrap:anywhere]">{categoryInfo.name}</span>
+        <span className="text-xs text-muted-foreground">{earnedCount}/{categoryAchievements.length}</span>
+      </span>
+      {highestAchievement ? (
+        <span className="flex items-start gap-2 border-t border-border pt-3">
+          <span aria-hidden="true" className="text-xl">{highestAchievement.icon}</span>
+          <span className="min-w-0">
+            <span className="block text-sm [overflow-wrap:anywhere]">{highestAchievement.title}</span>
+            <span className="mt-1 flex items-center gap-1.5 text-xs capitalize text-muted-foreground">
+              <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: TIER_COLORS[highestAchievement.tier].bg }} />
               {highestAchievement.tier}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div
-          className="flex items-center justify-center p-2 rounded-lg opacity-40 flex-1"
-          style={{
-            backgroundColor: tv.bg.base,
-            borderWidth: 1,
-            borderColor: tv.border.subtle,
-          }}
-        >
-          <span className="text-xs" style={{ color: tv.text.muted }}>
-            None yet
+            </span>
           </span>
-        </div>
+        </span>
+      ) : (
+        <span className="text-sm text-muted-foreground">None earned yet</span>
       )}
     </button>
   );
@@ -180,184 +122,85 @@ function CategoryCard({
 
 export default function AchievementsCategoryGrid({
   earnedAchievements,
+  isLoading = false,
+  onRefresh,
 }: AchievementsCategoryGridProps) {
-  const { user } = useUser();
-  const { colors } = useTheme();
-  const recheckAchievements = useMutation(
-    api.achievements.recheckAllAchievements
-  );
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // State for the full achievements board modal (optionally filtered by category)
+  const refreshPending = useRef(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [showAchievementsModal, setShowAchievementsModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] =
-    useState<AchievementCategory | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<AchievementCategory | null>(null);
 
   const handleRefresh = async () => {
-    if (!user || isRefreshing) return;
+    if (!onRefresh || refreshPending.current || isLoading) return;
+    refreshPending.current = true;
     setIsRefreshing(true);
+    setRefreshError(null);
     try {
-      await recheckAchievements({ clerkId: user.id });
-    } catch (error) {
-      console.error("Failed to refresh achievements:", error);
+      await onRefresh();
+    } catch {
+      setRefreshError("Achievements could not be refreshed. Please try again.");
     } finally {
+      refreshPending.current = false;
       setIsRefreshing(false);
     }
   };
 
   const earnedIds = Object.keys(earnedAchievements);
-  const totalEarned = earnedIds.length;
-
-  // Get the user's highest collection achievement
-  const collectionAchievement = getHighestInCategory("collection", earnedIds);
-  const collectionTierColors = collectionAchievement
-    ? TIER_COLORS[collectionAchievement.tier]
-    : null;
-
-  const handleCategoryClick = (category: AchievementCategory) => {
+  const openCategory = (category: AchievementCategory | null) => {
     setSelectedCategory(category);
     setShowAchievementsModal(true);
   };
 
   return (
     <>
-      <div className="flex flex-col h-full gap-3">
-        {/* Header Cards Row */}
-        <div className="grid grid-cols-2 gap-3 shrink-0">
-          {/* Left Card - Achievements Title & Count */}
-          <div
-            className="p-3 rounded-xl flex flex-col justify-center"
-            style={{
-              backgroundColor: `${colors.bg.base}80`,
-              border: `1px solid ${tv.border.subtle}`,
-            }}
-          >
-            <div
-              className="text-xs font-semibold uppercase tracking-wide mb-1"
-              style={{ color: tv.text.secondary }}
-            >
-              Achievements
-            </div>
-            <div className="flex items-center gap-2">
+      <section aria-label="Achievements" aria-busy={isLoading} className="@container flex flex-col gap-3 text-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
+          <div>
+            <h2 className="text-sm font-semibold">Achievements</h2>
+            {!isLoading && (
               <button
-                onClick={() => {
-                  setSelectedCategory(null);
-                  setShowAchievementsModal(true);
-                }}
-                className="text-lg font-bold hover:underline transition-all cursor-pointer"
-                style={{ color: tv.interactive.secondary.DEFAULT }}
+                type="button"
+                onClick={() => openCategory(null)}
+                aria-haspopup="dialog"
+                aria-expanded={showAchievementsModal && selectedCategory === null}
+                aria-label={`View all achievements: ${earnedIds.length} of ${ALL_ACHIEVEMENTS.length} earned`}
+                className="mt-1 rounded text-lg font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                {totalEarned} / {ALL_ACHIEVEMENTS.length}
+                {earnedIds.length} / {ALL_ACHIEVEMENTS.length}
               </button>
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing || !user}
-                className="p-1.5 rounded transition-all hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ color: tv.text.secondary }}
-                title="Refresh achievements"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={isRefreshing ? "animate-spin" : ""}
-                  style={{ animationDirection: "reverse" }}
-                >
-                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                  <path d="M16 16h5v5" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Right Card - Collection Achievement (Prestige) */}
-          <button
-            onClick={() => handleCategoryClick("collection")}
-            className="p-3 rounded-xl flex items-center gap-3 transition-all hover:scale-[1.02] text-left"
-            style={{
-              backgroundColor: collectionAchievement
-                ? `${collectionTierColors?.bg}15`
-                : `${colors.bg.base}80`,
-              border: `1px solid ${
-                collectionAchievement
-                  ? `${collectionTierColors?.border}40`
-                  : tv.border.subtle
-              }`,
-            }}
-          >
-            {collectionAchievement ? (
-              <>
-                {/* Achievement Icon */}
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-xl shrink-0"
-                  style={{
-                    backgroundColor: `${collectionTierColors?.bg}30`,
-                    borderWidth: 2,
-                    borderColor: collectionTierColors?.border,
-                  }}
-                >
-                  {collectionAchievement.icon}
-                </div>
-                {/* Achievement Info */}
-                <div className="flex-1 min-w-0">
-                  <div
-                    className="text-sm font-semibold truncate"
-                    style={{ color: tv.text.primary }}
-                  >
-                    {collectionAchievement.title}
-                  </div>
-                  <div
-                    className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider inline-block mt-1"
-                    style={{
-                      backgroundColor: collectionTierColors?.bg,
-                      color: collectionTierColors?.text,
-                    }}
-                  >
-                    {collectionAchievement.tier}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col justify-center">
-                <div
-                  className="text-xs font-semibold uppercase tracking-wide mb-1"
-                  style={{ color: tv.text.secondary }}
-                >
-                  Collector
-                </div>
-                <div
-                  className="text-sm opacity-60"
-                  style={{ color: tv.text.muted }}
-                >
-                  Earn achievements to unlock
-                </div>
-              </div>
             )}
-          </button>
+          </div>
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing || isLoading}
+              className="flex min-h-10 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <RefreshCw aria-hidden="true" className="size-4" />
+              {isRefreshing ? "Refreshing…" : "Refresh achievements"}
+            </button>
+          )}
         </div>
-
-        {/* Category Grid - 5x3 for 15 categories */}
-        <div className="flex-1 grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-3 grid-rows-5 gap-2">
-          {CATEGORIES.map((category) => (
-            <CategoryCard
-              key={category}
-              category={category}
-              earnedIds={earnedIds}
-              onClick={() => handleCategoryClick(category)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Full Achievements Board Modal */}
+        {refreshError && <p role="alert" className="text-sm text-foreground">{refreshError}</p>}
+        {isRefreshing && <p role="status" className="sr-only">Refreshing achievements</p>}
+        {isLoading ? (
+          <p role="status" className="py-6 text-sm text-muted-foreground">Loading achievements…</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 @min-[24rem]:grid-cols-2 @min-[42rem]:grid-cols-3">
+            {["collection" as const, ...CATEGORIES].map((category) => (
+              <CategoryCard
+                key={category}
+                category={category}
+                earnedIds={earnedIds}
+                onClick={() => openCategory(category)}
+                isOpen={showAchievementsModal && selectedCategory === category}
+              />
+            ))}
+          </div>
+        )}
+      </section>
       {showAchievementsModal && (
         <AchievementsModal
           earnedAchievements={earnedAchievements}
