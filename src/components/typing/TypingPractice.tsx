@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import type { Quote, SettingsState, Theme } from "@/lib/typing-constants";
+import { normalizePracticeSettings, type Quote, type SettingsState, type Theme } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
-import { fetchWordsManifest, fetchWords, type WordsManifest } from "@/lib/words";
-import { fetchQuotesManifest, fetchQuotes, type QuotesManifest } from "@/lib/quotes";
+import { fetchWordsManifest, type WordsManifest } from "@/lib/words";
+import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
 import {
+  DEFAULT_SETTINGS,
   loadSettings,
   saveSettings,
   loadLayoutSettings,
@@ -21,13 +22,19 @@ import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
 import PlanSplash from "@/components/plan/PlanSplash";
 import PlanResultsModal from "@/components/plan/PlanResultsModal";
 import { Progress } from "@/components/ui/progress";
-import { useUser, useClerk } from "@clerk/clerk-react";
+import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useNotifications } from "@/lib/notification-store";
 import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
 
+import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey,
+  hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
+import { usePracticeClock } from "./usePracticeClock";
+import { usePracticeDataset } from "./usePracticeDataset";
+import { useTypingScroll } from "./useTypingScroll";
+import PracticeText from "./PracticeText";
 import PracticeResults from "./PracticeResults";
 import PracticeCountDialog from "./PracticeCountDialog";
 import PracticePresetDialog from "./PracticePresetDialog";
@@ -73,96 +80,6 @@ const generateWords = (
     words.push(word);
   }
   return words.join(" ");
-};
-
-// Stats computation
-const computeStats = (typed: string, reference: string) => {
-  const typedWords = typed.split(" ");
-  const referenceWords = reference.split(" ");
-
-  let correct = 0;
-  let incorrect = 0;
-  let missed = 0;
-  let extra = 0;
-
-  for (let i = 0; i < typedWords.length; i++) {
-    const typedWord = typedWords[i];
-    const refWord = referenceWords[i] || "";
-    const isCurrentWord = i === typedWords.length - 1;
-
-    if (isCurrentWord) {
-      for (let j = 0; j < typedWord.length; j++) {
-        if (j < refWord.length) {
-          if (typedWord[j] === refWord[j]) {
-            correct++;
-          } else {
-            incorrect++;
-          }
-        } else {
-          extra++;
-        }
-      }
-    } else {
-      for (let j = 0; j < refWord.length; j++) {
-        if (j < typedWord.length) {
-          if (typedWord[j] === refWord[j]) {
-            correct++;
-          } else {
-            incorrect++;
-          }
-        } else {
-          missed++;
-        }
-      }
-
-      if (typedWord.length > refWord.length) {
-        extra += typedWord.length - refWord.length;
-      }
-    }
-
-    if (i < typedWords.length - 1) {
-      const refHasNextWord = i < referenceWords.length - 1;
-      if (refHasNextWord) {
-        if (typedWord.length >= refWord.length) {
-          correct++;
-        } else {
-          incorrect++;
-        }
-      } else {
-        const isSingleTrailingSpace =
-          i === typedWords.length - 2 && typedWords[i + 1] === "";
-        if (isSingleTrailingSpace) {
-          correct++;
-        } else {
-          extra++;
-        }
-      }
-    }
-  }
-
-  return { correct, incorrect, missed, extra };
-};
-
-// Word-level results computation
-const computeWordResults = (typed: string, reference: string) => {
-  const typedWords = typed.trim().split(" ").filter(w => w.length > 0);
-  const referenceWords = reference.split(" ");
-  
-  const correctWords: string[] = [];
-  const incorrectWords: { typed: string; expected: string }[] = [];
-  
-  for (let i = 0; i < typedWords.length; i++) {
-    const typedWord = typedWords[i];
-    const refWord = referenceWords[i] || "";
-    
-    if (typedWord === refWord) {
-      correctWords.push(typedWord);
-    } else if (refWord) {
-      incorrectWords.push({ typed: typedWord, expected: refWord });
-    }
-  }
-  
-  return { correctWords, incorrectWords };
 };
 
 const formatTime = (seconds: number) => {
@@ -239,35 +156,19 @@ export default function TypingPractice({
     themeId: selectedThemeId,
     variantId: selectedVariantId,
     mode: selectedMode,
-    setTheme: setThemeById,
+    userSelectionRevision,
     setThemeSelection,
   } = useTheme();
   // --- State ---
-  const [settings, setSettings] = useState<SettingsState>({
-    mode: "zen",
-    duration: 30,
-    wordTarget: 25,
-    punctuation: false,
-    numbers: false,
-    capitalization: false,
-    typingFontSize: 3.25,
-    typingFontFamily: DEFAULT_TYPING_FONT,
-    iconFontSize: 1,
-    helpFontSize: 1,
-    difficulty: "beginner",
-    quoteLength: "all",
-    textAlign: "center",
-    ghostWriterSpeed: 40,
-    ghostWriterEnabled: false,
-    soundEnabled: true,
-    typingSound: "creamy",
-    warningSound: "clock",
-    errorSound: "",
-    presetText: "",
-    presetModeType: "finish",
-    showOnScreenKeyboard: false,
-    keyboardLayout: "qwerty" as KeyboardLayoutId,
-  });
+  const [settings, setSettings] = useState<SettingsState>(() => normalizePracticeSettings({
+    ...DEFAULT_SETTINGS, ...loadSettings(), presetText: "", ...(connectMode ? lockedSettings : {}),
+  }));
+  const preferenceEditsRef = useRef(new Set<string>());
+  const themeEditedRef = useRef(false);
+  const themeRevisionBaselineRef = useRef(userSelectionRevision);
+  const themeRevisionRef = useRef(userSelectionRevision);
+  themeRevisionRef.current = userSelectionRevision;
+  if (userSelectionRevision !== themeRevisionBaselineRef.current) themeEditedRef.current = true;
 
   // Use external state if provided, otherwise use internal state
   const [internalShowSettings, setInternalShowSettings] = useState(false);
@@ -279,8 +180,8 @@ export default function TypingPractice({
   const showThemeModal = externalShowThemeModal ?? internalShowThemeModal;
   const setShowThemeModal = externalSetShowThemeModal ?? setInternalShowThemeModal;
 
-  const [linePreview, setLinePreview] = useState(3);
-  const [maxWordsPerLine, setMaxWordsPerLine] = useState(7);
+  const [linePreview, setLinePreview] = useState(() => loadLayoutSettings()?.linePreview ?? 3);
+  const [maxWordsPerLine, setMaxWordsPerLine] = useState(() => loadLayoutSettings()?.maxWordsPerLine ?? 7);
   // Font option is now stored in settings.typingFontFamily
   const planTheme: Theme = useMemo(() => ({
     cursor: colors.typing.cursor,
@@ -299,24 +200,29 @@ export default function TypingPractice({
   const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
   const [showPresetInput, setShowPresetInput] = useState(false);
   const [showCustomCountModal, setShowCustomCountModal] = useState(false);
-  const [wordPool, setWordPool] = useState<string[]>([]);
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const dataset = usePracticeDataset(settings, quotesManifest);
+  const { wordPool, quotes } = dataset;
+  const promptConfigKey = JSON.stringify([settings.mode, settings.duration, settings.wordTarget,
+    settings.difficulty, settings.quoteLength, settings.punctuation, settings.numbers,
+    settings.capitalization, settings.presetText, settings.presetModeType]);
+  const promptConfigRef = useRef("");
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const [words, setWords] = useState("");
   const [typedText, setTypedText] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [scrollOffset, setScrollOffset] = useState(0);
+  const { elapsedMs, readElapsed, resetClock } = usePracticeClock(isRunning && (!connectMode || isTestActive));
   const [isRepeated, setIsRepeated] = useState(false);
-  const [ghostCharIndex, setGhostCharIndex] = useState(0);
+  const ghostCharIndex = Math.min(words.length, Math.floor(elapsedMs * settings.ghostWriterSpeed * 5 / 60000));
+  const repeatRef = useRef(false);
+  const attemptedSessionEpochRef = useRef(-1);
+  const [rankingStatus, setRankingStatus] = useState<"pending" | "ranked" | "unranked">("unranked");
   const [isFocused, setIsFocused] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [isWarningPlayed, setIsWarningPlayed] = useState(false);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const activeKeyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [uiOpacity, setUiOpacity] = useState(1);
+  const uiOpacity = isRunning && isFocused && !isFinished && (!connectMode || isTestActive) ? 0 : 1;
 
   // Compact Mode (for zoomed/narrow viewports)
   const [isCompactMode, setIsCompactMode] = useState(false);
@@ -341,6 +247,8 @@ export default function TypingPractice({
   const [showPlanBuilder, setShowPlanBuilder] = useState(false);
   const [planResults, setPlanResults] = useState<Record<string, PlanStepResult>>({});
   const [showPlanResultsModal, setShowPlanResultsModal] = useState(false);
+  const overlayOpenRef = useRef(false);
+  overlayOpenRef.current = showSettings || showThemeModal || showQuickSettings || showCustomCountModal || showPresetInput || showPlanBuilder || showPlanResultsModal;
 
   // Save Results State
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -375,8 +283,7 @@ export default function TypingPractice({
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
 
   // Clerk auth hooks
-  const { isSignedIn, user } = useUser();
-  const { openSignIn } = useClerk();
+  const { isSignedIn, user, openSignIn } = useAppAuth();
   const saveResultMutation = useMutation(api.testResults.saveResult);
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const startSessionMutation = useMutation(api.typingSessions.startSession);
@@ -389,6 +296,7 @@ export default function TypingPractice({
   const pendingTypedLengthRef = useRef(0);
   const finalizedRef = useRef(false);
   const savingRef = useRef(false);
+  const autoSaveAttemptedEpochRef = useRef(-1);
   const sessionEpochRef = useRef(0);
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const userRef = useRef(user);
@@ -416,14 +324,29 @@ export default function TypingPractice({
   const prefsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const focusRequestedRef = useRef(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const activeWordRef = useRef<HTMLSpanElement | null>(null);
-  const hasLoadedFromStorage = useRef(false);
-  const initialPrefsSnapshot = useRef<string | null>(null);
+  const caretRef = useRef<HTMLSpanElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const composingRef = useRef(false);
+  const [compositionDraft, setCompositionDraft] = useState<string | null>(null);
+  const scrollOffset = useTypingScroll({ viewportRef: containerRef, contentRef, caretRef,
+    layoutKey: JSON.stringify([typedText, compositionDraft, words, settings.typingFontSize, settings.typingFontFamily, settings.textAlign, maxWordsPerLine, isFinished]),
+    visibleLines: linePreview });
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const topLayoutRef = useRef<HTMLDivElement | null>(null);
   const bottomLayoutRef = useRef<HTMLDivElement | null>(null);
   const [typingCenterOffset, setTypingCenterOffset] = useState(0);
+
+  const promptReady = dataset.status === "ready" && promptConfigRef.current === promptConfigKey && words.length > 0;
+
+  useLayoutEffect(() => {
+    if (promptReady && focusRequestedRef.current && !overlayOpenRef.current && !isFinished && (!connectMode || isTestActive)) {
+      inputRef.current?.focus();
+      setIsFocused(document.activeElement === inputRef.current);
+      focusRequestedRef.current = false;
+    }
+  }, [promptReady, sessionEpoch, isFinished, connectMode, isTestActive]);
 
   // --- Calculated Stats ---
   const stats = useMemo(() => computeStats(typedText, words), [typedText, words]);
@@ -443,36 +366,11 @@ export default function TypingPractice({
   );
 
   const timeRemaining =
-    settings.mode === "time" ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
-
-  // --- Load Settings on Mount ---
-  useEffect(() => {
-    if (hasLoadedFromStorage.current) return;
-    hasLoadedFromStorage.current = true;
-
-    requestAnimationFrame(() => {
-      const storedSettings = loadSettings();
-      if (storedSettings) {
-        setSettings((prev) => ({
-          ...prev,
-          ...storedSettings,
-          presetText: "",
-        }));
-      }
-
-      const storedLayout = loadLayoutSettings();
-      if (storedLayout) {
-        setLinePreview(storedLayout.linePreview);
-        setMaxWordsPerLine(storedLayout.maxWordsPerLine);
-      }
-
-      // Theme is now managed by ThemeContext, no need to load here
-    });
-  }, []);
+    isTimedPractice(settings) ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
 
   // --- Save Settings ---
   useEffect(() => {
-    if (!hasLoadedFromStorage.current) return;
+    if (connectMode) return;
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -487,7 +385,7 @@ export default function TypingPractice({
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [settings, linePreview, maxWordsPerLine]);
+  }, [settings, linePreview, maxWordsPerLine, connectMode]);
 
   // Theme saving is now handled by ThemeContext
 
@@ -553,29 +451,26 @@ export default function TypingPractice({
     linePreview, maxWordsPerLine,
   ]);
 
-  // --- Reset DB prefs sync state when user changes ---
+  // Anonymous edits follow the first sign-in. Edits from a previous account do not follow another account.
+  const preferencesAccountRef = useRef<string | null>(null);
   useEffect(() => {
+    if (preferencesAccountRef.current && preferencesAccountRef.current !== user?.id) {
+      preferenceEditsRef.current.clear();
+      themeEditedRef.current = false;
+      themeRevisionBaselineRef.current = themeRevisionRef.current;
+      lastSavedPrefsRef.current = null;
+    }
+    preferencesAccountRef.current = user?.id ?? null;
     setHasResolvedDbPrefs(false);
   }, [user?.id]);
 
-  // --- Capture initial prefs snapshot after mount to detect anonymous modifications ---
-  useEffect(() => {
-    if (!hasLoadedFromStorage.current || initialPrefsSnapshot.current !== null) return;
-    initialPrefsSnapshot.current = buildPrefsSnapshot();
-  }, [buildPrefsSnapshot]);
-
   // --- Load Preferences from DB (for logged-in users) ---
   useEffect(() => {
-    if (!user?.id || hasResolvedDbPrefs || dbPreferences === undefined) return;
+    if (connectMode || !user?.id || hasResolvedDbPrefs || dbPreferences === undefined) return;
 
-    // If user modified settings while anonymous, keep their local settings
-    // and let the save effect push them to DB instead of overwriting with DB values
-    const userModifiedWhileAnonymous =
-      initialPrefsSnapshot.current !== null &&
-      buildPrefsSnapshot() !== initialPrefsSnapshot.current;
-
-    if (!dbPreferences || userModifiedWhileAnonymous) {
-      needsSnapshotStamp.current = !userModifiedWhileAnonymous;
+    // Local hydration is complete before the first render. Only event callbacks mark user edits.
+    if (!dbPreferences) {
+      needsSnapshotStamp.current = preferenceEditsRef.current.size === 0 && !themeEditedRef.current;
       setHasResolvedDbPrefs(true);
       return;
     }
@@ -583,26 +478,29 @@ export default function TypingPractice({
     let isCancelled = false;
 
     // Use requestAnimationFrame to defer state updates and avoid cascading renders
-    requestAnimationFrame(() => {
-      (async () => {
+    const hydrationFrame = requestAnimationFrame(() => {
+      if (isCancelled) return;
+      void (async () => {
+        if (isCancelled) return;
         try {
           // Apply theme from DB using the context
           const dbThemeId = (dbPreferences as Record<string, unknown>).themeId as string | undefined;
           const dbVariantId = (dbPreferences as Record<string, unknown>).themeVariantId as string | undefined;
           const dbThemeMode = (dbPreferences as Record<string, unknown>).themeMode as string | undefined;
-          if (dbThemeId) {
+          if (dbThemeId && !themeEditedRef.current) {
             try {
               await setThemeSelection({
                 themeId: dbThemeId,
                 variantId: dbVariantId || undefined,
                 mode: (dbThemeMode as "light" | "dark") || undefined,
-              });
+              }, { source: "preferences", expectedUserSelectionRevision: themeRevisionBaselineRef.current });
             } catch (error) {
               console.warn("Failed to apply theme from DB preferences:", error);
             }
-          } else if (dbPreferences.themeName && !dbPreferences.customTheme) {
+          } else if (!themeEditedRef.current && dbPreferences.themeName && !dbPreferences.customTheme) {
             try {
-              await setThemeById(dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-"));
+              await setThemeSelection({ themeId: dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-") },
+                { source: "preferences", expectedUserSelectionRevision: themeRevisionBaselineRef.current });
             } catch (error) {
               console.warn("Failed to apply theme from DB preferences:", error);
             }
@@ -613,7 +511,8 @@ export default function TypingPractice({
           // They would need to be stored as theme JSON files
 
           // Apply settings from DB
-          setSettings((prev) => ({
+          setSettings((prev) => {
+            const restored = normalizePracticeSettings({
             ...prev,
             mode: dbPreferences.defaultMode as typeof prev.mode,
             duration: dbPreferences.defaultDuration,
@@ -637,18 +536,23 @@ export default function TypingPractice({
             textAlign: dbPreferences.textAlign as typeof prev.textAlign,
             showOnScreenKeyboard: (dbPreferences as Record<string, unknown>).showOnScreenKeyboard as boolean ?? prev.showOnScreenKeyboard,
             keyboardLayout: ((dbPreferences as Record<string, unknown>).keyboardLayout as KeyboardLayoutId) ?? prev.keyboardLayout,
-          }));
+            });
+            for (const key of preferenceEditsRef.current) {
+              if (key in prev) Object.assign(restored, { [key]: prev[key as keyof SettingsState] });
+            }
+            return restored;
+          });
 
-          if (typeof dbPreferences.linePreview === "number") {
+          if (!preferenceEditsRef.current.has("linePreview") && typeof dbPreferences.linePreview === "number") {
             setLinePreview(Math.max(1, Math.min(6, Math.round(dbPreferences.linePreview))));
           }
 
-          if (typeof dbPreferences.maxWordsPerLine === "number") {
+          if (!preferenceEditsRef.current.has("maxWordsPerLine") && typeof dbPreferences.maxWordsPerLine === "number") {
             setMaxWordsPerLine(Math.max(1, Math.min(10, Math.round(dbPreferences.maxWordsPerLine))));
           }
         } finally {
           if (!isCancelled) {
-            needsSnapshotStamp.current = true;
+            needsSnapshotStamp.current = preferenceEditsRef.current.size === 0 && !themeEditedRef.current;
             setHasResolvedDbPrefs(true);
           }
         }
@@ -657,12 +561,13 @@ export default function TypingPractice({
 
     return () => {
       isCancelled = true;
+      cancelAnimationFrame(hydrationFrame);
     };
-  }, [dbPreferences, hasResolvedDbPrefs, setThemeById, buildPrefsSnapshot, user?.id]);
+  }, [dbPreferences, hasResolvedDbPrefs, setThemeSelection, user?.id, connectMode]);
 
   // --- Save Preferences to DB (debounced, dirty-checked, for logged-in users) ---
   useEffect(() => {
-    if (!user || !hasLoadedFromStorage.current || !hasResolvedDbPrefs) return;
+    if (connectMode || !user || !hasResolvedDbPrefs) return;
 
     const currentSnapshot = buildPrefsSnapshot();
 
@@ -696,7 +601,7 @@ export default function TypingPractice({
         clearTimeout(prefsDebounceRef.current);
       }
     };
-  }, [user, hasResolvedDbPrefs, buildPrefsSnapshot, savePreferencesMutation]);
+  }, [user, hasResolvedDbPrefs, buildPrefsSnapshot, savePreferencesMutation, connectMode]);
 
   // --- Load sound manifest ---
   useEffect(() => {
@@ -713,33 +618,15 @@ export default function TypingPractice({
     fetchQuotesManifest().then(setQuotesManifest);
   }, []);
 
-  // --- Apply locked settings from connect mode ---
+  // Connect owns run identity. Locked configuration applies without becoming a preference edit.
   useEffect(() => {
-    if (connectMode && lockedSettings) {
-      requestAnimationFrame(() => {
-        setSettings((prev) => ({ ...prev, ...lockedSettings }));
-      });
-    }
+    if (connectMode && lockedSettings) setSettings((prev) => normalizePracticeSettings({ ...prev, ...lockedSettings }));
   }, [connectMode, lockedSettings]);
-
-  // --- Load word pool ---
-  useEffect(() => {
-    const difficulty = settings.difficulty || wordsManifest?.default || "medium";
-    fetchWords(difficulty).then(setWordPool);
-  }, [settings.difficulty, wordsManifest]);
-
-  // --- Load quotes ---
-  useEffect(() => {
-    if (settings.mode !== "quote") return;
-    const length = settings.quoteLength === "all" 
-      ? (quotesManifest?.default || "medium") 
-      : settings.quoteLength;
-    fetchQuotes(length).then(setQuotes);
-  }, [settings.mode, settings.quoteLength, quotesManifest]);
 
   // --- Callbacks ---
   const updateSettings = useCallback((updates: Partial<SettingsState>) => {
-    setSettings((prev) => ({ ...prev, ...updates }));
+    Object.keys(updates).forEach((key) => preferenceEditsRef.current.add(key));
+    setSettings((prev) => normalizePracticeSettings({ ...prev, ...updates }));
   }, []);
 
   const openCustomCountModal = useCallback(() => {
@@ -754,27 +641,31 @@ export default function TypingPractice({
     savingRef.current = false;
     isFinishedRef.current = false;
     if (existingSessionId) {
-      void cancelSessionMutation({ sessionId: existingSessionId });
+      void cancelSessionMutation({ sessionId: existingSessionId }).catch(() => {});
     }
     sessionEpochRef.current += 1;
     setSessionEpoch(sessionEpochRef.current);
 
+    typedTextRef.current = "";
+    isRunningRef.current = false;
+    elapsedMsRef.current = 0;
+    repeatRef.current = isRepeat;
+    startingSessionRef.current = false;
+    setRankingStatus(isRepeat || !isSignedInRef.current || settingsRef.current.mode === "zen" ? "unranked" : "pending");
+    composingRef.current = false;
+    setCompositionDraft(null);
     setTypedText("");
     setIsRunning(false);
     setIsFinished(false);
-    setStartTime(null);
-    setElapsedMs(0);
-    setScrollOffset(0);
-    setGhostCharIndex(0);
+    resetClock();
     setIsRepeated(isRepeat);
-    setIsFocused(true);
+    focusRequestedRef.current = !overlayOpenRef.current;
+    setIsFocused(document.activeElement === inputRef.current);
     setIsWarningPlayed(false);
-    setUiOpacity(1);
     setSaveState("idle");
     setLastResultIsValid(null);
     setLastResultInvalidReason(undefined);
-    inputRef.current?.focus();
-  }, [cancelSessionMutation]);
+  }, [cancelSessionMutation, resetClock]);
 
   // Ref to store pending plan result
   const pendingPlanResultRef = useRef<{
@@ -783,12 +674,13 @@ export default function TypingPractice({
   } | null>(null);
 
   const finishSession = useCallback(() => {
-    if (isFinished) return;
+    if (isFinishedRef.current) return;
     isFinishedRef.current = true;
 
     const currentTypedText = typedTextRef.current;
     const currentWords = wordsRef.current;
-    const currentElapsedMs = elapsedMsRef.current;
+    const currentElapsedMs = readElapsed();
+    elapsedMsRef.current = currentElapsedMs;
 
     // If in plan mode, prepare the result to be recorded
     if (isPlanActive && !isPlanSplash) {
@@ -816,7 +708,6 @@ export default function TypingPractice({
 
     setIsFinished(true);
     setIsRunning(false);
-    setUiOpacity(1);
 
     // Record plan result synchronously after state updates
     if (pendingPlanResultRef.current) {
@@ -827,7 +718,7 @@ export default function TypingPractice({
       }));
       pendingPlanResultRef.current = null;
     }
-  }, [isFinished, isPlanActive, isPlanSplash, plan, planIndex, planResults]);
+  }, [isPlanActive, isPlanSplash, plan, planIndex, planResults, readElapsed]);
 
   const finishSessionRef = useRef(finishSession);
   useEffect(() => { finishSessionRef.current = finishSession; }, [finishSession]);
@@ -888,6 +779,9 @@ export default function TypingPractice({
       return;
     }
 
+    const epoch = sessionEpochRef.current;
+    const finalTypedText = typedTextRef.current;
+    const finalElapsedMs = readElapsed();
     const sessionId = sessionIdRef.current;
     if (!sessionId && startingSessionRef.current) {
       setSaveState("saving");
@@ -904,6 +798,7 @@ export default function TypingPractice({
         avatarUrl: user.imageUrl,
       });
 
+      if (sessionEpochRef.current !== epoch) return;
       const calendar = getLocalCalendarFields();
 
       const showAchievementToasts = (achievementIds: string[]) => {
@@ -962,7 +857,7 @@ export default function TypingPractice({
         try {
           await recordProgressMutation({
             sessionId,
-            typedLength: typedTextRef.current.length,
+            typedLength: finalTypedText.length,
           });
         } catch {
           // Still finalize; progress is best-effort.
@@ -970,8 +865,8 @@ export default function TypingPractice({
 
         const result = await finalizeSessionMutation({
           sessionId,
-          typedText: typedTextRef.current,
-          clientElapsedMs: elapsedMsRef.current,
+          typedText: finalTypedText,
+          clientElapsedMs: finalElapsedMs,
           localDate: calendar.localDate,
           localHour: calendar.localHour,
           dayOfWeek: calendar.dayOfWeek,
@@ -979,6 +874,7 @@ export default function TypingPractice({
           day: calendar.day,
         });
 
+        if (sessionEpochRef.current !== epoch) return;
         finalizedRef.current = true;
         sessionIdRef.current = null;
         setLastResultIsValid(result.isValid);
@@ -992,13 +888,15 @@ export default function TypingPractice({
         return;
       }
 
-      // Guest-then-sign-in has no session: history-only saveResult (not ranked).
-      if (resultData) {
+      // No matching server-owned prompt: history only; this server endpoint always sets rankedEligible:false.
+      if (!sessionId) {
         const result = await saveResultMutation({
           clerkId: user.id,
           ...dataToSave,
           ...calendar,
         });
+        if (sessionEpochRef.current !== epoch) return;
+        finalizedRef.current = true;
         setLastResultIsValid(null);
         setSaveState("saved");
         pendingResultRef.current = null;
@@ -1014,11 +912,11 @@ export default function TypingPractice({
       setSaveState("error");
     } catch (error) {
       console.error("Failed to save result:", error);
-      setSaveState("error");
+      if (sessionEpochRef.current === epoch) setSaveState("error");
     } finally {
-      savingRef.current = false;
+      if (sessionEpochRef.current === epoch) savingRef.current = false;
     }
-  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, addNotification, saveState]);
+  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, addNotification, saveState, readElapsed]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {
@@ -1033,17 +931,20 @@ export default function TypingPractice({
   useEffect(() => { saveResultsRef.current = saveResults; }, [saveResults]);
 
   const ensureSoloSessionStarted = useCallback((targetText?: string) => {
-    if (connectModeRef.current) return;
+    if (connectModeRef.current || composingRef.current || repeatRef.current || isRunningRef.current || typedTextRef.current || isFinishedRef.current) return;
     const currentUser = userRef.current;
     if (!currentUser || !isSignedInRef.current) return;
     if (sessionIdRef.current || startingSessionRef.current || finalizedRef.current) return;
 
     const s = settingsRef.current;
+    if (s.mode === "zen" || s.mode === "plan" || attemptedSessionEpochRef.current === sessionEpochRef.current) return;
+    attemptedSessionEpochRef.current = sessionEpochRef.current;
     const needsClientPrompt = s.mode === "quote" || s.mode === "preset";
     const text = targetText || wordsRef.current;
     if (needsClientPrompt && !text) return;
 
     startingSessionRef.current = true;
+    setRankingStatus("pending");
     const epoch = sessionEpochRef.current;
 
     void getOrCreateUser({
@@ -1052,8 +953,9 @@ export default function TypingPractice({
       username: currentUser.username ?? currentUser.firstName ?? "User",
       avatarUrl: currentUser.imageUrl,
     })
-      .then(() =>
-        startSessionMutation({
+      .then(() => {
+        if (sessionEpochRef.current !== epoch || composingRef.current || isRunningRef.current || typedTextRef.current || userRef.current?.id !== currentUser.id) return null;
+        return startSessionMutation({
           clerkId: currentUser.id,
           mode: s.mode,
           duration: s.duration,
@@ -1072,19 +974,19 @@ export default function TypingPractice({
             capitalization: s.capitalization,
           },
           ...(needsClientPrompt ? { targetText: text } : {}),
-        })
-      )
+        });
+      })
       .then((res) => {
         if (!res?.sessionId) return;
-        if (sessionEpochRef.current !== epoch) {
-          void cancelSessionMutation({ sessionId: res.sessionId });
+        if (sessionEpochRef.current !== epoch || userRef.current?.id !== currentUser.id || composingRef.current || isRunningRef.current || typedTextRef.current.length > 0 || repeatRef.current || isFinishedRef.current) {
+          void cancelSessionMutation({ sessionId: res.sessionId }).catch(() => {});
           return;
         }
+        // Commit both identities before input can start; no client text is attached to a different server prompt.
+        wordsRef.current = res.targetText;
         sessionIdRef.current = res.sessionId;
-        if (res.targetText && typedTextRef.current.length === 0) {
-          wordsRef.current = res.targetText;
-          setWords(res.targetText);
-        }
+        setWords(res.targetText);
+        setRankingStatus("ranked");
         const len = Math.max(
           typedTextRef.current.length,
           pendingTypedLengthRef.current
@@ -1102,8 +1004,10 @@ export default function TypingPractice({
       })
       .catch((error) => {
         console.warn("Failed to start typing session:", error);
+        if (sessionEpochRef.current === epoch) setRankingStatus("unranked");
       })
       .finally(() => {
+        if (sessionEpochRef.current !== epoch) return;
         startingSessionRef.current = false;
         if (isFinishedRef.current && !finalizedRef.current && !sessionIdRef.current) {
           void saveResultsRef.current();
@@ -1117,28 +1021,36 @@ export default function TypingPractice({
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
     pendingTypedLengthRef.current = 0;
-    void recordProgressMutation({ sessionId, typedLength });
+    void recordProgressMutation({ sessionId, typedLength }).catch(() => {});
   }, [recordProgressMutation]);
 
   useEffect(() => {
-    if (connectMode || !isSignedIn || !user || !words) return;
+    if (connectMode || !isSignedIn || !user || !words || promptConfigRef.current !== promptConfigKey || dataset.status !== "ready") return;
     ensureSoloSessionStarted(words);
-  }, [sessionEpoch, connectMode, isSignedIn, user, words, ensureSoloSessionStarted]);
+  }, [sessionEpoch, connectMode, isSignedIn, user, words, ensureSoloSessionStarted, promptConfigKey, dataset.status]);
 
   useEffect(() => {
     if (!isFinished || connectMode || !isSignedIn) return;
-    if (finalizedRef.current) return;
+    if (finalizedRef.current || autoSaveAttemptedEpochRef.current === sessionEpochRef.current) return;
+    autoSaveAttemptedEpochRef.current = sessionEpochRef.current;
     void saveResults();
   }, [isFinished, connectMode, isSignedIn, saveResults]);
 
   const generateTest = useCallback(() => {
+    resetSession(false);
+    promptConfigRef.current = promptConfigKey;
+    setCurrentQuote(null);
+    wordsRef.current = "";
+    setWords("");
+    if (dataset.status !== "ready") return;
+    if (settings.mode === "plan") return;
     if (settings.mode === "quote") {
       if (quotes.length === 0) return;
       const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
       if (randomQuote) {
         setCurrentQuote(randomQuote);
-        setWords(randomQuote.quote);
-        resetSession(false);
+        wordsRef.current = randomQuote.quote.replace(/\s+/g, " ").trim();
+        setWords(wordsRef.current);
       }
       return;
     }
@@ -1148,23 +1060,23 @@ export default function TypingPractice({
         setShowPresetInput(true);
         return;
       }
-      setWords(settings.presetText);
-      resetSession(false);
+      wordsRef.current = settings.presetText.replace(/\s+/g, " ").trim();
+      setWords(wordsRef.current);
       return;
     }
 
     if (wordPool.length === 0) return;
 
     const wordCount = settings.mode === "words" && settings.wordTarget > 0 ? settings.wordTarget : 200;
-    setWords(
-      generateWords(wordCount, wordPool, {
+    const generated = generateWords(wordCount, wordPool, {
         punctuation: settings.punctuation,
         numbers: settings.numbers,
         capitalization: settings.capitalization,
-      })
-    );
-    resetSession(false);
+      });
+    wordsRef.current = generated;
+    setWords(generated);
   }, [
+    dataset.status, promptConfigKey,
     settings.mode,
     settings.wordTarget,
     settings.punctuation,
@@ -1253,87 +1165,36 @@ export default function TypingPractice({
     }
   }, [disableKidMode, enableKidMode, generateTest, isKidMode, settings.mode, updateSettings]);
 
-  // Keep generateTest ref fresh without triggering the effect below
-  const generateTestRef = useRef(generateTest);
-  useEffect(() => { generateTestRef.current = generateTest; }, [generateTest]);
+  useEffect(() => { generateTest(); }, [generateTest]);
 
-  // Generate test on mode/difficulty change (NOT on generateTest identity change)
+  // The clock owns elapsed time; ghost position derives from that same elapsed value, including spaces.
   useEffect(() => {
-    if (isRunningRef.current) return;
-    if (wordPool.length > 0 || settings.mode === "quote" || settings.mode === "preset") {
-      requestAnimationFrame(() => {
-        generateTestRef.current();
-      });
+    if (!isRunning || (connectMode && !isTestActive) || !isTimedPractice(settings)) return;
+    if (elapsedMs >= settings.duration * 1000) finishSessionRef.current();
+    if (!isWarningPlayed && elapsedMs >= (settings.duration - 5) * 1000 && settings.duration >= 10) {
+      playWarningSound();
+      setIsWarningPlayed(true);
     }
-  }, [settings.mode, settings.difficulty, wordPool.length, settings.punctuation, settings.numbers, settings.capitalization]);
-
-  // --- Timer ---
-  useEffect(() => {
-    if (!isRunning || !startTime) return;
-
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const elapsed = now - startTime;
-      setElapsedMs(elapsed);
-
-      if (settings.mode === "time" && elapsed >= settings.duration * 1000) {
-        finishSessionRef.current();
-      }
-
-      if (
-        settings.mode === "time" &&
-        !isWarningPlayed &&
-        elapsed >= (settings.duration - 5) * 1000 &&
-        settings.duration >= 10
-      ) {
-        playWarningSound();
-        setIsWarningPlayed(true);
-      }
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [isRunning, startTime, settings.mode, settings.duration, playWarningSound, isWarningPlayed]);
-
-  // --- Ghost Writer ---
-  useEffect(() => {
-    if (!settings.ghostWriterEnabled || !isRunning || isFinished) return;
-
-    const charsPerSecond = (settings.ghostWriterSpeed * 5) / 60;
-    const interval = setInterval(() => {
-      setGhostCharIndex((prev) => {
-        const next = prev + charsPerSecond / 10;
-        return Math.min(next, words.length);
-      });
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [settings.ghostWriterEnabled, settings.ghostWriterSpeed, isRunning, isFinished, words.length]);
-
-  // --- UI Fade while typing ---
-  useEffect(() => {
-    if (isRunning && !isFinished) {
-      const timeout = setTimeout(() => {
-        setUiOpacity(0);
-      }, 2000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isRunning, isFinished, typedText]);
+  }, [elapsedMs, isRunning, connectMode, isTestActive, settings, isWarningPlayed, playWarningSound]);
 
   // --- Notify parent of typing state ---
   useEffect(() => {
     if (onTypingStateChange) {
-      onTypingStateChange(isRunning && !isFinished);
+      onTypingStateChange(isRunning && !isFinished && isFocused && (!connectMode || isTestActive));
     }
-  }, [isRunning, isFinished, onTypingStateChange]);
+  }, [isRunning, isFinished, isFocused, connectMode, isTestActive, onTypingStateChange]);
 
+  const onStatsUpdateRef = useRef(onStatsUpdate);
+  onStatsUpdateRef.current = onStatsUpdate;
   // --- Report stats to parent (connect mode) ---
   useEffect(() => {
-    if (onStatsUpdate) {
-      onStatsUpdate(
+    if (!promptReady || (connectMode && !isTestActive)) return;
+    if (onStatsUpdateRef.current) {
+      onStatsUpdateRef.current(
         {
           wpm: Math.round(wpm) || 0,
           accuracy: accuracy || 100,
-          progress: words.length > 0 ? (typedText.length / words.length) * 100 : 0,
+          progress: words.length > 0 ? getInputPosition(typedText, words).referencePosition / words.length * 100 : 0,
           wordsTyped: Math.floor(typedText.length / 5),
           timeElapsed: elapsedMs,
           isFinished,
@@ -1342,89 +1203,49 @@ export default function TypingPractice({
         words
       );
     }
-  }, [wpm, accuracy, typedText, words, elapsedMs, isFinished, onStatsUpdate]);
+  }, [wpm, accuracy, typedText, words, elapsedMs, isFinished, connectMode, isTestActive, promptReady]);
 
-  // --- Input handling ---
   const handleInput = (value: string) => {
-    if (isFinished) return;
-    if (connectMode && !isTestActive) return;
-
-    // Collapse consecutive spaces to prevent word-index misalignment
-    const sanitized = value.replace(/  +/g, " ");
-
-    if (!isRunning) {
-      setIsRunning(true);
-      setStartTime(Date.now());
-    }
-
+    if (isFinishedRef.current || !promptReady || (connectMode && !isTestActive)) return;
+    const sanitized = sanitizeTypingInput(value);
+    isRunningRef.current = true;
+    if (!isRunning) setIsRunning(true);
+    typedTextRef.current = sanitized;
+    setTypedText(sanitized);
     if (!connectMode) {
-      typedTextRef.current = sanitized;
-      pendingTypedLengthRef.current = sanitized.length;
-      ensureSoloSessionStarted();
+      if (!sessionIdRef.current) setRankingStatus("unranked");
       reportSoloProgress(sanitized.length);
     }
-
-    setTypedText(sanitized);
     playClickSound();
-
     if (settings.mode === "quote" || settings.mode === "preset") {
-      if (sanitized.length === words.length) {
-        finishSession();
-      }
+      if (hasCompletedPrompt(sanitized, wordsRef.current)) finishSession();
       return;
     }
-
     if (settings.mode === "time" || settings.mode === "zen") {
-      const currentWordCount = sanitized.trim().split(/\s+/).length;
-      const totalWords = wordsRef.current.split(" ").length;
-      if (totalWords - currentWordCount < 50) {
-        const newWords = generateWords(50, wordPool, {
-          punctuation: settings.punctuation,
-          numbers: settings.numbers,
-          capitalization: settings.capitalization,
-        });
-        if (newWords) {
-          setWords((prev) => prev + " " + newWords);
-        }
+      const remaining = wordsRef.current.split(" ").length - sanitized.split(" ").length;
+      if (remaining < 50 && !sessionIdRef.current) {
+        const addition = generateWords(50, wordPool, settings);
+        if (addition) { wordsRef.current += " " + addition; setWords(wordsRef.current); }
       }
     }
-
-    if (settings.mode === "words" && settings.wordTarget > 0) {
-      const typedWordCount = sanitized.trim().split(/\s+/).length;
-      if (sanitized.endsWith(" ") && typedWordCount >= settings.wordTarget) {
-        finishSession();
-      }
-    }
+    if (settings.mode === "words" && sanitized.endsWith(" ") && hasCompletedPrompt(sanitized, wordsRef.current)) finishSession();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      if (e.shiftKey) {
-        resetSession(true);
-      }
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (composingRef.current) return;
+    constrainEditingKey(event);
+    if (event.nativeEvent.isComposing) return;
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && !connectMode) {
+      event.preventDefault();
+      resetSession(true);
     }
-    if (e.key === "Enter" && isFinished) {
-      generateTest();
-    }
-    if (e.key === "Escape" && isRunning && !isFinished) {
-      e.preventDefault();
+    if (event.key === "Escape" && isRunning && !isFinished) {
+      event.preventDefault();
       finishSession();
     }
   };
 
-  const hasErrors = useMemo(() => {
-    for (let i = 0; i < typedText.length; i++) {
-      if (typedText[i] !== words[i]) return true;
-    }
-    return false;
-  }, [typedText, words]);
-
-  const nextChar = useMemo(() => {
-    if (isFinished || !words) return null;
-    if (hasErrors) return "Backspace";
-    return words[typedText.length] ?? null;
-  }, [typedText.length, words, isFinished, hasErrors]);
+  const nextChar = isFinished ? null : getNextTypingKey(typedText, words);
 
   useEffect(() => {
     const handleKeyEvent = (e: KeyboardEvent) => {
@@ -1443,30 +1264,6 @@ export default function TypingPractice({
       clearTimeout(activeKeyTimeoutRef.current);
     };
   }, []);
-
-  // --- Global keyboard listener for results screen ---
-  useEffect(() => {
-    if (!isFinished) return;
-
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        generateTest();
-      }
-      if (e.key === "Tab") {
-        e.preventDefault();
-        resetSession(true);
-      }
-      // Spacebar to save results (only if not already saved/saving, not invalid, and not in connect mode)
-      if (e.key === " " && !connectMode && saveState !== "saving" && saveState !== "saved" && lastResultIsValid !== false) {
-        e.preventDefault();
-        saveResults();
-      }
-    };
-
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isFinished, generateTest, resetSession, connectMode, saveState, saveResults, lastResultIsValid]);
 
   const handlePresetSubmit = (text: string) => {
     const sanitized = text.replace(/[^\x20-\x7E\n]/g, "").replace(/\s+/g, " ").trim();
@@ -1538,32 +1335,6 @@ export default function TypingPractice({
     setPlanResults({});
   }, []);
 
-  // --- Scroll handling ---
-  useLayoutEffect(() => {
-    if (!containerRef.current || !activeWordRef.current) return;
-
-    const container = containerRef.current;
-    const activeWord = activeWordRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const wordRect = activeWord.getBoundingClientRect();
-
-    // Calculate relative position
-    const relativeTop = wordRect.top - containerRect.top;
-    const lineHeight = parseFloat(getComputedStyle(container).lineHeight || "0");
-
-    // If word is on 3rd line or below (index 2+), scroll up
-    // We want active line to be line 2 (index 1), unless we only have 1 line preview
-    const targetTop = linePreview === 1 ? 0 : lineHeight;
-
-    // Adjust scroll offset to keep the active word at the target position
-    // We use a threshold to prevent jitter
-    const diff = relativeTop - targetTop;
-
-    if (Math.abs(diff) > 10) {
-      setScrollOffset((prev) => Math.max(0, prev + diff));
-    }
-  }, [typedText, settings.typingFontSize, linePreview]);
-
   useLayoutEffect(() => {
     if (isCompactMode || isFinished) {
       setTypingCenterOffset(0);
@@ -1606,87 +1377,6 @@ export default function TypingPractice({
     showQuickSettings,
   ]);
 
-  // --- Render Typing Area ---
-  const renderTypingArea = () => {
-    const wordsArray = words.split(" ");
-    const typedWords = typedText.split(" ");
-    const currentWordIndex = typedWords.length - 1;
-    const initialCharIndex = 0;
-
-    return wordsArray.reduce<{ nodes: React.ReactNode[]; currentIndex: number }>(
-      (acc, word, wordIdx) => {
-        const wordStartIndex = acc.currentIndex;
-        const typedWord = typedWords[wordIdx] || "";
-        const isCurrentWord = wordIdx === currentWordIndex;
-        const isPastWord = wordIdx < currentWordIndex;
-
-        const wordNode = (
-          <span
-            key={wordIdx}
-            ref={isCurrentWord ? activeWordRef : null}
-            className="inline-block mr-[0.5em] relative"
-          >
-            {word.split("").map((char, charIdx) => {
-              const globalCharIndex = wordStartIndex + charIdx;
-              const typedChar = typedWord[charIdx];
-              const isTyped = typedChar !== undefined;
-              const isCorrect = typedChar === char;
-              const isCursor = isCurrentWord && charIdx === typedWord.length;
-              const isGhost =
-                settings.ghostWriterEnabled && Math.floor(ghostCharIndex) === globalCharIndex;
-
-              let charColor: string = tv.typing.default;
-              if (!isTyped) {
-                if (isPastWord) charColor = tv.typing.incorrect;
-                else if (isCursor) charColor = tv.typing.upcoming;
-              } else {
-                charColor = isCorrect ? tv.typing.correct : tv.typing.incorrect;
-              }
-
-              return (
-                <span key={charIdx} className="relative" style={{ color: charColor }}>
-                  {char}
-                  {isCursor && (
-                    <span
-                      className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                      style={{ backgroundColor: tv.typing.cursor }}
-                    />
-                  )}
-                  {isGhost && (
-                    <span
-                      className="absolute left-0 top-0 h-full w-0.5 opacity-70"
-                      style={{ backgroundColor: tv.typing.cursorGhost }}
-                    />
-                  )}
-                </span>
-              );
-            })}
-            {(isCurrentWord || isPastWord) && typedWord.length > word.length && (
-              <span style={{ color: tv.typing.incorrect }}>{typedWord.slice(word.length)}</span>
-            )}
-            {isCurrentWord && typedWord.length === word.length && (
-              <span className="relative">
-                <span
-                  className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                  style={{ backgroundColor: tv.typing.cursor }}
-                />
-              </span>
-            )}
-          </span>
-        );
-
-        acc.nodes.push(wordNode);
-        // Insert line break after every maxWordsPerLine words
-        if ((wordIdx + 1) % maxWordsPerLine === 0 && wordIdx < wordsArray.length - 1) {
-          acc.nodes.push(<br key={`br-${wordIdx}`} />);
-        }
-        acc.currentIndex += word.length + 1;
-        return acc;
-      },
-      { nodes: [], currentIndex: initialCharIndex }
-    ).nodes;
-  };
-
   const selectedDurationPreset = TIME_PRESETS.find((preset) => preset === settings.duration);
   const selectedWordPreset = WORD_PRESETS.find((preset) => preset === settings.wordTarget);
   const isCustomDurationSelected = selectedDurationPreset === undefined;
@@ -1703,8 +1393,7 @@ export default function TypingPractice({
       style={{ backgroundColor: tv.bg.base }}
     >
       <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
-      {/* Header clearance spacer */}
-      <div className={`shrink-0 w-full ${settings.showOnScreenKeyboard && isRunning && !isFinished ? "pt-8 md:pt-10" : "pt-20 md:pt-24"}`} />
+      <div className="h-4 shrink-0" />
 
       <PracticeControls
         {...configurationProps}
@@ -1743,7 +1432,7 @@ export default function TypingPractice({
               </div>
 
               {/* Time Mode: Countdown Timer */}
-              {settings.mode === "time" && (
+              {isTimedPractice(settings) && (
                 <div
                   className={pillCls}
                   style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
@@ -1818,7 +1507,7 @@ export default function TypingPractice({
           )}
 
           {/* Row 2: Progress Bar - shown in time/words/zen modes, hidden in kid mode */}
-          {(settings.mode === "time" || settings.mode === "words" || settings.mode === "zen") && !isKidMode && (
+          {(isTimedPractice(settings) || settings.mode === "words" || settings.mode === "zen") && !isKidMode && (
             <div className={`flex ${kb ? "gap-1.5" : "gap-2 md:gap-3"} items-center`}>
               <div
                 className={kb ? "w-48 px-2.5 py-1.5 backdrop-blur-md rounded-full shadow-lg" : "w-56 md:w-80 px-3 py-2.5 md:px-4 md:py-4 backdrop-blur-md rounded-full shadow-lg"}
@@ -1857,7 +1546,7 @@ export default function TypingPractice({
                     className={kb ? "h-1.5" : "h-2 md:h-2.5"}
                     style={{ backgroundColor: tv.border.subtle }}
                     indicatorStyle={{
-                      backgroundColor: settings.mode === "time" && timeRemaining < 10
+                      backgroundColor: isTimedPractice(settings) && timeRemaining < 10
                         ? tv.status.error.DEFAULT
                         : tv.status.success.DEFAULT,
                     }}
@@ -1908,7 +1597,7 @@ export default function TypingPractice({
         {/* Quote Info */}
         {settings.mode === "quote" && currentQuote && !isFinished && (
           <div
-            className="mb-4 flex flex-col items-center text-center animate-fade-in transition-opacity duration-500"
+            className="mb-4 flex flex-col items-center text-center transition-opacity motion-reduce:transition-none duration-300"
             style={{ opacity: uiOpacity }}
           >
             <div className="text-xl font-medium" style={{ color: tv.interactive.secondary.DEFAULT }}>
@@ -1932,15 +1621,20 @@ export default function TypingPractice({
               ref={inputRef}
               name="typing-test-input"
               type="text"
-              value={typedText}
-              onChange={(e) => handleInput(e.target.value)}
+              value={compositionDraft ?? typedText}
+              aria-label="Typing practice"
+              aria-describedby="practice-editing-help"
+              onChange={(event) => { if (composingRef.current) setCompositionDraft(event.target.value); else handleInput(event.target.value); }}
+              onCompositionStart={(event) => { composingRef.current = true; setCompositionDraft(event.currentTarget.value); }}
+              onCompositionEnd={(event) => { composingRef.current = false; setCompositionDraft(null); handleInput(event.currentTarget.value); placeCaretAtEnd(event.currentTarget); }}
+              onSelect={(event) => { if (!composingRef.current) placeCaretAtEnd(event.currentTarget); }}
               onPaste={(e) => {
                 if (!connectMode) {
                   e.preventDefault();
                 }
               }}
               onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
+              onFocus={(event) => { setIsFocused(true); placeCaretAtEnd(event.currentTarget); }}
               onBlur={() => setIsFocused(false)}
               autoFocus
               autoComplete="off"
@@ -1949,7 +1643,7 @@ export default function TypingPractice({
               data-lpignore="true"
               className="absolute left-0 top-0 -z-10 opacity-0"
               style={{ caretColor: "transparent", color: "transparent", appearance: "none" }}
-              disabled={connectMode && !isTestActive}
+              disabled={!promptReady || (connectMode && !isTestActive)}
             />
 
             <div
@@ -1970,15 +1664,20 @@ export default function TypingPractice({
               }}
               onClick={() => inputRef.current?.focus()}
             >
-              <div
-                style={{ transform: `translateY(-${scrollOffset}px)`, transition: "transform 0.1s ease-out" }}
-              >
-                {renderTypingArea()}
+              <div ref={contentRef} className="relative motion-safe:transition-transform motion-safe:duration-100"
+                style={{ transform: `translateY(-${scrollOffset}px)` }}>
+                {promptReady && <PracticeText targetText={words} typedText={compositionDraft ?? typedText} caretRef={caretRef}
+                  maxWordsPerLine={maxWordsPerLine} ghostPosition={settings.ghostWriterEnabled ? ghostCharIndex : undefined} />}
               </div>
             </div>
 
+            {!promptReady && <div role="status" className="py-8 text-center" style={{ color: tv.text.secondary }}>
+              {dataset.status === "error" ? <>Could not load this prompt. <button type="button" onClick={() => { if (settings.mode === "quote") void fetchQuotesManifest().then(setQuotesManifest); dataset.retry(); }}>Retry</button></>
+                : settings.mode === "plan" ? "Waiting for the host to choose a plan step." : "Loading prompt…"}
+            </div>}
+            <span id="practice-editing-help" className="sr-only">Type at the end of the text. Use Backspace to correct the current word. Tab moves to the next control.</span>
             {/* Click to focus overlay */}
-            {!isFocused && (
+            {!isFocused && promptReady && (
               <div
                 className="absolute inset-0 flex items-center justify-center cursor-pointer"
                 onClick={() => inputRef.current?.focus()}
@@ -2022,6 +1721,7 @@ export default function TypingPractice({
             saveResults={saveResults}
             generateTest={generateTest}
             onLeave={onLeave}
+            {...{ repeatTest: () => resetSession(true), rankingStatus, isRepeated }}
           />
         )}
         </div>
@@ -2036,8 +1736,7 @@ export default function TypingPractice({
           >
             {isRepeated && <div className="mb-2 text-red-500 font-medium">REPEATED</div>}
             <div>
-              Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> +{" "}
-              <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Shift</kbd> to restart
+              Press <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to repeat · <kbd>Tab</kbd> to move focus
             </div>
             <div>Click on the text area and start typing</div>
           </div>
@@ -2056,7 +1755,7 @@ export default function TypingPractice({
         handlePresetSubmit={handlePresetSubmit}
       />
 
-      <PracticeThemePicker showThemeModal={showThemeModal} setShowThemeModal={setShowThemeModal} />
+      <PracticeThemePicker showThemeModal={showThemeModal} setShowThemeModal={setShowThemeModal} {...{ onUserSelection: () => { themeEditedRef.current = true; } }} />
 
       <PracticeSettingsDialog
         showSettings={showSettings}
@@ -2064,9 +1763,9 @@ export default function TypingPractice({
         settings={settings}
         updateSettings={updateSettings}
         linePreview={linePreview}
-        setLinePreview={setLinePreview}
+        setLinePreview={(value) => { preferenceEditsRef.current.add("linePreview"); setLinePreview(value); }}
         maxWordsPerLine={maxWordsPerLine}
-        setMaxWordsPerLine={setMaxWordsPerLine}
+        setMaxWordsPerLine={(value) => { preferenceEditsRef.current.add("maxWordsPerLine"); setMaxWordsPerLine(value); }}
         soundManifest={soundManifest}
       />
 
@@ -2083,9 +1782,9 @@ export default function TypingPractice({
         showQuickSettings={showQuickSettings}
         setShowQuickSettings={setShowQuickSettings}
         linePreview={linePreview}
-        setLinePreview={setLinePreview}
+        setLinePreview={(value) => { preferenceEditsRef.current.add("linePreview"); setLinePreview(value); }}
         maxWordsPerLine={maxWordsPerLine}
-        setMaxWordsPerLine={setMaxWordsPerLine}
+        setMaxWordsPerLine={(value) => { preferenceEditsRef.current.add("maxWordsPerLine"); setMaxWordsPerLine(value); }}
       />
 
       {/* Plan Builder Modal */}
