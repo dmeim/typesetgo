@@ -2,12 +2,12 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import type { SettingsState } from "@/lib/typing-constants";
+import { MAX_DURATION_SECONDS, type SettingsState } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
 
 const CUSTOM_WORD_MIN = 1;
 const CUSTOM_WORD_MAX = 9999;
-const CUSTOM_DURATION_MAX_HOURS = 6;
+const CUSTOM_DURATION_MAX_HOURS = Math.floor(MAX_DURATION_SECONDS / 3600);
 const DIAL_ROW_HEIGHT = 42;
 const DIAL_VISIBLE_ROWS = 5;
 const DIAL_PADDING_ROWS = Math.floor(DIAL_VISIBLE_ROWS / 2);
@@ -18,7 +18,7 @@ const clampNumber = (value: number, min: number, max: number) => {
 };
 
 const durationToDialValues = (totalSeconds: number) => {
-  const clampedSeconds = clampNumber(Math.round(totalSeconds), 0, CUSTOM_DURATION_MAX_HOURS * 3600 + 59 * 60 + 59);
+  const clampedSeconds = clampNumber(Math.round(totalSeconds), 0, MAX_DURATION_SECONDS);
 
   return {
     hours: Math.floor(clampedSeconds / 3600),
@@ -233,7 +233,11 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
       toast.error(settings.mode === "time" ? "Set at least 1 second." : "Set at least 1 word.");
       return;
     }
-    onApply(settings.mode === "words" ? clampNumber(value, CUSTOM_WORD_MIN, CUSTOM_WORD_MAX) : value);
+    onApply(
+      settings.mode === "words"
+        ? clampNumber(value, CUSTOM_WORD_MIN, CUSTOM_WORD_MAX)
+        : clampNumber(value, 1, MAX_DURATION_SECONDS),
+    );
     setShowCustomCountModal(false);
   };
 
