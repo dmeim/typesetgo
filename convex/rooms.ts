@@ -2,6 +2,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { generateRaceText } from "./lib/raceWords";
+import { checkRoomHost, emptyParticipantStats, saveRaceSnapshot } from "./lib/multiplayer";
 
 function generateRoomCode(): string {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -64,11 +65,14 @@ export const updateSettings = mutation({
   args: {
     roomId: v.id("rooms"),
     settings: v.any(),
+    hostSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("Room not found");
 
+    checkRoomHost(room, args.hostSessionId);
+    if (room.status === "active") throw new Error("Stop the run before changing its settings");
     await ctx.db.patch(args.roomId, {
       settings: { ...room.settings, ...args.settings },
     });
@@ -140,11 +144,15 @@ export const startRace = mutation({
   args: {
     roomId: v.id("rooms"),
     countdownSeconds: v.optional(v.number()), // Default 5 seconds
+    hostSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("Room not found");
     if (room.gameMode !== "race") throw new Error("Room is not a race");
+    checkRoomHost(room, args.hostSessionId);
+    if (room.raceEndTime !== undefined) throw new Error("Reset the room before starting another race");
+    if (room.raceStartTime !== undefined) return { raceStartTime: room.raceStartTime };
 
     // Verify all participants are ready
     const participants = await ctx.db
@@ -171,7 +179,11 @@ export const startRace = mutation({
       await ctx.db.patch(args.roomId, { targetText });
     }
 
-    const countdownMs = (args.countdownSeconds || 5) * 1000;
+    const countdownSeconds = args.countdownSeconds ?? 5;
+    if (!Number.isFinite(countdownSeconds) || countdownSeconds < 0 || countdownSeconds > 30) {
+      throw new Error("Countdown must be between 0 and 30 seconds");
+    }
+    const countdownMs = countdownSeconds * 1000;
     const raceStartTime = Date.now() + countdownMs;
 
     await ctx.db.patch(args.roomId, {
@@ -187,23 +199,32 @@ export const startRace = mutation({
 export const endRace = mutation({
   args: {
     roomId: v.id("rooms"),
+    raceStartTime: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("Room not found");
-
-    await ctx.db.patch(args.roomId, {
-      raceEndTime: Date.now(),
-    });
+    if (room.gameMode !== "race" || room.raceStartTime === undefined) throw new Error("Race has not started");
+    if (args.raceStartTime !== undefined && args.raceStartTime !== room.raceStartTime) return;
+    if (room.raceEndTime !== undefined) return;
+    await ctx.db.patch(args.roomId, { raceEndTime: Date.now() });
+    await saveRaceSnapshot(ctx, room);
   },
 });
 
 // Reset room for another race (return to lobby)
 export const resetForNewRace = mutation({
-  args: { roomId: v.id("rooms") },
+  args: { roomId: v.id("rooms"), hostSessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("Room not found");
+
+    checkRoomHost(room, args.hostSessionId);
+    if (room.gameMode !== "race") throw new Error("Room is not a race");
+    // A room represents the current race; remove the previous snapshot before reuse.
+    const results = await ctx.db.query("raceResults")
+      .withIndex("by_race", (q) => q.eq("raceId", room._id)).collect();
+    for (const result of results) await ctx.db.delete(result._id);
 
     // Reset room state
     await ctx.db.patch(args.roomId, {
@@ -223,14 +244,7 @@ export const resetForNewRace = mutation({
     for (const p of participants) {
       await ctx.db.patch(p._id, {
         isReady: false,
-        stats: {
-          wpm: 0,
-          accuracy: 0,
-          progress: 0,
-          wordsTyped: 0,
-          timeElapsed: 0,
-          isFinished: false,
-        },
+        stats: emptyParticipantStats(),
         finishTime: undefined,
         position: undefined,
         typedProgress: undefined,

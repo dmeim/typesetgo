@@ -17,20 +17,29 @@ export const join = mutation({
     sessionId: v.string(),
     name: v.string(),
     emoji: v.optional(v.string()),
+    gameMode: v.optional(v.union(v.literal("practice"), v.literal("race"), v.literal("lesson"))),
   },
   handler: async (ctx, args) => {
     const room = await ctx.db
       .query("rooms")
-      .withIndex("by_code", (q) => q.eq("code", args.roomCode))
+      .withIndex("by_code", (q) => q.eq("code", args.roomCode.trim().toUpperCase()))
       .first();
 
     if (!room) throw new Error("Room not found");
 
-    // Check for existing participant with same session (reconnect)
-    const existing = await ctx.db
+    if (args.gameMode && (room.gameMode ?? "practice") !== args.gameMode) {
+      throw new Error("This room uses a different game mode");
+    }
+    const name = args.name.trim();
+    if (!name) throw new Error("Enter a name to join");
+    if (name.length > 40) throw new Error("Names must be 40 characters or fewer");
+
+    // Session ids may occur in multiple rooms. Reconnect only within this room.
+    const members = await ctx.db
       .query("participants")
-      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
-      .first();
+      .withIndex("by_room", (q) => q.eq("roomId", room._id))
+      .collect();
+    const existing = members.find((p) => p.sessionId === args.sessionId);
 
     if (existing && existing.roomId === room._id) {
       const now = Date.now();
@@ -40,6 +49,9 @@ export const join = mutation({
         !existing.disconnectedAt ||
         now - existing.disconnectedAt < rejoinWindow;
 
+      if (room.gameMode === "race" && room.status === "active" && !canRejoin) {
+        throw new Error("The rejoin window has ended. Join the next race.");
+      }
       await ctx.db.patch(existing._id, {
         isConnected: true,
         lastSeen: now,
@@ -56,11 +68,14 @@ export const join = mutation({
 
     const now = Date.now();
     const isRace = room.gameMode === "race";
+    if (isRace && room.status === "active") {
+      throw new Error("This race has already started. Join the next race.");
+    }
 
     const participantId = await ctx.db.insert("participants", {
       roomId: room._id,
       sessionId: args.sessionId,
-      name: args.name,
+      name,
       isConnected: true,
       stats: {
         wpm: 0,
@@ -146,25 +161,27 @@ export const disconnect = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const participant = await ctx.db.get(args.participantId);
+    if (!participant || !participant.isConnected) return;
 
     await ctx.db.patch(args.participantId, {
       isConnected: false,
+      isReady: false,
       lastSeen: now,
       disconnectedAt: now,
     });
 
-    // Also update room's readyParticipants if they were ready
-    if (participant) {
-      const room = await ctx.db.get(participant.roomId);
-      if (room && room.readyParticipants) {
-        const newReadyList = room.readyParticipants.filter(
-          (id) => id !== participant.sessionId
-        );
-        await ctx.db.patch(participant.roomId, {
-          readyParticipants: newReadyList,
-        });
-      }
-    }
+    const room = await ctx.db.get(participant.roomId);
+    if (!room) return;
+    const members = await ctx.db.query("participants")
+      .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
+    const successor = members
+      .filter((p) => p._id !== participant._id && p.isConnected)
+      .sort((a, b) => a.joinedAt - b.joinedAt || a._id.localeCompare(b._id))[0];
+    const transferHost = room.gameMode === "race" && room.hostId === participant.sessionId && successor;
+    await ctx.db.patch(room._id, {
+      readyParticipants: (room.readyParticipants ?? []).filter((id) => id !== participant.sessionId),
+      ...(transferHost ? { hostId: successor.sessionId, hostName: successor.name } : {}),
+    });
   },
 });
 
@@ -175,10 +192,12 @@ export const setReady = mutation({
     const participant = await ctx.db.get(args.participantId);
     if (!participant) throw new Error("Participant not found");
 
+    if (!participant.isConnected) throw new Error("Rejoin the room before getting ready");
+    const room = await ctx.db.get(participant.roomId);
+    if (!room || room.status !== "waiting") throw new Error("The race has already started");
     await ctx.db.patch(args.participantId, { isReady: true });
 
-    // Update room's readyParticipants array
-    const room = await ctx.db.get(participant.roomId);
+    // Keep the legacy ready list in sync with participant readiness.
     if (room) {
       const readyList = room.readyParticipants || [];
       if (!readyList.includes(participant.sessionId)) {
@@ -197,10 +216,11 @@ export const setNotReady = mutation({
     const participant = await ctx.db.get(args.participantId);
     if (!participant) throw new Error("Participant not found");
 
+    const room = await ctx.db.get(participant.roomId);
+    if (!room || room.status !== "waiting") throw new Error("The race has already started");
     await ctx.db.patch(args.participantId, { isReady: false });
 
-    // Update room's readyParticipants array
-    const room = await ctx.db.get(participant.roomId);
+    // Keep the legacy ready list in sync with participant readiness.
     if (room && room.readyParticipants) {
       const newReadyList = room.readyParticipants.filter(
         (id) => id !== participant.sessionId
@@ -230,7 +250,9 @@ export const setName = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.participantId, { name: args.name });
+    const name = args.name.trim();
+    if (!name || name.length > 40) throw new Error("Enter a name between 1 and 40 characters");
+    await ctx.db.patch(args.participantId, { name });
   },
 });
 
