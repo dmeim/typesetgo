@@ -1,13 +1,16 @@
 import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 
+import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state";
+
 import { cn } from "@/lib/utils"
 import { overlayMotion, overlaySurface, overlayWidth } from "./overlay-styles"
 
 function Popover({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
-  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+  const overlay = useOverlayState(props);
+  return <OverlayScope value={overlay}><PopoverPrimitive.Root data-slot="popover" {...props} open={overlay.open} onOpenChange={overlay.onOpenChange} /></OverlayScope>;
 }
 
 function PopoverTrigger({
@@ -18,11 +21,13 @@ function PopoverTrigger({
 
 function PopoverContent({
   className,
+  onEscapeKeyDown,
   align = "center",
   sideOffset = 4,
   collisionPadding = 16,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  useOverlayEscape(onEscapeKeyDown);
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
