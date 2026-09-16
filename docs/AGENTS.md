@@ -32,8 +32,8 @@ High-level architecture:
 - **Styling:** Tailwind CSS v4 + Radix primitives + Shadcn/UI patterns
 - **Animation:** `framer-motion`
 - **Forms/validation:** `react-hook-form` + `zod`
-- **Testing:** Vitest + Testing Library (`jsdom`), Playwright script available
-- **Linting:** ESLint 10 + TypeScript ESLint + React Hooks/Refresh plugins
+- **Testing:** Vitest + Testing Library (`jsdom`), isolated Playwright/browser acceptance
+- **Linting:** ESLint 10 + TypeScript ESLint using the pinned TypeScript 6 JavaScript API; builds retain native TypeScript 7. React Hooks/Refresh rules remain enabled. See [`ui-cleanup/tooling.md`](ui-cleanup/tooling.md).
 - **Hosting:** Cloudflare Workers Static Assets at `typesetgo.app`; manual Wrangler deployment, no container workflow
 
 Key alias:
@@ -63,11 +63,11 @@ Typical dev flow uses two processes:
 
 - **Install deps:** `bun install`
 - **Dev server:** `bun run dev`
-- **Build:** `bun run build` (runs `tsc -b` + Vite build)
+- **Build:** `bun run build` (explicit native TypeScript 7 project build + Vite; includes Worker source checking)
 - **Lint:** `bun run lint`
 - **Unit tests (watch):** `bun run test`
 - **Unit tests (single run):** `bun run test:run`
-- **E2E test command:** `bun run test:e2e` (Playwright)
+- **E2E test command:** `bun run test:e2e` (all isolated browser suites), or append `practice`, `profiles`, `connect`, `connect-session`, or `race`
 - **Convex dev:** `bun run convex:dev`
 - **Convex deploy:** `bun run convex:deploy`
 - **Preview production build:** `bun run preview`
@@ -97,20 +97,21 @@ These catch type errors, bundling issues, and unit regressions.
 - Include pattern: `tests/unit/**/*.test.{ts,tsx}`
 
 Current repo state:
-- Unit tests are lightweight and currently concentrated in `tests/unit/lib.test.ts`.
+- Unit tests cover shared theme/auth/overlay contracts, practice input/session/preferences, profile capabilities, and multiplayer handlers against in-memory fixtures.
 - If you modify utility behavior, validation logic, or deterministic transforms, add/adjust unit tests in `tests/unit/`.
 
 ### D. E2E posture
-- Script exists (`bun run test:e2e`) for Playwright-based testing.
-- No committed Playwright config/specs are currently present in the repo tree.
-- If you add E2E tests, include a `playwright.config.*` and specs under a clear folder (for example `tests/e2e/`), then document usage in `README.md` and this file.
+- `bun run test:e2e` runs the central `tests/browser/run.mjs` suite coordinator.
+- Reusable browser fixtures/specs live under `tests/browser/`, `tests/fixtures/`, and `tests/e2e/`. Each uses local auth/data substitutes, isolated Vite caches, and refuses external service requests. No credentials or Convex server are required.
+- Installed Chrome is the default. Browser overrides, suite selection, safety boundaries, and artifact locations are in [`../tests/browser/README.md`](../tests/browser/README.md).
+- Keep fixture ports/configuration changes coordinated centrally. Tests must not reuse a different checkout’s server or target the live development database.
 
 ### E. Manual smoke checks (recommended for UI behavior changes)
 At minimum verify:
 - home route loads,
 - race/connect routes render without crashes,
 - settings/theme/sound interactions still function,
-- any modified flows still round-trip with Convex queries/mutations.
+- modified flows with local mocked queries/mutations or an explicitly verified isolated backend; never use the live development deployment as a test database.
 
 ---
 
@@ -126,7 +127,7 @@ typesetgo/
 │   ├── lib/                  # Utilities, schemas, constants, stores
 │   ├── context/              # React context providers (theme, etc.)
 │   ├── types/                # TypeScript domain types
-│   ├── App.tsx               # Route declarations
+│   ├── App.tsx               # Theme, motion, router and toast composition
 │   └── main.tsx              # App bootstrap/providers
 ├── convex/                   # Convex backend functions + schema
 │   ├── schema.ts             # Database schema + indexes
@@ -137,7 +138,7 @@ typesetgo/
 │   ├── words/                # Word lists
 │   ├── quotes/               # Quote sets
 │   └── sounds/               # Sound packs
-├── tests/                    # Vitest setup + unit tests
+├── tests/                    # Vitest + isolated browser tests/fixtures
 ├── docs/                     # Feature docs, PRDs, release notes, deployment docs
 ├── worker/                   # Worker asset handler + generated runtime types
 ├── wrangler.jsonc            # Live Worker account, domain, and asset configuration
@@ -151,28 +152,20 @@ typesetgo/
 
 ### Bootstrap/provider stack (`src/main.tsx`)
 Provider order is:
-1. `ConvexProvider`
-2. `NotificationProvider`
-3. `ClerkProvider` (conditional on `VITE_CLERK_PUBLISHABLE_KEY`)
-4. `BrowserRouter`
-5. global `Toaster`
+1. `StrictMode` and `NotificationProvider`.
+2. When configured, `ClerkProvider` and `ConvexClerkProvider`; otherwise anonymous `ConvexProvider`.
+3. `AppAuthProvider`, exposing safe `useAppAuth` availability and guarded account actions.
+4. `App`: `ThemeProvider` → `MotionConfig reducedMotion="user"` → `RouterProvider` and themed `Toaster`.
 
 Important behavior:
-- Missing Clerk key logs warning and continues without auth provider.
+- Missing Clerk configuration continues with a supported anonymous experience. Loading and failed auth remain distinct states.
 - A static footer in `index.html` is hidden after React hydration.
+- Invalid bootstrap configuration can fail before route recovery; isolated browser fixtures bypass live providers deliberately.
 
-### Routes (`src/App.tsx`)
-Routes are defined with React Router `Routes/Route`.
-Current areas include:
-- core practice (`/`)
-- leaderboard and user stats
-- connect host/join
-- race lobby/active/results
-- lessons and legal/info pages
+### Routes (`src/components/layout/app-routes.ts`)
+Lazy route modules cover Home, leaderboard/profile, Connect host/join, race lobby/active/results, lessons, admin, and legal/info pages. `RouteRecovery.tsx` supplies loading, route error, and not-found recovery. Race/Lessons navigation remains disabled; route existence does not mean an unfinished feature is enabled.
 
-Routing guidance:
-- Use React Router primitives (`<Link>`, hooks such as `useSearchParams`, etc.).
-- Avoid introducing alternate navigation systems.
+Use React Router links and hooks. Avoid alternate navigation systems. Header now participates in normal page flow; do not reintroduce fixed-header clearance spacers.
 
 ---
 
@@ -267,7 +260,7 @@ When implementing non-trivial changes:
 ## 13) Helpful File Landmarks
 
 - App entry/providers: `src/main.tsx`
-- Routes: `src/App.tsx`
+- Routes: `src/components/layout/app-routes.ts`
 - Shared validation schemas: `src/lib/schemas.ts`
 - Theme/sound/content helpers: `src/lib/*`
 - Convex schema: `convex/schema.ts`

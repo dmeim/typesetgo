@@ -19,7 +19,7 @@ bun run dev             # Start Vite frontend (port 3000)
 bun run build           # TypeScript check + Vite build
 bun run test:run        # Unit tests (single run)
 bun run test            # Unit tests (watch mode)
-bun run test:e2e        # Playwright e2e command; tests/e2e currently has no specs
+bun run test:e2e        # Isolated browser acceptance (installed Chrome by default)
 bun run lint            # ESLint
 
 # Deployment
@@ -62,12 +62,12 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `public/quotes/` | Quote sets (manifest generated) |
 | `public/sounds/` | Sound packs (manifest generated) |
 | `tests/unit/` | Vitest unit tests |
-| `tests/e2e/` | Reserved for Playwright specs (currently empty) |
+| `tests/e2e/`, `tests/browser/`, `tests/fixtures/` | Isolated browser acceptance, local auth/data fixtures, and Playwright specs |
 | `docs/` | Agent handbook, feature docs, PRDs, release notes, deployment docs |
 | `worker/`, `wrangler.jsonc` | Worker asset handler, generated runtime types, and live deployment configuration |
 | `scripts/` | One-off migration/maintenance scripts |
 
-## Routes (`src/App.tsx`)
+## Routes (`src/components/layout/app-routes.ts`)
 
 | Route | Page |
 |-------|------|
@@ -83,15 +83,20 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/race/results/:raceId` | Race results/podium |
 | `/lessons` | Lessons mode |
 | `/about`, `/privacy`, `/tos` | Info/legal pages |
+| `/admin` | Existing review route; backend capability dependent |
+| Other paths | Themed not-found recovery |
 
 ## Provider Stack (`src/main.tsx`)
 
-`ConvexProvider` -> `NotificationProvider` -> optional `ClerkProvider` -> `BrowserRouter` -> `App`, plus global `Toaster`.
+`NotificationProvider` -> optional `ClerkProvider` -> `ConvexClerkProvider` (or anonymous `ConvexProvider`) -> `AppAuthProvider` -> `App`. App owns `ThemeProvider`, `MotionConfig reducedMotion="user"`, lazy `RouterProvider`, and themed `Toaster`.
 
 Notes:
 - `VITE_CONVEX_URL` is required for the Convex client.
 - Missing `VITE_CLERK_PUBLISHABLE_KEY` logs a warning and disables auth-only features.
-- `ThemeProvider` wraps routes inside `App`.
+- Feature auth uses `useAppAuth`; it safely describes missing/unavailable Clerk.
+- `ThemeProvider` wraps routes and Toaster inside `App`. Route boundaries cover loading/render failures; bootstrap configuration must still be valid.
+- Browser acceptance uses local mocks, never the live Convex development deployment. See [`tests/browser/README.md`](tests/browser/README.md).
+- Build pins native TypeScript 7; lint uses the compatible TypeScript 6 API. Use `bun run build`, not an ambiguous bare `tsc`; see [`docs/ui-cleanup/tooling.md`](docs/ui-cleanup/tooling.md).
 
 ## Generated Files (Do Not Edit)
 
