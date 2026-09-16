@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, loadLayoutSettings, loadSettings, saveSettings } from "@/lib/storage-utils";
 import { normalizePracticeSettings } from "@/lib/typing-constants";
 import { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS } from "@/components/typing/practice-config";
+import { MAX_WORD_TARGET, MAX_GHOST_SPEED } from "../../src/lib/practice-limits";
 
 afterEach(() => localStorage.clear());
 describe("practice preference boundaries", () => {
@@ -25,5 +26,14 @@ describe("practice preference boundaries", () => {
     expect(settings.ghostWriterSpeed).toBe(40);
     localStorage.setItem("typesetgo_layout", JSON.stringify({ linePreview: 999, maxWordsPerLine: 0 }));
     expect(loadLayoutSettings()).toEqual({ linePreview: 6, maxWordsPerLine: 1 });
+  });
+  it("retains the shared server-supported maxima and clamps larger preferences to those limits", () => {
+    const limits = { duration: MAX_DURATION_SECONDS, wordTarget: MAX_WORD_TARGET,
+      typingFontSize: TEXT_SIZE_MAX, ghostWriterSpeed: MAX_GHOST_SPEED };
+    const maxSettings = { ...DEFAULT_SETTINGS, presetText: "", ...limits };
+    expect(normalizePracticeSettings(maxSettings)).toMatchObject(limits);
+    expect(normalizePracticeSettings({ ...maxSettings, duration: MAX_DURATION_SECONDS + 1,
+      wordTarget: MAX_WORD_TARGET + 1, typingFontSize: TEXT_SIZE_MAX + 1,
+      ghostWriterSpeed: MAX_GHOST_SPEED + 1 })).toMatchObject(limits);
   });
 });
