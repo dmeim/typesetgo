@@ -1,3 +1,4 @@
+import { deriveThemeUI, parseThemeColor } from "@/lib/colors";
 import type {
   ThemeCategory,
   ThemeDefinition,
@@ -6,6 +7,7 @@ import type {
   ThemeColors,
   GroupedThemes,
   CategoryConfig,
+  ThemeCatalogResult,
 } from "@/types/theme";
 
 // Re-export types for convenience
@@ -79,7 +81,63 @@ export const CATEGORY_CONFIG: Record<ThemeCategory, CategoryConfig> = {
 
 // Cache for loaded data
 let cachedManifest: ThemeManifest | null = null;
-const themeCache: Record<string, ThemeDefinition> = {};
+const themeCache = new Map<string, ThemeDefinition>();
+let manifestRequest: Promise<ThemeManifest | null> | null = null;
+const themeRequests = new Map<string, Promise<ThemeDefinition | null>>();
+const THEME_CONCURRENCY = 6;
+const REQUEST_TIMEOUT_MS = 15_000;
+let activeRequests = 0;
+const requestQueue: Array<() => void> = [];
+
+async function withThemeSlot<T>(load: () => Promise<T>): Promise<T> {
+  await new Promise<void>((resolve) => {
+    const start = () => { activeRequests++; resolve(); };
+    if (activeRequests < THEME_CONCURRENCY) start();
+    else requestQueue.push(start);
+  });
+  try {
+    return await load();
+  } finally {
+    activeRequests--;
+    requestQueue.shift()?.();
+  }
+}
+
+async function fetchJSON(url: string): Promise<unknown> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`Theme request failed (${response.status})`);
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isThemeId(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+}
+
+function validateColors(value: unknown): ThemeColors {
+  function validate(actual: unknown, expected: unknown): void {
+    if (typeof expected === "string") {
+      if (typeof actual !== "string") throw new Error("Missing palette color");
+      parseThemeColor(actual);
+    } else if (isRecord(expected)) {
+      if (!isRecord(actual)) throw new Error("Missing palette group");
+      for (const [key, nested] of Object.entries(expected)) validate(actual[key], nested);
+    }
+  }
+  validate(value, getDefaultTheme().dark);
+  const colors = value as ThemeColors;
+  deriveThemeUI(colors);
+  return colors;
+}
 
 // Display name overrides for themes that need special capitalization
 const THEME_DISPLAY_NAMES: Record<string, string> = {
@@ -611,107 +669,131 @@ const formatThemeName = (name: string): string => {
     .join(" ");
 };
 
-// Fetch theme manifest from /public/themes/manifest.json
-export async function fetchThemeManifest(): Promise<ThemeManifest> {
-  if (cachedManifest) {
-    return cachedManifest;
-  }
-
-  try {
-    const res = await fetch("/themes/manifest.json");
-    if (!res.ok) {
-      console.error("Failed to load theme manifest");
-      return { themes: [], default: "typesetgo" };
+// Only successful loads are cached. Failures remain retryable, including manifests.
+async function loadThemeManifest(): Promise<ThemeManifest | null> {
+  if (cachedManifest) return cachedManifest;
+  if (manifestRequest) return manifestRequest;
+  manifestRequest = (async () => {
+    try {
+      const data = await fetchJSON("/themes/manifest.json");
+      if (!isRecord(data) || !Array.isArray(data.themes) || !data.themes.every(isThemeId)
+        || !isThemeId(data.default)) throw new Error("Invalid theme manifest");
+      cachedManifest = { themes: [...new Set(data.themes)], default: data.default };
+      return cachedManifest;
+    } catch {
+      return null;
+    } finally {
+      manifestRequest = null;
     }
-    cachedManifest = await res.json();
-    return cachedManifest!;
-  } catch (e) {
-    console.error("Failed to load theme manifest:", e);
-    return { themes: [], default: "typesetgo" };
-  }
+  })();
+  return manifestRequest;
 }
 
-// Get manifest from cache
+export async function fetchThemeManifest(): Promise<ThemeManifest> {
+  return await loadThemeManifest() ?? { themes: [], default: "typesetgo" };
+}
+
 export function getThemeManifestFromCache(): ThemeManifest | null {
   return cachedManifest;
 }
 
-// Fetch a single theme by name from /public/themes/
+// One promise per ID, shared by selection, catalog loaders, and concurrent mounts.
 export async function fetchTheme(themeName: string): Promise<ThemeDefinition | null> {
   const key = themeName.toLowerCase();
+  if (!isThemeId(key)) return null;
+  const cached = themeCache.get(key);
+  if (cached) return cached;
+  const pending = themeRequests.get(key);
+  if (pending) return pending;
 
-  // Return from cache if available
-  if (themeCache[key]) {
-    return themeCache[key];
-  }
-
-  try {
-    const res = await fetch(`/themes/${key}.json`);
-    if (!res.ok) return null;
-
-    const data = await res.json();
-
-    let variants: ThemeVariantDefinition[];
-    let defaultVariantId: string;
-
-    if (data.variants) {
-      defaultVariantId = data.defaultVariant || "default";
-      variants = Object.entries(data.variants).map(([id, v]: [string, unknown]) => {
-        const variant = v as { label?: string; dark: ThemeColors; light?: ThemeColors | null };
-        return {
-          id,
-          label: variant.label || formatThemeName(id),
-          dark: variant.dark,
-          light: variant.light || null,
-        };
-      });
-    } else {
-      defaultVariantId = "default";
-      variants = [{
-        id: "default",
-        label: "Default",
-        dark: data.dark,
-        light: data.light || null,
-      }];
+  const request = withThemeSlot(async () => {
+    try {
+      const data = await fetchJSON(`/themes/${key}.json`);
+      if (!isRecord(data)) throw new Error("Invalid theme");
+      let variants: ThemeVariantDefinition[];
+      if (isRecord(data.variants)) {
+        variants = Object.entries(data.variants).map(([id, value]) => {
+          if (!isRecord(value)) throw new Error("Invalid theme variant");
+          return {
+            id,
+            label: typeof value.label === "string" ? value.label : formatThemeName(id),
+            dark: validateColors(value.dark),
+            light: value.light == null ? null : validateColors(value.light),
+          };
+        });
+      } else {
+        variants = [{
+          id: "default",
+          label: "Default",
+          dark: validateColors(data.dark),
+          light: data.light == null ? null : validateColors(data.light),
+        }];
+      }
+      const defaultVariant = variants.find((v) => v.id === data.defaultVariant) ?? variants[0];
+      if (!defaultVariant) throw new Error("Theme has no variants");
+      const theme: ThemeDefinition = {
+        id: key,
+        name: formatThemeName(key),
+        category: typeof data.category === "string" && Object.hasOwn(CATEGORY_CONFIG, data.category)
+          ? data.category as ThemeCategory : "default",
+        dark: defaultVariant.dark,
+        light: defaultVariant.light,
+        defaultVariantId: defaultVariant.id,
+        variants,
+      };
+      themeCache.set(key, theme);
+      return theme;
+    } catch {
+      return null;
     }
-
-    const defaultVariant = variants.find(v => v.id === defaultVariantId) || variants[0];
-
-    const theme: ThemeDefinition = {
-      id: key,
-      name: formatThemeName(key),
-      category: data.category || "default",
-      dark: defaultVariant.dark,
-      light: defaultVariant.light,
-      defaultVariantId,
-      variants,
-    };
-
-    // Cache the loaded theme
-    themeCache[key] = theme;
-    return theme;
-  } catch (e) {
-    console.error(`Failed to load theme: ${themeName}`, e);
-    return null;
-  }
+  }).finally(() => themeRequests.delete(key));
+  themeRequests.set(key, request);
+  return request;
 }
 
-// Fetch all available themes from /public/themes/
+function sortThemes(themes: ThemeDefinition[]): ThemeDefinition[] {
+  return themes.sort((a, b) => {
+    if (a.id === b.id) return 0;
+    if (a.id === "typesetgo") return -1;
+    if (b.id === "typesetgo") return 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+/** Call when the picker opens. Explicit IDs also support incremental catalog UI. */
+export async function fetchThemeCatalog(
+  options: { themeIds?: readonly string[] } = {},
+): Promise<ThemeCatalogResult> {
+  const manifest = options.themeIds ? null : await loadThemeManifest();
+  const manifestError = !options.themeIds && manifest === null;
+  const requestedThemeIds = [...new Set((options.themeIds ?? manifest?.themes ?? []).map((id) => id.toLowerCase()))];
+  const results = await Promise.all(requestedThemeIds.map(fetchTheme));
+  const failedThemeIds = requestedThemeIds.filter((_, index) => results[index] === null);
+  return {
+    themes: sortThemes(results.filter((theme): theme is ThemeDefinition => theme !== null)),
+    requestedThemeIds,
+    failedThemeIds,
+    manifestError,
+    complete: !manifestError && failedThemeIds.length === 0,
+  };
+}
+
+/** Retry only failed IDs and merge recovered themes into the previous result. */
+export async function retryThemeCatalog(previous: ThemeCatalogResult): Promise<ThemeCatalogResult> {
+  if (previous.manifestError) return fetchThemeCatalog();
+  const retried = await fetchThemeCatalog({ themeIds: previous.failedThemeIds });
+  const themes = new Map(previous.themes.map((theme) => [theme.id, theme]));
+  for (const theme of retried.themes) themes.set(theme.id, theme);
+  return {
+    ...retried,
+    themes: sortThemes([...themes.values()]),
+    requestedThemeIds: previous.requestedThemeIds,
+  };
+}
+
+/** Legacy callers receive successful themes; use fetchThemeCatalog for recovery UI. */
 export async function fetchAllThemes(): Promise<ThemeDefinition[]> {
-  const manifest = await fetchThemeManifest();
-  
-  const themes = await Promise.all(
-    manifest.themes.map((name) => fetchTheme(name))
-  );
-  
-  // Filter out any failed loads and sort (TypeSetGo first, then alphabetically)
-  return themes
-    .filter((t): t is ThemeDefinition => t !== null)
-    .sort((a, b) => {
-      if (a.name.toLowerCase() === "typesetgo") return -1;
-      if (b.name.toLowerCase() === "typesetgo") return 1;
-      return a.name.localeCompare(b.name);
-    });
+  return (await fetchThemeCatalog()).themes;
 }
 
 // Group themes by category
@@ -817,7 +899,7 @@ export function groupThemesByCategory(themes: ThemeDefinition[]): GroupedThemes[
 
 // Get a theme synchronously from cache (returns null if not loaded yet)
 export function getThemeFromCache(themeName: string): ThemeDefinition | null {
-  return themeCache[themeName.toLowerCase()] || null;
+  return themeCache.get(themeName.toLowerCase()) ?? null;
 }
 
 // Default theme definition (TypeSetGo)
