@@ -1,3 +1,4 @@
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
@@ -17,11 +18,7 @@ const clampNumber = (value: number, min: number, max: number) => {
 };
 
 const durationToDialValues = (totalSeconds: number) => {
-  const clampedSeconds = clampNumber(
-    Math.round(totalSeconds),
-    0,
-    CUSTOM_DURATION_MAX_HOURS * 3600 + 59 * 60 + 59
-  );
+  const clampedSeconds = clampNumber(Math.round(totalSeconds), 0, CUSTOM_DURATION_MAX_HOURS * 3600 + 59 * 60 + 59);
 
   return {
     hours: Math.floor(clampedSeconds / 3600),
@@ -68,10 +65,7 @@ type NumberDialProps = {
 function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const isSyncingRef = useRef(false);
-  const options = useMemo(
-    () => Array.from({ length: max - min + 1 }, (_, index) => min + index),
-    [max, min]
-  );
+  const options = useMemo(() => Array.from({ length: max - min + 1 }, (_, index) => min + index), [max, min]);
 
   useEffect(() => {
     const scroller = scrollRef.current;
@@ -92,7 +86,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
     (delta: number) => {
       onChange(clampNumber(value + delta, min, max));
     },
-    [max, min, onChange, value]
+    [max, min, onChange, value],
   );
 
   return (
@@ -101,7 +95,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
         type="button"
         onClick={() => adjustValue(-1)}
         className="rounded-full p-1 transition-opacity hover:opacity-80"
-        style={{ color: tv.text.secondary, backgroundColor: tv.bg.base }}
+        style={{ color: tv.ui.mutedForeground, backgroundColor: tv.bg.base }}
         aria-label={`${label} up`}
       >
         <ChevronUp className="h-4 w-4" />
@@ -118,6 +112,22 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
         <div
           ref={scrollRef}
           className="h-full snap-y snap-mandatory overflow-y-auto"
+          role="spinbutton"
+          tabIndex={0}
+          aria-label={label}
+          aria-valuemin={min}
+          aria-valuemax={max}
+          aria-valuenow={value}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+              event.preventDefault();
+              adjustValue(event.key === "ArrowUp" ? 1 : -1);
+            }
+            if (event.key === "Home" || event.key === "End") {
+              event.preventDefault();
+              onChange(event.key === "Home" ? min : max);
+            }
+          }}
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
@@ -146,7 +156,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
                   lineHeight: `${DIAL_ROW_HEIGHT}px`,
                   fontSize: distance === 0 ? "1.6rem" : "1.2rem",
                   fontWeight: distance === 0 ? 700 : 500,
-                  color: distance === 0 ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
+                  color: distance === 0 ? tv.ui.primary : tv.ui.mutedForeground,
                   opacity,
                 }}
               >
@@ -162,7 +172,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
           className="pointer-events-none absolute inset-x-1 top-1/2 -translate-y-1/2 rounded-lg border"
           style={{
             height: `${DIAL_ROW_HEIGHT}px`,
-            borderColor: tv.interactive.secondary.DEFAULT,
+            borderColor: tv.ui.primary,
             backgroundColor: tv.bg.elevated,
             opacity: 0.75,
           }}
@@ -189,13 +199,13 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
         type="button"
         onClick={() => adjustValue(1)}
         className="rounded-full p-1 transition-opacity hover:opacity-80"
-        style={{ color: tv.text.secondary, backgroundColor: tv.bg.base }}
+        style={{ color: tv.ui.mutedForeground, backgroundColor: tv.bg.base }}
         aria-label={`${label} down`}
       >
         <ChevronDown className="h-4 w-4" />
       </button>
 
-      <span className="text-xs uppercase tracking-wide" style={{ color: tv.text.muted }}>
+      <span className="text-xs uppercase tracking-wide" style={{ color: tv.ui.mutedForeground }}>
         {label}
       </span>
     </div>
@@ -211,8 +221,7 @@ interface PracticeCountDialogProps {
 export default function PracticeCountDialog({ settings, setShowCustomCountModal, onApply }: PracticeCountDialogProps) {
   const [customDuration, setCustomDuration] = useState(() => durationToDialValues(settings.duration));
   const [customWordDigits, setCustomWordDigits] = useState<WordDigits>(() => wordTargetToDigits(settings.wordTarget));
-  const customDurationSeconds =
-    customDuration.hours * 3600 + customDuration.minutes * 60 + customDuration.seconds;
+  const customDurationSeconds = customDuration.hours * 3600 + customDuration.minutes * 60 + customDuration.seconds;
   const formattedCustomDuration = `${customDuration.hours.toString().padStart(2, "0")}:${customDuration.minutes
     .toString()
     .padStart(2, "0")}:${customDuration.seconds.toString().padStart(2, "0")}`;
@@ -229,182 +238,169 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
   };
 
   return (
-    <>
-      {/* Custom Duration / Word Count Modal */}
-      {(settings.mode === "time" || settings.mode === "words") && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4"
-          onClick={() => setShowCustomCountModal(false)}
-        >
-          <div
-            className="w-full max-w-2xl rounded-xl border p-6 shadow-2xl"
-            style={{
-              backgroundColor: tv.bg.surface,
-              borderColor: tv.border.subtle,
-            }}
-            onClick={(event) => event.stopPropagation()}
+    <Dialog
+      open={settings.mode === "time" || settings.mode === "words"}
+      onOpenChange={(open) => {
+        if (!open) setShowCustomCountModal(false);
+      }}
+    >
+      <DialogContent showCloseButton={false} className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <DialogTitle>{settings.mode === "time" ? "Custom Duration" : "Custom Word Count"}</DialogTitle>
+            <DialogDescription className="mt-1">
+              {settings.mode === "time"
+                ? "Scroll each dial or use arrows to set hours, minutes, and seconds."
+                : "Scroll each dial or use arrows to set a word count from 0001 to 9999."}
+            </DialogDescription>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowCustomCountModal(false)}
+            className="rounded-md px-2 py-1 text-sm transition-opacity hover:opacity-80"
+            style={{ color: tv.ui.mutedForeground }}
+            aria-label="Close custom selector"
           >
-            <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>
-                  {settings.mode === "time" ? "Custom Duration" : "Custom Word Count"}
-                </h2>
-                <p className="mt-1 text-sm" style={{ color: tv.text.secondary }}>
-                  {settings.mode === "time"
-                    ? "Scroll each dial or use arrows to set hours, minutes, and seconds."
-                    : "Scroll each dial or use arrows to set a word count from 0001 to 9999."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCustomCountModal(false)}
-                className="rounded-md px-2 py-1 text-sm transition-opacity hover:opacity-80"
-                style={{ color: tv.text.muted }}
-                aria-label="Close custom selector"
-              >
-                ✕
-              </button>
+            ✕
+          </button>
+        </div>
+
+        {settings.mode === "time" ? (
+          <div className="space-y-5">
+            <div className="text-center" style={{ color: tv.ui.mutedForeground }}>
+              <span className="text-base sm:text-lg">Selected:</span>{" "}
+              <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: tv.ui.primary }}>
+                {formattedCustomDuration}
+              </span>
             </div>
 
-            {settings.mode === "time" ? (
-              <div className="space-y-5">
-                <div className="text-center" style={{ color: tv.text.secondary }}>
-                  <span className="text-base sm:text-lg">Selected:</span>{" "}
-                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: tv.interactive.secondary.DEFAULT }}>
-                    {formattedCustomDuration}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
-                  <NumberDial
-                    label="hours"
-                    min={0}
-                    max={CUSTOM_DURATION_MAX_HOURS}
-                    value={customDuration.hours}
-                    onChange={(hours) =>
-                      setCustomDuration((prev) => ({
-                        ...prev,
-                        hours,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="minutes"
-                    min={0}
-                    max={59}
-                    value={customDuration.minutes}
-                    onChange={(minutes) =>
-                      setCustomDuration((prev) => ({
-                        ...prev,
-                        minutes,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="seconds"
-                    min={0}
-                    max={59}
-                    value={customDuration.seconds}
-                    onChange={(seconds) =>
-                      setCustomDuration((prev) => ({
-                        ...prev,
-                        seconds,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="text-center" style={{ color: tv.text.secondary }}>
-                  <span className="text-base sm:text-lg">Selected:</span>{" "}
-                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: tv.interactive.secondary.DEFAULT }}>
-                    {formattedCustomWordValue}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
-                  <NumberDial
-                    label="thousands"
-                    min={0}
-                    max={9}
-                    value={customWordDigits.thousands}
-                    onChange={(thousands) =>
-                      setCustomWordDigits((prev) => ({
-                        ...prev,
-                        thousands,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="hundreds"
-                    min={0}
-                    max={9}
-                    value={customWordDigits.hundreds}
-                    onChange={(hundreds) =>
-                      setCustomWordDigits((prev) => ({
-                        ...prev,
-                        hundreds,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="tens"
-                    min={0}
-                    max={9}
-                    value={customWordDigits.tens}
-                    onChange={(tens) =>
-                      setCustomWordDigits((prev) => ({
-                        ...prev,
-                        tens,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="ones"
-                    min={0}
-                    max={9}
-                    value={customWordDigits.ones}
-                    onChange={(ones) =>
-                      setCustomWordDigits((prev) => ({
-                        ...prev,
-                        ones,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowCustomCountModal(false)}
-                className="rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                style={{
-                  color: tv.text.secondary,
-                  backgroundColor: tv.bg.base,
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={applyCustomCount}
-                disabled={
-                  (settings.mode === "time" && customDurationSeconds <= 0) ||
-                  (settings.mode === "words" && customWordValue <= 0)
+            <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
+              <NumberDial
+                label="hours"
+                min={0}
+                max={CUSTOM_DURATION_MAX_HOURS}
+                value={customDuration.hours}
+                onChange={(hours) =>
+                  setCustomDuration((prev) => ({
+                    ...prev,
+                    hours,
+                  }))
                 }
-                className="rounded-md px-4 py-2 text-sm font-medium text-gray-900 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
-              >
-                Set {settings.mode === "time" ? "Duration" : "Word Count"}
-              </button>
+              />
+              <NumberDial
+                label="minutes"
+                min={0}
+                max={59}
+                value={customDuration.minutes}
+                onChange={(minutes) =>
+                  setCustomDuration((prev) => ({
+                    ...prev,
+                    minutes,
+                  }))
+                }
+              />
+              <NumberDial
+                label="seconds"
+                min={0}
+                max={59}
+                value={customDuration.seconds}
+                onChange={(seconds) =>
+                  setCustomDuration((prev) => ({
+                    ...prev,
+                    seconds,
+                  }))
+                }
+              />
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="space-y-5">
+            <div className="text-center" style={{ color: tv.ui.mutedForeground }}>
+              <span className="text-base sm:text-lg">Selected:</span>{" "}
+              <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: tv.ui.primary }}>
+                {formattedCustomWordValue}
+              </span>
+            </div>
 
-    </>
+            <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
+              <NumberDial
+                label="thousands"
+                min={0}
+                max={9}
+                value={customWordDigits.thousands}
+                onChange={(thousands) =>
+                  setCustomWordDigits((prev) => ({
+                    ...prev,
+                    thousands,
+                  }))
+                }
+              />
+              <NumberDial
+                label="hundreds"
+                min={0}
+                max={9}
+                value={customWordDigits.hundreds}
+                onChange={(hundreds) =>
+                  setCustomWordDigits((prev) => ({
+                    ...prev,
+                    hundreds,
+                  }))
+                }
+              />
+              <NumberDial
+                label="tens"
+                min={0}
+                max={9}
+                value={customWordDigits.tens}
+                onChange={(tens) =>
+                  setCustomWordDigits((prev) => ({
+                    ...prev,
+                    tens,
+                  }))
+                }
+              />
+              <NumberDial
+                label="ones"
+                min={0}
+                max={9}
+                value={customWordDigits.ones}
+                onChange={(ones) =>
+                  setCustomWordDigits((prev) => ({
+                    ...prev,
+                    ones,
+                  }))
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCustomCountModal(false)}
+            className="rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+            style={{
+              color: tv.ui.mutedForeground,
+              backgroundColor: tv.bg.base,
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={applyCustomCount}
+            disabled={
+              (settings.mode === "time" && customDurationSeconds <= 0) ||
+              (settings.mode === "words" && customWordValue <= 0)
+            }
+            className="rounded-md px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ backgroundColor: tv.ui.primary }}
+          >
+            Set {settings.mode === "time" ? "Duration" : "Word Count"}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
