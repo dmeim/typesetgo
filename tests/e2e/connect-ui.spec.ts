@@ -311,3 +311,22 @@ test("host loads the theme catalog on demand and sends the selected theme", asyn
     page.getByRole("button", { name: "Participant theme", exact: true }),
   ).toBeFocused();
 });
+
+test("Escape cancels keyboard step dragging before closing the unsaved plan", async ({ page }) => {
+  await page.goto("/connect/host?name=FixtureHost");
+  await page.getByRole("button", { name: "plan", exact: true }).click();
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Title", { exact: true }).fill("Unsaved first step");
+  await page.getByRole("button", { name: "Add step" }).click();
+  const handle = page.getByRole("button", { name: "Reorder step 1" });
+  await handle.focus();
+  await page.keyboard.press("Space");
+  await expect(handle).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Plan builder" })).toBeVisible();
+  await expect(handle).not.toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("1. Unsaved first step", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

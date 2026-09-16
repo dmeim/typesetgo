@@ -135,6 +135,7 @@ export default function PlanBuilderModal({
   );
   const [selectedId, setSelectedId] = useState(initialPlan[0]?.id ?? "");
   const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
   const selectedItem = items.find((item) => item.id === selectedId);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -181,6 +182,7 @@ export default function PlanBuilderModal({
       );
     });
   const dragEnd = ({ active, over }: DragEndEvent) => {
+    setIsDragging(false);
     if (over && active.id !== over.id)
       setItems((current) =>
         arrayMove(
@@ -211,6 +213,10 @@ export default function PlanBuilderModal({
     <RoomDialog
       open
       onClose={onClose}
+      onEscapeKeyDown={(event) => {
+        // The active drag gets the first Escape; a later Escape dismisses the editor.
+        if (isDragging) event.preventDefault();
+      }}
       title="Plan builder"
       description={
         isConnectMode
@@ -244,6 +250,8 @@ export default function PlanBuilderModal({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={() => setIsDragging(true)}
+            onDragCancel={() => setIsDragging(false)}
             onDragEnd={dragEnd}
           >
             <SortableContext

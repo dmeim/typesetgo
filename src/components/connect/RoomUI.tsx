@@ -63,6 +63,7 @@ export function RoomDialog({
   children,
   footer,
   wide = false,
+  onEscapeKeyDown,
 }: {
   open: boolean;
   onClose: () => void;
@@ -71,11 +72,13 @@ export function RoomDialog({
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
 }) {
   const opener = useRef<HTMLElement | null>(null);
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
       <DialogContent
+        onEscapeKeyDown={onEscapeKeyDown}
         className={`flex flex-col max-h-[calc(100dvh-2rem)] overflow-hidden ${wide ? "sm:max-w-5xl" : "sm:max-w-lg"}`}
         style={panelStyle}
         onOpenAutoFocus={() => {
