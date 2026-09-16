@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { join, disconnect, setReady, updateStats, updateProgress, recordFinish } from "../../convex/participants";
-import { startRace, endRace, resetForNewRace } from "../../convex/rooms";
+import { startRace, endRace, resetForNewRace, getById } from "../../convex/rooms";
 import { saveResults } from "../../convex/raceResults";
 import type { Id } from "../../convex/_generated/dataModel";
 import { multiplayerDb } from "./fixtures/multiplayer-db";
@@ -40,6 +40,12 @@ describe("multiplayer membership lifecycle (isolated handlers)", () => {
 
 
 describe("race room transitions", () => {
+  it("returns missing for malformed and deleted room URLs", async () => {
+    const db = multiplayerDb({ rooms: [room] });
+    expect(await getById._handler(db.ctx, { roomId: "not-an-id" })).toBeNull();
+    expect(await getById._handler(db.ctx, { roomId: "rooms:deleted" })).toBeNull();
+    expect(await getById._handler(db.ctx, { roomId })).toMatchObject({ code: "ABCDE" });
+  });
   const raceRoom = { ...room, settings: { difficulty: "beginner", wordTarget: 10 }, targetText: "cat dog" };
 
   it("validates room type before joining and refuses new racers after start", async () => {

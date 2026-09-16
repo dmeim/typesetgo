@@ -106,11 +106,12 @@ export const deleteRoom = mutation({
   },
 });
 
-// Get room by ID
+// URL input can be malformed as well as reference a deleted room.
 export const getById = query({
-  args: { roomId: v.id("rooms") },
+  args: { roomId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.roomId);
+    const roomId = ctx.db.normalizeId("rooms", args.roomId);
+    return roomId ? await ctx.db.get(roomId) : null;
   },
 });
 

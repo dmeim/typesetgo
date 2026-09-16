@@ -12,6 +12,7 @@ export function multiplayerDb(seed: Record<string, Record<string, unknown>[]>) {
     return null;
   };
   const db = {
+    normalizeId: (table: string, id: string) => id.startsWith(`${table}:`) ? id : null,
     get: async (id: string) => get(id),
     insert: async (tableName: string, value: Record<string, unknown>) => {
       const table = tables.get(tableName) ?? new Map();
