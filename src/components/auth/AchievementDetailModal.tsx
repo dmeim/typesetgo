@@ -94,9 +94,9 @@ export default function AchievementDetailModal({ achievements, initialIndex, onC
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <button type="button" aria-label="Previous achievement" disabled={currentIndex === 0} onClick={() => api?.scrollPrev(jump)} className="flex min-h-10 items-center gap-1 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring">
-                <ChevronLeft aria-hidden="true" className="size-4" />Previous
+                <ChevronLeft aria-hidden="true" className="size-4" />Prev
               </button>
-              <p role="status" className="text-xs text-muted-foreground">{currentIndex + 1} / {achievements.length}</p>
+              <p role="status" className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{currentIndex + 1} / {achievements.length}</p>
               <button type="button" aria-label="Next achievement" disabled={currentIndex === achievements.length - 1} onClick={() => api?.scrollNext(jump)} className="flex min-h-10 items-center gap-1 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring">
                 Next<ChevronRight aria-hidden="true" className="size-4" />
               </button>
