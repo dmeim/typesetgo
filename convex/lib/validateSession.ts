@@ -1,3 +1,4 @@
+import { hasCompletedPrompt } from "./soloCompletion";
 import {
   MAX_CHARS_PER_SECOND,
   MAX_WPM,
@@ -81,10 +82,10 @@ export function validateTypingSession(
 
   if (
     (mode === "quote" || mode === "preset") &&
-    args.typedText.length < session.targetText.length
+    !hasCompletedPrompt(args.typedText, session.targetText)
   ) {
     reasons.push(
-      `Text incomplete: ${args.typedText.length} < ${session.targetText.length}`
+      "Text incomplete: final word has not been completed"
     );
   }
 
