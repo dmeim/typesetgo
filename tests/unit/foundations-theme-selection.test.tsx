@@ -266,6 +266,23 @@ describe("atomic effective theme selection", () => {
     expect(document.documentElement.style.getPropertyValue("--background")).toBe(background);
   });
 
+  it("keeps an old provider's pending selection from persisting over a remounted provider", async () => {
+    const first = await mount();
+    const stale = deferred<ThemeDefinition | null>();
+    vi.mocked(fetchTheme).mockReturnValueOnce(stale.promise);
+    let staleSelection!: Promise<void>;
+    act(() => { staleSelection = latest.setTheme("old-owner"); });
+    first.unmount();
+
+    vi.mocked(fetchTheme).mockResolvedValue(fixture("typesetgo"));
+    await mount();
+    vi.mocked(fetchTheme).mockResolvedValue(fixture("new-owner", "#301020"));
+    await act(async () => { await latest.setTheme("new-owner"); });
+    await act(async () => { stale.resolve(fixture("old-owner")); await staleSelection; });
+    expectCommitted(fixture("new-owner", "#301020"), "dark");
+    expect(latest.userSelectionRevision).toBe(1);
+  });
+
   it("initializes correctly under StrictMode effect replay", async () => {
     render(<StrictMode><ThemeProvider><Probe /><Toaster /></ThemeProvider></StrictMode>);
     await waitFor(() => expect(latest.isLoading).toBe(false));

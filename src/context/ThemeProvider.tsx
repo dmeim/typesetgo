@@ -1,5 +1,4 @@
 import {
-  createContext,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -16,42 +15,12 @@ import type {
 } from "@/types/theme";
 import { fetchTheme, fetchThemeManifest, getDefaultTheme } from "@/lib/themes";
 import { deriveThemeUI } from "@/lib/colors";
+import { ThemeContext, type ThemeContextValue, type ThemeSelectionOptions } from "@/context/theme-context";
 
 // Storage keys
 const THEME_STORAGE_KEY = "typesetgo-theme-id";
 const VARIANT_STORAGE_KEY = "typesetgo-theme-variant-id";
 const MODE_STORAGE_KEY = "typesetgo-theme-mode";
-
-export type ThemeSelectionOptions = {
-  source?: "user" | "preferences";
-  /** Preferences must supply the user revision captured before loading them. */
-  expectedUserSelectionRevision?: number;
-};
-
-// Context value type
-export type ThemeContextValue = {
-  theme: ThemeDefinition;
-  themeId: string;
-  themeName: string;
-  variantId: string;
-  variant: ThemeVariantDefinition;
-  mode: ThemeMode;
-  userSelectionRevision: number;
-  setTheme: (id: string) => Promise<void>;
-  setVariant: (variantId: string) => void;
-  setThemeSelection: (selection: { themeId: string; variantId?: string; mode?: ThemeMode }, options?: ThemeSelectionOptions) => Promise<void>;
-  setMode: (mode: ThemeMode) => void;
-  toggleMode: () => void;
-  colors: ThemeColors;
-  supportsLightMode: boolean;
-  isLoading: boolean;
-  selectionError: string | null;
-};
-
-// Create context with undefined default (will be provided by ThemeProvider)
-export const ThemeContext = createContext<ThemeContextValue | undefined>(
-  undefined
-);
 
 function resolveVariant(theme: ThemeDefinition, requestedId: string): ThemeVariantDefinition {
   return theme.variants.find(v => v.id === requestedId)
@@ -185,8 +154,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setSelectionError(null);
   }, []);
 
+  const advanceRequestId = useCallback(() => ++requestId.current, []);
+
   useEffect(() => {
-    const id = ++requestId.current;
+    const id = advanceRequestId();
     const stored = readStoredSelection();
     async function initialize() {
       const manifest = await fetchThemeManifest();
@@ -206,8 +177,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
     }
     void initialize();
-    return () => { requestId.current++; };
-  }, [commit]);
+    // Invalidate whichever request is pending when this provider is cleaned up,
+    // including a user selection that began after initialization.
+    return () => { advanceRequestId(); };
+  }, [commit, advanceRequestId]);
 
   const recordUserSelection = useCallback(() => {
     // Update before React renders so a restoration using an older context
@@ -224,7 +197,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       recordUserSelection();
     }
-    const id = ++requestId.current;
+    const id = advanceRequestId();
     const requestedMode = selection.mode ?? current.current.mode;
     setIsLoading(true);
     setSelectionError(null);
@@ -236,23 +209,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return;
     }
     commit(resolveSelection(theme, selection.variantId ?? theme.defaultVariantId, requestedMode));
-  }, [commit, recordUserSelection]);
+  }, [commit, recordUserSelection, advanceRequestId]);
 
   const setTheme = useCallback((themeId: string) => setThemeSelection({ themeId }), [setThemeSelection]);
 
   const setVariant = useCallback((variantId: string) => {
     recordUserSelection();
-    requestId.current++;
+    advanceRequestId();
     const selection = current.current;
     commit(resolveSelection(selection.theme, variantId, selection.mode));
-  }, [commit, recordUserSelection]);
+  }, [commit, recordUserSelection, advanceRequestId]);
 
   const setMode = useCallback((mode: ThemeMode) => {
     recordUserSelection();
-    requestId.current++;
+    advanceRequestId();
     const selection = current.current;
     commit(resolveSelection(selection.theme, selection.variant.id, mode));
-  }, [commit, recordUserSelection]);
+  }, [commit, recordUserSelection, advanceRequestId]);
 
   const toggleMode = useCallback(() => {
     setMode(current.current.mode === "dark" ? "light" : "dark");
