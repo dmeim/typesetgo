@@ -1,8 +1,7 @@
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { OverlayContext, type OverlayState } from "./overlay-context";
 
 type OpenProps = { open?: boolean; defaultOpen?: boolean; onOpenChange?: (open: boolean) => void };
-type OverlayState = { open: boolean; onOpenChange: (open: boolean) => void; closeOnEscape: () => void; depth: number };
-const OverlayContext = createContext<OverlayState | null>(null);
 const escapeOwners = new Set<{ depth: number; handle: (event: KeyboardEvent) => void }>();
 
 function handleEscape(event: KeyboardEvent) {
@@ -29,10 +28,6 @@ export function useOverlayState({ open, defaultOpen = false, onOpenChange }: Ope
   const closeSelf = useCallback(() => changeOpen(false), [changeOpen]);
   const closeOnEscape = options?.escapeClosesParent && parent ? parent.closeOnEscape : closeSelf;
   return useMemo(() => ({ open: open ?? uncontrolledOpen, onOpenChange: changeOpen, closeOnEscape, depth }), [open, uncontrolledOpen, changeOpen, closeOnEscape, depth]);
-}
-
-export function OverlayScope({ value, children }: { value: OverlayState; children: ReactNode }) {
-  return <OverlayContext.Provider value={value}>{children}</OverlayContext.Provider>;
 }
 
 export function useOverlayEscape(onEscapeKeyDown?: (event: KeyboardEvent) => void) {

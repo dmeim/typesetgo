@@ -12,10 +12,10 @@ const DialogTriggerCount = React.createContext<React.RefObject<number> | null>(n
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  const triggerCount = React.useRef(0);
+  const triggerCountRef = React.useRef(0);
   const overlay = useOverlayState(props);
   return (
-    <DialogTriggerCount.Provider value={triggerCount}>
+    <DialogTriggerCount.Provider value={triggerCountRef}>
       <OverlayScope value={overlay}><DialogPrimitive.Root data-slot="dialog" {...props} open={overlay.open} onOpenChange={overlay.onOpenChange} /></OverlayScope>
     </DialogTriggerCount.Provider>
   );
@@ -24,12 +24,12 @@ function Dialog({
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  const triggerCount = React.useContext(DialogTriggerCount);
+  const triggerCountRef = React.useContext(DialogTriggerCount);
   React.useLayoutEffect(() => {
-    if (!triggerCount) return;
-    triggerCount.current += 1;
-    return () => { triggerCount.current -= 1; };
-  }, [triggerCount]);
+    if (!triggerCountRef) return;
+    triggerCountRef.current += 1;
+    return () => { triggerCountRef.current -= 1; };
+  }, [triggerCountRef]);
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
@@ -74,7 +74,7 @@ function DialogContent({
   showCloseButton?: boolean
 }) {
   useOverlayEscape(onEscapeKeyDown);
-  const triggerCount = React.useContext(DialogTriggerCount);
+  const triggerCountRef = React.useContext(DialogTriggerCount);
   const returnFocusRef = React.useRef<HTMLElement | null>(null);
   return (
     <DialogPortal data-slot="dialog-portal">
@@ -90,7 +90,7 @@ function DialogContent({
           onCloseAutoFocus?.(event);
           // Radix restores registered triggers. Controlled dialogs opened by
           // shell actions need an equivalent fallback to their surviving origin.
-          if (!event.defaultPrevented && !triggerCount?.current && returnFocusRef.current?.isConnected) {
+          if (!event.defaultPrevented && !triggerCountRef?.current && returnFocusRef.current?.isConnected) {
             event.preventDefault();
             returnFocusRef.current.focus({ preventScroll: true });
           }
