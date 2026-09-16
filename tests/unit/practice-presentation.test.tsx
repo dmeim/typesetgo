@@ -8,6 +8,7 @@ import PracticeSettingsDialog from "@/components/typing/PracticeSettingsDialog";
 import PracticeThemePicker from "@/components/typing/PracticeThemePicker";
 import PracticePresetDialog from "@/components/typing/PracticePresetDialog";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
+import { contrastRatio, deriveThemeUI } from "@/lib/colors";
 import { fetchThemeCatalog, retryThemeCatalog } from "@/lib/themes";
 import type { ThemeCatalogResult, ThemeDefinition } from "@/types/theme";
 import PracticeResults from "@/components/typing/PracticeResults";
@@ -595,4 +596,33 @@ describe("custom duration boundary", () => {
     fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
     expect(onApply).toHaveBeenCalledWith(MAX_DURATION_SECONDS);
   });
+});
+
+it.each(["dark", "light"] as const)("keeps every save action state readable in %s mode", (mode) => {
+  const palette = deriveThemeUI(theme.variants.default[mode]);
+  const semanticValues = new Map(
+    Object.entries(palette).map(([role, value]) => [
+      `var(--${role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)})`,
+      value,
+    ]),
+  );
+  const props = resultsProps();
+  const { rerender } = render(<PracticeResults {...props} />);
+  const states = [
+    { saveState: "idle", label: "Save Results", valid: true },
+    { saveState: "saving", label: "Saving...", valid: true },
+    { saveState: "saved", label: "Saved", valid: true },
+    { saveState: "error", label: "Error - Try Again", valid: true },
+    { saveState: "idle", label: "Invalid", valid: false },
+  ] as const;
+  for (const { saveState, label, valid } of states) {
+    rerender(<PracticeResults {...props} saveState={saveState} lastResultIsValid={valid} />);
+    const button = screen.getByRole("button", { name: label, exact: true });
+    const background = semanticValues.get(button.style.backgroundColor);
+    const foreground = semanticValues.get(button.style.color);
+    expect(background, `${label} background must use a semantic role`).toBeDefined();
+    expect(foreground, `${label} foreground must use a semantic role`).toBeDefined();
+    expect(contrastRatio(foreground!, background!), `${label} contrast`).toBeGreaterThanOrEqual(4.5);
+    expect(button.className).not.toMatch(/(?:hover|disabled):opacity-/);
+  }
 });

@@ -456,24 +456,20 @@ export default function PracticeResults({
               type="button"
               onClick={() => saveResults()}
               disabled={saveState === "saving" || saveState === "saved" || lastResultIsValid === false}
-              className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed"
               style={{
                 backgroundColor:
-                  lastResultIsValid === false
-                    ? colors.status.error.muted
+                  lastResultIsValid === false || saveState === "error"
+                    ? tv.ui.destructive
                     : saveState === "saved"
-                      ? colors.status.success.muted
-                      : saveState === "error"
-                        ? colors.status.error.muted
-                        : tv.ui.primary,
+                      ? tv.ui.secondary
+                      : tv.ui.primary,
                 color:
-                  lastResultIsValid === false
-                    ? tv.status.error.DEFAULT
+                  lastResultIsValid === false || saveState === "error"
+                    ? tv.ui.destructiveForeground
                     : saveState === "saved"
-                      ? tv.status.success.DEFAULT
-                      : saveState === "error"
-                        ? tv.status.error.DEFAULT
-                        : tv.text.inverse,
+                      ? tv.ui.secondaryForeground
+                      : tv.ui.primaryForeground,
               }}
             >
               {lastResultIsValid === false && (
