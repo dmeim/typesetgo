@@ -135,7 +135,9 @@ function RaceAttempt({
   );
   const connected = participants.filter((racer) => racer.isConnected);
   const finishers = connected.filter((racer) => racer.stats.isFinished);
-  const finishTimes = finishers
+  // Departing finishers still count toward the original final-race deadline.
+  const finishTimes = participants
+    .filter((racer) => racer.stats.isFinished)
     .flatMap((racer) =>
       racer.finishTime === undefined ? [] : [racer.finishTime],
     )

@@ -405,6 +405,31 @@ describe("Race exact resume and progress", () => {
     ).toBe(first.finishTime);
   });
 
+  it("keeps the final deadline when a finished racer leaves", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(100_000);
+    const fixture = activeFixture();
+    const members = [fixture.participant, ...[1, 2, 3].map((place) => ({
+      ...fixture.participant,
+      _id: `finisher-${place}` as typeof fixture.participant._id,
+      sessionId: `finisher-${place}`,
+      finishTime: place * 1000,
+      stats: { ...fixture.participant.stats, isFinished: true, progress: 100 },
+    }))];
+    mocks.queries["participants:listByRoom"] = members;
+    const view = render(page("/race/race-room"));
+    expect(screen.getByText("3s remaining")).toBeVisible();
+    mocks.queries["participants:listByRoom"] = members.map((member, index) =>
+      index === 1 ? { ...member, isConnected: false } : member);
+    view.rerender(page("/race/race-room"));
+    expect(screen.getByText("3s remaining")).toBeVisible();
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledTimes(1);
+    expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledWith({
+      roomId: fixture.room._id, raceStartTime: 90_000,
+    });
+  });
+
   it("has a visible accessible leave dialog and restores focus after Escape", async () => {
     activeFixture();
     render(page("/race/race-room"));
