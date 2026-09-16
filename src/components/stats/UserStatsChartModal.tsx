@@ -21,6 +21,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useTheme } from "@/hooks/useTheme";
+import { PROFILE_HISTORY_LIMIT } from "./profile-presentation";
 
 // Which stat card was clicked
 export type StatCardType =
@@ -47,6 +48,7 @@ interface UserStatsChartModalProps {
   cardType: StatCardType;
   cardValue: string;
   allResults: ChartTestResult[];
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 // Format date for x-axis ticks (e.g. "02/15")
@@ -96,7 +98,8 @@ function getChartMeta(cardType: StatCardType, cardValue: string) {
   switch (cardType) {
     case "typingTime":
       return {
-        title: `Typing Time - ${cardValue}`,
+        title: "Recent typing time",
+        lifetimeLabel: `Lifetime typing time: ${cardValue}`,
         yLabel: "Duration",
         dataKey: "duration" as const,
         unit: "s",
@@ -104,7 +107,8 @@ function getChartMeta(cardType: StatCardType, cardValue: string) {
       };
     case "bestWpm":
       return {
-        title: `Best WPM - ${cardValue}`,
+        title: "Recent WPM",
+        lifetimeLabel: `Lifetime best WPM: ${cardValue}`,
         yLabel: "WPM",
         dataKey: "wpm" as const,
         unit: "",
@@ -112,7 +116,8 @@ function getChartMeta(cardType: StatCardType, cardValue: string) {
       };
     case "avgWpm":
       return {
-        title: `Average WPM - ${cardValue}`,
+        title: "Recent WPM",
+        lifetimeLabel: `Lifetime average WPM: ${cardValue}`,
         yLabel: "WPM",
         dataKey: "wpm" as const,
         unit: "",
@@ -120,7 +125,8 @@ function getChartMeta(cardType: StatCardType, cardValue: string) {
       };
     case "avgAccuracy":
       return {
-        title: `Average Accuracy - ${cardValue}`,
+        title: "Recent accuracy",
+        lifetimeLabel: `Lifetime average accuracy: ${cardValue}`,
         yLabel: "Accuracy",
         dataKey: "accuracy" as const,
         unit: "%",
@@ -128,7 +134,8 @@ function getChartMeta(cardType: StatCardType, cardValue: string) {
       };
     case "wordsTyped":
       return {
-        title: `Words Typed - ${cardValue}`,
+        title: "Recent words typed",
+        lifetimeLabel: `Lifetime words typed: ${cardValue}`,
         yLabel: "Words",
         dataKey: "words" as const,
         unit: "",
@@ -136,8 +143,9 @@ function getChartMeta(cardType: StatCardType, cardValue: string) {
       };
     case "characters":
       return {
-        title: `Characters - ${cardValue}`,
-        yLabel: "Characters",
+        title: "Recent estimated characters",
+        lifetimeLabel: `Lifetime estimated characters: ${cardValue}`,
+        yLabel: "Estimated characters",
         dataKey: "characters" as const,
         unit: "",
         hasHighlights: false,
@@ -151,6 +159,7 @@ export default function UserStatsChartModal({
   cardType,
   cardValue,
   allResults,
+  onCloseAutoFocus,
 }: UserStatsChartModalProps) {
   const { colors } = useTheme();
   const [showBest, setShowBest] = useState(true);
@@ -226,11 +235,11 @@ export default function UserStatsChartModal({
     };
     if (meta.hasHighlights) {
       config.best = {
-        label: "Best / Highest",
+        label: "Highest in sample",
         color: colors.status.success.DEFAULT,
       };
       config.lowest = {
-        label: "Lowest",
+        label: "Lowest in sample",
         color: colors.status.error.DEFAULT,
       };
     }
@@ -246,7 +255,7 @@ export default function UserStatsChartModal({
     const maxVal = Math.max(...values);
 
     const BUFFER = 4;
-    let lower = Math.max(0, Math.floor(minVal - BUFFER));
+    const lower = Math.max(0, Math.floor(minVal - BUFFER));
     let upper = Math.ceil(maxVal + BUFFER);
 
     // Percentages can't exceed 100
@@ -284,42 +293,35 @@ export default function UserStatsChartModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="max-w-none sm:max-w-none flex flex-col"
-        style={{
-          backgroundColor: colors.bg.surface,
-          borderColor: colors.border.subtle,
-          width: "80vw",
-          maxHeight: "80vh",
-        }}
+        className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-y-auto bg-card text-card-foreground shadow-none sm:max-w-4xl"
+        onCloseAutoFocus={onCloseAutoFocus}
       >
-        <DialogHeader>
-          <DialogTitle style={{ color: colors.text.primary }}>
-            {meta.title}
-          </DialogTitle>
-          <DialogDescription style={{ color: colors.text.secondary }}>
-            {hasData
-              ? `Showing ${chartData.length} test${chartData.length !== 1 ? "s" : ""} over time`
-              : "No test data available yet"}
+        <DialogHeader className="pr-6">
+          <DialogTitle>{meta.title}</DialogTitle>
+          <DialogDescription>
+            {chartData.length} valid tests from the latest {allResults.length} saved tests (up to {PROFILE_HISTORY_LIMIT}). Invalid tests are excluded.
           </DialogDescription>
         </DialogHeader>
+        <div className="space-y-1 text-sm">
+          <p>{meta.lifetimeLabel}</p>
+          <p className="text-xs text-muted-foreground">Each point is one recent test. Highlights refer only to this sample.</p>
+          {hasData && <p className="text-xs text-muted-foreground">{chartData[0].fullDate} – {chartData[chartData.length - 1].fullDate}</p>}
+          {meta.dataKey === "characters" && <p className="text-xs text-muted-foreground">Estimated as words × 5; these are not measured keystrokes.</p>}
+        </div>
 
         {/* Toggle buttons for highlight markers */}
         {meta.hasHighlights && hasData && (
-          <div className="flex items-center gap-3 px-1">
+          <div className="flex flex-wrap items-center gap-2">
             <ToggleChip
-              label="Best / Highest"
+              label="Highest in sample"
               active={showBest}
               color={colors.status.success.DEFAULT}
-              inactiveColor={colors.typing.default}
-              inactiveTextColor={colors.text.secondary}
               onClick={() => setShowBest(!showBest)}
             />
             <ToggleChip
-              label="Lowest"
+              label="Lowest in sample"
               active={showLowest}
               color={colors.status.error.DEFAULT}
-              inactiveColor={colors.typing.default}
-              inactiveTextColor={colors.text.secondary}
               onClick={() => setShowLowest(!showLowest)}
             />
           </div>
@@ -329,7 +331,7 @@ export default function UserStatsChartModal({
         {hasData ? (
           <ChartContainer
             config={chartConfig}
-            className="min-h-0 flex-1 w-full"
+            className="h-64 min-h-64 w-full shrink-0 aspect-auto sm:h-80 sm:min-h-80"
           >
             <LineChart
               accessibilityLayer
@@ -386,6 +388,7 @@ export default function UserStatsChartModal({
                 cursor={{ stroke: colors.border.default }}
                 content={
                   <ChartTooltipContent
+                    className="bg-popover text-popover-foreground shadow-none"
                     labelFormatter={(_value, payload) => {
                       if (payload && payload.length > 0) {
                         const item = payload[0];
@@ -400,7 +403,8 @@ export default function UserStatsChartModal({
               />
               <Line
                 dataKey="value"
-                type="monotone"
+                isAnimationActive={false}
+                type="linear"
                 stroke={colors.interactive.secondary.DEFAULT}
                 strokeWidth={2}
                 dot={({ cx, cy, payload: dotPayload }) => {
@@ -477,7 +481,7 @@ export default function UserStatsChartModal({
               </svg>
             </div>
             <p className="text-sm" style={{ color: colors.text.secondary }}>
-              Complete some typing tests to see your chart data
+              No valid tests in the recent history sample.
             </p>
           </div>
         )}
@@ -485,15 +489,14 @@ export default function UserStatsChartModal({
         {/* Legend for highlights */}
         {meta.hasHighlights && hasData && (
           <div
-            className="flex items-center justify-center gap-6 text-xs"
-            style={{ color: colors.text.secondary }}
+            className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground"
           >
             <div className="flex items-center gap-1.5">
               <div
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: colors.interactive.secondary.DEFAULT }}
               />
-              <span>All Tests</span>
+              <span>Valid tests in sample</span>
             </div>
             {showBest && (
               <div className="flex items-center gap-1.5">
@@ -501,7 +504,7 @@ export default function UserStatsChartModal({
                   className="h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: colors.status.success.DEFAULT }}
                 />
-                <span>Best / Highest</span>
+                <span>Highest in sample</span>
               </div>
             )}
             {showLowest && (
@@ -510,10 +513,27 @@ export default function UserStatsChartModal({
                   className="h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: colors.status.error.DEFAULT }}
                 />
-                <span>Lowest</span>
+                <span>Lowest in sample</span>
               </div>
             )}
           </div>
+        )}
+        {hasData && (
+          <details className="rounded-md border border-border text-sm">
+            <summary className="cursor-pointer rounded-md px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">View chart data ({chartData.length} tests)</summary>
+            <div className="max-h-60 overflow-auto px-3 pb-3">
+              <table className="w-full text-left text-xs">
+                <caption className="sr-only">Recent valid tests, oldest first</caption>
+                <thead><tr><th scope="col" className="py-2">Date</th><th scope="col" className="py-2 text-right">{meta.yLabel}</th></tr></thead>
+                <tbody>{chartData.map((point, index) => (
+                  <tr key={`${point.time}-${index}`} className="border-t border-border">
+                    <th scope="row" className="py-2 pr-2 font-normal">{point.fullDate}</th>
+                    <td className="py-2 text-right tabular-nums">{tooltipFormatter(point.value)}{meta.hasHighlights && point.isBest ? " (highest in sample)" : ""}{meta.hasHighlights && point.isLowest ? " (lowest in sample)" : ""}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </details>
         )}
       </DialogContent>
     </Dialog>
@@ -524,34 +544,21 @@ function ToggleChip({
   label,
   active,
   color,
-  inactiveColor,
-  inactiveTextColor,
   onClick,
 }: {
   label: string;
   active: boolean;
   color: string;
-  inactiveColor: string;
-  inactiveTextColor: string;
   onClick: () => void;
 }) {
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-      style={{
-        backgroundColor: active ? `${color}20` : `${inactiveColor}15`,
-        color: active ? color : inactiveTextColor,
-        border: `1px solid ${active ? `${color}40` : "transparent"}`,
-      }}
+      className={`flex min-h-10 items-center gap-2 rounded-md border border-border px-3 py-2 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"}`}
     >
-      <div
-        className="h-2 w-2 rounded-full transition-colors"
-        style={{
-          backgroundColor: active ? color : inactiveTextColor,
-          opacity: active ? 1 : 0.4,
-        }}
-      />
+      <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
       {label}
     </button>
   );
