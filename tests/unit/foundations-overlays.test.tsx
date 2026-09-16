@@ -3,6 +3,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
@@ -11,6 +12,21 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("shared overlay and field contracts", () => {
+  it("keeps composing Escape inside the IME instead of dismissing a modal", () => {
+    const onEscape = vi.fn((event: KeyboardEvent) => event.preventDefault());
+    render(<Dialog defaultOpen><DialogContent onEscapeKeyDown={onEscape}><DialogTitle>Composition</DialogTitle><DialogDescription>Input settings</DialogDescription><input aria-label="Compose" /></DialogContent></Dialog>);
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape", isComposing: true });
+    expect(screen.getByRole("dialog", { name: "Composition" })).toBeInTheDocument();
+    expect(onEscape).not.toHaveBeenCalled();
+  });
+
+  it("preserves root menu dismissal when Escape comes from a submenu", async () => {
+    render(<DropdownMenu defaultOpen><DropdownMenuTrigger>Actions</DropdownMenuTrigger><DropdownMenuContent><DropdownMenuSub defaultOpen><DropdownMenuSubTrigger>More</DropdownMenuSubTrigger><DropdownMenuSubContent><DropdownMenuItem>Nested item</DropdownMenuItem></DropdownMenuSubContent></DropdownMenuSub></DropdownMenuContent></DropdownMenu>);
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.queryAllByRole("menu", { hidden: true })).toHaveLength(0));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Actions" })).toHaveFocus());
+  });
+
   it("dismisses only the deepest dialog on an immediate Escape", async () => {
     render(<Dialog defaultOpen><DialogContent><DialogTitle>Parent</DialogTitle><DialogDescription>Parent settings</DialogDescription><Dialog><DialogTrigger>Open child</DialogTrigger><DialogContent><DialogTitle>Child</DialogTitle><DialogDescription>Child settings</DialogDescription><button>Cancel child</button></DialogContent></Dialog></DialogContent></Dialog>);
     fireEvent.click(screen.getByRole("button", { name: "Open child" }));
