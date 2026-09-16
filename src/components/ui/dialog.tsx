@@ -2,17 +2,34 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
+import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state";
+
 import { cn } from "@/lib/utils"
+import { overlayMotion, overlaySurface } from "./overlay-styles"
+
+const DialogTriggerCount = React.createContext<React.RefObject<number> | null>(null);
 
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  const triggerCount = React.useRef(0);
+  const overlay = useOverlayState(props);
+  return (
+    <DialogTriggerCount.Provider value={triggerCount}>
+      <OverlayScope value={overlay}><DialogPrimitive.Root data-slot="dialog" {...props} open={overlay.open} onOpenChange={overlay.onOpenChange} /></OverlayScope>
+    </DialogTriggerCount.Provider>
+  );
 }
 
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  const triggerCount = React.useContext(DialogTriggerCount);
+  React.useLayoutEffect(() => {
+    if (!triggerCount) return;
+    triggerCount.current += 1;
+    return () => { triggerCount.current -= 1; };
+  }, [triggerCount]);
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
@@ -36,7 +53,8 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        overlayMotion,
+        "fixed inset-0 z-50 bg-[var(--theme-bg-overlay)]",
         className
       )}
       {...props}
@@ -46,19 +64,40 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  onEscapeKeyDown,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  useOverlayEscape(onEscapeKeyDown);
+  const triggerCount = React.useContext(DialogTriggerCount);
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        onOpenAutoFocus={(event) => {
+          returnFocusRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement : null;
+          onOpenAutoFocus?.(event);
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          // Radix restores registered triggers. Controlled dialogs opened by
+          // shell actions need an equivalent fallback to their surviving origin.
+          if (!event.defaultPrevented && !triggerCount?.current && returnFocusRef.current?.isConnected) {
+            event.preventDefault();
+            returnFocusRef.current.focus({ preventScroll: true });
+          }
+        }}
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 outline-none sm:max-w-lg",
+          overlaySurface, overlayMotion,
+          "fixed top-1/2 left-1/2 z-50 grid w-full min-w-0 max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain p-6 outline-none sm:max-w-lg",
           className
         )}
         {...props}
@@ -67,7 +106,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-sm hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
             <span className="sr-only">Close</span>
@@ -108,7 +147,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold", className)}
+      className={cn("pr-8 text-lg leading-snug font-semibold break-words", className)}
       {...props}
     />
   )
