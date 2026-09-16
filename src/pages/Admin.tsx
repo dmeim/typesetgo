@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useConvex } from "convex/react";
 import type { FunctionReference } from "convex/server";
@@ -38,6 +38,8 @@ type AdminApi = {
 };
 
 const adminApi = (api as typeof api & { admin?: AdminApi }).admin;
+const EMPTY_REVIEW: AdminReviewItem[] = [];
+type ReviewSnapshot = { token: string; revision: number; rows: AdminReviewItem[]; error: string | null };
 
 function readStoredToken(): string {
   try {
@@ -88,45 +90,36 @@ export default function Admin() {
   const [token, setToken] = useState(readStoredToken);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isLoadingList, setIsLoadingList] = useState(false);
-  const [rows, setRows] = useState<AdminReviewItem[]>([]);
+  const [review, setReview] = useState<ReviewSnapshot | null>(null);
   const [pendingId, setPendingId] = useState<Id<"testResults"> | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const isLoggedIn = Boolean(token);
+  const currentReview = review?.token === token && review.revision === refreshKey ? review : null;
+  const rows = token ? currentReview?.rows ?? EMPTY_REVIEW : EMPTY_REVIEW;
+  const isLoadingList = Boolean(token && adminApi?.listReview && !currentReview);
+  const listError = actionError ?? (token && !adminApi?.listReview
+    ? "Admin API is not available yet." : currentReview?.error ?? null);
 
-  const loadReview = useCallback(async (sessionToken: string) => {
-    if (!adminApi?.listReview) {
-      setListError("Admin API is not available yet.");
-      setRows([]);
-      return;
-    }
-    setIsLoadingList(true);
-    setListError(null);
-    try {
-      const payload = await convex.query(adminApi.listReview, { token: sessionToken });
-      setRows(normalizeReviewList(payload));
-    } catch (error) {
+  useEffect(() => {
+    if (!token || !adminApi?.listReview) return;
+    let cancelled = false;
+    // Loading/empty state belongs to this request key; only its response writes state.
+    void convex.query(adminApi.listReview, { token }).then((payload) => {
+      if (!cancelled) setReview({ token, revision: refreshKey, rows: normalizeReviewList(payload), error: null });
+    }).catch((error: unknown) => {
+      if (cancelled) return;
       const message = error instanceof Error ? error.message : "Failed to load review queue.";
-      setListError(message);
+      setReview({ token, revision: refreshKey, rows: [], error: message });
       if (/unauthorized|invalid token|password/i.test(message)) {
         clearStoredToken();
         setToken("");
       }
-    } finally {
-      setIsLoadingList(false);
-    }
-  }, [convex]);
-
-  useEffect(() => {
-    if (!token) {
-      setRows([]);
-      return;
-    }
-    void loadReview(token);
-  }, [token, refreshKey, loadReview]);
+    });
+    return () => { cancelled = true; };
+  }, [token, refreshKey, convex]);
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -144,6 +137,8 @@ export default function Admin() {
       }
       storeToken(result.token);
       setToken(result.token);
+      setActionError(null);
+      setRefreshKey((value) => value + 1);
       setPassword("");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid password.";
@@ -156,20 +151,20 @@ export default function Admin() {
   const handleSignOut = () => {
     clearStoredToken();
     setToken("");
-    setRows([]);
-    setListError(null);
+    setReview(null);
+    setActionError(null);
   };
 
   const handleSetValidity = async (resultId: Id<"testResults">, isValid: boolean) => {
     if (!token || !adminApi?.setValidity) return;
     setPendingId(resultId);
-    setListError(null);
+    setActionError(null);
     try {
       await convex.mutation(adminApi.setValidity, { token, resultId, isValid });
       setRefreshKey((value) => value + 1);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to update validity.";
-      setListError(message);
+      setActionError(message);
     } finally {
       setPendingId(null);
     }
