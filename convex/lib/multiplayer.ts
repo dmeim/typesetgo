@@ -60,3 +60,34 @@ export function validateParticipantStats(stats: Doc<"participants">["stats"]) {
   }
   if (stats.accuracy > 100 || stats.progress > 100) throw new Error("Invalid participant progress");
 }
+
+/** Resolve host-led plans before validating the configuration of the selected attempt. */
+export function validatePracticeSettings(settings: Doc<"rooms">["settings"]) {
+  let selected = settings;
+  if (settings.mode === "plan") {
+    const plan: unknown = settings.plan;
+    const index = settings.planIndex ?? 0;
+    if (!Array.isArray(plan) || !plan.length || !Number.isInteger(index) || index < 0 || index >= plan.length) {
+      throw new Error("Choose a valid plan step before starting");
+    }
+    const item = plan[index] as { mode?: unknown; settings?: unknown } | null;
+    if (!item || typeof item.mode !== "string" || item.mode === "plan" ||
+      !item.settings || typeof item.settings !== "object") {
+      throw new Error("This plan step is not supported");
+    }
+    selected = { ...settings, ...item.settings, mode: item.mode };
+  }
+  if (!["time", "words", "quote", "zen", "preset"].includes(selected.mode)) {
+    throw new Error("Choose a supported test mode");
+  }
+  const timed = selected.mode === "time" || (selected.mode === "preset" && selected.presetModeType === "time");
+  if (timed && (!Number.isFinite(selected.duration) || selected.duration <= 0)) {
+    throw new Error("Choose a duration greater than zero");
+  }
+  if (selected.mode === "words" && (!Number.isInteger(selected.wordTarget) || selected.wordTarget <= 0)) {
+    throw new Error("Choose a positive word count");
+  }
+  if (selected.mode === "preset" && !selected.presetText?.trim()) {
+    throw new Error("Enter preset text before starting");
+  }
+}
