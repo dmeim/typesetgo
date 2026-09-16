@@ -2,13 +2,16 @@ import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 
+import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state";
+
 import { cn } from "@/lib/utils"
 import { overlayMotion, overlaySurface, overlayWidth } from "./overlay-styles"
 
 function DropdownMenu({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+  const overlay = useOverlayState(props);
+  return <OverlayScope value={overlay}><DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} open={overlay.open} onOpenChange={overlay.onOpenChange} /></OverlayScope>;
 }
 
 function DropdownMenuPortal({
@@ -32,10 +35,12 @@ function DropdownMenuTrigger({
 
 function DropdownMenuContent({
   className,
+  onEscapeKeyDown,
   sideOffset = 4,
   collisionPadding = 16,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  useOverlayEscape(onEscapeKeyDown);
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -197,7 +202,8 @@ function DropdownMenuShortcut({
 function DropdownMenuSub({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
-  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
+  const overlay = useOverlayState(props);
+  return <OverlayScope value={overlay}><DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} open={overlay.open} onOpenChange={overlay.onOpenChange} /></OverlayScope>;
 }
 
 function DropdownMenuSubTrigger({
@@ -226,8 +232,10 @@ function DropdownMenuSubTrigger({
 
 function DropdownMenuSubContent({
   className,
+  onEscapeKeyDown,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  useOverlayEscape(onEscapeKeyDown);
   return (
     <DropdownMenuPrimitive.SubContent
       data-slot="dropdown-menu-sub-content"
