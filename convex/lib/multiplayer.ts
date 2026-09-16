@@ -1,3 +1,4 @@
+import { MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED, TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "../../src/lib/practice-limits";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
@@ -75,17 +76,23 @@ export function validatePracticeSettings(settings: Doc<"rooms">["settings"]) {
       !item.settings || typeof item.settings !== "object") {
       throw new Error("This plan step is not supported");
     }
-    selected = { ...settings, ...item.settings, mode: item.mode };
+    selected = { ...settings, ...item.settings, mode: item.mode, typingFontSize: settings.typingFontSize };
   }
   if (!["time", "words", "quote", "zen", "preset"].includes(selected.mode)) {
     throw new Error("Choose a supported test mode");
   }
   const timed = selected.mode === "time" || (selected.mode === "preset" && selected.presetModeType === "time");
-  if (timed && (!Number.isFinite(selected.duration) || selected.duration <= 0)) {
-    throw new Error("Choose a duration greater than zero");
+  if (timed && (!Number.isInteger(selected.duration) || selected.duration < 1 || selected.duration > MAX_DURATION_SECONDS)) {
+    throw new Error(`Choose a whole duration from 1 to ${MAX_DURATION_SECONDS} seconds`);
   }
-  if (selected.mode === "words" && (!Number.isInteger(selected.wordTarget) || selected.wordTarget <= 0)) {
-    throw new Error("Choose a positive word count");
+  if (selected.mode === "words" && (!Number.isInteger(selected.wordTarget) || selected.wordTarget <= 0 || selected.wordTarget > MAX_WORD_TARGET)) {
+    throw new Error(`Choose a whole word count from 1 to ${MAX_WORD_TARGET}`);
+  }
+  if (!Number.isFinite(selected.typingFontSize) || selected.typingFontSize < TEXT_SIZE_MIN || selected.typingFontSize > TEXT_SIZE_MAX) {
+    throw new Error(`Choose a text size from ${TEXT_SIZE_MIN} to ${TEXT_SIZE_MAX} rem`);
+  }
+  if (!Number.isFinite(selected.ghostWriterSpeed) || selected.ghostWriterSpeed < 1 || selected.ghostWriterSpeed > MAX_GHOST_SPEED) {
+    throw new Error(`Choose a ghost speed from 1 to ${MAX_GHOST_SPEED} WPM`);
   }
   if (selected.mode === "preset" && !selected.presetText?.trim()) {
     throw new Error("Enter preset text before starting");

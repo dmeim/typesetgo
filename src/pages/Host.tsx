@@ -24,6 +24,7 @@ import {
   type SettingsState,
   type Theme,
 } from "@/lib/typing-constants";
+import { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_GHOST_SPEED } from "@/lib/practice-limits";
 import { fetchAllThemes, type ThemeDefinition } from "@/lib/themes";
 import { fetchSoundManifest, type SoundManifest } from "@/lib/sounds";
 import { tv } from "@/lib/theme-vars";
@@ -714,8 +715,8 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
               Typing text size (rem)
               <input
                 type="number"
-                min={1}
-                max={10}
+                min={TEXT_SIZE_MIN}
+                max={TEXT_SIZE_MAX}
                 step={0.1}
                 className={fieldClass}
                 style={fieldStyle}
@@ -723,8 +724,8 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 onChange={(event) =>
                   updateSettings({
                     typingFontSize: Math.max(
-                      1,
-                      Math.min(10, Number(event.target.value) || 1),
+                      TEXT_SIZE_MIN,
+                      Math.min(TEXT_SIZE_MAX, Number(event.target.value) || TEXT_SIZE_MIN),
                     ),
                   })
                 }
@@ -762,7 +763,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
               <input
                 type="number"
                 min={1}
-                max={500}
+                max={MAX_GHOST_SPEED}
                 className={fieldClass}
                 style={fieldStyle}
                 value={settings.ghostWriterSpeed}
@@ -770,7 +771,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                   updateSettings({
                     ghostWriterSpeed: Math.max(
                       1,
-                      Math.min(500, Number(event.target.value) || 1),
+                      Math.min(MAX_GHOST_SPEED, Number(event.target.value) || 1),
                     ),
                   })
                 }

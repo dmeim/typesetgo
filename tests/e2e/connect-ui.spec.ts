@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { TEXT_SIZE_MAX, MAX_GHOST_SPEED } from "../../src/lib/practice-limits";
 const pageErrors = new WeakMap<Page, string[]>();
 function trackErrors(page: Page) {
   const errors: string[] = [];
@@ -127,6 +128,10 @@ test("wide, zoomed and reduced-motion layout keeps dialogs bounded and keyboard 
   await page
     .getByRole("button", { name: "Appearance & ghost", exact: true })
     .click();
+  await page.getByLabel("Typing text size (rem)").fill("10");
+  await expect(page.getByLabel("Typing text size (rem)")).toHaveValue(String(TEXT_SIZE_MAX));
+  await page.getByLabel("Ghost speed (WPM)").fill("500");
+  await expect(page.getByLabel("Ghost speed (WPM)")).toHaveValue(String(MAX_GHOST_SPEED));
   await page.getByLabel("Typing text size (rem)").fill("4.2");
   const dialog = page.getByRole("dialog");
   for (let index = 0; index < 9; index++) {

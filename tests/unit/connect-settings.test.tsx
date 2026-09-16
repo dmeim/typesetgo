@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { DndContext } from "@dnd-kit/core";
 import { SortableContext } from "@dnd-kit/sortable";
-import { DEFAULT_THEME, type SettingsState } from "@/lib/typing-constants";
+import { MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED, TEXT_SIZE_MAX } from "@/lib/practice-limits";
+import { DEFAULT_THEME, normalizePracticeSettings, type SettingsState } from "@/lib/typing-constants";
 import {
   isTimedPractice,
   practiceSessionKey,
@@ -193,5 +194,27 @@ describe("participant controls", () => {
       screen.getByRole("button", { name: "Preview typing sound" }),
     ).toBeDisabled();
     expect(screen.queryByLabelText("Error sound")).not.toBeInTheDocument();
+  });
+});
+
+describe("host and executor settings agreement", () => {
+  it("bounds and rounds custom amounts before sharing them with the room", () => {
+    const onChange = vi.fn();
+    const view = render(<PracticeSettings settings={{ mode: "time", duration: 30 }} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("Duration (seconds)"), { target: { value: "30000" } });
+    expect(onChange).toHaveBeenLastCalledWith({ duration: MAX_DURATION_SECONDS });
+    fireEvent.change(screen.getByLabelText("Duration (seconds)"), { target: { value: "1.5" } });
+    expect(onChange).toHaveBeenLastCalledWith({ duration: 2 });
+    view.rerender(<PracticeSettings settings={{ mode: "words", wordTarget: 25 }} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("Word count"), { target: { value: "10000" } });
+    expect(onChange).toHaveBeenLastCalledWith({ wordTarget: MAX_WORD_TARGET });
+  });
+  it("retains every supported boundary through the Join adapter and executor normalization", () => {
+    const supported = {
+      mode: "time" as const, duration: MAX_DURATION_SECONDS, wordTarget: MAX_WORD_TARGET,
+      typingFontSize: TEXT_SIZE_MAX, ghostWriterSpeed: MAX_GHOST_SPEED,
+    };
+    const normalized = normalizePracticeSettings(resolveRoomSettings(supported) as SettingsState);
+    expect(normalized).toMatchObject(supported);
   });
 });

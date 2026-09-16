@@ -5,6 +5,7 @@ import type {
   QuoteLength,
   SettingsState,
 } from "@/lib/typing-constants";
+import { MAX_DURATION_SECONDS, MAX_WORD_TARGET } from "@/lib/practice-limits";
 import { fetchWordsManifest } from "@/lib/words";
 import { fetchQuotesManifest } from "@/lib/quotes";
 import { tv } from "@/lib/theme-vars";
@@ -198,7 +199,7 @@ export default function PracticeSettings({
                   id={`${id}-amount`}
                   type="number"
                   min={1}
-                  max={isTimedPractice(settings) ? 86400 : 10000}
+                  max={isTimedPractice(settings) ? MAX_DURATION_SECONDS : MAX_WORD_TARGET}
                   className={`${fieldClass} max-w-32`}
                   style={fieldStyle}
                   value={
@@ -207,13 +208,13 @@ export default function PracticeSettings({
                       : settings.wordTarget) ?? 30
                   }
                   onChange={(event) => {
-                    const value = Math.max(
+                    const value = Math.round(Math.max(
                       1,
                       Math.min(
-                        isTimedPractice(settings) ? 86400 : 10000,
+                        isTimedPractice(settings) ? MAX_DURATION_SECONDS : MAX_WORD_TARGET,
                         Number(event.target.value) || 1,
                       ),
-                    );
+                    ));
                     onChange(
                       isTimedPractice(settings)
                         ? { duration: value }
