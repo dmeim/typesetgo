@@ -205,3 +205,45 @@ Final checks on `4ec7ffb`:
 **Implemented and verified:** practice-owned findings and agreed practice-side Connect interfaces listed above. **Blocked:** lint startup only. **Deferred/unverified:** real live authenticated/Convex journeys, actual browser-toolbar zoom, performance profiling, and later authorized deployment; no local implementation is blocked. No audit finding was conclusively disproved; source-only baseline risks are labeled explicitly rather than promoted to reproduced failures.
 
 **Merge order / shared contracts:** consume Foundations through `57e5a04` before the practice consumer changes. Include additive TypingArea restoration props/`typedText` with Multiplayer reconnect callers. `practice-limits.ts` must precede Multiplayer's host/plan/server range imports; shared bounds are text 1–6rem, duration 1–25199 seconds, words 1–9999, ghost 1–200 WPM. Take the dedicated solo completion helper/validator with the frontend completion changes. No schema or package changes originate in this lane.
+
+
+## Integration lint gate follow-up
+
+After the initial lane completion, Integration supplied a supported TypeScript parser and returned concrete source findings. The earlier startup failure remains an accurate historical result; it no longer substitutes for checking the newly analyzable source. Package/config/lock changes remain owned by Integration.
+
+Manager `af03b82` repairs four scoped files without lint suppression or artificial asynchronous deferral:
+
+- PracticeText calculates word offsets in a render-local loop before mapping elements, preserving linear complexity and existing space/extra-character positions.
+- PracticeThemePicker shares a stable empty catalog value until data arrives.
+- TypingArea updates callback refs during layout commit, preventing an uncommitted render from replacing the callbacks used by progress events. Callback identity still does not itself emit progress.
+- usePracticeClock holds a stable clock store and publishes elapsed snapshots through useSyncExternalStore. The real clock still owns elapsed time; pause and reset publish exact values, and interval cleanup is explicit.
+
+Validation for this first follow-up: all four source files and the input regression file pass Integration's restored ESLint configuration with zero findings; TypeScript passes; 37 targeted input/presentation tests pass. A new Strict Mode regression checks an off-tick pause, reset, resume, and a single interval with no timer left after unmount. Read-only review passed. Browser checks on port4337 reverified paused/resumed restoration, caret wrapping/feeding tape, ranked identity, and late-response rejection.
+
+The temporary programmatic browser fixture must start with the application checkout as process working directory so Tailwind scans the application sources. Starting it from /tmp omitted utility CSS; that invalid visual run was discarded and rerun from the checkout with normal nonzero caret geometry. Integration was notified and port4317 was released to its durable harness.
+
+
+Manager `e960a08` (worker `385fa972`) separates prompt preparation from committed external cleanup. A pure request/configuration/dataset calculation prepares the prompt; guarded state adjustment resets the attempt before children can observe new text with old input. The committed epoch then resets the clock and cancels obsolete server sessions. Connect settings derive from locked configuration, account hydration/queued defaults belong to one account visit, callback refs synchronize after commit, and the sound warning latch no longer causes a render.
+
+Manager `06ec276` (worker `7613c6b`) preserves random prompt selection while keeping render preparation deterministic. Initial construction and deliberate Next/configuration commands sample seeds; each request has distinct identity even if the RNG repeats a value. A regression covers differing/repeated quote samples and leaving/reentering Quote. Incrementing a seed was rejected during worker self-review because adjacent samples made quote selection correlated.
+
+Additional transition regressions verify an in-flight old ranked response cannot replace the newly selected prompt or its session, a clock-advanced Connect configuration reset emits exactly one fresh zero-elapsed report, callback identity does not replay progress, and signing out/back into the same account permits fresh hydration.
+
+Final integration-gate source snapshot: **`06ec276`**. `bun run build` and the full unit suite passed (**187 tests / 18 files**, 2026-09-16 11:39 local). The supported ESLint command below passed with zero errors or warnings for all five assigned source files and both coupled regression files; no package/config changes were made on this branch:
+
+```bash
+/Users/dimitri/Code/typesetgo-worktrees/integration-tooling/node_modules/.bin/eslint \
+  --config /Users/dimitri/Code/typesetgo-worktrees/integration-tooling/eslint.config.js \
+  src/components/typing/PracticeText.tsx \
+  src/components/typing/PracticeThemePicker.tsx \
+  src/components/typing/TypingArea.tsx \
+  src/components/typing/TypingPractice.tsx \
+  src/components/typing/usePracticeClock.ts \
+  tests/unit/practice-input.test.tsx \
+  tests/unit/practice-engine.test.tsx
+```
+
+Actual Home browser journeys on the final source rechecked counts, completion, settings during results, exact Repeat/Next, cold Quote, delayed preference preservation, narrow theme loading/retry/selection/category/drawer/focus, keyboard recovery, and ghost visibility. Ranked prompt ownership and TypingArea restoration/scroll checks also passed after the underlying lifecycle/clock changes. All browser services remained local substitutes with external requests blocked. Central full-repository lint and durable browser acceptance remain Integration's final gate, separate from this scoped zero-finding result.
+
+
+Read-only follow-up review: **PASS for `35585ee..06ec276`**, no remaining actionable P0–P2 defects. All five changed source files and two test files were inspected; review reused the manager execution evidence above. Follow-up source commits are `af03b82`, `e960a08`, and `06ec276` in that order; no shared interfaces, backend source, package files, or live state changed in this pass.
