@@ -112,7 +112,7 @@ export default function TypingArea({
 
   // State
   const [typedText, setTypedText] = useState(() => sanitizeTypingInput(initialInput ?? initialTypedText));
-  const [isRunning, setIsRunning] = useState(() => Boolean(initialInput ?? initialTypedText));
+  const [isRunning, setIsRunning] = useState(() => Boolean(initialInput ?? initialTypedText) || initialElapsedMs > 0);
   const { elapsedMs, resetClock } = usePracticeClock(isRunning && isActive, Math.max(0, initialElapsedMs));
   const [isFocused, setIsFocused] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
