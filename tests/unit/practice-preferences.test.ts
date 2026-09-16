@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, loadLayoutSettings, loadSettings, saveSettings } from "@/lib/storage-utils";
 import { normalizePracticeSettings } from "@/lib/typing-constants";
-import { TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "@/components/typing/practice-config";
+import { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS } from "@/components/typing/practice-config";
 
 afterEach(() => localStorage.clear());
 describe("practice preference boundaries", () => {
@@ -20,6 +20,8 @@ describe("practice preference boundaries", () => {
       ghostWriterSpeed: Infinity });
     expect(settings.wordTarget).toBe(25);
     expect(settings.duration).toBe(1);
+    expect(MAX_DURATION_SECONDS).toBe(25199);
+    expect(normalizePracticeSettings({ ...DEFAULT_SETTINGS, presetText: "", duration: 25199 }).duration).toBe(25199);
     expect(settings.ghostWriterSpeed).toBe(40);
     localStorage.setItem("typesetgo_layout", JSON.stringify({ linePreview: 999, maxWordsPerLine: 0 }));
     expect(loadLayoutSettings()).toEqual({ linePreview: 6, maxWordsPerLine: 1 });

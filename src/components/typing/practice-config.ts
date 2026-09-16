@@ -4,4 +4,4 @@ export const MODE_SELECTOR_OPTIONS = ["kid", "zen", "time", "words", "quote"] as
 
 export type ModeSelectorOption = (typeof MODE_SELECTOR_OPTIONS)[number];
 
-export { TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "@/lib/typing-constants";
+export { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS } from "@/lib/typing-constants";
