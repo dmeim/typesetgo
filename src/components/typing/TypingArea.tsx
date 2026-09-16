@@ -131,6 +131,7 @@ export default function TypingArea({
   const callbacksRef = useRef({ onProgress, onStart, onFinish });
   callbacksRef.current = { onProgress, onStart, onFinish };
   const finishNotifiedRef = useRef(false);
+  const previousTargetRef = useRef(targetText);
   const scrollOffset = useTypingScroll({ viewportRef: feedingTape ? tapeContainerRef : containerRef,
     contentRef: feedingTape ? tapeContentRef : contentRef, caretRef: cursorRef, visibleLines, feedingTape,
     layoutKey: JSON.stringify([typedText, targetText, resolvedFontFamily, fontSize, maxWordsPerLine, textAlign]) });
@@ -212,18 +213,17 @@ export default function TypingArea({
 
   // Callback identity alone is not a progress event, and stopped rooms emit no progress.
   useEffect(() => {
-    if (isActive) callbacksRef.current.onProgress?.(fullStats);
-  }, [fullStats, isActive]);
+    if (isActive && previousTargetRef.current === targetText) callbacksRef.current.onProgress?.(fullStats);
+  }, [fullStats, isActive, targetText]);
 
   useEffect(() => {
-    if (isFinished && isRunning && !finishNotifiedRef.current) {
+    if (isActive && previousTargetRef.current === targetText && isFinished && isRunning && !finishNotifiedRef.current) {
       finishNotifiedRef.current = true;
       setIsRunning(false);
       callbacksRef.current.onFinish?.(fullStats);
     }
-  }, [isFinished, isRunning, fullStats]);
+  }, [isFinished, isRunning, fullStats, isActive, targetText]);
 
-  const previousTargetRef = useRef(targetText);
   useEffect(() => {
     if (previousTargetRef.current === targetText) return;
     previousTargetRef.current = targetText;
