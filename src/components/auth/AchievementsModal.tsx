@@ -20,6 +20,7 @@ import AchievementDetailModal from "./AchievementDetailModal";
 interface AchievementsModalProps {
   earnedAchievements: Record<string, number>;
   onClose: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
   initialCategory?: AchievementCategory | null;
   initialAchievementId?: string | null;
 }
@@ -29,6 +30,7 @@ const categories = Object.keys(ACHIEVEMENT_CATEGORIES) as AchievementCategory[];
 export default function AchievementsModal({
   earnedAchievements,
   onClose,
+  onCloseAutoFocus,
   initialCategory,
   initialAchievementId,
 }: AchievementsModalProps) {
@@ -64,8 +66,11 @@ export default function AchievementsModal({
           }
         }}
         onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+          onCloseAutoFocus?.(event);
+          if (!event.defaultPrevented && returnFocus?.isConnected) {
+            event.preventDefault();
+            returnFocus.focus({ preventScroll: true });
+          }
         }}
       >
         <DialogHeader className="shrink-0 border-b border-border p-4 pr-12 text-left sm:p-6 sm:pr-12">

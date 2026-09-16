@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AchievementsCategoryGrid from "@/components/auth/AchievementsCategoryGrid";
 import AchievementsModal from "@/components/auth/AchievementsModal";
@@ -84,6 +85,31 @@ describe("achievement refresh ownership", () => {
 });
 
 describe("achievement dialogs", () => {
+  it("restores a caller-supplied persistent control when its menu opener unmounts", async () => {
+    function MenuHarness() {
+      const [menuOpen, setMenuOpen] = useState(false);
+      const [open, setOpen] = useState(false);
+      const trigger = useRef<HTMLButtonElement>(null);
+      return <>
+        <button ref={trigger} onClick={() => setMenuOpen(true)}>Notifications</button>
+        {menuOpen && <button onClick={() => { setMenuOpen(false); setOpen(true); }}>Achievement notification</button>}
+        {open && <AchievementsModal earnedAchievements={{}} onClose={() => setOpen(false)} onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          trigger.current?.focus();
+        }} />}
+      </>;
+    }
+    render(<MenuHarness />);
+    fireEvent.click(screen.getByRole("button", { name: "Notifications" }));
+    const menuItem = screen.getByRole("button", { name: "Achievement notification" });
+    menuItem.focus();
+    fireEvent.click(menuItem);
+    expect(menuItem.isConnected).toBe(false);
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "All Achievements" }), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Notifications" })).toHaveFocus());
+  });
+
   it("opens a category, traps detail focus, and restores each opener after nested Escape", async () => {
     render(<AchievementsCategoryGrid earnedAchievements={{ [firstSpeed.id]: 123 }} />);
     const opener = screen.getByRole("button", { name: /Speed Demons: 1 of/ });
