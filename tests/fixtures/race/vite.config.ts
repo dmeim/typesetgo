@@ -1,9 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
+import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 export default defineConfig({
+  cacheDir: path.join(tmpdir(), "typesetgo-race-" + createHash("sha256").update(root).digest("hex").slice(0, 12)),
   root: import.meta.dirname,
   publicDir: path.join(root, "public"),
   envDir: import.meta.dirname,
