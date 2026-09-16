@@ -53,33 +53,43 @@ const LINE_HEIGHT = 1.6;
 const generateWords = (
   count: number,
   pool: string[],
-  options: { punctuation: boolean; numbers: boolean; capitalization: boolean }
+  options: { punctuation: boolean; numbers: boolean; capitalization: boolean },
+  random: () => number = Math.random
 ) => {
   const words = [];
   if (pool.length === 0) return "";
 
   for (let i = 0; i < count; i++) {
-    let word = pool[Math.floor(Math.random() * pool.length)];
+    let word = pool[Math.floor(random() * pool.length)];
 
-    if (options.numbers && Math.random() < 0.2) {
+    if (options.numbers && random() < 0.2) {
       word =
-        NUMBER_CHARS[Math.floor(Math.random() * NUMBER_CHARS.length)] +
-        NUMBER_CHARS[Math.floor(Math.random() * NUMBER_CHARS.length)];
+        NUMBER_CHARS[Math.floor(random() * NUMBER_CHARS.length)] +
+        NUMBER_CHARS[Math.floor(random() * NUMBER_CHARS.length)];
     }
 
-    if (options.punctuation && Math.random() < 0.15 && i > 0) {
+    if (options.punctuation && random() < 0.15 && i > 0) {
       word =
-        word + PUNCTUATION_CHARS[Math.floor(Math.random() * PUNCTUATION_CHARS.length)];
+        word + PUNCTUATION_CHARS[Math.floor(random() * PUNCTUATION_CHARS.length)];
     }
 
     // Apply capitalization: capitalize first letter of some words
-    if (options.capitalization && Math.random() < 0.25) {
+    if (options.capitalization && random() < 0.25) {
       word = word.charAt(0).toUpperCase() + word.slice(1);
     }
 
     words.push(word);
   }
   return words.join(" ");
+};
+
+// Prompt rendering is deterministic for a request; only an explicit next-test action changes its seed.
+const createPromptRandom = (seed: number) => {
+  let value = seed >>> 0;
+  return () => {
+    value = (Math.imul(value, 1664525) + 1013904223) >>> 0;
+    return value / 4294967296;
+  };
 };
 
 const formatTime = (seconds: number) => {
@@ -150,6 +160,7 @@ export default function TypingPractice({
   setShowThemeModal: externalSetShowThemeModal,
   onTypingStateChange,
 }: TypingPracticeProps) {
+  const { isSignedIn, user, openSignIn, status: authStatus } = useAppAuth();
   // Theme context (replaces props and internal state)
   const {
     colors,
@@ -160,19 +171,27 @@ export default function TypingPractice({
     setThemeSelection,
   } = useTheme();
   // --- State ---
-  const [settings, setSettings] = useState<SettingsState>(() => normalizePracticeSettings({
+  const [localSettings, setSettings] = useState<SettingsState>(() => normalizePracticeSettings({
     ...DEFAULT_SETTINGS, ...loadSettings(), presetText: "", ...(connectMode ? lockedSettings : {}),
   }));
+  const settings = useMemo(() => connectMode && lockedSettings
+    ? normalizePracticeSettings({ ...localSettings, ...lockedSettings }) : localSettings,
+  [connectMode, lockedSettings, localSettings]);
   // Account defaults arriving during an attempt belong to the next prompt, including while results are open.
-  const [pendingPromptPreferences, setPendingPromptPreferences] = useState<Partial<SettingsState> | null>(null);
+  const [queuedPromptPreferences, setQueuedPromptPreferences] = useState<{
+    accountId: string; settings: Partial<SettingsState>;
+  } | null>(null);
+  const pendingPromptPreferences = queuedPromptPreferences && queuedPromptPreferences.accountId === user?.id ? queuedPromptPreferences.settings : null;
   const preferredSettings = useMemo(() => pendingPromptPreferences
     ? { ...settings, ...pendingPromptPreferences } : settings, [settings, pendingPromptPreferences]);
   const preferenceEditsRef = useRef(new Set<string>());
   const themeEditedRef = useRef(false);
   const themeRevisionBaselineRef = useRef(userSelectionRevision);
   const themeRevisionRef = useRef(userSelectionRevision);
-  themeRevisionRef.current = userSelectionRevision;
-  if (userSelectionRevision !== themeRevisionBaselineRef.current) themeEditedRef.current = true;
+  useLayoutEffect(() => {
+    themeRevisionRef.current = userSelectionRevision;
+    if (userSelectionRevision !== themeRevisionBaselineRef.current) themeEditedRef.current = true;
+  }, [userSelectionRevision]);
 
   // Use external state if provided, otherwise use internal state
   const [internalShowSettings, setInternalShowSettings] = useState(false);
@@ -202,18 +221,42 @@ export default function TypingPractice({
   const [soundManifest, setSoundManifest] = useState<SoundManifest | null>(null);
   const [wordsManifest, setWordsManifest] = useState<WordsManifest | null>(null);
   const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
-  const [showPresetInput, setShowPresetInput] = useState(false);
+  const [showPresetInput, setShowPresetInput] = useState(settings.mode === "preset" && !settings.presetText);
   const [showCustomCountModal, setShowCustomCountModal] = useState(false);
   const dataset = usePracticeDataset(settings, quotesManifest);
   const { wordPool, quotes } = dataset;
   const promptConfigKey = JSON.stringify(PROMPT_SETTING_KEYS.map((key) => settings[key]));
-  const promptConfigRef = useRef("");
-  const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
-  const [words, setWords] = useState("");
+  const [promptSeed, setPromptSeed] = useState(() => Math.floor(Math.random() * 4294967296));
+  const preparedPrompt = useMemo(() => {
+    const prompt = { configKey: promptConfigKey, seed: promptSeed, datasetStatus: dataset.status,
+      wordPool, quotes, text: "", quote: null as Quote | null, needsPreset: false };
+    if (dataset.status !== "ready" || settings.mode === "plan") return prompt;
+    const random = createPromptRandom(promptSeed);
+    if (settings.mode === "quote") {
+      prompt.quote = quotes[Math.floor(random() * quotes.length)] ?? null;
+      prompt.text = prompt.quote?.quote.replace(/\s+/g, " ").trim() ?? "";
+    } else if (settings.mode === "preset") {
+      prompt.text = settings.presetText.replace(/\s+/g, " ").trim();
+      prompt.needsPreset = !prompt.text;
+    } else {
+      prompt.text = generateWords(settings.mode === "words" ? settings.wordTarget : 200, wordPool, {
+        punctuation: settings.punctuation, numbers: settings.numbers, capitalization: settings.capitalization,
+      }, random);
+    }
+    return prompt;
+  }, [dataset.status, promptConfigKey, promptSeed, settings.mode, settings.presetText,
+    settings.wordTarget, settings.punctuation, settings.numbers, settings.capitalization, wordPool, quotes]);
+  const [activePrompt, setActivePrompt] = useState(preparedPrompt);
+  const matchesPromptRequest = activePrompt.configKey === promptConfigKey && activePrompt.seed === promptSeed
+    && activePrompt.datasetStatus === dataset.status && activePrompt.wordPool === wordPool && activePrompt.quotes === quotes;
+  const [currentQuote, setCurrentQuote] = useState<Quote | null>(preparedPrompt.quote);
+  const [words, setWords] = useState(preparedPrompt.text);
   const [typedText, setTypedText] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const { elapsedMs, readElapsed, resetClock } = usePracticeClock(isRunning && (!connectMode || isTestActive));
+  const { elapsedMs: clockElapsedMs, readElapsed, resetClock } = usePracticeClock(isRunning && (!connectMode || isTestActive));
+  // A fresh attempt has no elapsed time, including the commit that resets the external clock store.
+  const elapsedMs = isRunning || isFinished ? clockElapsedMs : 0;
   const [isRepeated, setIsRepeated] = useState(false);
   const ghostCharIndex = Math.min(words.length, Math.floor(elapsedMs * settings.ghostWriterSpeed * 5 / 60000));
   const repeatRef = useRef(false);
@@ -221,7 +264,7 @@ export default function TypingPractice({
   const [rankingStatus, setRankingStatus] = useState<"pending" | "ranked" | "unranked">("unranked");
   const [isFocused, setIsFocused] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
-  const [isWarningPlayed, setIsWarningPlayed] = useState(false);
+  const warningPlayedRef = useRef(false);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const activeKeyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const uiOpacity = isRunning && isFocused && !isFinished && (!connectMode || isTestActive) ? 0 : 1;
@@ -250,7 +293,9 @@ export default function TypingPractice({
   const [planResults, setPlanResults] = useState<Record<string, PlanStepResult>>({});
   const [showPlanResultsModal, setShowPlanResultsModal] = useState(false);
   const overlayOpenRef = useRef(false);
-  overlayOpenRef.current = showSettings || showThemeModal || showQuickSettings || showCustomCountModal || showPresetInput || showPlanBuilder || showPlanResultsModal;
+  useLayoutEffect(() => {
+    overlayOpenRef.current = showSettings || showThemeModal || showQuickSettings || showCustomCountModal || showPresetInput || showPlanBuilder || showPlanResultsModal;
+  }, [showSettings, showThemeModal, showQuickSettings, showCustomCountModal, showPresetInput, showPlanBuilder, showPlanResultsModal]);
 
   // Save Results State
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -279,13 +324,12 @@ export default function TypingPractice({
   const isRunningRef = useRef(isRunning);
 
   // Keep ref in sync with state
-  useEffect(() => { wordsRef.current = words; }, [words]);
-  useEffect(() => { typedTextRef.current = typedText; }, [typedText]);
-  useEffect(() => { elapsedMsRef.current = elapsedMs; }, [elapsedMs]);
-  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
+  useLayoutEffect(() => { wordsRef.current = words; }, [words]);
+  useLayoutEffect(() => { typedTextRef.current = typedText; }, [typedText]);
+  useLayoutEffect(() => { elapsedMsRef.current = elapsedMs; }, [elapsedMs]);
+  useLayoutEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
 
   // Clerk auth hooks
-  const { isSignedIn, user, openSignIn, status: authStatus } = useAppAuth();
   const saveResultMutation = useMutation(api.testResults.saveResult);
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const startSessionMutation = useMutation(api.typingSessions.startSession);
@@ -307,11 +351,11 @@ export default function TypingPractice({
   const isFinishedRef = useRef(isFinished);
   const isSignedInRef = useRef(isSignedIn);
 
-  useEffect(() => { userRef.current = user; }, [user]);
-  useEffect(() => { connectModeRef.current = connectMode; }, [connectMode]);
-  useEffect(() => { settingsRef.current = settings; }, [settings]);
-  useEffect(() => { isFinishedRef.current = isFinished; }, [isFinished]);
-  useEffect(() => { isSignedInRef.current = isSignedIn; }, [isSignedIn]);
+  useLayoutEffect(() => { userRef.current = user; }, [user]);
+  useLayoutEffect(() => { connectModeRef.current = connectMode; }, [connectMode]);
+  useLayoutEffect(() => { settingsRef.current = settings; }, [settings]);
+  useLayoutEffect(() => { isFinishedRef.current = isFinished; }, [isFinished]);
+  useLayoutEffect(() => { isSignedInRef.current = isSignedIn; }, [isSignedIn]);
 
   // Notification store for achievement toasts
   const { addNotification } = useNotifications();
@@ -322,7 +366,9 @@ export default function TypingPractice({
     user ? { clerkId: user.id } : "skip"
   );
   const savePreferencesMutation = useMutation(api.preferences.savePreferences);
-  const [hasResolvedDbPrefs, setHasResolvedDbPrefs] = useState(false);
+  const [observedAccountId, setObservedAccountId] = useState(user?.id ?? null);
+  const [hydratedAccountId, setHydratedAccountId] = useState<string | null>(null);
+  const hasResolvedDbPrefs = !user || dbPreferences === null || hydratedAccountId === user.id;
   const prefsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -340,7 +386,24 @@ export default function TypingPractice({
   const bottomLayoutRef = useRef<HTMLDivElement | null>(null);
   const [typingCenterOffset, setTypingCenterOffset] = useState(0);
 
-  const promptReady = dataset.status === "ready" && promptConfigRef.current === promptConfigKey && words.length > 0;
+  const promptReady = dataset.status === "ready" && matchesPromptRequest && words.length > 0;
+
+  useLayoutEffect(() => {
+    if (sessionEpochRef.current === sessionEpoch) return;
+    const previousSessionId = sessionIdRef.current;
+    sessionEpochRef.current = sessionEpoch;
+    sessionIdRef.current = null;
+    pendingTypedLengthRef.current = 0;
+    finalizedRef.current = false;
+    savingRef.current = false;
+    repeatRef.current = false;
+    startingSessionRef.current = false;
+    composingRef.current = false;
+    warningPlayedRef.current = false;
+    focusRequestedRef.current = !overlayOpenRef.current;
+    resetClock();
+    if (previousSessionId) void cancelSessionMutation({ sessionId: previousSessionId }).catch(() => {});
+  }, [sessionEpoch, resetClock, cancelSessionMutation]);
 
   useLayoutEffect(() => {
     if (promptReady && focusRequestedRef.current && !overlayOpenRef.current && !isFinished && (!connectMode || isTestActive)) {
@@ -457,14 +520,12 @@ export default function TypingPractice({
   const preferencesAccountRef = useRef<string | null>(null);
   useEffect(() => {
     if (preferencesAccountRef.current && preferencesAccountRef.current !== user?.id) {
-      setPendingPromptPreferences(null);
       preferenceEditsRef.current.clear();
       themeEditedRef.current = false;
       themeRevisionBaselineRef.current = themeRevisionRef.current;
       lastSavedPrefsRef.current = null;
     }
     preferencesAccountRef.current = user?.id ?? null;
-    setHasResolvedDbPrefs(false);
   }, [user?.id]);
 
   // --- Load Preferences from DB (for logged-in users) ---
@@ -472,11 +533,7 @@ export default function TypingPractice({
     if (connectMode || !user?.id || hasResolvedDbPrefs || dbPreferences === undefined) return;
 
     // Local hydration is complete before the first render. Only event callbacks mark user edits.
-    if (!dbPreferences) {
-      needsSnapshotStamp.current = preferenceEditsRef.current.size === 0 && !themeEditedRef.current;
-      setHasResolvedDbPrefs(true);
-      return;
-    }
+    if (!dbPreferences) return;
 
     let isCancelled = false;
 
@@ -550,7 +607,7 @@ export default function TypingPractice({
                 if (restored[key] !== prev[key]) Object.assign(pending, { [key]: restored[key] });
                 Object.assign(restored, { [key]: prev[key] });
               }
-              setPendingPromptPreferences(Object.keys(pending).length ? pending : null);
+              setQueuedPromptPreferences(Object.keys(pending).length ? { accountId: user.id, settings: pending } : null);
             }
             setSettings(restored);
           }
@@ -565,7 +622,7 @@ export default function TypingPractice({
         } finally {
           if (!isCancelled) {
             needsSnapshotStamp.current = preferenceEditsRef.current.size === 0 && !themeEditedRef.current;
-            setHasResolvedDbPrefs(true);
+            setHydratedAccountId(user.id);
           }
         }
       })();
@@ -584,7 +641,8 @@ export default function TypingPractice({
     const currentSnapshot = buildPrefsSnapshot();
 
     // After loading from DB, stamp the snapshot so we don't re-save what was just loaded
-    if (needsSnapshotStamp.current) {
+    if (needsSnapshotStamp.current || (dbPreferences === null && lastSavedPrefsRef.current === null
+      && preferenceEditsRef.current.size === 0 && !themeEditedRef.current)) {
       needsSnapshotStamp.current = false;
       lastSavedPrefsRef.current = currentSnapshot;
       return;
@@ -613,7 +671,7 @@ export default function TypingPractice({
         clearTimeout(prefsDebounceRef.current);
       }
     };
-  }, [user, hasResolvedDbPrefs, buildPrefsSnapshot, savePreferencesMutation, connectMode]);
+  }, [user, hasResolvedDbPrefs, dbPreferences, buildPrefsSnapshot, savePreferencesMutation, connectMode]);
 
   // --- Load sound manifest ---
   useEffect(() => {
@@ -630,17 +688,12 @@ export default function TypingPractice({
     fetchQuotesManifest().then(setQuotesManifest);
   }, []);
 
-  // Connect owns run identity. Locked configuration applies without becoming a preference edit.
-  useEffect(() => {
-    if (connectMode && lockedSettings) setSettings((prev) => normalizePracticeSettings({ ...prev, ...lockedSettings }));
-  }, [connectMode, lockedSettings]);
-
   // --- Callbacks ---
   const updateSettings = useCallback((updates: Partial<SettingsState>) => {
     Object.keys(updates).forEach((key) => preferenceEditsRef.current.add(key));
     // Explicit prompt edits start a new attempt, so apply queued account defaults at that boundary too.
     const startsPrompt = PROMPT_SETTING_KEYS.some((key) => key in updates);
-    if (startsPrompt) setPendingPromptPreferences(null);
+    if (startsPrompt) setQueuedPromptPreferences(null);
     setSettings((prev) => normalizePracticeSettings({ ...prev, ...(startsPrompt ? pendingPromptPreferences : {}), ...updates }));
   }, [pendingPromptPreferences]);
 
@@ -686,7 +739,7 @@ export default function TypingPractice({
     setIsRepeated(isRepeat);
     focusRequestedRef.current = !overlayOpenRef.current;
     setIsFocused(document.activeElement === inputRef.current);
-    setIsWarningPlayed(false);
+    warningPlayedRef.current = false;
     setSaveState("idle");
     setLastResultIsValid(null);
     setLastResultInvalidReason(undefined);
@@ -1062,9 +1115,9 @@ export default function TypingPractice({
   }, [recordProgressMutation]);
 
   useEffect(() => {
-    if (connectMode || !isSignedIn || !user || !words || promptConfigRef.current !== promptConfigKey || dataset.status !== "ready") return;
+    if (connectMode || !isSignedIn || !user || !promptReady) return;
     ensureSoloSessionStarted(words);
-  }, [sessionEpoch, connectMode, isSignedIn, user, words, ensureSoloSessionStarted, promptConfigKey, dataset.status]);
+  }, [sessionEpoch, connectMode, isSignedIn, user, words, ensureSoloSessionStarted, promptReady]);
 
   useEffect(() => {
     if (!isFinished || connectMode || !isSignedIn) return;
@@ -1073,66 +1126,14 @@ export default function TypingPractice({
     void saveResults();
   }, [isFinished, connectMode, isSignedIn, saveResults]);
 
-  const generatePrompt = useCallback(() => {
-    resetSession(false);
-    promptConfigRef.current = promptConfigKey;
-    setCurrentQuote(null);
-    wordsRef.current = "";
-    setWords("");
-    if (dataset.status !== "ready") return;
-    if (settings.mode === "plan") return;
-    if (settings.mode === "quote") {
-      if (quotes.length === 0) return;
-      const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-      if (randomQuote) {
-        setCurrentQuote(randomQuote);
-        wordsRef.current = randomQuote.quote.replace(/\s+/g, " ").trim();
-        setWords(wordsRef.current);
-      }
-      return;
-    }
-
-    if (settings.mode === "preset") {
-      if (!settings.presetText) {
-        setShowPresetInput(true);
-        return;
-      }
-      wordsRef.current = settings.presetText.replace(/\s+/g, " ").trim();
-      setWords(wordsRef.current);
-      return;
-    }
-
-    if (wordPool.length === 0) return;
-
-    const wordCount = settings.mode === "words" && settings.wordTarget > 0 ? settings.wordTarget : 200;
-    const generated = generateWords(wordCount, wordPool, {
-        punctuation: settings.punctuation,
-        numbers: settings.numbers,
-        capitalization: settings.capitalization,
-      });
-    wordsRef.current = generated;
-    setWords(generated);
-  }, [
-    dataset.status, promptConfigKey,
-    settings.mode,
-    settings.wordTarget,
-    settings.punctuation,
-    settings.numbers,
-    settings.capitalization,
-    settings.presetText,
-    wordPool,
-    quotes,
-    resetSession,
-  ]);
-
   const generateTest = useCallback(() => {
     if (pendingPromptPreferences) {
       setSettings((prev) => normalizePracticeSettings({ ...prev, ...pendingPromptPreferences }));
-      setPendingPromptPreferences(null);
+      setQueuedPromptPreferences(null);
       return; // The resolved configuration/dataset effect generates the next prompt.
     }
-    generatePrompt();
-  }, [generatePrompt, pendingPromptPreferences]);
+    setPromptSeed((seed) => seed + 1);
+  }, [pendingPromptPreferences]);
 
   const applyCustomCount = useCallback((value: number) => {
     if (settings.mode === "time") {
@@ -1213,17 +1214,15 @@ export default function TypingPractice({
     }
   }, [disableKidMode, enableKidMode, generateTest, isKidMode, settings.mode, updateSettings]);
 
-  useEffect(() => { generatePrompt(); }, [generatePrompt]);
-
   // The clock owns elapsed time; ghost position derives from that same elapsed value, including spaces.
   useEffect(() => {
     if (!isRunning || (connectMode && !isTestActive) || !isTimedPractice(settings)) return;
     if (elapsedMs >= settings.duration * 1000) finishSessionRef.current();
-    if (!isWarningPlayed && elapsedMs >= (settings.duration - 5) * 1000 && settings.duration >= 10) {
+    if (!warningPlayedRef.current && elapsedMs >= (settings.duration - 5) * 1000 && settings.duration >= 10) {
       playWarningSound();
-      setIsWarningPlayed(true);
+      warningPlayedRef.current = true;
     }
-  }, [elapsedMs, isRunning, connectMode, isTestActive, settings, isWarningPlayed, playWarningSound]);
+  }, [elapsedMs, isRunning, connectMode, isTestActive, settings, playWarningSound]);
 
   // --- Notify parent of typing state ---
   useEffect(() => {
@@ -1233,7 +1232,7 @@ export default function TypingPractice({
   }, [isRunning, isFinished, isFocused, connectMode, isTestActive, onTypingStateChange]);
 
   const onStatsUpdateRef = useRef(onStatsUpdate);
-  onStatsUpdateRef.current = onStatsUpdate;
+  useLayoutEffect(() => { onStatsUpdateRef.current = onStatsUpdate; }, [onStatsUpdate]);
   // --- Report stats to parent (connect mode) ---
   useEffect(() => {
     if (!promptReady || (connectMode && !isTestActive)) return;
@@ -1384,10 +1383,7 @@ export default function TypingPractice({
   }, []);
 
   useLayoutEffect(() => {
-    if (isCompactMode || isFinished) {
-      setTypingCenterOffset(0);
-      return;
-    }
+    if (isCompactMode || isFinished) return;
 
     const topEl = topLayoutRef.current;
     const bottomEl = bottomLayoutRef.current;
@@ -1434,6 +1430,33 @@ export default function TypingPractice({
     wordsManifest, quotesManifest, openCustomCountModal,
     isCustomDurationSelected, isCustomWordTargetSelected,
   };
+
+  // Resolution and queued defaults belong to one account visit, including signing back into the same account.
+  if (observedAccountId !== (user?.id ?? null)) {
+    setObservedAccountId(user?.id ?? null);
+    setHydratedAccountId(null);
+    if (observedAccountId !== null) setQueuedPromptPreferences(null);
+  }
+
+  // A new resolved configuration is a new attempt. Reset before children can observe old input
+  // against the new prompt; external session/clock cleanup follows the committed epoch below.
+  if (!matchesPromptRequest) {
+    setActivePrompt(preparedPrompt);
+    setCurrentQuote(preparedPrompt.quote);
+    setWords(preparedPrompt.text);
+    setSessionEpoch((epoch) => epoch + 1);
+    setTypedText("");
+    setCompositionDraft(null);
+    setIsRunning(false);
+    setIsFinished(false);
+    setIsRepeated(false);
+    setIsFocused(false);
+    setRankingStatus(!isSignedIn || settings.mode === "zen" ? "unranked" : "pending");
+    setSaveState("idle");
+    setLastResultIsValid(null);
+    setLastResultInvalidReason(undefined);
+    if (preparedPrompt.needsPreset) setShowPresetInput(true);
+  }
 
   return (
     <div

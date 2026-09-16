@@ -141,6 +141,25 @@ describe("canonical practice prompt transitions", () => {
 });
 
 describe("solo prompt and server session ownership", () => {
+  it("cancels a stale ranked response after an explicit prompt change without replacing the new session", async () => {
+    setLocal();
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" }; mocks.preferences = null;
+    const previous = deferred<{ sessionId: string; targetText: string }>();
+    mocks.mutations["typingSessions:startSession"].mockImplementation(({ wordTarget }: { wordTarget: number }) => wordTarget === 25
+      ? previous.promise : Promise.resolve({ sessionId: "new-session", targetText: "dog cat" }));
+    const { container } = render(<TypingPractice />);
+    await waitFor(() => expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "10", exact: true }));
+    await waitFor(() => expect(promptWords(container)).toBe("dog cat"));
+    await act(async () => previous.resolve({ sessionId: "old-session", targetText: "obsolete prompt" }));
+    expect(promptWords(container)).toBe("dog cat");
+    expect(mocks.mutations["typingSessions:cancelSession"]).toHaveBeenCalledWith({ sessionId: "old-session" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "dog cat " } });
+    await waitFor(() => expect(mocks.mutations["typingSessions:finalizeSession"]).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: "new-session", typedText: "dog cat ",
+    })));
+  });
+
   it.each([
     ["loading", "Sign-in is still loading"],
     ["unavailable", "Sign-in is unavailable"],
@@ -196,6 +215,42 @@ describe("solo prompt and server session ownership", () => {
 });
 
 describe("preference hydration and Connect boundaries", () => {
+  it("reloads preferences when the same account signs out and later returns", async () => {
+    setLocal();
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "returning-user" }; mocks.preferences = accountPreferences();
+    const { container, rerender } = render(<TypingPractice />);
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(50));
+    fireEvent.click(screen.getByRole("button", { name: "10", exact: true }));
+    mocks.auth.isSignedIn = false; mocks.auth.user = null; mocks.preferences = undefined;
+    rerender(<TypingPractice />);
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "returning-user" };
+    mocks.preferences = accountPreferences({ defaultWordTarget: 100 });
+    rerender(<TypingPractice />);
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(100));
+  });
+
+  it("commits a changed Connect prompt before reporting its input and does not replay progress for a new callback", async () => {
+    setLocal();
+    const onStatsUpdate = vi.fn();
+    const { container, rerender } = render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat dog" }} onStatsUpdate={onStatsUpdate} />);
+    await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat " } });
+    await waitFor(() => expect(onStatsUpdate.mock.lastCall?.[0].timeElapsed).toBeGreaterThan(0));
+    const reportsBeforeReset = onStatsUpdate.mock.calls.length;
+    const nextConfiguration = { mode: "preset" as const, presetText: "new prompt" };
+    rerender(<TypingPractice connectMode lockedSettings={nextConfiguration} onStatsUpdate={onStatsUpdate} />);
+    await waitFor(() => expect(promptWords(container)).toBe("new prompt"));
+    expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("");
+    expect(onStatsUpdate.mock.calls.slice(reportsBeforeReset)).toEqual([
+      [expect.objectContaining({ isFinished: false, timeElapsed: 0 }), "", "new prompt"],
+    ]);
+    const replacementCallback = vi.fn();
+    rerender(<TypingPractice connectMode lockedSettings={nextConfiguration} onStatsUpdate={replacementCallback} />);
+    expect(replacementCallback).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "n" } });
+    expect(replacementCallback).toHaveBeenCalledWith(expect.anything(), "n", "new prompt");
+  });
+
   it("treats the Kid layout command as a user edit while account preferences load", async () => {
     setLocal();
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
