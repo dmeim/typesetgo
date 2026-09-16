@@ -335,3 +335,48 @@ test("Escape cancels keyboard step dragging before closing the unsaved plan", as
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+
+test("early Escape survives the keyboard sensor registration task", async ({ page }) => {
+  await page.goto("/connect/host?name=FixtureHost");
+  await page.getByRole("button", { name: "plan", exact: true }).click();
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByLabel("Title", { exact: true }).fill("Unsaved first step");
+  await page.getByRole("button", { name: "Add step" }).click();
+  const handle = page.getByRole("button", { name: "Reorder step 1" });
+  await handle.focus();
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  await page.keyboard.press("Space");
+  await expect(handle).toHaveAttribute("aria-pressed", "true");
+  // Hold the next-task listener registration while delivering real browser keys.
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Escape");
+  await page.clock.runFor(1);
+  await expect(page.getByRole("dialog", { name: "Plan builder" })).toBeVisible();
+  await expect(handle).not.toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("1. Unsaved first step", { exact: true })).toBeVisible();
+
+  // Cancellation removes the readiness buffer; a second drag still moves/drops.
+  await handle.focus();
+  await page.keyboard.press("Space");
+  await page.clock.runFor(1);
+  const originalTop = (await handle.boundingBox())!.y;
+  await page.keyboard.press("ArrowDown");
+  await expect.poll(async () => (await handle.boundingBox())!.y).toBeGreaterThan(originalTop);
+  await page.keyboard.press("Space");
+  await expect(page.getByText("2. Unsaved first step", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Reorder step 2" })).toBeFocused();
+
+  // The standard pointer sensor remains independent of keyboard registration.
+  await page.clock.resume();
+  const from = (await page.getByRole("button", { name: "Reorder step 2" }).boundingBox())!;
+  const to = (await page.getByRole("button", { name: "Reorder step 1" }).boundingBox())!;
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await expect(page.getByText("1. Unsaved first step", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

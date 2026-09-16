@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -16,6 +15,7 @@ import {
   verticalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
+import { PlanKeyboardSensor } from "./PlanKeyboardSensor";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import type { Plan, PlanItem } from "@/types/plan";
@@ -134,7 +134,7 @@ export default function PlanBuilderModal({
   const selectedItem = items.find((item) => item.id === selectedId);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, {
+    useSensor(PlanKeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
