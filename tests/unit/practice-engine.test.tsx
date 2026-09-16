@@ -110,11 +110,12 @@ describe("canonical practice prompt transitions", () => {
   it("keeps composition drafts visible without prematurely completing the session", async () => {
     setLocal({ mode: "quote", quoteLength: "short" });
     mocks.quotes.mockResolvedValue([{ quote: "猫", author: "Author", source: "", date: "", context: "" }]);
-    const { container } = render(<TypingPractice />);
+    const { container, rerender } = render(<TypingPractice />);
     await waitFor(() => expect(promptWords(container)).toBe("猫"));
     const input = screen.getByRole("textbox", { name: "Typing practice" });
     fireEvent.compositionStart(input);
     fireEvent.change(input, { target: { value: "猫" } });
+    rerender(<TypingPractice fitToParentHeight />);
     expect(input).toHaveValue("猫");
     expect(screen.queryByText("Words Per Minute")).not.toBeInTheDocument();
     fireEvent.compositionEnd(input);

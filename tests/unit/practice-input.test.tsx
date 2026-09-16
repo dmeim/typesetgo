@@ -100,15 +100,23 @@ describe("TypingArea contracts", () => {
   });
   it("preserves IME drafts until composition ends and completes only once", () => {
     const onFinish = vi.fn();
-    render(<TypingArea targetText="猫" onFinish={onFinish} />);
+    const { rerender } = render(<TypingArea targetText="猫" onFinish={onFinish} />);
     const input = screen.getByRole("textbox");
     fireEvent.compositionStart(input);
     fireEvent.change(input, { target: { value: "猫" } });
+    rerender(<TypingArea targetText="猫" onFinish={onFinish} showStats />);
     expect(input).toHaveValue("猫");
     expect(onFinish).not.toHaveBeenCalled();
     fireEvent.compositionEnd(input);
     expect(input).toHaveValue("猫");
     expect(onFinish).toHaveBeenCalledTimes(1);
+  });
+  it("resumes a restored clock even after all prior input was deleted", () => {
+    vi.useFakeTimers();
+    const onProgress = vi.fn();
+    render(<TypingArea targetText="cat dog" initialInput="" initialElapsedMs={1200} onProgress={onProgress} />);
+    act(() => vi.advanceTimersByTime(300));
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ typedText: "", elapsedMs: 1500 }));
   });
   it("does not finish a restored completed run while inactive", () => {
     const onFinish = vi.fn();
