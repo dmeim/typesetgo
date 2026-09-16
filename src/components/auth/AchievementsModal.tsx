@@ -1,6 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { useTheme } from "@/hooks/useTheme";
-import { tv } from "@/lib/theme-vars";
+import { useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ALL_ACHIEVEMENTS,
   ACHIEVEMENT_CATEGORIES,
@@ -15,381 +20,132 @@ import AchievementDetailModal from "./AchievementDetailModal";
 interface AchievementsModalProps {
   earnedAchievements: Record<string, number>;
   onClose: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
   initialCategory?: AchievementCategory | null;
   initialAchievementId?: string | null;
 }
 
-// Achievement card component
-function AchievementCard({
-  achievement,
-  isEarned,
-  onClick,
-  isHighlighted,
-  cardRef,
-}: {
-  achievement: Achievement;
-  isEarned: boolean;
-  onClick: () => void;
-  isHighlighted?: boolean;
-  cardRef?: (el: HTMLButtonElement | null) => void;
-}) {
-  const tierColors = TIER_COLORS[achievement.tier];
-
-  if (isEarned) {
-    return (
-      <button
-        ref={cardRef}
-        onClick={onClick}
-        className={`flex flex-col items-center p-3 rounded-lg transition-all hover:scale-105 cursor-pointer ${
-          isHighlighted ? "ring-2 ring-offset-2 animate-pulse" : ""
-        }`}
-        style={{
-          backgroundColor: `${tierColors.bg}20`,
-          borderWidth: 2,
-          borderColor: `${tierColors.border}60`,
-          boxShadow: isHighlighted
-            ? `0 0 20px ${tierColors.bg}60`
-            : `0 0 12px ${tierColors.bg}25`,
-          // Use CSS custom property for ring color via inline style
-          ["--tw-ring-color" as string]: tierColors.bg,
-        }}
-        title={achievement.description}
-      >
-        {/* Tier Badge (top) */}
-        <div
-          className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-1.5"
-          style={{
-            backgroundColor: tierColors.bg,
-            color: tierColors.text,
-          }}
-        >
-          {achievement.tier}
-        </div>
-
-        {/* Icon (middle) */}
-        <div className="text-2xl mb-1.5">{achievement.icon}</div>
-
-        {/* Title (bottom) */}
-        <div
-          className="text-xs font-medium text-center leading-tight line-clamp-2"
-          style={{ color: tv.text.primary }}
-        >
-          {achievement.title}
-        </div>
-      </button>
-    );
-  }
-
-  // Locked card
-  return (
-    <button
-      ref={cardRef}
-      onClick={onClick}
-      className={`flex flex-col items-center p-3 rounded-lg opacity-40 grayscale cursor-pointer hover:opacity-60 transition-opacity ${
-        isHighlighted ? "ring-2 ring-offset-2 animate-pulse" : ""
-      }`}
-      style={{
-        backgroundColor: tv.bg.surface,
-        borderWidth: 2,
-        borderColor: tv.border.subtle,
-      }}
-      title={`Locked: ${achievement.description}`}
-    >
-      {/* Tier Badge (top) */}
-      <div
-        className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-1.5"
-        style={{
-          backgroundColor: tv.text.muted,
-          color: tv.bg.base,
-        }}
-      >
-        {achievement.tier}
-      </div>
-
-      {/* Icon (middle) */}
-      <div className="text-2xl mb-1.5">{achievement.icon}</div>
-
-      {/* Title (bottom) */}
-      <div
-        className="text-xs font-medium text-center leading-tight line-clamp-2"
-        style={{ color: tv.text.muted }}
-      >
-        {achievement.title}
-      </div>
-    </button>
-  );
-}
-
-// Category section component
-function CategorySection({
-  category,
-  earnedIds,
-  onAchievementClick,
-  sectionRef,
-  highlightedAchievementId,
-  achievementRefs,
-}: {
-  category: AchievementCategory;
-  earnedIds: Set<string>;
-  onAchievementClick: (achievement: Achievement, index: number, allInCategory: Achievement[]) => void;
-  sectionRef?: (el: HTMLDivElement | null) => void;
-  highlightedAchievementId?: string | null;
-  achievementRefs?: React.MutableRefObject<Map<string, HTMLButtonElement>>;
-}) {
-  const categoryInfo = ACHIEVEMENT_CATEGORIES[category];
-  const achievements = getAchievementsByCategory(category);
-  const earnedCount = achievements.filter((a) => earnedIds.has(a.id)).length;
-
-  return (
-    <div ref={sectionRef} className="mb-6 last:mb-0">
-      {/* Category Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-xl">{categoryInfo.icon}</span>
-        <h3
-          className="text-sm font-semibold"
-          style={{ color: tv.text.primary }}
-        >
-          {categoryInfo.name}
-        </h3>
-        <span
-          className="text-xs font-medium ml-auto"
-          style={{ color: tv.interactive.secondary.DEFAULT }}
-        >
-          {earnedCount} / {achievements.length}
-        </span>
-      </div>
-
-      {/* Achievement Grid - max 7 columns */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-2">
-        {achievements.map((achievement, index) => (
-          <AchievementCard
-            key={achievement.id}
-            achievement={achievement}
-            isEarned={earnedIds.has(achievement.id)}
-            onClick={() => onAchievementClick(achievement, index, achievements)}
-            isHighlighted={highlightedAchievementId === achievement.id}
-            cardRef={(el) => {
-              if (el && achievementRefs) {
-                achievementRefs.current.set(achievement.id, el);
-              }
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+const categories = Object.keys(ACHIEVEMENT_CATEGORIES) as AchievementCategory[];
 
 export default function AchievementsModal({
   earnedAchievements,
   onClose,
+  onCloseAutoFocus,
   initialCategory,
   initialAchievementId,
 }: AchievementsModalProps) {
-  const { colors } = useTheme();
-
-  const earnedIds = new Set(Object.keys(earnedAchievements));
-  const totalEarned = earnedIds.size;
-  const totalAchievements = ALL_ACHIEVEMENTS.length;
-
-  // State for the detail modal carousel
+  const [returnFocus] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const categoryRefs = useRef(new Map<AchievementCategory, HTMLHeadingElement>());
+  const achievementRefs = useRef(new Map<string, HTMLButtonElement>());
   const [selectedCarousel, setSelectedCarousel] = useState<{
     achievements: { achievement: Achievement; earnedAt: number | null }[];
     initialIndex: number;
   } | null>(null);
+  const earnedIds = new Set(Object.keys(earnedAchievements));
 
-  // State for highlighted achievement (from notification click)
-  const [highlightedAchievementId, setHighlightedAchievementId] = useState<string | null>(
-    initialAchievementId || null
-  );
-
-  // Category order
-  const categories: AchievementCategory[] = [
-    "speed",
-    "words",
-    "accuracy",
-    "time",
-    "streak",
-    "tests",
-    "explorer",
-    "special",
-    "consistency",
-    "improvement",
-    "challenge",
-    "endurance",
-    "timebased",
-    "milestone",
-    "quirky",
-    "collection",
-  ];
-
-  // Refs for category sections to enable scrolling to specific category
-  const categoryRefs = useRef<Map<AchievementCategory, HTMLDivElement>>(new Map());
-  const achievementRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  // Scroll to initial category or achievement when modal opens
-  useEffect(() => {
-    // Priority: specific achievement > category
-    if (initialAchievementId && scrollContainerRef.current) {
-      // Small delay to ensure refs are populated
-      setTimeout(() => {
-        const achievementElement = achievementRefs.current.get(initialAchievementId);
-        if (achievementElement && scrollContainerRef.current) {
-          achievementElement.scrollIntoView({ behavior: "smooth", block: "center" });
-        } else {
-          // Fallback: find the achievement's category and scroll to it
-          const achievement = getAchievementById(initialAchievementId);
-          if (achievement) {
-            const categoryElement = categoryRefs.current.get(achievement.category);
-            if (categoryElement && scrollContainerRef.current) {
-              categoryElement.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          }
-        }
-      }, 150);
-
-      // Clear highlight after 3 seconds
-      const highlightTimer = setTimeout(() => {
-        setHighlightedAchievementId(null);
-      }, 3000);
-
-      return () => clearTimeout(highlightTimer);
-    } else if (initialCategory && scrollContainerRef.current) {
-      // Small delay to ensure refs are populated
-      setTimeout(() => {
-        const categoryElement = categoryRefs.current.get(initialCategory);
-        if (categoryElement && scrollContainerRef.current) {
-          categoryElement.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
-    }
-  }, [initialCategory, initialAchievementId]);
-
-  // Handle achievement card click - open carousel with all achievements in that category
-  const handleAchievementClick = (
-    _clickedAchievement: Achievement,
-    index: number,
-    allInCategory: Achievement[]
-  ) => {
-    // Map all achievements in the category to the format expected by AchievementDetailModal
-    const carouselAchievements = allInCategory.map((a) => ({
-      achievement: a,
-      earnedAt: earnedAchievements[a.id] ?? null,
-    }));
-
-    setSelectedCarousel({
-      achievements: carouselAchievements,
-      initialIndex: index,
-    });
+  const focusCategory = (category: AchievementCategory) => {
+    const target = categoryRefs.current.get(category);
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: "start", behavior: "instant" });
   };
 
-  // Keyboard navigation - only handle Escape if detail modal is not open
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !selectedCarousel) {
-        e.preventDefault();
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose, selectedCarousel]);
-
   return (
-    <>
-      <div
-        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70"
-        onClick={onClose}
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground shadow-none sm:max-w-5xl"
+        onOpenAutoFocus={(event) => {
+          const achievement = initialAchievementId ? achievementRefs.current.get(initialAchievementId) : undefined;
+          const category = initialCategory ?? (initialAchievementId ? getAchievementById(initialAchievementId)?.category : undefined);
+          if (achievement) {
+            event.preventDefault();
+            achievement.focus({ preventScroll: true });
+            achievement.scrollIntoView({ block: "center", behavior: "instant" });
+          } else if (category) {
+            event.preventDefault();
+            focusCategory(category);
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          if (!event.defaultPrevented && returnFocus?.isConnected) {
+            event.preventDefault();
+            returnFocus.focus({ preventScroll: true });
+          }
+        }}
       >
-        <div
-          className="w-full max-w-5xl rounded-lg shadow-xl mx-4 max-h-[90vh] flex flex-col"
-          style={{ backgroundColor: tv.bg.surface }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div
-            className="flex items-center justify-between p-6 border-b"
-            style={{ borderColor: tv.border.subtle }}
-          >
-            <div>
-              <h2
-                className="text-xl font-semibold"
-                style={{ color: tv.text.primary }}
-              >
-                All Achievements
-              </h2>
-              <p className="text-sm mt-1" style={{ color: tv.text.secondary }}>
-                Progress:{" "}
-                <span
-                  className="font-medium"
-                  style={{ color: tv.interactive.secondary.DEFAULT }}
-                >
-                  {totalEarned} / {totalAchievements}
-                </span>
-                <span className="ml-2 opacity-70">
-                  ({Math.round((totalEarned / totalAchievements) * 100)}% complete)
-                </span>
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg transition hover:opacity-80"
-              style={{ color: tv.text.muted }}
+        <DialogHeader className="shrink-0 border-b border-border p-4 pr-12 text-left sm:p-6 sm:pr-12">
+          <DialogTitle className="text-xl">All Achievements</DialogTitle>
+          <DialogDescription>
+            {earnedIds.size} / {ALL_ACHIEVEMENTS.length} earned · {Math.round(earnedIds.size / ALL_ACHIEVEMENTS.length * 100)}% complete
+          </DialogDescription>
+          <label className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+            Category
+            <select
+              aria-label="Jump to achievement category"
+              defaultValue={initialCategory ?? (initialAchievementId ? getAchievementById(initialAchievementId)?.category : undefined) ?? categories[0]}
+              className="min-w-0 max-w-full rounded-md border border-input bg-background px-2 py-2 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+              onChange={(event) => focusCategory(event.target.value as AchievementCategory)}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Scrollable Content */}
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto p-6"
-            style={{ backgroundColor: `${colors.bg.base}40` }}
-          >
-            {categories.map((category) => (
-              <CategorySection
-                key={category}
-                category={category}
-                earnedIds={earnedIds}
-                onAchievementClick={handleAchievementClick}
-                sectionRef={(el) => {
-                  if (el) {
-                    categoryRefs.current.set(category, el);
-                  }
-                }}
-                highlightedAchievementId={highlightedAchievementId}
-                achievementRefs={achievementRefs}
-              />
-            ))}
-          </div>
+              {categories.map((category) => <option key={category} value={category}>{ACHIEVEMENT_CATEGORIES[category].name}</option>)}
+            </select>
+          </label>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
+          {categories.map((category) => {
+            const info = ACHIEVEMENT_CATEGORIES[category];
+            const achievements = getAchievementsByCategory(category);
+            const count = achievements.filter((achievement) => earnedIds.has(achievement.id)).length;
+            return (
+              <section key={category} aria-labelledby={`achievement-category-${category}`} className="mb-6 last:mb-0">
+                <h3
+                  id={`achievement-category-${category}`}
+                  ref={(element) => { if (element) categoryRefs.current.set(category, element); else categoryRefs.current.delete(category); }}
+                  tabIndex={-1}
+                  className="mb-3 flex scroll-mt-4 flex-wrap items-center gap-2 rounded text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  <span aria-hidden="true" className="text-xl">{info.icon}</span>
+                  {info.name}
+                  <span className="ml-auto text-xs font-normal text-muted-foreground">{count} / {achievements.length}</span>
+                </h3>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
+                  {achievements.map((achievement, index) => {
+                    const isEarned = earnedIds.has(achievement.id);
+                    return (
+                      <button
+                        type="button"
+                        key={achievement.id}
+                        ref={(element) => { if (element) achievementRefs.current.set(achievement.id, element); else achievementRefs.current.delete(achievement.id); }}
+                        aria-label={`${info.name}: ${achievement.title}, ${achievement.tier}, ${isEarned ? "earned" : "not yet earned"}`}
+                        aria-haspopup="dialog"
+                        onClick={() => setSelectedCarousel({
+                          achievements: achievements.map((item) => ({ achievement: item, earnedAt: earnedAchievements[item.id] ?? null })),
+                          initialIndex: index,
+                        })}
+                        className={`flex min-w-0 flex-col items-center gap-2 rounded-lg border bg-card p-3 text-card-foreground hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${initialAchievementId === achievement.id ? "border-ring" : "border-border"}`}
+                      >
+                        <span className="flex items-center gap-1.5 text-xs capitalize text-muted-foreground">
+                          <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: isEarned ? TIER_COLORS[achievement.tier].bg : "currentColor" }} />
+                          {achievement.tier}
+                        </span>
+                        <span aria-hidden="true" className={`text-2xl ${isEarned ? "" : "grayscale"}`}>{achievement.icon}</span>
+                        <span className="text-sm font-medium [overflow-wrap:anywhere]">{achievement.title}</span>
+                        <span className="text-xs text-muted-foreground">{isEarned ? "Earned" : "Not yet earned"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </div>
-      </div>
-
-      {/* Achievement Detail Carousel Modal */}
-      {selectedCarousel && (
-        <AchievementDetailModal
-          achievements={selectedCarousel.achievements}
-          initialIndex={selectedCarousel.initialIndex}
-          onClose={() => setSelectedCarousel(null)}
-        />
-      )}
-    </>
+        {selectedCarousel && (
+          <AchievementDetailModal
+            achievements={selectedCarousel.achievements}
+            initialIndex={selectedCarousel.initialIndex}
+            onClose={() => setSelectedCarousel(null)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
