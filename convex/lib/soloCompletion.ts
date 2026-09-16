@@ -1,6 +1,6 @@
 /** Completion follows submitted words and the final word, rather than raw input length. */
 export function hasCompletedPrompt(typedText: string, targetText: string): boolean {
-  if (!targetText) return false;
+  if (!targetText || /^ | {2,}|[\t\r\n]/.test(typedText)) return false;
   const targetWords = targetText.split(" ");
   const typedWords = typedText.split(" ");
   const finalIndex = targetWords.length - 1;
