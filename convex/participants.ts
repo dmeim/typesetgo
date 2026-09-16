@@ -1,6 +1,12 @@
 // convex/participants.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { acceptsAttempt, validateParticipantStats } from "./lib/multiplayer";
+
+const statsValidator = v.object({
+  wpm: v.number(), accuracy: v.number(), progress: v.number(),
+  wordsTyped: v.number(), timeElapsed: v.number(), isFinished: v.boolean(),
+});
 
 // Default emoji for race participants who don't choose one
 const DEFAULT_EMOJIS = [
@@ -100,18 +106,18 @@ export const join = mutation({
 export const updateStats = mutation({
   args: {
     participantId: v.id("participants"),
-    stats: v.object({
-      wpm: v.number(),
-      accuracy: v.number(),
-      progress: v.number(),
-      wordsTyped: v.number(),
-      timeElapsed: v.number(),
-      isFinished: v.boolean(),
-    }),
+    stats: statsValidator,
+    runVersion: v.optional(v.number()),
+    resetVersion: v.optional(v.number()),
     typedText: v.optional(v.string()),
     targetText: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const participant = await ctx.db.get(args.participantId);
+    if (!participant) return;
+    const room = await ctx.db.get(participant.roomId);
+    if (room?.gameMode === "race" || !acceptsAttempt(room, participant, args)) return;
+    validateParticipantStats(args.stats);
     await ctx.db.patch(args.participantId, {
       stats: args.stats,
       typedText: args.typedText,
@@ -256,58 +262,62 @@ export const setName = mutation({
   },
 });
 
-// Record race finish
+// The final snapshot and rank are committed together, independently of throttled progress.
 export const recordFinish = mutation({
   args: {
     participantId: v.id("participants"),
-    finishTime: v.number(), // ms from race start
+    finishTime: v.number(),
+    typedProgress: v.optional(v.number()),
+    typedText: v.optional(v.string()),
+    stats: v.optional(statsValidator),
+    raceStartTime: v.optional(v.number()),
+    resetVersion: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
     if (!participant) throw new Error("Participant not found");
-
-    // Atomically compute position server-side by counting already-finished participants
-    const allParticipants = await ctx.db
-      .query("participants")
-      .withIndex("by_room", (q) => q.eq("roomId", participant.roomId))
-      .collect();
-
-    const finishedCount = allParticipants.filter(
-      (p) => p.stats.isFinished && p._id !== args.participantId
-    ).length;
-    const position = finishedCount + 1;
-
+    const room = await ctx.db.get(participant.roomId);
+    if (room?.gameMode !== "race" || !acceptsAttempt(room, participant, args)) return;
+    if (participant.finishTime !== undefined) return { position: participant.position };
+    const stats = args.stats ?? participant.stats;
+    validateParticipantStats(stats);
+    if (!Number.isFinite(args.finishTime) || args.finishTime < 0) throw new Error("Invalid finish time");
+    const members = await ctx.db.query("participants")
+      .withIndex("by_room", (q) => q.eq("roomId", participant.roomId)).collect();
+    const position = members.filter((p) => p.finishTime !== undefined).length + 1;
     await ctx.db.patch(args.participantId, {
       finishTime: args.finishTime,
       position,
-      stats: {
-        ...participant.stats,
-        isFinished: true,
-      },
+      typedText: args.typedText ?? participant.typedText,
+      typedProgress: args.typedProgress ?? participant.typedProgress,
+      stats: { ...stats, isFinished: true },
+      lastSeen: Date.now(),
     });
-
     return { position };
   },
 });
 
-// Update typed progress (for reconnection support)
 export const updateProgress = mutation({
   args: {
     participantId: v.id("participants"),
     typedProgress: v.number(),
-    stats: v.object({
-      wpm: v.number(),
-      accuracy: v.number(),
-      progress: v.number(),
-      wordsTyped: v.number(),
-      timeElapsed: v.number(),
-      isFinished: v.boolean(),
-    }),
+    typedText: v.optional(v.string()),
+    stats: statsValidator,
+    raceStartTime: v.optional(v.number()),
+    resetVersion: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const participant = await ctx.db.get(args.participantId);
+    if (!participant) return;
+    const room = await ctx.db.get(participant.roomId);
+    if (room?.gameMode !== "race" || !acceptsAttempt(room, participant, args)) return;
+    if (participant.finishTime !== undefined) return;
+    validateParticipantStats(args.stats);
     await ctx.db.patch(args.participantId, {
       typedProgress: args.typedProgress,
-      stats: args.stats,
+      typedText: args.typedText ?? participant.typedText,
+      // recordFinish is the sole owner of completion and position.
+      stats: { ...args.stats, isFinished: false },
       lastSeen: Date.now(),
     });
   },

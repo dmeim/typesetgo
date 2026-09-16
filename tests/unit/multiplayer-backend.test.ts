@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { join, disconnect, setReady } from "../../convex/participants";
+import { join, disconnect, setReady, updateStats, updateProgress, recordFinish } from "../../convex/participants";
 import { startRace, endRace, resetForNewRace } from "../../convex/rooms";
 import { saveResults } from "../../convex/raceResults";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -72,5 +72,42 @@ describe("race room transitions", () => {
     await resetForNewRace._handler(db.ctx, { roomId, hostSessionId: "host" });
     expect(db.rows("raceResults")).toHaveLength(0);
     expect(db.get(roomId)).toMatchObject({ status: "waiting", readyParticipants: [] });
+  });
+});
+
+
+describe("attempt progress boundaries", () => {
+  const report = { ...stats, wpm: 50, accuracy: 95, progress: 50, timeElapsed: 1000 };
+
+  it("ignores Connect reports after stop, departure, or a run/participant reset", async () => {
+    const seed = { ...room, gameMode: "practice", status: "active", runVersion: 2 };
+    const db = multiplayerDb({ rooms: [seed], participants: [{ ...participant, resetVersion: 3 }] });
+    const args = { participantId, stats: report, typedText: "cat", runVersion: 2, resetVersion: 3 };
+    await updateStats._handler(db.ctx, { ...args, runVersion: 1 });
+    await updateStats._handler(db.ctx, { ...args, resetVersion: 2 });
+    expect(db.get(participantId)?.stats).toEqual(stats);
+    await updateStats._handler(db.ctx, args);
+    expect(db.get(participantId)?.typedText).toBe("cat");
+    await db.ctx.db.patch(roomId, { status: "waiting" });
+    await updateStats._handler(db.ctx, { ...args, typedText: "changed" });
+    expect(db.get(participantId)?.typedText).toBe("cat");
+    await db.ctx.db.patch(roomId, { status: "active" });
+    await disconnect._handler(db.ctx, { participantId });
+    await updateStats._handler(db.ctx, { ...args, typedText: "changed" });
+    expect(db.get(participantId)?.typedText).toBe("cat");
+  });
+
+  it("persists exact race input, then atomically finishes without a late progress rollback", async () => {
+    const db = multiplayerDb({ rooms: [{ ...room, status: "active", raceStartTime: 1 }], participants: [participant] });
+    const args = { participantId, typedProgress: 2, typedText: "cxt", stats: report, raceStartTime: 1 };
+    await updateProgress._handler(db.ctx, { ...args, raceStartTime: 2 });
+    expect(db.get(participantId)?.typedText).toBeUndefined();
+    await updateProgress._handler(db.ctx, args);
+    expect(db.get(participantId)?.typedText).toBe("cxt");
+    const final = { ...args, typedText: "cxt dog", stats: { ...report, progress: 100, isFinished: true }, finishTime: 2000 };
+    expect(await recordFinish._handler(db.ctx, final)).toEqual({ position: 1 });
+    await updateProgress._handler(db.ctx, args);
+    expect(await recordFinish._handler(db.ctx, { ...final, finishTime: 3000 })).toEqual({ position: 1 });
+    expect(db.get(participantId)).toMatchObject({ typedText: "cxt dog", finishTime: 2000, stats: { isFinished: true, progress: 100 } });
   });
 });

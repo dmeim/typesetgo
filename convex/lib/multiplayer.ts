@@ -36,3 +36,27 @@ export async function saveRaceSnapshot(ctx: MutationCtx, room: Doc<"rooms">) {
     createdAt: Date.now(),
   });
 }
+
+export type AttemptVersion = { runVersion?: number; resetVersion?: number; raceStartTime?: number };
+
+/** Guards delayed client emissions after stop, reset, departure, or another run. */
+export function acceptsAttempt(
+  room: (Doc<"rooms"> & { runVersion?: number }) | null,
+  participant: Doc<"participants"> & { resetVersion?: number },
+  version: AttemptVersion,
+) {
+  if (!room || room.status !== "active" || !participant.isConnected) return false;
+  if ((participant.resetVersion ?? 0) !== (version.resetVersion ?? 0)) return false;
+  if (room.gameMode === "race") {
+    return room.raceEndTime === undefined && room.raceStartTime !== undefined &&
+      room.raceStartTime <= Date.now() && version.raceStartTime === room.raceStartTime;
+  }
+  return (room.runVersion ?? 0) === (version.runVersion ?? 0);
+}
+
+export function validateParticipantStats(stats: Doc<"participants">["stats"]) {
+  for (const value of [stats.wpm, stats.accuracy, stats.progress, stats.wordsTyped, stats.timeElapsed]) {
+    if (!Number.isFinite(value) || value < 0) throw new Error("Invalid participant progress");
+  }
+  if (stats.accuracy > 100 || stats.progress > 100) throw new Error("Invalid participant progress");
+}
