@@ -21,6 +21,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useTheme } from "@/hooks/useTheme";
+import { tv } from "@/lib/theme-vars";
 import { PROFILE_HISTORY_LIMIT } from "./profile-presentation";
 
 // Which stat card was clicked
@@ -357,8 +358,8 @@ export default function UserStatsChartModal({
                       y={0}
                       dy={4}
                       textAnchor="middle"
-                      fill={colors.text.secondary}
-                      fontSize={11}
+                      fill={tv.ui.mutedForeground}
+                      fontSize={12}
                     >
                       {formatDate(payload.value)}
                     </text>
@@ -367,8 +368,8 @@ export default function UserStatsChartModal({
                       y={0}
                       dy={18}
                       textAnchor="middle"
-                      fill={colors.text.secondary}
-                      fontSize={10}
+                      fill={tv.ui.mutedForeground}
+                      fontSize={12}
                     >
                       {formatTime(payload.value)}
                     </text>
@@ -379,7 +380,7 @@ export default function UserStatsChartModal({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                tick={{ fill: colors.text.secondary, fontSize: 11 }}
+                tick={{ fill: tv.ui.mutedForeground, fontSize: 12 }}
                 tickFormatter={formatYAxis}
                 domain={yDomain}
                 width={56}
@@ -474,13 +475,13 @@ export default function UserStatsChartModal({
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                style={{ color: colors.text.secondary }}
+                className="text-muted-foreground"
               >
                 <path d="M3 3v16a2 2 0 0 0 2 2h16" />
                 <path d="m19 9-5 5-4-4-3 3" />
               </svg>
             </div>
-            <p className="text-sm" style={{ color: colors.text.secondary }}>
+            <p className="text-sm text-muted-foreground">
               No valid tests in the recent history sample.
             </p>
           </div>
