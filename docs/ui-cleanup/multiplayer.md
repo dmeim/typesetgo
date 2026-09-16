@@ -18,7 +18,7 @@ The original main checkout contains unrelated untracked files and is not modifie
 | Progress reporting | Stable callbacks keyed by scalar identity, deduplicated snapshots and bounded cadence. Server rejects disconnected, stopped, or stale run/reset writes. Finish and end operations are idempotent. |
 | Sound | Host owns enabled and typing/warning/error pack selection; these cross room settings and Join adapter. Missing packs are shown honestly. |
 
-Shared schema additions require coordination: optional rooms.runVersion, participants.resetVersion, and room settings typingSound/warningSound/errorSound. Practice owns TypingPractice/TypingArea timer/input behavior and compatible resume props. Multiplayer owns all room/participant/race functions and dedicated helpers; no worker edits those files.
+Coordinated optional shared schema additions: optional rooms.runVersion, participants.resetVersion, and room settings typingSound/warningSound/errorSound. Practice owns TypingPractice/TypingArea timer/input behavior and compatible resume props. Multiplayer owns all room/participant/race functions and dedicated helpers; no worker edits those files.
 
 ## Implementation ownership
 
@@ -32,3 +32,11 @@ Shared schema additions require coordination: optional rooms.runVersion, partici
 Source-confirmed before edits: create/join effects retry when pending clears; Connect sends literal plan mode but never starts the local executor; per-participant reset has no observable version; room sound adapter drops selected packs; race departure and missing-data branches contradict membership/query contracts; reactive participant object is captured by the progress callback. Actual feedback-loop runtime reproduction remains pending.
 
 Implementation and validation evidence will be appended as work completes. No claim of live multiplayer verification is made.
+
+### Backend evidence (in progress)
+
+- Added an in-memory database fixture and executed real Convex handlers without creating a Convex client. Three baseline regressions failed, then passed after the membership repair: duplicate membership after visiting another room, stale readiness after departure, and readiness accepted for disconnected participants.
+- `c3331c7`: membership lookup is room-scoped; departure clears readiness and transfers race ownership; room-mode validation precedes join; active races reject new entrants; starts/end/results are idempotent; end and result persistence share one transaction; resetting removes the previous race snapshot.
+- Six targeted backend tests pass. `bunx tsc --project convex/tsconfig.json --noEmit` passes.
+- `bun run lint` independently fails before source analysis: installed typescript-eslint rejects TypeScript 7.0. This reproduces the audited baseline and is not a passing lint result.
+- Schema integration coordinated with Foundations (no schema ownership), Practice (no overlapping schema edits), and Profiles (no schema/query changes); no separate integration task exists. This manager isolates the additions in a dedicated local contract commit, for the eventual coordinator to integrate first. All additions are optional and require no migration. Exact intended additions are `rooms.runVersion: v.optional(v.number())`, `participants.resetVersion: v.optional(v.number())`, and room settings `typingSound`, `warningSound`, `errorSound`: each `v.optional(v.string())`. Legacy version values are interpreted as zero.
