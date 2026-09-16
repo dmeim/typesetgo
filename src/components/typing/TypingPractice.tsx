@@ -285,7 +285,7 @@ export default function TypingPractice({
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
 
   // Clerk auth hooks
-  const { isSignedIn, user, openSignIn } = useAppAuth();
+  const { isSignedIn, user, openSignIn, status: authStatus } = useAppAuth();
   const saveResultMutation = useMutation(api.testResults.saveResult);
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const startSessionMutation = useMutation(api.typingSessions.startSession);
@@ -644,6 +644,16 @@ export default function TypingPractice({
     setSettings((prev) => normalizePracticeSettings({ ...prev, ...(startsPrompt ? pendingPromptPreferences : {}), ...updates }));
   }, [pendingPromptPreferences]);
 
+  const updateLinePreview = useCallback((value: number) => {
+    preferenceEditsRef.current.add("linePreview");
+    setLinePreview(value);
+  }, []);
+
+  const updateMaxWordsPerLine = useCallback((value: number) => {
+    preferenceEditsRef.current.add("maxWordsPerLine");
+    setMaxWordsPerLine(value);
+  }, []);
+
   const openCustomCountModal = useCallback(() => {
     if (settings.mode === "time" || settings.mode === "words") setShowCustomCountModal(true);
   }, [settings.mode]);
@@ -786,7 +796,19 @@ export default function TypingPractice({
 
     if (!user) {
       pendingResultRef.current = dataToSave;
-      openSignIn();
+      const pendingEpoch = sessionEpochRef.current;
+      const opened = await openSignIn();
+      if (sessionEpochRef.current !== pendingEpoch || userRef.current) return;
+      if (!opened) {
+        setSaveState("error");
+        toast.error(authStatus === "loading"
+          ? "Sign-in is still loading. Your result is kept here; try saving again shortly."
+          : authStatus === "unavailable"
+            ? "Sign-in is unavailable. Your result is kept here; try saving again when sign-in is available."
+            : "Could not open sign-in. Your result is kept here; try saving again.");
+      } else {
+        setSaveState("idle");
+      }
       return;
     }
 
@@ -931,7 +953,7 @@ export default function TypingPractice({
     } finally {
       if (sessionEpochRef.current === epoch) savingRef.current = false;
     }
-  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, addNotification, saveState, readElapsed]);
+  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, authStatus, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, addNotification, saveState, readElapsed]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {
@@ -1137,8 +1159,8 @@ export default function TypingPractice({
       ghostWriterEnabled: false,
       showOnScreenKeyboard: true,
     });
-    setLinePreview(2);
-    setMaxWordsPerLine(5);
+    updateLinePreview(2);
+    updateMaxWordsPerLine(5);
     setIsKidMode(true);
   }, [
     settings.mode,
@@ -1148,6 +1170,8 @@ export default function TypingPractice({
     linePreview,
     maxWordsPerLine,
     updateSettings,
+    updateLinePreview,
+    updateMaxWordsPerLine,
   ]);
 
   const disableKidMode = useCallback((nextMode?: SettingsState["mode"]) => {
@@ -1158,14 +1182,14 @@ export default function TypingPractice({
         ghostWriterEnabled: preKidModeSettings.ghostWriterEnabled,
         showOnScreenKeyboard: preKidModeSettings.showOnScreenKeyboard,
       });
-      setLinePreview(preKidModeSettings.linePreview);
-      setMaxWordsPerLine(preKidModeSettings.maxWordsPerLine);
+      updateLinePreview(preKidModeSettings.linePreview);
+      updateMaxWordsPerLine(preKidModeSettings.maxWordsPerLine);
     } else {
       updateSettings({ mode: nextMode ?? "zen" });
     }
     setPreKidModeSettings(null);
     setIsKidMode(false);
-  }, [preKidModeSettings, updateSettings]);
+  }, [preKidModeSettings, updateSettings, updateLinePreview, updateMaxWordsPerLine]);
 
   const handleModeSelect = useCallback((mode: ModeSelectorOption) => {
     if (mode === "kid") {
@@ -1787,9 +1811,9 @@ export default function TypingPractice({
         settings={settings}
         updateSettings={updateSettings}
         linePreview={linePreview}
-        setLinePreview={(value) => { preferenceEditsRef.current.add("linePreview"); setLinePreview(value); }}
+        setLinePreview={updateLinePreview}
         maxWordsPerLine={maxWordsPerLine}
-        setMaxWordsPerLine={(value) => { preferenceEditsRef.current.add("maxWordsPerLine"); setMaxWordsPerLine(value); }}
+        setMaxWordsPerLine={updateMaxWordsPerLine}
         soundManifest={soundManifest}
       />
 
@@ -1806,9 +1830,9 @@ export default function TypingPractice({
         showQuickSettings={showQuickSettings}
         setShowQuickSettings={setShowQuickSettings}
         linePreview={linePreview}
-        setLinePreview={(value) => { preferenceEditsRef.current.add("linePreview"); setLinePreview(value); }}
+        setLinePreview={updateLinePreview}
         maxWordsPerLine={maxWordsPerLine}
-        setMaxWordsPerLine={(value) => { preferenceEditsRef.current.add("maxWordsPerLine"); setMaxWordsPerLine(value); }}
+        setMaxWordsPerLine={updateMaxWordsPerLine}
       />
 
       {/* Plan Builder Modal */}

@@ -6,7 +6,9 @@ import { DEFAULT_SETTINGS } from "@/lib/storage-utils";
 import theme from "../../public/themes/typesetgo.json";
 
 const mocks = vi.hoisted(() => ({
-  auth: { isSignedIn: false, user: null as null | { id: string }, openSignIn: vi.fn() },
+  auth: { status: "signed-out" as "signed-out" | "loading" | "unavailable", isSignedIn: false,
+    user: null as null | { id: string }, openSignIn: vi.fn(async () => true) },
+  toastError: vi.fn(),
   preferences: undefined as unknown,
   userSelectionRevision: 0,
   setTheme: vi.fn(async () => {}), setThemeSelection: vi.fn(async () => {}),
@@ -15,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   mutations: {} as Record<string, ReturnType<typeof vi.fn>>,
 }));
 vi.mock("@/components/layout/useAppAuth", () => ({ useAppAuth: () => mocks.auth }));
+vi.mock("sonner", () => ({ toast: { error: mocks.toastError, success: vi.fn() } }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({ colors: theme.variants.default.dark,
   userSelectionRevision: mocks.userSelectionRevision, themeId: "typesetgo", variantId: "default", themeName: "TypeSetGo", mode: "dark",
   setTheme: mocks.setTheme, setThemeSelection: mocks.setThemeSelection }) }));
@@ -50,6 +53,7 @@ function accountPreferences(updates: Record<string, unknown> = {}) {
 beforeEach(() => {
   localStorage.clear();
   mocks.auth.isSignedIn = false; mocks.auth.user = null; mocks.preferences = undefined; mocks.userSelectionRevision = 0;
+  mocks.auth.status = "signed-out"; mocks.auth.openSignIn.mockReset().mockResolvedValue(true); mocks.toastError.mockClear();
   mocks.setThemeSelection.mockClear();
   mocks.words.mockReset().mockResolvedValue(["cat"]);
   mocks.quotes.mockReset().mockResolvedValue([{ quote: "cat dog", author: "Author", source: "Book", date: "2000", context: "" }]);
@@ -137,6 +141,30 @@ describe("canonical practice prompt transitions", () => {
 });
 
 describe("solo prompt and server session ownership", () => {
+  it.each([
+    ["loading", "Sign-in is still loading"],
+    ["unavailable", "Sign-in is unavailable"],
+    ["signed-out", "Could not open sign-in"],
+  ] as const)("explains a failed save sign-in action while auth is %s and preserves retry intent", async (status, message) => {
+    setLocal({ mode: "quote", quoteLength: "short" });
+    mocks.auth.status = status; mocks.auth.openSignIn.mockResolvedValue(false);
+    const { container, rerender } = render(<TypingPractice />);
+    await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat dog" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Results" }));
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining(message)));
+    expect(screen.getByRole("button", { name: "Error - Try Again" })).toBeEnabled();
+    expect(mocks.mutations["testResults:saveResult"]).not.toHaveBeenCalled();
+    mocks.auth.status = "signed-out"; mocks.auth.openSignIn.mockResolvedValue(true);
+    rerender(<TypingPractice />);
+    fireEvent.click(screen.getByRole("button", { name: "Error - Try Again" }));
+    await waitFor(() => expect(mocks.auth.openSignIn).toHaveBeenCalledTimes(2));
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" }; mocks.preferences = null;
+    rerender(<TypingPractice />);
+    await waitFor(() => expect(mocks.mutations["testResults:saveResult"]).toHaveBeenCalledTimes(1));
+    expect(mocks.mutations["testResults:saveResult"]).toHaveBeenCalledWith(expect.objectContaining({ mode: "quote" }));
+  });
+
   it("cancels a late server prompt once local typing starts and saves only unranked history", async () => {
     setLocal({ wordTarget: 10 });
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" }; mocks.preferences = null;
@@ -168,6 +196,18 @@ describe("solo prompt and server session ownership", () => {
 });
 
 describe("preference hydration and Connect boundaries", () => {
+  it("treats the Kid layout command as a user edit while account preferences load", async () => {
+    setLocal();
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
+    const { container, rerender } = render(<TypingPractice />);
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
+    fireEvent.click(screen.getByRole("button", { name: "kid", exact: true }));
+    mocks.preferences = accountPreferences({ typingFontFamily: "serif", linePreview: 6, maxWordsPerLine: 10 });
+    rerender(<TypingPractice />);
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("typesetgo_settings")!).typingFontFamily).toBe("serif"));
+    expect(JSON.parse(localStorage.getItem("typesetgo_layout")!)).toEqual({ linePreview: 2, maxWordsPerLine: 5 });
+  });
+
   it("keeps an active ranked attempt when account prompt preferences arrive, applying them on Next Test", async () => {
     setLocal({ typingFontSize: 2 });
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
