@@ -9,7 +9,8 @@ export default defineConfig({
   cacheDir: path.join(tmpdir(), "typesetgo-race-" + createHash("sha256").update(root).digest("hex").slice(0, 12)),
   root: import.meta.dirname,
   publicDir: path.join(root, "public"),
-  envDir: import.meta.dirname,
+  envDir: false,
+  envPrefix: "TYPESETGO_FIXTURE_",
   plugins: [react()],
   resolve: {
     alias: [
@@ -25,6 +26,7 @@ export default defineConfig({
     ],
   },
   server: {
+    hmr: false,
     host: "127.0.0.1",
     port: 4318,
     strictPort: true,

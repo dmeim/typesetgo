@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { browserOptions } from "../../browser/browser-options.mjs";
 export default defineConfig({
   testDir: "../../e2e",
   testMatch: "connect-ui.spec.ts",
@@ -6,7 +7,8 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:54319",
     browserName: "chromium",
-    channel: "chrome",
+    launchOptions: browserOptions(),
+    serviceWorkers: "block",
     screenshot: "only-on-failure",
     reducedMotion: "reduce",
   },

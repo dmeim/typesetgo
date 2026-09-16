@@ -10,5 +10,5 @@ export default defineConfig({
     alias: (base.resolve!.alias as { find: string; replacement: string }[])
       .filter((entry) => entry.find !== "@/components/typing/TypingPractice"),
   },
-  server: { host: "127.0.0.1", port: 54320, strictPort: true },
+  server: { ...base.server, port: 54320 },
 });

@@ -7,6 +7,8 @@ const root = path.resolve(import.meta.dirname, "../../..");
 export default defineConfig({
   cacheDir: path.join(tmpdir(), "typesetgo-connect-" + createHash("sha256").update(root).digest("hex").slice(0, 12)),
   root,
+  envDir: false,
+  envPrefix: "TYPESETGO_FIXTURE_",
   plugins: [
     react(),
     {
@@ -66,5 +68,5 @@ export default defineConfig({
       { find: "@", replacement: path.join(root, "src") },
     ],
   },
-  server: { host: "127.0.0.1", port: 54319, strictPort: true },
+  server: { hmr: false, host: "127.0.0.1", port: 54319, strictPort: true },
 });

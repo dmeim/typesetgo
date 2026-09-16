@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { startProfileFixtureServer } from "./server.mjs";
+import { browserOptions } from "../browser-options.mjs";
 
 // Run with: node tests/browser/profiles/check.mjs
 // Uses installed Chrome by default; PLAYWRIGHT_CHANNEL can select another installed channel.
@@ -15,7 +16,7 @@ const blockedRequests = [];
 const checks = [];
 
 try {
-  browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL ?? "chrome" });
+  browser = await chromium.launch(browserOptions());
   const page = await browser.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
   await page.route("**/*", (route) => {

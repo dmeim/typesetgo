@@ -1,11 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { guardFixtureContext } from "../../browser/runtime.mjs";
 import type {} from "./mock-convex";
 
-test.beforeEach(async ({ page }) => {
-  await page.route("**/*", (route) => {
-    const url = new URL(route.request().url());
-    return url.hostname === "127.0.0.1" ? route.continue() : route.abort();
-  });
+const browserErrors = new WeakMap<Page, string[]>();
+test.beforeEach(async ({ page, baseURL }) => {
+  browserErrors.set(page, await guardFixtureContext(page.context(), baseURL!));
+});
+test.afterEach(async ({ page }) => {
+  expect(browserErrors.get(page)).toEqual([]);
 });
 
 for (const width of [320, 768, 1440]) {

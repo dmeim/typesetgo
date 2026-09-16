@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { browserOptions } from "../../browser/browser-options.mjs";
 
 export default defineConfig({
   testDir: ".",
@@ -9,9 +10,8 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:4318",
     browserName: "chromium",
-    launchOptions: {
-      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
-    },
+    launchOptions: browserOptions(),
+    serviceWorkers: "block",
     screenshot: "only-on-failure",
   },
   webServer: {
