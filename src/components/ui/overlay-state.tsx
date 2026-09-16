@@ -45,7 +45,10 @@ export function useOverlayEscape(onEscapeKeyDown?: (event: KeyboardEvent) => voi
       depth: state.depth,
       handle: (event: KeyboardEvent) => {
         current.current.onEscapeKeyDown?.(event);
-        if (!event.defaultPrevented) current.current.state?.closeOnEscape();
+        // A veto may reserve Escape for a descendant's keyboard controller.
+        // Keep propagating unless the consumer explicitly stops the event.
+        if (event.defaultPrevented) return;
+        current.current.state?.closeOnEscape();
         event.preventDefault();
         event.stopImmediatePropagation();
       },
