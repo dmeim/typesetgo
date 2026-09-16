@@ -2,6 +2,8 @@ import {
   createContext,
   useCallback,
   useEffect,
+  useLayoutEffect,
+  useRef,
   useMemo,
   useState,
   type ReactNode,
@@ -13,6 +15,7 @@ import type {
   ThemeVariantDefinition,
 } from "@/types/theme";
 import { fetchTheme, fetchThemeManifest, getDefaultTheme } from "@/lib/themes";
+import { deriveThemeUI } from "@/lib/colors";
 
 // Storage keys
 const THEME_STORAGE_KEY = "typesetgo-theme-id";
@@ -35,6 +38,7 @@ export type ThemeContextValue = {
   colors: ThemeColors;
   supportsLightMode: boolean;
   isLoading: boolean;
+  selectionError: string | null;
 };
 
 // Create context with undefined default (will be provided by ThemeProvider)
@@ -53,8 +57,15 @@ function resolveColors(variant: ThemeVariantDefinition, mode: ThemeMode): ThemeC
 }
 
 // CSS variable mapping from ThemeColors structure
-function applyThemeCSS(colors: ThemeColors): void {
+function applyThemeCSS(colors: ThemeColors, mode: ThemeMode): void {
   const root = document.documentElement;
+
+  root.classList.toggle("dark", mode === "dark");
+  root.dataset.themeMode = mode;
+  root.style.colorScheme = mode;
+  for (const [role, value] of Object.entries(deriveThemeUI(colors))) {
+    root.style.setProperty(`--${role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, value);
+  }
 
   // Surfaces
   root.style.setProperty("--theme-bg-base", colors.bg.base);
@@ -112,167 +123,130 @@ function applyThemeCSS(colors: ThemeColors): void {
   root.style.setProperty("--theme-typing-default", colors.typing.default);
 }
 
-// Provider props
-type ThemeProviderProps = {
-  children: ReactNode;
+type ActiveTheme = {
+  theme: ThemeDefinition;
+  variant: ThemeVariantDefinition;
+  mode: ThemeMode;
+  colors: ThemeColors;
 };
 
-export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<ThemeDefinition>(getDefaultTheme());
-  const [themeId, setThemeId] = useState<string>("typesetgo");
-  const [variantId, setVariantIdState] = useState<string>("default");
-  const [mode, setModeState] = useState<ThemeMode>("dark");
+function resolveSelection(theme: ThemeDefinition, variantId: string, mode: ThemeMode): ActiveTheme {
+  const variant = resolveVariant(theme, variantId);
+  const effectiveMode = mode === "light" && variant.light ? "light" : "dark";
+  return { theme, variant, mode: effectiveMode, colors: resolveColors(variant, effectiveMode) };
+}
+
+function readStoredSelection() {
+  try {
+    return {
+      themeId: localStorage.getItem(THEME_STORAGE_KEY) || "typesetgo",
+      variantId: localStorage.getItem(VARIANT_STORAGE_KEY) || "default",
+      mode: localStorage.getItem(MODE_STORAGE_KEY) === "light" ? "light" as const : "dark" as const,
+    };
+  } catch {
+    return { themeId: "typesetgo", variantId: "default", mode: "dark" as const };
+  }
+}
+
+function persistSelection(selection: ActiveTheme): void {
+  // Storage can be disabled or full; a valid in-memory theme must still work.
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, selection.theme.id);
+    localStorage.setItem(VARIANT_STORAGE_KEY, selection.variant.id);
+    localStorage.setItem(MODE_STORAGE_KEY, selection.mode);
+  } catch { /* Selection remains usable for this session. */ }
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [active, setActive] = useState(() => resolveSelection(getDefaultTheme(), "default", "dark"));
+  const current = useRef(active);
+  const requestId = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
 
-  // Initialize theme from localStorage or defaults
-  useEffect(() => {
-    async function initTheme() {
-      setIsLoading(true);
+  useLayoutEffect(() => {
+    applyThemeCSS(active.colors, active.mode);
+  }, [active]);
 
-      const storedThemeId = localStorage.getItem(THEME_STORAGE_KEY) || "typesetgo";
-      const storedVariantId = localStorage.getItem(VARIANT_STORAGE_KEY) || "default";
-      const storedMode = (localStorage.getItem(MODE_STORAGE_KEY) as ThemeMode) || "dark";
-
-      const manifest = await fetchThemeManifest();
-      const validThemeId = manifest.themes.includes(storedThemeId)
-        ? storedThemeId
-        : manifest.default || "typesetgo";
-
-      const loadedTheme = await fetchTheme(validThemeId);
-      const resolvedTheme = loadedTheme ?? getDefaultTheme();
-      const resolvedId = loadedTheme ? validThemeId : "typesetgo";
-
-      const variant = resolveVariant(resolvedTheme, storedVariantId);
-      const effectiveMode = storedMode === "light" && variant.light ? "light" : "dark";
-
-      setThemeState(resolvedTheme);
-      setThemeId(resolvedId);
-      setVariantIdState(variant.id);
-      setModeState(effectiveMode);
-
-      applyThemeCSS(resolveColors(variant, effectiveMode));
-      setIsLoading(false);
-    }
-
-    initTheme();
+  const commit = useCallback((next: ActiveTheme) => {
+    current.current = next;
+    persistSelection(next);
+    setActive(next);
+    setIsLoading(false);
+    setSelectionError(null);
   }, []);
 
-  // Set theme by ID (resets variant to default)
-  const setTheme = useCallback(async (id: string) => {
-    const loadedTheme = await fetchTheme(id);
-    if (!loadedTheme) return;
-
-    const variant = resolveVariant(loadedTheme, loadedTheme.defaultVariantId);
-    const effectiveMode = mode === "light" && variant.light ? "light" : "dark";
-
-    setThemeState(loadedTheme);
-    setThemeId(id);
-    setVariantIdState(variant.id);
-    localStorage.setItem(THEME_STORAGE_KEY, id);
-    localStorage.setItem(VARIANT_STORAGE_KEY, variant.id);
-
-    if (effectiveMode !== mode) {
-      setModeState(effectiveMode);
-      localStorage.setItem(MODE_STORAGE_KEY, effectiveMode);
+  useEffect(() => {
+    const id = ++requestId.current;
+    const stored = readStoredSelection();
+    async function initialize() {
+      const manifest = await fetchThemeManifest();
+      if (id !== requestId.current) return;
+      // A failed manifest must not discard an otherwise fetchable saved theme.
+      const themeId = manifest.themes.length && !manifest.themes.includes(stored.themeId)
+        ? manifest.default : stored.themeId;
+      const theme = await fetchTheme(themeId);
+      if (id !== requestId.current) return;
+      if (theme) {
+        commit(resolveSelection(theme, stored.variantId, stored.mode));
+      } else {
+        // Keep the startup fallback usable without erasing a saved preference
+        // because of a temporary network failure.
+        setIsLoading(false);
+        setSelectionError("Your saved theme could not be loaded. Try again.");
+      }
     }
+    void initialize();
+    return () => { requestId.current++; };
+  }, [commit]);
 
-    applyThemeCSS(resolveColors(variant, effectiveMode));
-  }, [mode]);
-
-  // Set variant within current theme
-  const setVariant = useCallback((newVariantId: string) => {
-    const variant = resolveVariant(theme, newVariantId);
-    const effectiveMode = mode === "light" && variant.light ? "light" : "dark";
-
-    setVariantIdState(variant.id);
-    localStorage.setItem(VARIANT_STORAGE_KEY, variant.id);
-
-    if (effectiveMode !== mode) {
-      setModeState(effectiveMode);
-      localStorage.setItem(MODE_STORAGE_KEY, effectiveMode);
-    }
-
-    applyThemeCSS(resolveColors(variant, effectiveMode));
-  }, [theme, mode]);
-
-  // Atomic setter for theme + variant + mode
   const setThemeSelection = useCallback(async (selection: { themeId: string; variantId?: string; mode?: ThemeMode }) => {
-    const loadedTheme = await fetchTheme(selection.themeId);
-    if (!loadedTheme) return;
+    const id = ++requestId.current;
+    const requestedMode = selection.mode ?? current.current.mode;
+    setIsLoading(true);
+    setSelectionError(null);
+    const theme = await fetchTheme(selection.themeId);
+    if (id !== requestId.current) return;
+    if (!theme) {
+      setIsLoading(false);
+      setSelectionError("This theme could not be loaded. Try again.");
+      return;
+    }
+    commit(resolveSelection(theme, selection.variantId ?? theme.defaultVariantId, requestedMode));
+  }, [commit]);
 
-    const variant = resolveVariant(loadedTheme, selection.variantId || loadedTheme.defaultVariantId);
-    const requestedMode = selection.mode || mode;
-    const effectiveMode = requestedMode === "light" && variant.light ? "light" : "dark";
+  const setTheme = useCallback((themeId: string) => setThemeSelection({ themeId }), [setThemeSelection]);
 
-    setThemeState(loadedTheme);
-    setThemeId(selection.themeId);
-    setVariantIdState(variant.id);
-    setModeState(effectiveMode);
+  const setVariant = useCallback((variantId: string) => {
+    requestId.current++;
+    const selection = current.current;
+    commit(resolveSelection(selection.theme, variantId, selection.mode));
+  }, [commit]);
 
-    localStorage.setItem(THEME_STORAGE_KEY, selection.themeId);
-    localStorage.setItem(VARIANT_STORAGE_KEY, variant.id);
-    localStorage.setItem(MODE_STORAGE_KEY, effectiveMode);
+  const setMode = useCallback((mode: ThemeMode) => {
+    requestId.current++;
+    const selection = current.current;
+    commit(resolveSelection(selection.theme, selection.variant.id, mode));
+  }, [commit]);
 
-    applyThemeCSS(resolveColors(variant, effectiveMode));
-  }, [mode]);
-
-  // Set mode
-  const setMode = useCallback((newMode: ThemeMode) => {
-    const variant = resolveVariant(theme, variantId);
-    if (newMode === "light" && !variant.light) return;
-
-    setModeState(newMode);
-    localStorage.setItem(MODE_STORAGE_KEY, newMode);
-
-    applyThemeCSS(resolveColors(variant, newMode));
-  }, [theme, variantId]);
-
-  // Toggle mode
   const toggleMode = useCallback(() => {
-    const newMode = mode === "dark" ? "light" : "dark";
-    setMode(newMode);
-  }, [mode, setMode]);
+    setMode(current.current.mode === "dark" ? "light" : "dark");
+  }, [setMode]);
 
-  // Resolve active variant
-  const variant = useMemo(() => {
-    return resolveVariant(theme, variantId);
-  }, [theme, variantId]);
+  const value = useMemo<ThemeContextValue>(() => ({
+    ...active,
+    themeId: active.theme.id,
+    themeName: active.theme.name,
+    variantId: active.variant.id,
+    supportsLightMode: active.variant.light != null,
+    setTheme,
+    setVariant,
+    setThemeSelection,
+    setMode,
+    toggleMode,
+    isLoading,
+    selectionError,
+  }), [active, setTheme, setVariant, setThemeSelection, setMode, toggleMode, isLoading, selectionError]);
 
-  // Compute current colors from variant + mode
-  const colors = useMemo(() => {
-    return resolveColors(variant, mode);
-  }, [variant, mode]);
-
-  // Check if active variant supports light mode
-  const supportsLightMode = useMemo(() => {
-    return variant.light !== null && variant.light !== undefined;
-  }, [variant]);
-
-  const themeName = theme?.name || "TypeSetGo";
-
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      themeId,
-      themeName,
-      variantId,
-      variant,
-      mode,
-      setTheme,
-      setVariant,
-      setThemeSelection,
-      setMode,
-      toggleMode,
-      colors,
-      supportsLightMode,
-      isLoading,
-    }),
-    [theme, themeId, themeName, variantId, variant, mode, setTheme, setVariant, setThemeSelection, setMode, toggleMode, colors, supportsLightMode, isLoading]
-  );
-
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

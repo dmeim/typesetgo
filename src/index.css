@@ -1,15 +1,45 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --font-mono: "JetBrains Mono", "Fira Code", "Roboto Mono", monospace;
 
-  --animate-fade-in: fadeIn 0.3s ease-out forwards;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Release opacity after entrance so inline visibility retains ownership. */
+  --animate-fade-in: fadeIn 0.15s ease-out;
+  --animate-in: enter 0.15s ease-out;
+  --animate-out: exit 0.1s ease-in;
   --animate-pulse: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(4px);
     }
     to {
       opacity: 1;
@@ -35,6 +65,7 @@ html {
 
 /* CSS Variables for theming - defaults based on TypeSetGo theme */
 :root {
+  color-scheme: dark;
   /* === THEME VARIABLES (set dynamically by ThemeProvider) === */
 
   /* Surfaces */
@@ -92,32 +123,32 @@ html {
   --theme-typing-upcoming: #4b5563;
   --theme-typing-default: #4b5563;
 
-  /* Shadcn/UI theme variables */
-  --background: 0 0% 20%;
-  --foreground: 0 0% 83%;
-  --card: 0 0% 17%;
-  --card-foreground: 0 0% 83%;
-  --popover: 0 0% 17%;
-  --popover-foreground: 0 0% 83%;
-  --primary: 197 81% 58%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 186 100% 35%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 0 0% 30%;
-  --muted-foreground: 0 0% 65%;
-  --accent: 270 91% 65%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 30%;
-  --input: 0 0% 30%;
-  --ring: 197 81% 58%;
+  /* Full-color semantic UI values; ThemeProvider derives these per palette. */
+  --background: #323437;
+  --foreground: #d1d5db;
+  --card: #2c2e31;
+  --card-foreground: #d1d5db;
+  --popover: #37383b;
+  --popover-foreground: #d1d5db;
+  --primary: #3cb5ee;
+  --primary-foreground: #3f3f3f;
+  --secondary: #28393e;
+  --secondary-foreground: #d1d5db;
+  --muted: #2c2e31;
+  --muted-foreground: #9ba1a9;
+  --accent: #383245;
+  --accent-foreground: #d1d5db;
+  --destructive: #f47d7d;
+  --destructive-foreground: #383838;
+  --border: #353a40;
+  --input: #7f8185;
+  --ring: #3cb5ee;
   --radius: 0.5rem;
 }
 
 body {
-  background: var(--theme-bg-base);
-  color: var(--theme-text-primary);
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-mono);
 }
 
@@ -138,4 +169,33 @@ body {
   0% { box-shadow: 0 0 20px currentColor; }
   50% { box-shadow: 0 0 30px currentColor; }
   100% { box-shadow: 0 0 0px transparent; }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+}
+
+/* Sonner's default description rules outrank utility classes. */
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  color: var(--muted-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
 }
