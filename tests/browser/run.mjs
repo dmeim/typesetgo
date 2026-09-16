@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 // Tailwind's automatic source scan must see the repository even when invoked
 // through an absolute runner path from another working directory.
 process.chdir(root);
-const available = ["practice", "profiles", "connect", "connect-session", "race"];
+const available = ["practice", "fonts", "profiles", "connect", "connect-session", "race"];
 const selected = process.argv.slice(2);
 const suites = selected.length ? selected : available;
 for (const name of suites) {
@@ -81,17 +81,19 @@ try {
   for (const suite of suites) {
     controller.signal.throwIfAborted();
     console.log("\nBrowser acceptance: " + suite);
-    if (suite === "practice") {
+    if (suite === "practice" || suite === "fonts") {
       const server = await createServer({ configFile: path.join(root, "tests/browser/practice/vite.config.ts") });
       try {
         await server.listen(); // strictPort prevents testing another checkout.
         await checkPracticeManifests();
-        for (const scenario of ["journeys", "ranked", "preferences", "narrow", "secondary", "area", "color"]) {
+        const scenarios = suite === "fonts" ? ["fonts"] : ["journeys", "ranked", "preferences", "narrow", "secondary", "area", "color"];
+        for (const scenario of scenarios) {
           await run(process.execPath, ["tests/browser/practice/" + scenario + ".mjs"]);
         }
       } finally {
         await server.close();
       }
+      if (suite === "fonts") await run(process.execPath, ["tests/browser/fonts-production.mjs"]);
     } else if (suite === "profiles") {
       await run(process.execPath, ["tests/browser/profiles/check.mjs"]);
     } else {

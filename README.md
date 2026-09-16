@@ -128,11 +128,15 @@ bun run dev              # Terminal 2 — frontend (port 3000)
 ### Browser acceptance without live services
 
 ```bash
-bun run test:e2e                 # Practice, Profiles, Host, real Join, Race
+VITE_CONVEX_URL=https://fixture.invalid VITE_CLERK_PUBLISHABLE_KEY= bun run build
+bun run test:e2e                 # Practice, Fonts, Profiles, Host, real Join, Race
 bun run test:e2e practice        # One suite during local iteration
+bun run test:e2e fonts           # Font loading and built asset paths (requires build)
 ```
 
 These checks require Node.js 22.12+ and installed Chrome. They run real UI components with local auth/data substitutes; no Clerk or Convex credentials are needed. They cover prompt/session transitions, dialogs and keyboard use, representative layouts/themes, owner/visitor profiles, and multiplayer lifecycle failures/recovery. See the [browser testing guide](tests/browser/README.md) for browser overrides, fixture boundaries, and artifacts.
+
+All downloadable fonts are served locally. See the [font inventory and licenses](public/fonts/README.md) for sources, pinned versions, lazy loading behavior, and update instructions.
 
 Builds retain native TypeScript 7 while lint uses the compatible TypeScript 6 API. Use the package scripts so each tool gets its intended compiler; the [tooling note](docs/ui-cleanup/tooling.md) explains the arrangement.
 

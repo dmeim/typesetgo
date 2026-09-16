@@ -61,6 +61,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `public/words/` | Word lists (manifest generated) |
 | `public/quotes/` | Quote sets (manifest generated) |
 | `public/sounds/` | Sound packs (manifest generated) |
+| `public/fonts/`, `src/fonts.css` | Local WOFF2 catalog, redistribution notices, provenance, and lazy font-face definitions; see [`public/fonts/README.md`](public/fonts/README.md) |
 | `tests/unit/` | Vitest unit tests |
 | `tests/e2e/`, `tests/browser/`, `tests/fixtures/` | Isolated browser acceptance, local auth/data fixtures, and Playwright specs |
 | `docs/` | Agent handbook, feature docs, PRDs, release notes, deployment docs |
@@ -96,6 +97,7 @@ Notes:
 - Feature auth uses `useAppAuth`; it safely describes missing/unavailable Clerk.
 - `ThemeProvider` wraps routes and Toaster inside `App`. Route boundaries cover loading/render failures; bootstrap configuration must still be valid.
 - Browser acceptance uses local mocks, never the live Convex development deployment. See [`tests/browser/README.md`](tests/browser/README.md).
+- The `fonts` browser suite also checks production CSS/assets; build first with fixture environment values as documented in the browser guide.
 - Build pins native TypeScript 7; lint uses the compatible TypeScript 6 API. Use `bun run build`, not an ambiguous bare `tsc`; see [`docs/ui-cleanup/tooling.md`](docs/ui-cleanup/tooling.md).
 
 ## Generated Files (Do Not Edit)
