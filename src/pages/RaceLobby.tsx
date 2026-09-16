@@ -37,12 +37,11 @@ export default function RaceLobby() {
     currentParticipant?._id,
   );
   const [error, setError] = useState("");
-  const [startError, setStartError] = useState("");
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now);
-  const startAttempted = useRef(false);
+  const startAttempted = useRef<number | null>(null);
   const isHost = room?.hostId === sessionId;
   const connectedParticipants =
     participants?.filter((participant) => participant.isConnected) || [];
@@ -56,26 +55,50 @@ export default function RaceLobby() {
   const participantId = currentParticipant?._id;
   const isReady = currentParticipant?.isReady;
 
-  const beginRace = useCallback(async () => {
-    if (!roomId || !isHost || startAttempted.current || isLeaving) return;
-    startAttempted.current = true;
-    setStartError("");
-    try {
-      await startRace({ roomId, hostSessionId: sessionId });
-    } catch {
-      setStartError("The race could not start. Retry when everyone is ready.");
-    }
-  }, [roomId, isHost, isLeaving, sessionId, startRace]);
+  const canAutoStart = Boolean(
+    allReady &&
+    room?.status === "waiting" &&
+    currentParticipant?.isConnected &&
+    isHost &&
+    !isLeaving,
+  );
+  const startIdentity = `${roomId ?? ""}:${canAutoStart}`;
+  const [startState, setStartState] = useState({
+    identity: startIdentity,
+    attempt: 0,
+    error: "",
+  });
+  // A changed ready barrier is a new automatic attempt. Errors belong only to
+  // the barrier that produced them, including responses arriving after a leave.
+  if (startState.identity !== startIdentity) {
+    setStartState({
+      identity: startIdentity,
+      attempt: startState.attempt + 1,
+      error: "",
+    });
+  }
+  const startError = startState.error;
+  const startAttempt = startState.attempt;
+
+  const beginRace = useCallback(() => {
+    if (!roomId || !canAutoStart || startAttempted.current === startAttempt)
+      return;
+    startAttempted.current = startAttempt;
+    return startRace({ roomId, hostSessionId: sessionId }).catch(() => {
+      setStartState((current) =>
+        current.attempt === startAttempt
+          ? {
+              ...current,
+              error: "The race could not start. Retry when everyone is ready.",
+            }
+          : current,
+      );
+    });
+  }, [roomId, canAutoStart, startAttempt, sessionId, startRace]);
 
   useEffect(() => {
-    if (!allReady) startAttempted.current = false;
-    if (
-      allReady &&
-      room?.status === "waiting" &&
-      currentParticipant?.isConnected
-    )
-      void beginRace();
-  }, [allReady, room?.status, currentParticipant?.isConnected, beginRace]);
+    if (canAutoStart) void beginRace();
+  }, [canAutoStart, beginRace]);
 
   useEffect(() => {
     if (!starting || isLeaving) return;
@@ -226,7 +249,8 @@ export default function RaceLobby() {
             <button
               disabled={!allReady || locked}
               onClick={() => {
-                startAttempted.current = false;
+                setStartState((current) => ({ ...current, error: "" }));
+                startAttempted.current = null;
                 void beginRace();
               }}
               className="underline mb-4 disabled:opacity-50"

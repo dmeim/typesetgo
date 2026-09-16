@@ -160,15 +160,12 @@ function RaceAttempt({
       navigate(`/race/results/${room._id}`, { replace: true });
   }, [room.raceEndTime, room._id, navigate, isLeaving]);
 
-  const finishRace = useCallback(async () => {
+  const finishRace = useCallback(() => {
     if (endGuard.current || isLeaving) return;
     endGuard.current = true;
-    setEndError("");
-    try {
-      await endRace({ roomId: room._id, raceStartTime });
-    } catch {
+    return endRace({ roomId: room._id, raceStartTime }).catch(() => {
       setEndError("Could not finalize the race. Retry to prepare the results.");
-    }
+    });
   }, [endRace, room._id, raceStartTime, isLeaving]);
 
   useEffect(() => {
@@ -337,6 +334,7 @@ function RaceAttempt({
           <button
             className="underline"
             onClick={() => {
+              setEndError("");
               endGuard.current = false;
               void finishRace();
             }}

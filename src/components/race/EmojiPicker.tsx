@@ -99,7 +99,7 @@ export default function EmojiPicker({
               ArrowDown: 4,
               ArrowUp: -4,
             };
-            let next = focusedIndex;
+            let next: number;
             if (event.key === "Home") next = 0;
             else if (event.key === "End") next = RACE_EMOJIS.length - 1;
             else if (event.key in moves)

@@ -41,14 +41,14 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
   const attempt = useRoomAttempt(Boolean(sessionId), request);
   const participantId = attempt.value?.participantId;
   const participant = participants?.find((item) => item._id === participantId);
-  const seenParticipant = useRef(false);
-  useEffect(() => {
-    if (participant) seenParticipant.current = true;
-  }, [participant]);
+  // Wait for the subscribed list to include a successful join before treating
+  // an absent record as removal. This history affects rendering, so it is state.
+  const [seenParticipant, setSeenParticipant] = useState(false);
+  if (participant && !seenParticipant) setSeenParticipant(true);
   const wasRemoved = Boolean(
     participantId &&
     participants &&
-    seenParticipant.current &&
+    seenParticipant &&
     (!participant || !participant.isConnected),
   );
   const runVersion = room?.runVersion ?? 0;
@@ -64,7 +64,8 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
       : "waiting";
   const [feedback, setFeedback] = useState("");
   const [leaving, setLeaving] = useState(false);
-  const active = room?.status === "active" && Boolean(participant?.isConnected) && !leaving;
+  const active =
+    room?.status === "active" && Boolean(participant?.isConnected) && !leaving;
   const report = useRef<{
     timer?: ReturnType<typeof setTimeout>;
     signature?: string;
@@ -122,7 +123,8 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
       const joined = participantId
         ? { participantId }
         : await attempt.waitForResult()?.catch(() => undefined);
-      if (joined && !wasRemoved) await disconnect({ participantId: joined.participantId });
+      if (joined && !wasRemoved)
+        await disconnect({ participantId: joined.participantId });
       navigate("/connect");
     } catch {
       setFeedback("Unable to leave the room. Please try again.");

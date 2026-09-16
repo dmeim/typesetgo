@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import {
   act,
   cleanup,
@@ -164,6 +165,45 @@ describe("Race route recovery and membership", () => {
     await waitFor(() =>
       expect(mocks.mutations["rooms:startRace"]).toHaveBeenCalledTimes(2),
     );
+  });
+
+  it("deduplicates automatic starts in StrictMode and ignores failures from an earlier ready barrier", async () => {
+    const fixture = setFixture();
+    mocks.queries["participants:listByRoom"] = [
+      { ...fixture.participant, isReady: true },
+    ];
+    let rejectFirst!: (error: Error) => void;
+    mocks.mutations["rooms:startRace"] = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectFirst = reject;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const view = render(
+      <StrictMode>{page("/race/lobby/race-room")}</StrictMode>,
+    );
+    await waitFor(() =>
+      expect(mocks.mutations["rooms:startRace"]).toHaveBeenCalledTimes(1),
+    );
+    mocks.queries["participants:listByRoom"] = [fixture.participant];
+    view.rerender(<StrictMode>{page("/race/lobby/race-room")}</StrictMode>);
+    mocks.queries["participants:listByRoom"] = [
+      { ...fixture.participant, isReady: true },
+    ];
+    view.rerender(<StrictMode>{page("/race/lobby/race-room")}</StrictMode>);
+    await waitFor(() =>
+      expect(mocks.mutations["rooms:startRace"]).toHaveBeenCalledTimes(2),
+    );
+    await act(async () => rejectFirst(new Error("Old attempt failed")));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Retry race start" }),
+    ).toBeNull();
+    view.rerender(<StrictMode>{page("/race/lobby/race-room")}</StrictMode>);
+    expect(mocks.mutations["rooms:startRace"]).toHaveBeenCalledTimes(2);
   });
 
   it("allows a signed-in account without username or first name to enter a racer name", async () => {
@@ -409,25 +449,62 @@ describe("Race exact resume and progress", () => {
     vi.useFakeTimers();
     vi.setSystemTime(100_000);
     const fixture = activeFixture();
-    const members = [fixture.participant, ...[1, 2, 3].map((place) => ({
-      ...fixture.participant,
-      _id: `finisher-${place}` as typeof fixture.participant._id,
-      sessionId: `finisher-${place}`,
-      finishTime: place * 1000,
-      stats: { ...fixture.participant.stats, isFinished: true, progress: 100 },
-    }))];
+    const members = [
+      fixture.participant,
+      ...[1, 2, 3].map((place) => ({
+        ...fixture.participant,
+        _id: `finisher-${place}` as typeof fixture.participant._id,
+        sessionId: `finisher-${place}`,
+        finishTime: place * 1000,
+        stats: {
+          ...fixture.participant.stats,
+          isFinished: true,
+          progress: 100,
+        },
+      })),
+    ];
     mocks.queries["participants:listByRoom"] = members;
     const view = render(page("/race/race-room"));
     expect(screen.getByText("3s remaining")).toBeVisible();
     mocks.queries["participants:listByRoom"] = members.map((member, index) =>
-      index === 1 ? { ...member, isConnected: false } : member);
+      index === 1 ? { ...member, isConnected: false } : member,
+    );
     view.rerender(page("/race/race-room"));
     expect(screen.getByText("3s remaining")).toBeVisible();
-    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
     expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledTimes(1);
     expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledWith({
-      roomId: fixture.room._id, raceStartTime: 90_000,
+      roomId: fixture.room._id,
+      raceStartTime: 90_000,
     });
+  });
+
+  it("finalizes once automatically and clears an end failure only for an explicit retry", async () => {
+    const fixture = activeFixture();
+    mocks.queries["participants:listByRoom"] = [
+      {
+        ...fixture.participant,
+        stats: { ...fixture.participant.stats, isFinished: true },
+      },
+    ];
+    mocks.mutations["rooms:endRace"] = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue(undefined);
+    const view = render(<StrictMode>{page("/race/race-room")}</StrictMode>);
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Could not finalize"),
+    );
+    expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledTimes(1);
+    view.rerender(<StrictMode>{page("/race/race-room")}</StrictMode>);
+    expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Retry results" }));
+    await waitFor(() =>
+      expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledTimes(2),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("has a visible accessible leave dialog and restores focus after Escape", async () => {

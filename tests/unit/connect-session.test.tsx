@@ -20,6 +20,9 @@ const state = vi.hoisted(() => ({
     settings: { mode: "time", duration: 30 } as Partial<SettingsState>,
   },
   participant: { _id: "p1", isConnected: true, resetVersion: 0 },
+  participants: null as
+    | { _id: string; isConnected: boolean; resetVersion: number }[]
+    | null,
   join: vi.fn(),
   update: vi.fn(),
   disconnect: vi.fn(),
@@ -40,7 +43,7 @@ vi.mock("convex/react", () => ({
   useQuery: (reference: Parameters<typeof getFunctionName>[0]) =>
     getFunctionName(reference) === "rooms:getByCode"
       ? state.room
-      : [state.participant],
+      : (state.participants ?? [state.participant]),
   useMutation: (reference: Parameters<typeof getFunctionName>[0]) => {
     const name = getFunctionName(reference);
     return name === "participants:join"
@@ -53,7 +56,7 @@ vi.mock("convex/react", () => ({
 vi.mock("@/components/typing/TypingPractice", async () => {
   const React = await import("react");
   return {
-    default: (props: typeof state.props) => {
+    default: function PracticeFixture(props: typeof state.props) {
       state.props = props;
       React.useEffect(() => {
         state.mount();
@@ -91,6 +94,7 @@ beforeEach(() => {
     settings: { mode: "time", duration: 30 },
   };
   state.participant = { _id: "p1", isConnected: true, resetVersion: 0 };
+  state.participants = null;
   state.join.mockResolvedValue({ participantId: "p1" });
   state.update.mockResolvedValue(null);
   state.disconnect.mockResolvedValue(null);
@@ -102,6 +106,24 @@ afterEach(() => {
 });
 
 describe("participant session lifecycle", () => {
+  it("waits for joined membership to reach the query, then recovers when that participant is removed", async () => {
+    state.participants = [];
+    const view = render(<View />);
+    await waitFor(() => expect(state.join).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status")).toHaveTextContent("Connecting to room");
+    expect(screen.queryByRole("alert")).toBeNull();
+    state.participants = [state.participant];
+    view.rerender(<View />);
+    expect(await screen.findByLabelText("Practice input")).toBeVisible();
+    state.participants = [];
+    view.rerender(<View />);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "You have been removed",
+    );
+    expect(screen.getByRole("link", { name: "Back to Connect" })).toBeVisible();
+    expect(state.join).toHaveBeenCalledTimes(1);
+  });
+
   it("runs the selected host step with the shared sound pack and remounts when the host advances", async () => {
     state.room = {
       ...state.room,
