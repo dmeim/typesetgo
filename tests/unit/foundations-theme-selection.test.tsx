@@ -82,11 +82,101 @@ describe("atomic effective theme selection", () => {
     localStorage.setItem("typesetgo-theme-mode", "light");
     await mount();
     expectCommitted(fixture("typesetgo"), "light");
+    expect(latest.userSelectionRevision).toBe(0);
     expect(screen.getByTestId("toaster")).toHaveStyle({ background: "var(--popover)", color: "var(--popover-foreground)", boxShadow: "none" });
     act(() => latest.setVariant("dark-only"));
     expectCommitted(fixture("typesetgo"), "dark", "dark-only");
     act(() => latest.setMode("light"));
     expectCommitted(fixture("typesetgo"), "dark", "dark-only");
+  });
+
+  it("increments user revision once per public intent before requests resolve", async () => {
+    await mount();
+    expect(latest.userSelectionRevision).toBe(0);
+    const loading = deferred<ThemeDefinition | null>();
+    vi.mocked(fetchTheme).mockReturnValue(loading.promise);
+    let direct!: Promise<void>;
+    let delegated!: Promise<void>;
+    act(() => { direct = latest.setThemeSelection({ themeId: "direct" }); });
+    expect(latest.userSelectionRevision).toBe(1);
+    act(() => { delegated = latest.setTheme("delegated"); });
+    expect(latest.userSelectionRevision).toBe(2);
+    act(() => latest.setMode("light"));
+    expect(latest.userSelectionRevision).toBe(3);
+    act(() => latest.toggleMode());
+    expect(latest.userSelectionRevision).toBe(4);
+    act(() => latest.setVariant("dark-only"));
+    expect(latest.userSelectionRevision).toBe(5);
+    await act(async () => { loading.resolve(fixture("delegated")); await Promise.all([direct, delegated]); });
+    expect(latest.userSelectionRevision).toBe(5);
+    expectCommitted(fixture("typesetgo"), "dark", "dark-only");
+  });
+
+  it("ignores stale preference restoration immediately after a synchronous header toggle", async () => {
+    await mount();
+    const staleSnapshot = latest;
+    const fetchCount = vi.mocked(fetchTheme).mock.calls.length;
+    await act(async () => {
+      staleSnapshot.toggleMode();
+      await staleSnapshot.setThemeSelection({ themeId: "account", mode: "dark" }, {
+        source: "preferences",
+        expectedUserSelectionRevision: staleSnapshot.userSelectionRevision,
+      });
+    });
+    expect(latest.userSelectionRevision).toBe(1);
+    expect(fetchTheme).toHaveBeenCalledTimes(fetchCount);
+    expectCommitted(fixture("typesetgo"), "light");
+  });
+
+  it("does not let an in-flight preference restoration overwrite a newer user selection", async () => {
+    await mount();
+    const account = deferred<ThemeDefinition | null>();
+    vi.mocked(fetchTheme).mockReturnValue(account.promise);
+    let restoration!: Promise<void>;
+    act(() => {
+      restoration = latest.setThemeSelection({ themeId: "account", mode: "dark" }, {
+        source: "preferences", expectedUserSelectionRevision: 0,
+      });
+    });
+    expect(fetchTheme).toHaveBeenLastCalledWith("account");
+    expect(latest.userSelectionRevision).toBe(0);
+    act(() => latest.setMode("light"));
+    await act(async () => { account.resolve(fixture("account")); await restoration; });
+    expect(latest.userSelectionRevision).toBe(1);
+    expectCommitted(fixture("typesetgo"), "light");
+  });
+
+  it("restores preferences with a matching revision without marking them as user changes", async () => {
+    await mount();
+    act(() => latest.setMode("light"));
+    const baseline = latest.userSelectionRevision;
+    vi.mocked(fetchTheme).mockResolvedValue(fixture("account"));
+    await act(async () => {
+      await latest.setThemeSelection({ themeId: "account", mode: "dark" }, {
+        source: "preferences", expectedUserSelectionRevision: baseline,
+      });
+    });
+    expectCommitted(fixture("account"), "dark");
+    expect(latest.userSelectionRevision).toBe(baseline);
+  });
+
+  it("rejects preferences without a baseline without invalidating an in-flight user choice", async () => {
+    await mount();
+    const choice = deferred<ThemeDefinition | null>();
+    vi.mocked(fetchTheme).mockReturnValue(choice.promise);
+    let selection!: Promise<void>;
+    act(() => { selection = latest.setTheme("choice"); });
+    await act(async () => {
+      await latest.setThemeSelection({ themeId: "account" }, { source: "preferences" });
+      await latest.setThemeSelection({ themeId: "account" }, {
+        source: "preferences", expectedUserSelectionRevision: 0,
+      });
+    });
+    expect(fetchTheme).not.toHaveBeenCalledWith("account");
+    expect(latest.isLoading).toBe(true);
+    await act(async () => { choice.resolve(fixture("choice")); await selection; });
+    expectCommitted(fixture("choice"), "dark");
+    expect(latest.userSelectionRevision).toBe(1);
   });
 
   it("commits the last requested selection even when earlier responses finish later", async () => {
@@ -180,5 +270,6 @@ describe("atomic effective theme selection", () => {
     render(<StrictMode><ThemeProvider><Probe /><Toaster /></ThemeProvider></StrictMode>);
     await waitFor(() => expect(latest.isLoading).toBe(false));
     expectCommitted(fixture("typesetgo"), "dark");
+    expect(latest.userSelectionRevision).toBe(0);
   });
 });

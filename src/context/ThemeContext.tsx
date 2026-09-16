@@ -22,6 +22,12 @@ const THEME_STORAGE_KEY = "typesetgo-theme-id";
 const VARIANT_STORAGE_KEY = "typesetgo-theme-variant-id";
 const MODE_STORAGE_KEY = "typesetgo-theme-mode";
 
+export type ThemeSelectionOptions = {
+  source?: "user" | "preferences";
+  /** Preferences must supply the user revision captured before loading them. */
+  expectedUserSelectionRevision?: number;
+};
+
 // Context value type
 export type ThemeContextValue = {
   theme: ThemeDefinition;
@@ -30,9 +36,10 @@ export type ThemeContextValue = {
   variantId: string;
   variant: ThemeVariantDefinition;
   mode: ThemeMode;
+  userSelectionRevision: number;
   setTheme: (id: string) => Promise<void>;
   setVariant: (variantId: string) => void;
-  setThemeSelection: (selection: { themeId: string; variantId?: string; mode?: ThemeMode }) => Promise<void>;
+  setThemeSelection: (selection: { themeId: string; variantId?: string; mode?: ThemeMode }, options?: ThemeSelectionOptions) => Promise<void>;
   setMode: (mode: ThemeMode) => void;
   toggleMode: () => void;
   colors: ThemeColors;
@@ -161,6 +168,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState(() => resolveSelection(getDefaultTheme(), "default", "dark"));
   const current = useRef(active);
   const requestId = useRef(0);
+  const userSelectionRevisionRef = useRef(0);
+  const [userSelectionRevision, setUserSelectionRevision] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [selectionError, setSelectionError] = useState<string | null>(null);
 
@@ -200,7 +209,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => { requestId.current++; };
   }, [commit]);
 
-  const setThemeSelection = useCallback(async (selection: { themeId: string; variantId?: string; mode?: ThemeMode }) => {
+  const recordUserSelection = useCallback(() => {
+    // Update before React renders so a restoration using an older context
+    // snapshot cannot overtake a user action from the same event turn.
+    setUserSelectionRevision(++userSelectionRevisionRef.current);
+  }, []);
+
+  const setThemeSelection = useCallback(async (
+    selection: { themeId: string; variantId?: string; mode?: ThemeMode },
+    options: ThemeSelectionOptions = {},
+  ) => {
+    if (options.source === "preferences") {
+      if (options.expectedUserSelectionRevision !== userSelectionRevisionRef.current) return;
+    } else {
+      recordUserSelection();
+    }
     const id = ++requestId.current;
     const requestedMode = selection.mode ?? current.current.mode;
     setIsLoading(true);
@@ -213,21 +236,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return;
     }
     commit(resolveSelection(theme, selection.variantId ?? theme.defaultVariantId, requestedMode));
-  }, [commit]);
+  }, [commit, recordUserSelection]);
 
   const setTheme = useCallback((themeId: string) => setThemeSelection({ themeId }), [setThemeSelection]);
 
   const setVariant = useCallback((variantId: string) => {
+    recordUserSelection();
     requestId.current++;
     const selection = current.current;
     commit(resolveSelection(selection.theme, variantId, selection.mode));
-  }, [commit]);
+  }, [commit, recordUserSelection]);
 
   const setMode = useCallback((mode: ThemeMode) => {
+    recordUserSelection();
     requestId.current++;
     const selection = current.current;
     commit(resolveSelection(selection.theme, selection.variant.id, mode));
-  }, [commit]);
+  }, [commit, recordUserSelection]);
 
   const toggleMode = useCallback(() => {
     setMode(current.current.mode === "dark" ? "light" : "dark");
@@ -239,6 +264,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     themeName: active.theme.name,
     variantId: active.variant.id,
     supportsLightMode: active.variant.light != null,
+    userSelectionRevision,
     setTheme,
     setVariant,
     setThemeSelection,
@@ -246,7 +272,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     toggleMode,
     isLoading,
     selectionError,
-  }), [active, setTheme, setVariant, setThemeSelection, setMode, toggleMode, isLoading, selectionError]);
+  }), [active, userSelectionRevision, setTheme, setVariant, setThemeSelection, setMode, toggleMode, isLoading, selectionError]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
