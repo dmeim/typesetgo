@@ -1,206 +1,93 @@
-import { useUser, useClerk, SignInButton } from "@clerk/clerk-react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
+import { ChevronDown, LogIn, LogOut, UserRound } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
-import { useEffect, useRef } from "react";
-import { useTheme } from "@/hooks/useTheme";
-import { tv } from "@/lib/theme-vars";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useAppAuth } from "@/components/layout/useAppAuth";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-export default function UserButton() {
-  const { isSignedIn, user, isLoaded } = useUser();
-  const { signOut, openUserProfile } = useClerk();
+export default function UserButton({ inactive = false }: { inactive?: boolean }) {
+  const { status, isSignedIn, user, isLoaded, unavailableReason, openSignIn, openUserProfile, signOut } = useAppAuth();
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const lastSyncedKeyRef = useRef<string | null>(null);
-  const { colors } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [unavailableOpen, setUnavailableOpen] = useState(false);
 
-  // Sync user to Convex when they sign in
+  if (inactive && (menuOpen || unavailableOpen)) {
+    setMenuOpen(false);
+    setUnavailableOpen(false);
+  }
+
   useEffect(() => {
     if (isSignedIn && user) {
       const email = user.primaryEmailAddress?.emailAddress ?? "";
       const username = user.username ?? user.firstName ?? "User";
       const avatarUrl = user.imageUrl;
       const syncKey = `${user.id}:${email}:${username}:${avatarUrl}`;
-
-      if (lastSyncedKeyRef.current === syncKey) {
-        return;
-      }
-
-      const syncUser = async () => {
-        try {
-          await getOrCreateUser({
-            clerkId: user.id,
-            email,
-            username,
-            avatarUrl,
-          });
-          lastSyncedKeyRef.current = syncKey;
-        } catch (error) {
-          console.error("Failed to sync user to Convex:", error);
-        }
-      };
-      syncUser();
-    } else if (!isSignedIn) {
+      if (lastSyncedKeyRef.current === syncKey) return;
+      void getOrCreateUser({ clerkId: user.id, email, username, avatarUrl }).then(() => {
+        lastSyncedKeyRef.current = syncKey;
+      }).catch((error: unknown) => console.error("Failed to sync user to Convex:", error));
+    } else {
       lastSyncedKeyRef.current = null;
     }
   }, [isSignedIn, user, getOrCreateUser]);
 
-  // Loading state
-  if (!isLoaded) {
+  const runAction = async (action: () => Promise<boolean>, message: string) => {
+    if (!await action()) toast.error(message);
+  };
+
+  if (status === "unavailable") {
     return (
-      <div
-        className="flex h-10 w-10 items-center justify-center rounded-lg"
-        style={{ backgroundColor: `${colors.bg.surface}80` }}
-      >
-        <div
-          className="h-5 w-5 rounded-full animate-pulse"
-          style={{ backgroundColor: tv.interactive.primary.DEFAULT }}
-        />
-      </div>
+      <Popover open={!inactive && unavailableOpen} onOpenChange={setUnavailableOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" className="h-10 gap-2 px-2" aria-label="Account unavailable">
+            <UserRound className="size-5" aria-hidden="true" /><span className="hidden sm:inline">Guest</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" aria-labelledby="account-unavailable-title" className="w-72 max-w-[calc(100vw-1.5rem)] space-y-3">
+          <h2 id="account-unavailable-title" className="font-medium">Sign-in unavailable</h2>
+          <p className="text-sm text-muted-foreground">
+            {unavailableReason === "load-failed"
+              ? "Sign-in couldn’t connect. You can keep practicing as a guest, or reload to try again."
+              : "You can practice as a guest. Sign-in and saved account progress aren’t available in this session."}
+          </p>
+          {unavailableReason === "load-failed" && <Button variant="outline" onClick={() => window.location.reload()}>Reload sign-in</Button>}
+        </PopoverContent>
+      </Popover>
     );
   }
 
-  // Signed out state
+  if (!isLoaded) {
+    return <span role="status" className="inline-flex h-10 items-center gap-2 px-2 text-sm text-muted-foreground"><UserRound className="size-5" aria-hidden="true" /><span className="sr-only sm:not-sr-only">Loading account…</span></span>;
+  }
+
   if (!isSignedIn) {
     return (
-      <SignInButton mode="modal">
-        <button
-          type="button"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800/50 transition hover:bg-gray-700/50"
-          style={{ color: tv.interactive.primary.DEFAULT }}
-          title="Sign In"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-            <polyline points="10 17 15 12 10 7" />
-            <line x1="15" y1="12" x2="3" y2="12" />
-          </svg>
-          <span className="text-sm font-medium hidden sm:inline">Sign In</span>
-        </button>
-      </SignInButton>
+      <Button variant="ghost" className="h-10 gap-2 px-2" aria-label="Sign in" onClick={() => void runAction(openSignIn, "Sign-in couldn’t open. Please try again.")}>
+        <LogIn className="size-5" aria-hidden="true" /><span className="hidden sm:inline">Sign in</span>
+      </Button>
     );
   }
 
-  // Signed in state - show avatar dropdown
+  const name = user?.username ?? user?.firstName ?? "User";
   return (
-    <DropdownMenu>
+    <DropdownMenu open={!inactive && menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition hover:bg-gray-800/50 focus:outline-none"
-          title={user?.username ?? user?.firstName ?? "Account"}
-        >
-          {user?.imageUrl ? (
-            <img
-              src={user.imageUrl}
-              alt="Avatar"
-              className="h-8 w-8 rounded-full object-cover"
-            />
-          ) : (
-            <div
-              className="h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium"
-              style={{ backgroundColor: tv.interactive.secondary.DEFAULT, color: tv.bg.base }}
-            >
-              {(user?.username ?? user?.firstName ?? "U")[0].toUpperCase()}
-            </div>
-          )}
-          <span
-            className="text-sm font-medium hidden sm:inline max-w-[100px] truncate"
-            style={{ color: tv.text.primary }}
-          >
-            {user?.username ?? user?.firstName ?? "User"}
-          </span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ color: tv.interactive.primary.DEFAULT }}
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
+        <Button variant="ghost" className="h-10 max-w-full gap-2 px-2" aria-label={`Account: ${name}`}>
+          {user?.imageUrl ? <img src={user.imageUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" /> : <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">{name[0]?.toUpperCase() || "U"}</span>}
+          <span className="hidden max-w-24 truncate text-sm sm:inline">{name}</span>
+          <ChevronDown className="hidden size-4 shrink-0 sm:block" aria-hidden="true" />
+        </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-48"
-        style={{ backgroundColor: tv.bg.surface, borderColor: tv.border.subtle }}
-      >
-        <div className="px-3 py-2">
-          <p className="text-sm font-medium" style={{ color: tv.text.primary }}>
-            {user?.username ?? user?.firstName ?? "User"}
-          </p>
-          <p className="text-xs truncate" style={{ color: tv.text.secondary }}>
-            {user?.primaryEmailAddress?.emailAddress}
-          </p>
-        </div>
-        <DropdownMenuSeparator style={{ backgroundColor: tv.border.subtle }} />
-        <DropdownMenuItem
-          onClick={() => openUserProfile()}
-          className="cursor-pointer"
-          style={{ color: tv.text.primary }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mr-2"
-          >
-            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          Account
-        </DropdownMenuItem>
-        <DropdownMenuSeparator style={{ backgroundColor: tv.border.subtle }} />
-        <DropdownMenuItem
-          onClick={() => signOut()}
-          className="cursor-pointer"
-          style={{ color: tv.status.error.DEFAULT }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mr-2"
-          >
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          Sign Out
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-56">
+        <div className="min-w-0 px-3 py-2"><p className="break-words text-sm font-medium">{name}</p><p className="truncate text-xs text-muted-foreground">{user?.primaryEmailAddress?.emailAddress}</p></div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => void runAction(openUserProfile, "Account settings couldn’t open. Please try again.")}><UserRound className="size-4" aria-hidden="true" />Account settings</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => void runAction(signOut, "Sign-out didn’t finish. Please try again.")}><LogOut className="size-4" aria-hidden="true" />Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
