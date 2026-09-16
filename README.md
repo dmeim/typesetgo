@@ -29,7 +29,7 @@ A modern, open-source typing practice platform with a clean, distraction-free in
 - **Sound packs** — Mechanical keyboard sounds (typewriter, creamy, robo, and more)
 - **Adaptive difficulty** — Word lists from Beginner to Extreme
 - **User accounts** — Track history, streaks, achievements, and leaderboard rankings
-- **Self-hostable** — Docker image with nginx for easy deployment
+- **Cloudflare-hosted** — frontend served by Workers Static Assets, with Clerk and Convex
 
 ## Screenshots
 
@@ -83,18 +83,23 @@ A modern, open-source typing practice platform with a clean, distraction-free in
 
 ## Quick Start
 
-### Docker
+### Hosting and deployment
+
+Live app: **https://typesetgo.app**. Cloudflare Workers Static Assets serves the frontend; production Clerk handles sign-in, and the existing Convex **development deployment** holds the app's data.
+
+Deployments are manual, not GitHub Actions-driven. After verifying your Cloudflare account and ignored local build settings:
 
 ```bash
-cd docker
-VITE_CONVEX_URL=https://your-project.convex.cloud docker-compose up -d
+bun run build
+bun run test:run
+bun run cf:deploy
 ```
 
-Visit `http://localhost:3000` to start typing.
+`cf:deploy` builds locally and uploads to the live Worker. See the [Cloudflare deployment guide](docs/deployment/CLOUDFLARE_GUIDE.md) for configuration, checks, and migration history. Docker/VPS deployment is retired.
 
 ### Development
 
-**Prerequisites:** [Bun](https://bun.sh) v1.0+ and a [Convex](https://convex.dev) account (free tier available).
+**Prerequisites:** [Bun](https://bun.sh) v1.3.3+ and a [Convex](https://convex.dev) account (free tier available).
 
 ```bash
 git clone https://github.com/dmeim/typesetgo.git
@@ -120,7 +125,7 @@ bun run dev              # Terminal 2 — frontend (port 3000)
 ## Documentation
 
 - **[Tech Stack](docs/TECH-STACK.md)** — full technology inventory with versions and roles
-- **[Docker Deployment](docs/deployment/DOCKER_GUIDE.md)** — container setup and configuration
+- **[Cloudflare Deployment](docs/deployment/CLOUDFLARE_GUIDE.md)** — live hosting, manual deployment, and migration history
 - **[Core Typing Engine](docs/features/Core_Typing_Engine.md)** — modes, statistics, and architecture
 - **[Content Management](docs/features/Content_Management.md)** — word lists, quotes, and adding content
 - **[Release Notes](docs/release-notes/)** — changelog and version history

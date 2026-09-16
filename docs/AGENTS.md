@@ -25,15 +25,16 @@ High-level architecture:
 ## 2) Tech Stack (Actual Repo)
 
 - **Runtime/package manager:** Bun
-- **Frontend:** Vite 7, React 19, React DOM 19, TypeScript 5.9
-- **Routing:** `react-router-dom@6`
+- **Frontend:** Vite 8, React 19, React DOM 19, TypeScript 7
+- **Routing:** `react-router-dom@7`
 - **Realtime/data backend:** Convex (`convex` package, functions in `convex/`)
 - **Auth/UI identity:** `@clerk/clerk-react` (optional at runtime)
 - **Styling:** Tailwind CSS v4 + Radix primitives + Shadcn/UI patterns
 - **Animation:** `framer-motion`
 - **Forms/validation:** `react-hook-form` + `zod`
 - **Testing:** Vitest + Testing Library (`jsdom`), Playwright script available
-- **Linting:** ESLint 9 + TypeScript ESLint + React Hooks/Refresh plugins
+- **Linting:** ESLint 10 + TypeScript ESLint + React Hooks/Refresh plugins
+- **Hosting:** Cloudflare Workers Static Assets at `typesetgo.app`; manual Wrangler deployment, no container workflow
 
 Key alias:
 - `@/` -> `src/` (configured in Vite + TS configs)
@@ -47,6 +48,9 @@ Key alias:
 
 ### Optional environment variables
 - `VITE_CLERK_PUBLISHABLE_KEY` (if missing, auth flows are disabled and app still boots)
+
+### Live service configuration
+The live Worker intentionally uses production Clerk with the existing Convex **development** deployment. Convex trusts `https://clerk.typesetgo.app` via `CLERK_JWT_ISSUER_DOMAIN`. Do not migrate data to Convex production as a hosting maintenance task. Local Convex development commands may target the live app's database; inspect the selected deployment before writes.
 
 ### Local startup model
 Typical dev flow uses two processes:
@@ -67,6 +71,8 @@ Typical dev flow uses two processes:
 - **Convex dev:** `bun run convex:dev`
 - **Convex deploy:** `bun run convex:deploy`
 - **Preview production build:** `bun run preview`
+- **Local Worker:** `bun run cf:dev` (build `dist/` first)
+- **Live Worker deploy:** `bun run cf:deploy` (builds locally and updates `typesetgo.app`; confirm account and build-time backend settings first)
 
 ---
 
@@ -133,7 +139,8 @@ typesetgo/
 │   └── sounds/               # Sound packs
 ├── tests/                    # Vitest setup + unit tests
 ├── docs/                     # Feature docs, PRDs, release notes, deployment docs
-├── docker/                   # Dockerfile, compose, nginx config
+├── worker/                   # Worker asset handler + generated runtime types
+├── wrangler.jsonc            # Live Worker account, domain, and asset configuration
 ├── vite-plugin-auto-manifest.ts # Generates data manifests for public content
 └── AGENTS.md                 # This handbook
 ```
@@ -279,7 +286,7 @@ For feature intent and product context, use:
 - `docs/features/` for implementation-level feature docs
 - `docs/PRDs/` for product requirements and roadmap context
 - `docs/release-notes/` for shipped behavior snapshots
-- `docs/deployment/DOCKER_GUIDE.md` for container deployment details
+- `docs/deployment/CLOUDFLARE_GUIDE.md` for live Worker deployment, migration history, and verification status; Docker/VPS hosting is retired
 
 ---
 

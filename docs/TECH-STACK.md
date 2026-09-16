@@ -6,8 +6,8 @@ Technology choices and versions powering TypeSetGo.
 
 | Tool | Version | Role |
 |------|---------|------|
-| Bun | latest | Package manager and JS runtime |
-| TypeScript | ~5.9 | Type system across frontend and backend |
+| Bun | 1.3.3 (package manager pin) | Package manager and JS runtime |
+| TypeScript | 7.0.2 | Type system across frontend and backend |
 | Node target | ESM (`"type": "module"`) | Module format |
 
 ## Frontend
@@ -15,8 +15,8 @@ Technology choices and versions powering TypeSetGo.
 | Library | Version | Role |
 |---------|---------|------|
 | React | 19 | UI framework |
-| Vite | 7 | Dev server, bundler, and build tool |
-| React Router DOM | 6 | Client-side SPA routing |
+| Vite | 8 | Dev server, bundler, and build tool |
+| React Router DOM | 7 | Client-side SPA routing |
 
 Vite is configured with the `@vitejs/plugin-react` plugin and a custom `autoManifestPlugin` that generates `manifest.json` files for theme and asset directories.
 
@@ -37,7 +37,7 @@ Tailwind v4 is integrated via `@tailwindcss/postcss` rather than the older plugi
 
 | Library | Version | Role |
 |---------|---------|------|
-| Shadcn/UI | 3.x (CLI) | Component system (new-york style, CSS variables, neutral base color) |
+| Shadcn/UI | 4.x (CLI) | Component system (new-york style, CSS variables, neutral base color) |
 | Radix UI | various | Accessible headless primitives |
 | Lucide React | latest | Icon library |
 | class-variance-authority | 0.7 | Component variant API |
@@ -46,7 +46,7 @@ Tailwind v4 is integrated via `@tailwindcss/postcss` rather than the older plugi
 | cmdk | 1.x | Command palette |
 | Sonner | 2.x | Toast notifications |
 | Embla Carousel | 8.x | Carousel component |
-| Framer Motion | 12.x | Animation library |
+| Framer Motion | 13.x | Animation library |
 
 Radix primitives in use: dialog, dropdown-menu, hover-card, label, popover, progress, select, slider, slot, switch, tabs.
 
@@ -54,7 +54,7 @@ Radix primitives in use: dialog, dropdown-menu, hover-card, label, popover, prog
 
 | Library | Version | Role |
 |---------|---------|------|
-| Convex | 1.31+ | Real-time serverless backend (database, queries, mutations, actions) |
+| Convex | 1.45+ | Real-time serverless backend (database, queries, mutations, actions) |
 
 All backend logic lives in the `convex/` directory. The schema and indexes are defined in `convex/schema.ts`. Generated files in `convex/_generated/` should not be edited.
 
@@ -102,15 +102,21 @@ Theme definitions are stored as JSON files in `public/themes/` with manifests au
 |---------|---------|------|
 | Vitest | 4.x | Unit and integration test runner |
 | @testing-library/react | 16.x | Component test utilities |
-| @testing-library/jest-dom | 6.x | DOM assertion matchers |
-| jsdom | 27.x | Browser environment for tests |
-| Playwright | 1.57+ | End-to-end browser tests |
+| @testing-library/jest-dom | 7.x | DOM assertion matchers |
+| jsdom | 30.x | Browser environment for tests |
+| Playwright | 1.62+ | End-to-end browser tests |
 
 ## Linting
 
 | Library | Version | Role |
 |---------|---------|------|
-| ESLint | 9 (flat config) | Code linting |
+| ESLint | 10 (flat config) | Code linting |
 | typescript-eslint | 8.x | TypeScript-aware lint rules |
 | eslint-plugin-react-hooks | 7.x | Hooks rules enforcement |
-| eslint-plugin-react-refresh | 0.4 | Fast refresh boundary validation |
+| eslint-plugin-react-refresh | 0.5 | Fast refresh boundary validation |
+
+## Hosting and deployment
+
+Cloudflare Workers Static Assets serves `typesetgo.app` from Vite's generated `dist/` directory. Wrangler 4 manages deployment and the custom domain. Production Clerk and the existing Convex **development deployment** remain the live services; the hosting migration did not migrate database data.
+
+Deployment currently runs locally with `bun run cf:deploy`. Connecting the existing Worker to GitHub `main` through Cloudflare Workers Builds is planned; it does not require GitHub Actions. Docker/VPS deployment is retired. See the [deployment guide](deployment/CLOUDFLARE_GUIDE.md).

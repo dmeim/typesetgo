@@ -24,13 +24,17 @@ bun run lint            # ESLint
 
 # Deployment
 bun run convex:deploy   # Deploy Convex functions
+bun run cf:dev          # Serve an existing dist build locally through Wrangler
+bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm target first)
 ```
 
 **Before handoff/commit:** run `bun run build && bun run test:run` when possible. Add `bun run lint` for broader/shared changes.
 
 ## Architecture
 
-- **Frontend:** Vite 7 SPA with React 19 + TypeScript 5.9 (`src/`)
+- **Frontend:** Vite 8 SPA with React 19 + TypeScript 7 (`src/`)
+- **Hosting:** Cloudflare Workers Static Assets (`typesetgo.app`); manual Wrangler deployment, no container build workflow
+- **Live services:** production Clerk + existing Convex development deployment (intentional; do not migrate the database)
 - **Backend:** Convex real-time functions (`convex/`)
 - **Auth:** Clerk, enabled when `VITE_CLERK_PUBLISHABLE_KEY` is set
 - **Styling:** Tailwind CSS v4 + Radix primitives + Shadcn/UI-style components
@@ -60,7 +64,7 @@ bun run convex:deploy   # Deploy Convex functions
 | `tests/unit/` | Vitest unit tests |
 | `tests/e2e/` | Reserved for Playwright specs (currently empty) |
 | `docs/` | Agent handbook, feature docs, PRDs, release notes, deployment docs |
-| `docker/` | Docker deployment assets |
+| `worker/`, `wrangler.jsonc` | Worker asset handler, generated runtime types, and live deployment configuration |
 | `scripts/` | One-off migration/maintenance scripts |
 
 ## Routes (`src/App.tsx`)
@@ -110,5 +114,6 @@ Notes:
 
 - [`docs/AGENTS.md`](docs/AGENTS.md) — comprehensive agent handbook
 - [`docs/TECH-STACK.md`](docs/TECH-STACK.md) — technology inventory
+- [`docs/deployment/CLOUDFLARE_GUIDE.md`](docs/deployment/CLOUDFLARE_GUIDE.md) — live Worker deployment, migration history, and verification status
 - [`docs/features/`](docs/features/) — feature implementation docs
 - [`docs/PRDs/`](docs/PRDs/) — product requirements and roadmap context
