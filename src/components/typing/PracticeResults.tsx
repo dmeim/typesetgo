@@ -81,7 +81,7 @@ export default function PracticeResults({
         tabIndex={-1}
         role="region"
         aria-label="Test results"
-        className="w-full max-w-4xl mx-auto rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+        className="w-full max-w-4xl mx-auto rounded-md outline-2 outline-offset-3 outline-ring"
         onKeyDown={(event) => {
           if (
             connectMode ||
