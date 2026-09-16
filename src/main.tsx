@@ -1,9 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ClerkProvider } from "@clerk/clerk-react";
-import { Toaster } from "@/components/ui/sonner";
+import { AppAuthProvider } from "@/components/layout/AppAuthProvider";
 import { NotificationProvider } from "@/lib/notification-store";
 import { ConvexClerkProvider } from "./ConvexClerkProvider.tsx";
 import App from "./App.tsx";
@@ -24,9 +23,9 @@ if (!CLERK_PUBLISHABLE_KEY) {
 }
 
 const appTree = (
-  <BrowserRouter>
+  <AppAuthProvider enabled={Boolean(CLERK_PUBLISHABLE_KEY)}>
     <App />
-  </BrowserRouter>
+  </AppAuthProvider>
 );
 
 createRoot(document.getElementById("root")!).render(
@@ -39,7 +38,6 @@ createRoot(document.getElementById("root")!).render(
       ) : (
         <ConvexProvider client={convex}>{appTree}</ConvexProvider>
       )}
-      <Toaster position="top-center" richColors />
     </NotificationProvider>
   </StrictMode>
 );
