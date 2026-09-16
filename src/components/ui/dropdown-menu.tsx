@@ -202,7 +202,7 @@ function DropdownMenuShortcut({
 function DropdownMenuSub({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
-  const overlay = useOverlayState(props);
+  const overlay = useOverlayState(props, { escapeClosesParent: true });
   return <OverlayScope value={overlay}><DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} open={overlay.open} onOpenChange={overlay.onOpenChange} /></OverlayScope>;
 }
 
