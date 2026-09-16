@@ -12,4 +12,3 @@ export const panelStyle = {
   color: tv.ui.cardForeground,
   borderColor: tv.ui.border,
 };
-
