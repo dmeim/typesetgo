@@ -11,42 +11,38 @@ interface KeyboardKeyProps {
   gap: number;
 }
 
-function KeyboardKeyInner({
-  keyDef,
-  isNext,
-  isActive,
-  isCapsLockOn,
-  unitSize,
-  gap,
-}: KeyboardKeyProps) {
+function KeyboardKeyInner({ keyDef, isNext, isActive, isCapsLockOn, unitSize, gap }: KeyboardKeyProps) {
   const width = (keyDef.width ?? 1) * unitSize + ((keyDef.width ?? 1) - 1) * gap;
   const height = unitSize * 1.2;
-  const fontSize = keyDef.type === "space" ? unitSize * 0.3 : unitSize * 0.4;
+  const fontSize = Math.max(10, keyDef.type === "space" ? unitSize * 0.3 : unitSize * 0.4);
 
   const isCapsKey = keyDef.type === "caps";
   const capsActive = isCapsKey && isCapsLockOn;
 
   let backgroundColor: string = "transparent";
-  let color: string = tv.text.muted;
+  let color: string = tv.ui.mutedForeground;
   let borderColor: string = tv.border.default;
 
   if (isActive) {
-    backgroundColor = tv.typing.correct;
-    color = tv.text.inverse;
-    borderColor = tv.typing.correct;
+    backgroundColor = tv.ui.primary;
+    color = tv.ui.primaryForeground;
+    borderColor = tv.ui.primary;
   } else if (isNext) {
-    backgroundColor = tv.interactive.primary.DEFAULT;
-    color = tv.text.inverse;
-    borderColor = tv.interactive.primary.DEFAULT;
+    backgroundColor = tv.ui.secondary;
+    color = tv.ui.secondaryForeground;
+    borderColor = tv.ui.ring;
   } else if (capsActive) {
-    backgroundColor = tv.status.warning.DEFAULT;
-    color = tv.text.inverse;
-    borderColor = tv.status.warning.DEFAULT;
+    backgroundColor = tv.ui.secondary;
+    color = tv.ui.secondaryForeground;
+    borderColor = tv.ui.ring;
   }
 
   return (
     <div
       className="flex items-center justify-center rounded-md select-none shrink-0"
+      data-key={keyDef.key}
+      data-next-key={isNext || undefined}
+      data-active-key={isActive || undefined}
       style={{
         width,
         height,
@@ -55,8 +51,6 @@ function KeyboardKeyInner({
         color,
         borderWidth: 2.5,
         borderColor,
-        transition: "background-color 100ms, color 100ms, transform 100ms, border-color 100ms",
-        transform: isActive ? "scale(0.90)" : "scale(1)",
         fontWeight: 500,
         lineHeight: 1,
       }}

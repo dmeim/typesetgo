@@ -2,7 +2,12 @@
 // Reusable typing area component extracted from TypingPractice
 // Handles core typing logic, character rendering, and WPM/accuracy calculation
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { computeStats, sanitizeTypingInput, getInputPosition, getNextTypingKey,
+  hasCompletedPrompt, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
+import PracticeText from "./PracticeText";
+import { useTypingScroll } from "./useTypingScroll";
+import { usePracticeClock } from "./usePracticeClock";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
@@ -21,6 +26,7 @@ export interface TypingStats {
   missedChars: number;
   extraChars: number;
   typedLength: number;
+  typedText: string;
   totalLength: number;
   elapsedMs: number;
   isFinished: boolean;
@@ -49,7 +55,11 @@ export interface TypingAreaProps {
   maxWordsPerLine?: number;
   /** Number of visible lines (for standard mode with scroll) */
   visibleLines?: number;
-  /** Externally controlled typed text (for reconnection support) */
+  /** Initial input restored once on mount; use a React key for a new run. */
+  initialInput?: string;
+  /** Active time restored with initial input; stopped room time is excluded. */
+  initialElapsedMs?: number;
+  /** Backward-compatible alias for initialInput, also applied only on mount. */
   initialTypedText?: string;
   /** Auto focus on mount */
   autoFocus?: boolean;
@@ -63,77 +73,6 @@ export interface TypingAreaProps {
   showOnScreenKeyboard?: boolean;
   /** Keyboard layout to use */
   keyboardLayout?: KeyboardLayoutId;
-}
-
-// --- Helper Functions ---
-
-/** Compute character-level stats from typed text vs reference */
-function computeStats(typed: string, reference: string) {
-  const typedWords = typed.split(" ");
-  const referenceWords = reference.split(" ");
-
-  let correct = 0;
-  let incorrect = 0;
-  let missed = 0;
-  let extra = 0;
-
-  for (let i = 0; i < typedWords.length; i++) {
-    const typedWord = typedWords[i];
-    const refWord = referenceWords[i] || "";
-    const isCurrentWord = i === typedWords.length - 1;
-
-    if (isCurrentWord) {
-      for (let j = 0; j < typedWord.length; j++) {
-        if (j < refWord.length) {
-          if (typedWord[j] === refWord[j]) {
-            correct++;
-          } else {
-            incorrect++;
-          }
-        } else {
-          extra++;
-        }
-      }
-    } else {
-      for (let j = 0; j < refWord.length; j++) {
-        if (j < typedWord.length) {
-          if (typedWord[j] === refWord[j]) {
-            correct++;
-          } else {
-            incorrect++;
-          }
-        } else {
-          missed++;
-        }
-      }
-
-      if (typedWord.length > refWord.length) {
-        extra += typedWord.length - refWord.length;
-      }
-    }
-
-    // Count space between words
-    if (i < typedWords.length - 1) {
-      const refHasNextWord = i < referenceWords.length - 1;
-      if (refHasNextWord) {
-        if (typedWord.length >= refWord.length) {
-          correct++;
-        } else {
-          incorrect++;
-        }
-      } else {
-        const isSingleTrailingSpace =
-          i === typedWords.length - 2 && typedWords[i + 1] === "";
-        if (isSingleTrailingSpace) {
-          correct++;
-        } else {
-          extra++;
-        }
-      }
-    }
-  }
-
-  return { correct, incorrect, missed, extra };
 }
 
 const LINE_HEIGHT = 1.6;
@@ -152,6 +91,8 @@ export default function TypingArea({
   maxWordsPerLine = 10,
   visibleLines = 3,
   initialTypedText = "",
+  initialInput,
+  initialElapsedMs = 0,
   autoFocus = true,
   className = "",
   textAlign = "left",
@@ -170,13 +111,10 @@ export default function TypingArea({
   }, [typingFontFamilyProp]);
 
   // State
-  const [typedText, setTypedText] = useState(initialTypedText);
-  const [isRunning, setIsRunning] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [scrollOffset, setScrollOffset] = useState(0);
+  const [typedText, setTypedText] = useState(() => sanitizeTypingInput(initialInput ?? initialTypedText));
+  const [isRunning, setIsRunning] = useState(() => Boolean(initialInput ?? initialTypedText) || initialElapsedMs > 0);
+  const { elapsedMs, resetClock } = usePracticeClock(isRunning && isActive, Math.max(0, initialElapsedMs));
   const [isFocused, setIsFocused] = useState(false);
-  const [tapeOffset, setTapeOffset] = useState(0);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const activeKeyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -184,10 +122,20 @@ export default function TypingArea({
   // Refs
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const activeWordRef = useRef<HTMLSpanElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const composingRef = useRef(false);
+  const [compositionDraft, setCompositionDraft] = useState<string | null>(null);
   const tapeContainerRef = useRef<HTMLDivElement | null>(null);
   const tapeContentRef = useRef<HTMLDivElement | null>(null);
   const cursorRef = useRef<HTMLSpanElement | null>(null);
+
+  const callbacksRef = useRef({ onProgress, onStart, onFinish });
+  callbacksRef.current = { onProgress, onStart, onFinish };
+  const finishNotifiedRef = useRef(false);
+  const previousTargetRef = useRef(targetText);
+  const scrollOffset = useTypingScroll({ viewportRef: feedingTape ? tapeContainerRef : containerRef,
+    contentRef: feedingTape ? tapeContentRef : contentRef, caretRef: cursorRef, visibleLines, feedingTape,
+    layoutKey: JSON.stringify([typedText, compositionDraft, targetText, resolvedFontFamily, fontSize, maxWordsPerLine, textAlign]) });
 
   // Computed stats
   const stats = useMemo(() => computeStats(typedText, targetText), [typedText, targetText]);
@@ -208,14 +156,14 @@ export default function TypingArea({
 
   // Check if typing is finished
   // In race mode: must type all characters correctly (no mistakes)
-  // In standard mode: just need to type enough characters
+  // Standard completion follows the final reference word.
   const isFinished = useMemo(() => {
     if (!targetText) return false;
     if (mode === "race") {
       // Race mode: all characters must be typed correctly
       return consecutiveCorrect >= targetText.length;
     }
-    return typedText.length >= targetText.length;
+    return hasCompletedPrompt(typedText, targetText);
   }, [typedText, targetText, mode, consecutiveCorrect]);
   
   const accuracy = useMemo(() => {
@@ -236,14 +184,14 @@ export default function TypingArea({
 
   // Progress calculation
   // In race mode: based on consecutive correct characters (mistakes stop progress)
-  // In standard mode: based on total typed length
+  // Standard progress uses word-aligned reference position.
   const progress = useMemo(() => {
     if (!targetText.length) return 0;
     if (mode === "race") {
       return (consecutiveCorrect / targetText.length) * 100;
     }
-    return (typedText.length / targetText.length) * 100;
-  }, [typedText.length, targetText.length, mode, consecutiveCorrect]);
+    return getInputPosition(typedText, targetText).referencePosition / targetText.length * 100;
+  }, [typedText, targetText, mode, consecutiveCorrect]);
 
   // Build full stats object
   const fullStats: TypingStats = useMemo(() => ({
@@ -256,48 +204,37 @@ export default function TypingArea({
     missedChars: stats.missed,
     extraChars: stats.extra,
     typedLength: typedText.length,
+    typedText,
     totalLength: targetText.length,
     elapsedMs,
     isFinished,
-  }), [wpm, rawWpm, accuracy, progress, stats, typedText.length, targetText.length, elapsedMs, isFinished]);
+  }), [wpm, rawWpm, accuracy, progress, stats, typedText, targetText.length, elapsedMs, isFinished]);
 
   // --- Effects ---
 
-  // Update external state on progress
+  // Callback identity alone is not a progress event, and stopped rooms emit no progress.
   useEffect(() => {
-    onProgress?.(fullStats);
-  }, [fullStats, onProgress]);
+    if (isActive && previousTargetRef.current === targetText) callbacksRef.current.onProgress?.(fullStats);
+  }, [fullStats, isActive, targetText]);
 
-  // Timer
   useEffect(() => {
-    if (!isRunning || isFinished) return;
-
-    const interval = setInterval(() => {
-      if (startTime) {
-        setElapsedMs(Date.now() - startTime);
-      }
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [isRunning, isFinished, startTime]);
-
-  // Handle finish
-  useEffect(() => {
-    if (isFinished && isRunning) {
+    if (isActive && previousTargetRef.current === targetText && isFinished && isRunning && !finishNotifiedRef.current) {
+      finishNotifiedRef.current = true;
       setIsRunning(false);
-      onFinish?.(fullStats);
+      callbacksRef.current.onFinish?.(fullStats);
     }
-  }, [isFinished, isRunning, fullStats, onFinish]);
+  }, [isFinished, isRunning, fullStats, isActive, targetText]);
 
-  // Reset when targetText changes
   useEffect(() => {
-    setTypedText(initialTypedText);
+    if (previousTargetRef.current === targetText) return;
+    previousTargetRef.current = targetText;
+    composingRef.current = false;
+    setCompositionDraft(null);
+    setTypedText("");
     setIsRunning(false);
-    setStartTime(null);
-    setElapsedMs(0);
-    setScrollOffset(0);
-    setTapeOffset(0);
-  }, [targetText, initialTypedText]);
+    resetClock();
+    finishNotifiedRef.current = false;
+  }, [targetText, resetClock]);
 
   // Auto focus
   useEffect(() => {
@@ -306,92 +243,25 @@ export default function TypingArea({
     }
   }, [autoFocus, isActive]);
 
-  // Scroll handling for standard mode
-  useLayoutEffect(() => {
-    if (mode !== "standard" || feedingTape) return;
-    if (!containerRef.current || !activeWordRef.current) return;
-
-    const container = containerRef.current;
-    const activeWord = activeWordRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const wordRect = activeWord.getBoundingClientRect();
-
-    const relativeTop = wordRect.top - containerRect.top;
-    const lineHeight = parseFloat(getComputedStyle(container).lineHeight || "0");
-
-    const targetTop = visibleLines === 1 ? 0 : lineHeight;
-    const diff = relativeTop - targetTop;
-
-    if (Math.abs(diff) > 10) {
-      setScrollOffset((prev) => Math.max(0, prev + diff));
-    }
-  }, [typedText, fontSize, visibleLines, mode, feedingTape]);
-
-  // Scroll handling for feeding tape mode - keep cursor centered
-  // The tape starts with the cursor at the center and text scrolls LEFT through it
-  useLayoutEffect(() => {
-    if (!feedingTape || !tapeContentRef.current || !cursorRef.current) return;
-
-    const content = tapeContentRef.current;
-    const cursor = cursorRef.current;
-    const container = content.parentElement;
-    if (!container) return;
-
-    // Get the character span that contains the cursor
-    const charSpan = cursor.parentElement;
-    if (!charSpan) return;
-
-    // Use getBoundingClientRect for positions
-    const contentRect = content.getBoundingClientRect();
-    const charRect = charSpan.getBoundingClientRect();
-    
-    // Content has paddingLeft: 50% of container width
-    const paddingLeft = container.clientWidth / 2;
-    
-    // The cursor's distance from where text begins (after the 50% padding).
-    // The transform (-tapeOffset) is already applied to both content and char,
-    // so it cancels out in the subtraction.
-    // charRect.left - contentRect.left gives us: paddingLeft + charPositionInText - tapeOffset + tapeOffset
-    // Wait no, the transform applies to both equally, so:
-    // charRect.left = contentLeftBeforeTransform - tapeOffset + paddingLeft + charPositionInText
-    // contentRect.left = contentLeftBeforeTransform - tapeOffset
-    // charRect.left - contentRect.left = paddingLeft + charPositionInText
-    const charPositionWithPadding = charRect.left - contentRect.left;
-    const charPositionInText = charPositionWithPadding - paddingLeft;
-    
-    // Set tapeOffset to this position so the cursor stays at the center (the padding mark)
-    setTapeOffset(Math.max(0, charPositionInText));
-  }, [typedText, feedingTape]);
-
   // --- Handlers ---
-
   const handleInput = useCallback((value: string) => {
-    if (isFinished) return;
-    if (!isActive) return;
-
-    // Prevent typing more than target text
-    if (value.length > targetText.length) {
-      value = value.slice(0, targetText.length);
-    }
-
+    if (isFinished || !isActive || !targetText) return;
+    const sanitized = sanitizeTypingInput(value);
+    // Race progress requires correcting a mistake before continuing; Backspace remains available.
+    if (mode === "race" && !targetText.startsWith(typedText) && sanitized.length > typedText.length) return;
     if (!isRunning) {
       setIsRunning(true);
-      setStartTime(Date.now());
-      onStart?.();
+      callbacksRef.current.onStart?.();
     }
+    setTypedText(sanitized);
+  }, [isFinished, isActive, targetText, mode, typedText, isRunning]);
 
-    setTypedText(value);
-  }, [isFinished, isActive, isRunning, targetText.length, onStart]);
-
-  const nextChar = useMemo(() => {
-    if (isFinished || !targetText) return null;
-    return targetText[typedText.length] ?? null;
-  }, [typedText.length, targetText, isFinished]);
+  const nextChar = isFinished ? null : getNextTypingKey(typedText, targetText, mode === "race");
 
   useEffect(() => {
     const handleKeyEvent = (e: KeyboardEvent) => {
       setCapsLockOn(e.getModifierState("CapsLock"));
-      if (e.type === "keydown" && e.key.length === 1 || e.key === " ") {
+      if (e.type === "keydown" && (e.key.length === 1 || e.key === "Backspace")) {
         setActiveKey(e.key);
         clearTimeout(activeKeyTimeoutRef.current);
         activeKeyTimeoutRef.current = setTimeout(() => setActiveKey(null), 150);
@@ -406,176 +276,16 @@ export default function TypingArea({
     };
   }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Prevent default tab behavior
-    if (e.key === "Tab") {
-      e.preventDefault();
-      // Could trigger restart if needed
-    }
-    // Prevent pasting
-    if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-      e.preventDefault();
-    }
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (composingRef.current) return;
+    constrainEditingKey(event);
   };
 
-  const handleFocus = () => setIsFocused(true);
+  const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => { setIsFocused(true); placeCaretAtEnd(event.currentTarget); };
   const handleBlur = () => setIsFocused(false);
 
   const handleContainerClick = () => {
     inputRef.current?.focus();
-  };
-
-  // --- Render Character ---
-  const renderCharacter = useCallback((
-    char: string,
-    charIdx: number,
-    wordStartIndex: number,
-    typedWord: string,
-    isPastWord: boolean,
-    isCurrentWord: boolean,
-  ) => {
-    const globalCharIndex = wordStartIndex + charIdx;
-    const typedChar = typedWord[charIdx];
-    const isTyped = typedChar !== undefined;
-    const isCorrect = typedChar === char;
-    const isCursor = isCurrentWord && charIdx === typedWord.length;
-
-    let charColor: string = tv.typing.default;
-    if (!isTyped) {
-      if (isPastWord) charColor = tv.typing.incorrect;
-      else if (isCursor) charColor = tv.typing.upcoming;
-    } else {
-      charColor = isCorrect ? tv.typing.correct : tv.typing.incorrect;
-    }
-
-    return (
-      <span key={`${globalCharIndex}-${charIdx}`} className="relative" style={{ color: charColor }}>
-        {char}
-        {isCursor && (
-          <span
-            className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-            style={{ backgroundColor: tv.typing.cursor }}
-          />
-        )}
-      </span>
-    );
-  }, []);
-
-  // --- Render Standard Mode ---
-  const renderStandardMode = () => {
-    const wordsArray = targetText.split(" ");
-    const typedWords = typedText.split(" ");
-    const currentWordIndex = typedWords.length - 1;
-
-    return wordsArray.reduce<{ nodes: React.ReactNode[]; currentIndex: number }>(
-      (acc, word, wordIdx) => {
-        const wordStartIndex = acc.currentIndex;
-        const typedWord = typedWords[wordIdx] || "";
-        const isCurrentWord = wordIdx === currentWordIndex;
-        const isPastWord = wordIdx < currentWordIndex;
-
-        const wordNode = (
-          <span
-            key={wordIdx}
-            ref={isCurrentWord ? activeWordRef : null}
-            className="inline-block mr-[0.5em] relative"
-          >
-            {word.split("").map((char, charIdx) =>
-              renderCharacter(char, charIdx, wordStartIndex, typedWord, isPastWord, isCurrentWord)
-            )}
-            {/* Extra characters beyond the word */}
-            {(isCurrentWord || isPastWord) && typedWord.length > word.length && (
-              <span style={{ color: tv.typing.incorrect }}>{typedWord.slice(word.length)}</span>
-            )}
-            {/* Cursor at end of word */}
-            {isCurrentWord && typedWord.length === word.length && (
-              <span className="relative">
-                <span
-                  className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                  style={{ backgroundColor: tv.typing.cursor }}
-                />
-              </span>
-            )}
-          </span>
-        );
-
-        acc.nodes.push(wordNode);
-        // Insert line break after maxWordsPerLine
-        if ((wordIdx + 1) % maxWordsPerLine === 0 && wordIdx < wordsArray.length - 1) {
-          acc.nodes.push(<br key={`br-${wordIdx}`} />);
-        }
-        acc.currentIndex += word.length + 1;
-        return acc;
-      },
-      { nodes: [], currentIndex: 0 }
-    ).nodes;
-  };
-
-  // --- Render Feeding Tape Mode (cursor-centered) ---
-  const renderFeedingTapeMode = () => {
-    const wordsArray = targetText.split(" ");
-    const typedWords = typedText.split(" ");
-    const currentWordIndex = typedWords.length - 1;
-
-    return wordsArray.map((word, wordIdx) => {
-      const wordStartIndex = wordsArray.slice(0, wordIdx).reduce((sum, w) => sum + w.length + 1, 0);
-      const typedWord = typedWords[wordIdx] || "";
-      const isCurrentWord = wordIdx === currentWordIndex;
-      const isPastWord = wordIdx < currentWordIndex;
-
-      return (
-        <span
-          key={wordIdx}
-          ref={isCurrentWord ? activeWordRef : null}
-          className={`inline-block mr-[0.75em] transition-opacity duration-200 ${
-            isPastWord ? "opacity-40" : "opacity-100"
-          }`}
-        >
-          {word.split("").map((char, charIdx) => {
-            const globalCharIndex = wordStartIndex + charIdx;
-            const typedChar = typedWord[charIdx];
-            const isTyped = typedChar !== undefined;
-            const isCorrect = typedChar === char;
-            const isCursor = isCurrentWord && charIdx === typedWord.length;
-
-            let charColor: string = tv.typing.default;
-            if (!isTyped) {
-              if (isPastWord) charColor = tv.typing.incorrect;
-              else if (isCursor) charColor = tv.typing.upcoming;
-            } else {
-              charColor = isCorrect ? tv.typing.correct : tv.typing.incorrect;
-            }
-
-            return (
-              <span key={`${globalCharIndex}-${charIdx}`} className="relative" style={{ color: charColor }}>
-                {char}
-                {isCursor && (
-                  <span
-                    ref={cursorRef}
-                    className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                    style={{ backgroundColor: tv.typing.cursor }}
-                  />
-                )}
-              </span>
-            );
-          })}
-          {/* Extra characters beyond the word */}
-          {(isCurrentWord || isPastWord) && typedWord.length > word.length && (
-            <span style={{ color: tv.typing.incorrect }}>{typedWord.slice(word.length)}</span>
-          )}
-          {/* Cursor at end of word (after all characters typed) */}
-          {isCurrentWord && typedWord.length === word.length && (
-            <span className="relative">
-              <span
-                ref={cursorRef}
-                className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                style={{ backgroundColor: tv.typing.cursor }}
-              />
-            </span>
-          )}
-        </span>
-      );
-    });
   };
 
   // --- Main Render ---
@@ -593,8 +303,14 @@ export default function TypingArea({
         type="text"
         className="absolute opacity-0 pointer-events-none"
         style={{ position: "absolute", left: "-9999px" }}
-        value={typedText}
-        onChange={(e) => handleInput(e.target.value)}
+        value={compositionDraft ?? typedText}
+        aria-label="Typing practice"
+        aria-description="Type at the end. Use Backspace to correct mistakes. Tab moves to the next control."
+        onChange={(event) => { if (composingRef.current) setCompositionDraft(event.target.value); else handleInput(event.target.value); }}
+        onCompositionStart={(event) => { composingRef.current = true; setCompositionDraft(event.currentTarget.value); }}
+        onCompositionEnd={(event) => { composingRef.current = false; setCompositionDraft(null); handleInput(event.currentTarget.value); placeCaretAtEnd(event.currentTarget); }}
+        onSelect={(event) => { if (!composingRef.current) placeCaretAtEnd(event.currentTarget); }}
+        onPaste={(event) => event.preventDefault()}
         onKeyDown={handleKeyDown}
         onFocus={handleFocus}
         onBlur={handleBlur}
@@ -602,7 +318,7 @@ export default function TypingArea({
         autoCapitalize="off"
         autoCorrect="off"
         spellCheck="false"
-        disabled={!isActive || isFinished}
+        disabled={!isActive || isFinished || !targetText}
       />
 
       {/* Inline Stats */}
@@ -630,18 +346,18 @@ export default function TypingArea({
         >
           <div
             ref={tapeContentRef}
-            className="whitespace-nowrap transition-transform duration-100 ease-out relative"
+            className="whitespace-nowrap motion-safe:transition-transform motion-safe:duration-100 ease-out relative"
             style={{
               fontSize: `${fontSize}rem`,
               fontFamily: resolvedFontFamily,
               lineHeight: LINE_HEIGHT,
-              transform: `translateX(-${tapeOffset}px)`,
+              transform: `translateX(-${scrollOffset}px)`,
               // 50% padding ensures cursor can be centered at start and end
               paddingLeft: "50%",
               paddingRight: "50%",
             }}
           >
-            {renderFeedingTapeMode()}
+            <PracticeText targetText={targetText} typedText={compositionDraft ?? typedText} caretRef={cursorRef} feedingTape />
           </div>
           {/* Fade edges for visual polish */}
           <div
@@ -679,10 +395,11 @@ export default function TypingArea({
           }}
         >
           <div
-            className="transition-transform duration-100"
+            ref={contentRef}
+            className="relative motion-safe:transition-transform motion-safe:duration-100"
             style={{ transform: `translateY(-${scrollOffset}px)` }}
           >
-            {renderStandardMode()}
+            <PracticeText targetText={targetText} typedText={compositionDraft ?? typedText} caretRef={cursorRef} maxWordsPerLine={maxWordsPerLine} />
           </div>
 
           {/* Focus indicator overlay */}

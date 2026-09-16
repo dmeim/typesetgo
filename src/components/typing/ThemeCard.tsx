@@ -1,11 +1,12 @@
-import { Sun, Moon } from "lucide-react";
-import type { ThemeDefinition, ThemeVariantDefinition } from "@/types/theme";
+import { Sun, Moon, ChevronDown } from "lucide-react";
+import type { ThemeDefinition, ThemeVariantDefinition, ThemeMode } from "@/types/theme";
 
 interface ThemeCardProps {
   themeData: ThemeDefinition;
   variant: ThemeVariantDefinition;
   label: string;
   isSelected: boolean;
+  selectedMode?: ThemeMode;
   isMultiVariant: boolean;
   isExpanded?: boolean;
   variantCount?: number;
@@ -20,9 +21,11 @@ interface ThemeCardProps {
 }
 
 export default function ThemeCard({
+  themeData,
   variant,
   label,
   isSelected,
+  selectedMode,
   isMultiVariant,
   isExpanded,
   variantCount,
@@ -35,81 +38,75 @@ export default function ThemeCard({
   onLightMouseEnter,
   onDarkMouseEnter,
 }: ThemeCardProps) {
-  const showCountBadge = isMultiVariant && !isExpanded;
-  const showExpandedIndicator = isMultiVariant && isExpanded;
-
+  const name = isMultiVariant || label === themeData.name ? label : `${themeData.name}: ${label}`;
   return (
     <div
-      className={`flex rounded-lg border transition overflow-hidden min-h-[64px] ${
-        isSelected
-          ? "border-gray-400 ring-1 ring-gray-400"
-          : "border-gray-700 hover:border-gray-500"
-      }`}
-      style={{ backgroundColor: variant.dark.bg.base }}
+      className={`flex min-w-0 overflow-hidden rounded-md border bg-card text-card-foreground ${isSelected ? "border-ring" : "border-border"}`}
     >
       <button
+        type="button"
         onClick={onCardClick}
+        aria-label={isMultiVariant ? `${name} variants` : `Select ${name}`}
+        aria-expanded={isMultiVariant ? !!isExpanded : undefined}
+        aria-controls={isMultiVariant ? `theme-variants-${themeData.id}` : undefined}
+        aria-pressed={isMultiVariant ? undefined : isSelected}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
-        className="flex-1 min-w-0 p-2 text-left"
+        onFocus={onMouseEnter}
+        onBlur={onMouseLeave}
+        className="min-h-20 min-w-0 flex-1 p-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: variant.dark.typing.cursor }} />
-          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: variant.dark.interactive.secondary.DEFAULT }} />
-          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: variant.dark.typing.correct }} />
-        </div>
-        <div className="text-xs whitespace-normal break-words leading-tight" style={{ color: variant.dark.typing.correct }}>
-          {label}
-        </div>
-      </button>
-
-      {(showCountBadge || showExpandedIndicator) ? (
-        <div
-          className="w-10 shrink-0 flex items-center justify-center border-l cursor-pointer hover:bg-white/5 transition-colors"
-          style={{ borderColor: `${variant.dark.typing.correct}30` }}
-          onClick={onCardClick}
+        <span
+          className="mb-2 flex items-center gap-2 rounded p-2"
+          style={{ backgroundColor: variant.dark.bg.base }}
+          aria-hidden="true"
         >
-          <span
-            className="text-sm font-semibold"
-            style={{
-              color: variant.dark.interactive.primary.DEFAULT,
-            }}
-          >
-            {matchingVariantCount != null && matchingVariantCount < (variantCount ?? 0)
-              ? matchingVariantCount
-              : variantCount}
-          </span>
-        </div>
-      ) : (
-        <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${variant.dark.typing.correct}30` }}>
+          {[variant.dark.typing.cursor, variant.dark.interactive.secondary.DEFAULT, variant.dark.typing.correct].map(
+            (color, index) => (
+              <span key={index} className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+            ),
+          )}
+        </span>
+        <span className="flex items-center justify-between gap-2 text-sm">
+          <span className="min-w-0 break-words">{label}</span>
+          {isMultiVariant && (
+            <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+              {matchingVariantCount ?? variantCount}
+              <ChevronDown size={14} className={isExpanded ? "rotate-180" : ""} aria-hidden="true" />
+            </span>
+          )}
+        </span>
+        {isSelected && <span className="sr-only">Current theme</span>}
+      </button>
+      {!isMultiVariant && (
+        <div className="flex w-11 shrink-0 flex-col border-l border-border">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (variant.light && onLightClick) onLightClick();
-            }}
+            type="button"
+            onClick={onLightClick}
+            disabled={!variant.light}
             onMouseEnter={onLightMouseEnter}
             onMouseLeave={onMouseLeave}
-            disabled={!variant.light}
-            className={`flex-1 flex items-center justify-center transition-colors ${
-              !variant.light
-                ? "opacity-30 cursor-not-allowed"
-                : "hover:bg-white/10 cursor-pointer"
-            }`}
-            title={variant.light ? "Light mode" : "Light mode not available"}
+            onFocus={onLightMouseEnter}
+            onBlur={onMouseLeave}
+            aria-label={`Select ${name}, light mode`}
+            aria-pressed={selectedMode ? isSelected && selectedMode === "light" : undefined}
+            title={variant.light ? "Light mode" : "Light mode unavailable"}
+            className="flex min-h-10 flex-1 items-center justify-center hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:opacity-40"
           >
-            <Sun className="w-3 h-3" style={{ color: variant.dark.typing.correct }} />
+            <Sun size={16} aria-hidden="true" />
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onDarkClick) onDarkClick();
-            }}
+            type="button"
+            onClick={onDarkClick}
             onMouseEnter={onDarkMouseEnter}
             onMouseLeave={onMouseLeave}
-            className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
-            title="Dark mode"
+            onFocus={onDarkMouseEnter}
+            onBlur={onMouseLeave}
+            aria-label={`Select ${name}, dark mode`}
+            aria-pressed={selectedMode ? isSelected && selectedMode === "dark" : undefined}
+            className="flex min-h-10 flex-1 items-center justify-center hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
-            <Moon className="w-3 h-3" style={{ color: variant.dark.typing.correct }} />
+            <Moon size={16} aria-hidden="true" />
           </button>
         </div>
       )}

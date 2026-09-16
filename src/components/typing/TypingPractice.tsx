@@ -1,97 +1,53 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
-import type { Quote, SettingsState, Theme } from "@/lib/typing-constants";
+import { normalizePracticeSettings, type Quote, type SettingsState, type Theme } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
-import { fetchAllThemes, groupThemesByCategory, CATEGORY_CONFIG, type ThemeDefinition, type GroupedThemes, type ThemeCategory } from "@/lib/themes";
-import type { ThemeColors, ThemeMode } from "@/types/theme";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
-import { fetchWordsManifest, fetchWords, type WordsManifest } from "@/lib/words";
-import { fetchQuotesManifest, fetchQuotes, type QuotesManifest } from "@/lib/quotes";
+import { fetchWordsManifest, type WordsManifest } from "@/lib/words";
+import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
 import {
+  DEFAULT_SETTINGS,
   loadSettings,
   saveSettings,
   loadLayoutSettings,
   saveLayoutSettings,
 } from "@/lib/storage-utils";
-import { TYPING_FONT_OPTIONS, DEFAULT_TYPING_FONT, getTypingFontFamily } from "@/lib/typing-fonts";
+import { DEFAULT_TYPING_FONT, getTypingFontFamily } from "@/lib/typing-fonts";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
-import ThemeCard from "@/components/typing/ThemeCard";
-import VariantDrawer from "@/components/typing/VariantDrawer";
-import { useGridColumns } from "@/hooks/useGridColumns";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 import type { Plan, PlanItem, PlanStepResult } from "@/types/plan";
 import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
 import PlanSplash from "@/components/plan/PlanSplash";
 import PlanResultsModal from "@/components/plan/PlanResultsModal";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { useUser, useClerk } from "@clerk/clerk-react";
+import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useNotifications } from "@/lib/notification-store";
 import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
 
+import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey,
+  hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
+import { usePracticeClock } from "./usePracticeClock";
+import { usePracticeDataset } from "./usePracticeDataset";
+import { useTypingScroll } from "./useTypingScroll";
+import PracticeText from "./PracticeText";
+import PracticeResults from "./PracticeResults";
+import PracticeCountDialog from "./PracticeCountDialog";
+import PracticePresetDialog from "./PracticePresetDialog";
+import PracticeControls from "./PracticeControls";
+import PracticeQuickSettingsDialog from "./PracticeQuickSettingsDialog";
+import PracticeSettingsDialog from "./PracticeSettingsDialog";
+import PracticeThemePicker from "./PracticeThemePicker";
+import { PROMPT_SETTING_KEYS, TIME_PRESETS, WORD_PRESETS, type ModeSelectorOption } from "./practice-config";
+
 // Constants
-const TIME_PRESETS = [15, 30, 60, 120, 300];
-const WORD_PRESETS = [10, 25, 50, 100, 500];
-const MODE_SELECTOR_OPTIONS = ["kid", "zen", "time", "words", "quote"] as const;
 const PUNCTUATION_CHARS = [".", ",", "!", "?", ";", ":"];
 const NUMBER_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const LINE_HEIGHT = 1.6;
-const CUSTOM_WORD_MIN = 1;
-const CUSTOM_WORD_MAX = 9999;
-const CUSTOM_DURATION_MAX_HOURS = 6;
-const DIAL_ROW_HEIGHT = 42;
-const DIAL_VISIBLE_ROWS = 5;
-const DIAL_PADDING_ROWS = Math.floor(DIAL_VISIBLE_ROWS / 2);
-const DIAL_VIEWPORT_HEIGHT = DIAL_ROW_HEIGHT * DIAL_VISIBLE_ROWS;
-const DIAL_SPACER_HEIGHT = DIAL_ROW_HEIGHT * DIAL_PADDING_ROWS;
-const SETTINGS_TABS = [
-  { id: "all", label: "All" },
-  { id: "type", label: "Type" },
-  { id: "race", label: "Race" },
-  { id: "lesson", label: "Lesson" },
-] as const;
-const TEXT_ALIGN_OPTIONS = ["left", "center", "right", "justify"] as const;
-const NONE_SOUND_VALUE = "__none_sound__";
-type SettingsTabId = (typeof SETTINGS_TABS)[number]["id"];
-type ModeSelectorOption = (typeof MODE_SELECTOR_OPTIONS)[number];
-
-const normalizeThemeSearchText = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .replace(/\s+/g, " ");
-
-const themeSearchMatches = (value: string, normalizedQuery: string) => {
-  if (!normalizedQuery) return true;
-
-  const normalizedValue = normalizeThemeSearchText(value);
-  return (
-    normalizedValue.includes(normalizedQuery) ||
-    normalizedValue.replace(/\s/g, "").includes(normalizedQuery.replace(/\s/g, ""))
-  );
-};
 
 // Word generation helper
 const generateWords = (
@@ -126,96 +82,6 @@ const generateWords = (
   return words.join(" ");
 };
 
-// Stats computation
-const computeStats = (typed: string, reference: string) => {
-  const typedWords = typed.split(" ");
-  const referenceWords = reference.split(" ");
-
-  let correct = 0;
-  let incorrect = 0;
-  let missed = 0;
-  let extra = 0;
-
-  for (let i = 0; i < typedWords.length; i++) {
-    const typedWord = typedWords[i];
-    const refWord = referenceWords[i] || "";
-    const isCurrentWord = i === typedWords.length - 1;
-
-    if (isCurrentWord) {
-      for (let j = 0; j < typedWord.length; j++) {
-        if (j < refWord.length) {
-          if (typedWord[j] === refWord[j]) {
-            correct++;
-          } else {
-            incorrect++;
-          }
-        } else {
-          extra++;
-        }
-      }
-    } else {
-      for (let j = 0; j < refWord.length; j++) {
-        if (j < typedWord.length) {
-          if (typedWord[j] === refWord[j]) {
-            correct++;
-          } else {
-            incorrect++;
-          }
-        } else {
-          missed++;
-        }
-      }
-
-      if (typedWord.length > refWord.length) {
-        extra += typedWord.length - refWord.length;
-      }
-    }
-
-    if (i < typedWords.length - 1) {
-      const refHasNextWord = i < referenceWords.length - 1;
-      if (refHasNextWord) {
-        if (typedWord.length >= refWord.length) {
-          correct++;
-        } else {
-          incorrect++;
-        }
-      } else {
-        const isSingleTrailingSpace =
-          i === typedWords.length - 2 && typedWords[i + 1] === "";
-        if (isSingleTrailingSpace) {
-          correct++;
-        } else {
-          extra++;
-        }
-      }
-    }
-  }
-
-  return { correct, incorrect, missed, extra };
-};
-
-// Word-level results computation
-const computeWordResults = (typed: string, reference: string) => {
-  const typedWords = typed.trim().split(" ").filter(w => w.length > 0);
-  const referenceWords = reference.split(" ");
-  
-  const correctWords: string[] = [];
-  const incorrectWords: { typed: string; expected: string }[] = [];
-  
-  for (let i = 0; i < typedWords.length; i++) {
-    const typedWord = typedWords[i];
-    const refWord = referenceWords[i] || "";
-    
-    if (typedWord === refWord) {
-      correctWords.push(typedWord);
-    } else if (refWord) {
-      incorrectWords.push({ typed: typedWord, expected: refWord });
-    }
-  }
-  
-  return { correctWords, incorrectWords };
-};
-
 const formatTime = (seconds: number) => {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -229,196 +95,6 @@ const formatTime = (seconds: number) => {
   }
   return `${s}s`;
 };
-
-const clampNumber = (value: number, min: number, max: number) => {
-  return Math.min(max, Math.max(min, value));
-};
-
-const durationToDialValues = (totalSeconds: number) => {
-  const clampedSeconds = clampNumber(
-    Math.round(totalSeconds),
-    0,
-    CUSTOM_DURATION_MAX_HOURS * 3600 + 59 * 60 + 59
-  );
-
-  return {
-    hours: Math.floor(clampedSeconds / 3600),
-    minutes: Math.floor((clampedSeconds % 3600) / 60),
-    seconds: clampedSeconds % 60,
-  };
-};
-
-type WordDigits = {
-  thousands: number;
-  hundreds: number;
-  tens: number;
-  ones: number;
-};
-
-const wordTargetToDigits = (target: number): WordDigits => {
-  const clampedTarget = clampNumber(Math.round(target), CUSTOM_WORD_MIN, CUSTOM_WORD_MAX);
-  const [thousands, hundreds, tens, ones] = clampedTarget
-    .toString()
-    .padStart(4, "0")
-    .split("")
-    .map((digit) => Number(digit));
-
-  return {
-    thousands,
-    hundreds,
-    tens,
-    ones,
-  };
-};
-
-const digitsToWordTarget = (digits: WordDigits) => {
-  return digits.thousands * 1000 + digits.hundreds * 100 + digits.tens * 10 + digits.ones;
-};
-
-type NumberDialProps = {
-  label: string;
-  min: number;
-  max: number;
-  value: number;
-  onChange: (value: number) => void;
-};
-
-function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const isSyncingRef = useRef(false);
-  const options = useMemo(
-    () => Array.from({ length: max - min + 1 }, (_, index) => min + index),
-    [max, min]
-  );
-
-  useEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-
-    const targetTop = (value - min) * DIAL_ROW_HEIGHT;
-    isSyncingRef.current = true;
-    scroller.scrollTo({ top: targetTop, behavior: "auto" });
-
-    const frame = requestAnimationFrame(() => {
-      isSyncingRef.current = false;
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [min, value]);
-
-  const adjustValue = useCallback(
-    (delta: number) => {
-      onChange(clampNumber(value + delta, min, max));
-    },
-    [max, min, onChange, value]
-  );
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <button
-        type="button"
-        onClick={() => adjustValue(-1)}
-        className="rounded-full p-1 transition-opacity hover:opacity-80"
-        style={{ color: tv.text.secondary, backgroundColor: tv.bg.base }}
-        aria-label={`${label} up`}
-      >
-        <ChevronUp className="h-4 w-4" />
-      </button>
-
-      <div
-        className="relative w-20 overflow-hidden rounded-xl border"
-        style={{
-          height: `${DIAL_VIEWPORT_HEIGHT}px`,
-          borderColor: tv.border.subtle,
-          backgroundColor: tv.bg.base,
-        }}
-      >
-        <div
-          ref={scrollRef}
-          className="h-full snap-y snap-mandatory overflow-y-auto"
-          style={{
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
-          onScroll={(event) => {
-            if (isSyncingRef.current) return;
-            const nextIndex = Math.round(event.currentTarget.scrollTop / DIAL_ROW_HEIGHT);
-            const nextValue = clampNumber(min + nextIndex, min, max);
-            if (nextValue !== value) {
-              onChange(nextValue);
-            }
-          }}
-        >
-          <div style={{ height: `${DIAL_SPACER_HEIGHT}px` }} />
-
-          {options.map((optionValue) => {
-            const distance = Math.abs(optionValue - value);
-            const opacity = distance === 0 ? 1 : distance === 1 ? 0.75 : distance === 2 ? 0.45 : 0.2;
-
-            return (
-              <div
-                key={optionValue}
-                className="snap-center text-center tabular-nums leading-none"
-                style={{
-                  height: `${DIAL_ROW_HEIGHT}px`,
-                  lineHeight: `${DIAL_ROW_HEIGHT}px`,
-                  fontSize: distance === 0 ? "1.6rem" : "1.2rem",
-                  fontWeight: distance === 0 ? 700 : 500,
-                  color: distance === 0 ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                  opacity,
-                }}
-              >
-                {optionValue.toString().padStart(2, "0")}
-              </div>
-            );
-          })}
-
-          <div style={{ height: `${DIAL_SPACER_HEIGHT}px` }} />
-        </div>
-
-        <div
-          className="pointer-events-none absolute inset-x-1 top-1/2 -translate-y-1/2 rounded-lg border"
-          style={{
-            height: `${DIAL_ROW_HEIGHT}px`,
-            borderColor: tv.interactive.secondary.DEFAULT,
-            backgroundColor: tv.bg.elevated,
-            opacity: 0.75,
-          }}
-        />
-
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0"
-          style={{
-            height: `${DIAL_SPACER_HEIGHT}px`,
-            background: `linear-gradient(to bottom, ${tv.bg.base}, transparent)`,
-          }}
-        />
-
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0"
-          style={{
-            height: `${DIAL_SPACER_HEIGHT}px`,
-            background: `linear-gradient(to top, ${tv.bg.base}, transparent)`,
-          }}
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={() => adjustValue(1)}
-        className="rounded-full p-1 transition-opacity hover:opacity-80"
-        style={{ color: tv.text.secondary, backgroundColor: tv.bg.base }}
-        aria-label={`${label} down`}
-      >
-        <ChevronDown className="h-4 w-4" />
-      </button>
-
-      <span className="text-xs uppercase tracking-wide" style={{ color: tv.text.muted }}>
-        {label}
-      </span>
-    </div>
-  );
-}
 
 interface TypingPracticeProps {
   connectMode?: boolean;
@@ -445,33 +121,6 @@ interface TypingPracticeProps {
   setShowThemeModal?: (show: boolean) => void;
   // Callback to notify parent of typing state changes
   onTypingStateChange?: (isTyping: boolean) => void;
-}
-
-// Animated counter display for WPM
-function AnimatedWpmDisplay({ value, color }: { value: number; color: string }) {
-  const animated = useAnimatedCounter(value, 1000, 200);
-  return (
-    <div
-      className="text-6xl md:text-8xl font-black tabular-nums leading-none tracking-tight"
-      style={{ color }}
-    >
-      {animated}
-    </div>
-  );
-}
-
-// Animated counter display for Accuracy
-function AnimatedAccuracyDisplay({ value, color }: { value: number; color: string }) {
-  const animated = useAnimatedCounter(value, 1000, 300);
-  return (
-    <div
-      className="text-6xl md:text-8xl font-black tabular-nums leading-none tracking-tight"
-      style={{ color }}
-    >
-      {animated}
-      <span className="text-2xl md:text-4xl align-top ml-1 opacity-50">%</span>
-    </div>
-  );
 }
 
 function getLocalCalendarFields() {
@@ -504,39 +153,26 @@ export default function TypingPractice({
   // Theme context (replaces props and internal state)
   const {
     colors,
-    themeName: selectedThemeName,
     themeId: selectedThemeId,
     variantId: selectedVariantId,
     mode: selectedMode,
-    setTheme: setThemeById,
+    userSelectionRevision,
     setThemeSelection,
   } = useTheme();
   // --- State ---
-  const [settings, setSettings] = useState<SettingsState>({
-    mode: "zen",
-    duration: 30,
-    wordTarget: 25,
-    punctuation: false,
-    numbers: false,
-    capitalization: false,
-    typingFontSize: 3.25,
-    typingFontFamily: DEFAULT_TYPING_FONT,
-    iconFontSize: 1,
-    helpFontSize: 1,
-    difficulty: "beginner",
-    quoteLength: "all",
-    textAlign: "center",
-    ghostWriterSpeed: 40,
-    ghostWriterEnabled: false,
-    soundEnabled: true,
-    typingSound: "creamy",
-    warningSound: "clock",
-    errorSound: "",
-    presetText: "",
-    presetModeType: "finish",
-    showOnScreenKeyboard: false,
-    keyboardLayout: "qwerty" as KeyboardLayoutId,
-  });
+  const [settings, setSettings] = useState<SettingsState>(() => normalizePracticeSettings({
+    ...DEFAULT_SETTINGS, ...loadSettings(), presetText: "", ...(connectMode ? lockedSettings : {}),
+  }));
+  // Account defaults arriving during an attempt belong to the next prompt, including while results are open.
+  const [pendingPromptPreferences, setPendingPromptPreferences] = useState<Partial<SettingsState> | null>(null);
+  const preferredSettings = useMemo(() => pendingPromptPreferences
+    ? { ...settings, ...pendingPromptPreferences } : settings, [settings, pendingPromptPreferences]);
+  const preferenceEditsRef = useRef(new Set<string>());
+  const themeEditedRef = useRef(false);
+  const themeRevisionBaselineRef = useRef(userSelectionRevision);
+  const themeRevisionRef = useRef(userSelectionRevision);
+  themeRevisionRef.current = userSelectionRevision;
+  if (userSelectionRevision !== themeRevisionBaselineRef.current) themeEditedRef.current = true;
 
   // Use external state if provided, otherwise use internal state
   const [internalShowSettings, setInternalShowSettings] = useState(false);
@@ -548,38 +184,9 @@ export default function TypingPractice({
   const showThemeModal = externalShowThemeModal ?? internalShowThemeModal;
   const setShowThemeModal = externalSetShowThemeModal ?? setInternalShowThemeModal;
 
-  const [linePreview, setLinePreview] = useState(3);
-  const [maxWordsPerLine, setMaxWordsPerLine] = useState(7);
-  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTabId>("all");
+  const [linePreview, setLinePreview] = useState(() => loadLayoutSettings()?.linePreview ?? 3);
+  const [maxWordsPerLine, setMaxWordsPerLine] = useState(() => loadLayoutSettings()?.maxWordsPerLine ?? 7);
   // Font option is now stored in settings.typingFontFamily
-  const [isCustomThemeOpen, setIsCustomThemeOpen] = useState(false);
-  const [, setAvailableThemes] = useState<ThemeDefinition[]>([]);
-  const [groupedThemes, setGroupedThemes] = useState<GroupedThemes[]>([]);
-  const [expandedThemeId, setExpandedThemeId] = useState<string | null>(null);
-  const themeGridColumns = useGridColumns();
-  const [previewThemeDef, setPreviewThemeDef] = useState<(ThemeDefinition & { previewMode?: ThemeMode; previewVariantId?: string }) | null>(null);
-
-  // Helper to set preview theme with optional mode and variant
-  const setPreviewTheme = useCallback((theme: ThemeDefinition | null, mode?: ThemeMode, variantId?: string) => {
-    if (!theme) {
-      setPreviewThemeDef(null);
-    } else {
-      setPreviewThemeDef({ ...theme, previewMode: mode, previewVariantId: variantId });
-    }
-  }, []);
-
-  // Resolve preview colors for the theme preview panel
-  const resolvedPreviewColors: ThemeColors = previewThemeDef
-    ? (() => {
-        const variant = previewThemeDef.variants.find(
-          v => v.id === (previewThemeDef.previewVariantId || previewThemeDef.defaultVariantId)
-        ) || previewThemeDef.variants[0];
-        return previewThemeDef.previewMode === "light" && variant.light
-          ? variant.light
-          : variant.dark;
-      })()
-    : colors;
-
   const planTheme: Theme = useMemo(() => ({
     cursor: colors.typing.cursor,
     defaultText: colors.typing.default,
@@ -592,103 +199,32 @@ export default function TypingPractice({
     surfaceColor: colors.bg.surface,
     ghostCursor: colors.typing.cursorGhost,
   }), [colors]);
-  /*
-   * TEMP_DISABLED_CATEGORIES_TAB
-   * Keep categories mode wiring for easy restore; force all-themes mode for now.
-   *
-  const [themeViewMode, setThemeViewMode] = useState<"all" | "categories">("all");
-   */
-  const themeViewMode = "all" as const;
-  const [selectedCategory, setSelectedCategory] = useState<ThemeCategory | null>(null);
-  const [themeSearchQuery, setThemeSearchQuery] = useState("");
-  // Collapse state for "All Themes" view — all collapsed except "Featured" by default
-  const getDefaultCollapsedCategories = useCallback(() => {
-    const allCategoryKeys = Object.keys(CATEGORY_CONFIG) as ThemeCategory[];
-    return new Set(allCategoryKeys.filter((c) => c !== "default"));
-  }, []);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<ThemeCategory>>(getDefaultCollapsedCategories);
-  const normalizedThemeSearchQuery = normalizeThemeSearchText(themeSearchQuery);
-  const filteredGroupedThemes = useMemo(() => {
-    if (!normalizedThemeSearchQuery) return groupedThemes;
-
-    return groupedThemes
-      .map((group) => ({
-        ...group,
-        themes: (() => {
-          const displayNameMatch = themeSearchMatches(group.displayName, normalizedThemeSearchQuery);
-          const categoryKeyMatch = themeSearchMatches(group.category, normalizedThemeSearchQuery);
-
-          if (displayNameMatch || categoryKeyMatch) {
-            return group.themes;
-          }
-
-          return group.themes.filter((themeData) => {
-            const nameMatch = themeSearchMatches(themeData.name, normalizedThemeSearchQuery);
-            const idMatch = themeSearchMatches(themeData.id, normalizedThemeSearchQuery);
-            const variantMatch = themeData.variants.some(v =>
-              themeSearchMatches(v.id, normalizedThemeSearchQuery) ||
-              themeSearchMatches(v.label, normalizedThemeSearchQuery)
-            );
-            return nameMatch || idMatch || variantMatch;
-          });
-        })(),
-      }))
-      .filter((group) => group.themes.length > 0);
-  }, [groupedThemes, normalizedThemeSearchQuery]);
-  /*
-   * TEMP_DISABLED_CATEGORIES_TAB
-   * Keeping category-only filtering logic in place for easy restore later.
-   *
-  const filteredCategoryGroups = useMemo(() => {
-    if (!normalizedThemeSearchQuery) return groupedThemes;
-
-    return groupedThemes.filter((group) => {
-      const displayNameMatch = group.displayName.toLowerCase().includes(normalizedThemeSearchQuery);
-      const categoryKeyMatch = group.category.toLowerCase().includes(normalizedThemeSearchQuery);
-      return displayNameMatch || categoryKeyMatch;
-    });
-  }, [groupedThemes, normalizedThemeSearchQuery]);
-  const filteredSelectedCategoryThemes = useMemo(() => {
-    if (!selectedCategory) return [];
-
-    const categoryThemes = groupedThemes.find((group) => group.category === selectedCategory)?.themes ?? [];
-    if (!normalizedThemeSearchQuery) return categoryThemes;
-
-    return categoryThemes.filter((themeData) => {
-      const nameMatch = themeData.name.toLowerCase().includes(normalizedThemeSearchQuery);
-      const idMatch = themeData.id.toLowerCase().includes(normalizedThemeSearchQuery);
-      return nameMatch || idMatch;
-    });
-  }, [groupedThemes, selectedCategory, normalizedThemeSearchQuery]);
-  */
   const [soundManifest, setSoundManifest] = useState<SoundManifest | null>(null);
   const [wordsManifest, setWordsManifest] = useState<WordsManifest | null>(null);
   const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
   const [showPresetInput, setShowPresetInput] = useState(false);
   const [showCustomCountModal, setShowCustomCountModal] = useState(false);
-  const [customDuration, setCustomDuration] = useState(() => durationToDialValues(30));
-  const [customWordDigits, setCustomWordDigits] = useState<WordDigits>(() =>
-    wordTargetToDigits(25)
-  );
-  const [tempPresetText, setTempPresetText] = useState("");
-  const [wordPool, setWordPool] = useState<string[]>([]);
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const dataset = usePracticeDataset(settings, quotesManifest);
+  const { wordPool, quotes } = dataset;
+  const promptConfigKey = JSON.stringify(PROMPT_SETTING_KEYS.map((key) => settings[key]));
+  const promptConfigRef = useRef("");
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const [words, setWords] = useState("");
   const [typedText, setTypedText] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [scrollOffset, setScrollOffset] = useState(0);
+  const { elapsedMs, readElapsed, resetClock } = usePracticeClock(isRunning && (!connectMode || isTestActive));
   const [isRepeated, setIsRepeated] = useState(false);
-  const [ghostCharIndex, setGhostCharIndex] = useState(0);
+  const ghostCharIndex = Math.min(words.length, Math.floor(elapsedMs * settings.ghostWriterSpeed * 5 / 60000));
+  const repeatRef = useRef(false);
+  const attemptedSessionEpochRef = useRef(-1);
+  const [rankingStatus, setRankingStatus] = useState<"pending" | "ranked" | "unranked">("unranked");
   const [isFocused, setIsFocused] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [isWarningPlayed, setIsWarningPlayed] = useState(false);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const activeKeyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [uiOpacity, setUiOpacity] = useState(1);
+  const uiOpacity = isRunning && isFocused && !isFinished && (!connectMode || isTestActive) ? 0 : 1;
 
   // Compact Mode (for zoomed/narrow viewports)
   const [isCompactMode, setIsCompactMode] = useState(false);
@@ -713,6 +249,8 @@ export default function TypingPractice({
   const [showPlanBuilder, setShowPlanBuilder] = useState(false);
   const [planResults, setPlanResults] = useState<Record<string, PlanStepResult>>({});
   const [showPlanResultsModal, setShowPlanResultsModal] = useState(false);
+  const overlayOpenRef = useRef(false);
+  overlayOpenRef.current = showSettings || showThemeModal || showQuickSettings || showCustomCountModal || showPresetInput || showPlanBuilder || showPlanResultsModal;
 
   // Save Results State
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -747,8 +285,7 @@ export default function TypingPractice({
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
 
   // Clerk auth hooks
-  const { isSignedIn, user } = useUser();
-  const { openSignIn } = useClerk();
+  const { isSignedIn, user, openSignIn, status: authStatus } = useAppAuth();
   const saveResultMutation = useMutation(api.testResults.saveResult);
   const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const startSessionMutation = useMutation(api.typingSessions.startSession);
@@ -761,6 +298,7 @@ export default function TypingPractice({
   const pendingTypedLengthRef = useRef(0);
   const finalizedRef = useRef(false);
   const savingRef = useRef(false);
+  const autoSaveAttemptedEpochRef = useRef(-1);
   const sessionEpochRef = useRef(0);
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const userRef = useRef(user);
@@ -788,14 +326,29 @@ export default function TypingPractice({
   const prefsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const focusRequestedRef = useRef(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const activeWordRef = useRef<HTMLSpanElement | null>(null);
-  const hasLoadedFromStorage = useRef(false);
-  const initialPrefsSnapshot = useRef<string | null>(null);
+  const caretRef = useRef<HTMLSpanElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const composingRef = useRef(false);
+  const [compositionDraft, setCompositionDraft] = useState<string | null>(null);
+  const scrollOffset = useTypingScroll({ viewportRef: containerRef, contentRef, caretRef,
+    layoutKey: JSON.stringify([typedText, compositionDraft, words, settings.typingFontSize, settings.typingFontFamily, settings.textAlign, maxWordsPerLine, isFinished]),
+    visibleLines: linePreview });
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const topLayoutRef = useRef<HTMLDivElement | null>(null);
   const bottomLayoutRef = useRef<HTMLDivElement | null>(null);
   const [typingCenterOffset, setTypingCenterOffset] = useState(0);
+
+  const promptReady = dataset.status === "ready" && promptConfigRef.current === promptConfigKey && words.length > 0;
+
+  useLayoutEffect(() => {
+    if (promptReady && focusRequestedRef.current && !overlayOpenRef.current && !isFinished && (!connectMode || isTestActive)) {
+      inputRef.current?.focus();
+      setIsFocused(document.activeElement === inputRef.current);
+      focusRequestedRef.current = false;
+    }
+  }, [promptReady, sessionEpoch, isFinished, connectMode, isTestActive]);
 
   // --- Calculated Stats ---
   const stats = useMemo(() => computeStats(typedText, words), [typedText, words]);
@@ -815,42 +368,17 @@ export default function TypingPractice({
   );
 
   const timeRemaining =
-    settings.mode === "time" ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
-
-  // --- Load Settings on Mount ---
-  useEffect(() => {
-    if (hasLoadedFromStorage.current) return;
-    hasLoadedFromStorage.current = true;
-
-    requestAnimationFrame(() => {
-      const storedSettings = loadSettings();
-      if (storedSettings) {
-        setSettings((prev) => ({
-          ...prev,
-          ...storedSettings,
-          presetText: "",
-        }));
-      }
-
-      const storedLayout = loadLayoutSettings();
-      if (storedLayout) {
-        setLinePreview(storedLayout.linePreview);
-        setMaxWordsPerLine(storedLayout.maxWordsPerLine);
-      }
-
-      // Theme is now managed by ThemeContext, no need to load here
-    });
-  }, []);
+    isTimedPractice(settings) ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
 
   // --- Save Settings ---
   useEffect(() => {
-    if (!hasLoadedFromStorage.current) return;
+    if (connectMode) return;
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      saveSettings(settings);
+      saveSettings(preferredSettings);
       saveLayoutSettings({ linePreview, maxWordsPerLine });
     }, 500);
 
@@ -859,7 +387,7 @@ export default function TypingPractice({
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [settings, linePreview, maxWordsPerLine]);
+  }, [preferredSettings, linePreview, maxWordsPerLine, connectMode]);
 
   // Theme saving is now handled by ThemeContext
 
@@ -889,65 +417,63 @@ export default function TypingPractice({
     themeId: selectedThemeId,
     themeVariantId: selectedVariantId,
     themeMode: selectedMode,
-    soundEnabled: settings.soundEnabled,
-    typingSound: settings.typingSound,
-    warningSound: settings.warningSound,
-    errorSound: settings.errorSound,
-    ghostWriterEnabled: settings.ghostWriterEnabled,
-    ghostWriterSpeed: settings.ghostWriterSpeed,
-    typingFontSize: settings.typingFontSize,
-    typingFontFamily: settings.typingFontFamily,
-    iconFontSize: settings.iconFontSize,
-    helpFontSize: settings.helpFontSize,
-    textAlign: settings.textAlign,
-    defaultMode: settings.mode,
-    defaultDuration: settings.duration,
-    defaultWordTarget: settings.wordTarget,
-    defaultDifficulty: settings.difficulty,
-    defaultQuoteLength: settings.quoteLength,
-    defaultPunctuation: settings.punctuation,
-    defaultNumbers: settings.numbers,
-    defaultCapitalization: settings.capitalization,
-    defaultPresetModeType: settings.presetModeType,
+    soundEnabled: preferredSettings.soundEnabled,
+    typingSound: preferredSettings.typingSound,
+    warningSound: preferredSettings.warningSound,
+    errorSound: preferredSettings.errorSound,
+    ghostWriterEnabled: preferredSettings.ghostWriterEnabled,
+    ghostWriterSpeed: preferredSettings.ghostWriterSpeed,
+    typingFontSize: preferredSettings.typingFontSize,
+    typingFontFamily: preferredSettings.typingFontFamily,
+    iconFontSize: preferredSettings.iconFontSize,
+    helpFontSize: preferredSettings.helpFontSize,
+    textAlign: preferredSettings.textAlign,
+    defaultMode: preferredSettings.mode,
+    defaultDuration: preferredSettings.duration,
+    defaultWordTarget: preferredSettings.wordTarget,
+    defaultDifficulty: preferredSettings.difficulty,
+    defaultQuoteLength: preferredSettings.quoteLength,
+    defaultPunctuation: preferredSettings.punctuation,
+    defaultNumbers: preferredSettings.numbers,
+    defaultCapitalization: preferredSettings.capitalization,
+    defaultPresetModeType: preferredSettings.presetModeType,
     linePreview: Math.max(1, Math.min(6, linePreview)),
     maxWordsPerLine: Math.max(1, Math.min(10, maxWordsPerLine)),
-    showOnScreenKeyboard: settings.showOnScreenKeyboard,
-    keyboardLayout: settings.keyboardLayout,
+    showOnScreenKeyboard: preferredSettings.showOnScreenKeyboard,
+    keyboardLayout: preferredSettings.keyboardLayout,
   }), [
     selectedThemeId, selectedVariantId, selectedMode,
-    settings.soundEnabled, settings.typingSound, settings.warningSound, settings.errorSound,
-    settings.ghostWriterEnabled, settings.ghostWriterSpeed,
-    settings.typingFontSize, settings.typingFontFamily,
-    settings.iconFontSize, settings.helpFontSize, settings.textAlign,
-    settings.mode, settings.duration, settings.wordTarget, settings.difficulty,
-    settings.quoteLength, settings.punctuation, settings.numbers, settings.capitalization,
-    settings.presetModeType, settings.showOnScreenKeyboard, settings.keyboardLayout,
+    preferredSettings.soundEnabled, preferredSettings.typingSound, preferredSettings.warningSound, preferredSettings.errorSound,
+    preferredSettings.ghostWriterEnabled, preferredSettings.ghostWriterSpeed,
+    preferredSettings.typingFontSize, preferredSettings.typingFontFamily,
+    preferredSettings.iconFontSize, preferredSettings.helpFontSize, preferredSettings.textAlign,
+    preferredSettings.mode, preferredSettings.duration, preferredSettings.wordTarget, preferredSettings.difficulty,
+    preferredSettings.quoteLength, preferredSettings.punctuation, preferredSettings.numbers, preferredSettings.capitalization,
+    preferredSettings.presetModeType, preferredSettings.showOnScreenKeyboard, preferredSettings.keyboardLayout,
     linePreview, maxWordsPerLine,
   ]);
 
-  // --- Reset DB prefs sync state when user changes ---
+  // Anonymous edits follow the first sign-in. Edits from a previous account do not follow another account.
+  const preferencesAccountRef = useRef<string | null>(null);
   useEffect(() => {
+    if (preferencesAccountRef.current && preferencesAccountRef.current !== user?.id) {
+      setPendingPromptPreferences(null);
+      preferenceEditsRef.current.clear();
+      themeEditedRef.current = false;
+      themeRevisionBaselineRef.current = themeRevisionRef.current;
+      lastSavedPrefsRef.current = null;
+    }
+    preferencesAccountRef.current = user?.id ?? null;
     setHasResolvedDbPrefs(false);
   }, [user?.id]);
 
-  // --- Capture initial prefs snapshot after mount to detect anonymous modifications ---
-  useEffect(() => {
-    if (!hasLoadedFromStorage.current || initialPrefsSnapshot.current !== null) return;
-    initialPrefsSnapshot.current = buildPrefsSnapshot();
-  }, [buildPrefsSnapshot]);
-
   // --- Load Preferences from DB (for logged-in users) ---
   useEffect(() => {
-    if (!user?.id || hasResolvedDbPrefs || dbPreferences === undefined) return;
+    if (connectMode || !user?.id || hasResolvedDbPrefs || dbPreferences === undefined) return;
 
-    // If user modified settings while anonymous, keep their local settings
-    // and let the save effect push them to DB instead of overwriting with DB values
-    const userModifiedWhileAnonymous =
-      initialPrefsSnapshot.current !== null &&
-      buildPrefsSnapshot() !== initialPrefsSnapshot.current;
-
-    if (!dbPreferences || userModifiedWhileAnonymous) {
-      needsSnapshotStamp.current = !userModifiedWhileAnonymous;
+    // Local hydration is complete before the first render. Only event callbacks mark user edits.
+    if (!dbPreferences) {
+      needsSnapshotStamp.current = preferenceEditsRef.current.size === 0 && !themeEditedRef.current;
       setHasResolvedDbPrefs(true);
       return;
     }
@@ -955,26 +481,29 @@ export default function TypingPractice({
     let isCancelled = false;
 
     // Use requestAnimationFrame to defer state updates and avoid cascading renders
-    requestAnimationFrame(() => {
-      (async () => {
+    const hydrationFrame = requestAnimationFrame(() => {
+      if (isCancelled) return;
+      void (async () => {
+        if (isCancelled) return;
         try {
           // Apply theme from DB using the context
           const dbThemeId = (dbPreferences as Record<string, unknown>).themeId as string | undefined;
           const dbVariantId = (dbPreferences as Record<string, unknown>).themeVariantId as string | undefined;
           const dbThemeMode = (dbPreferences as Record<string, unknown>).themeMode as string | undefined;
-          if (dbThemeId) {
+          if (dbThemeId && !themeEditedRef.current) {
             try {
               await setThemeSelection({
                 themeId: dbThemeId,
                 variantId: dbVariantId || undefined,
                 mode: (dbThemeMode as "light" | "dark") || undefined,
-              });
+              }, { source: "preferences", expectedUserSelectionRevision: themeRevisionBaselineRef.current });
             } catch (error) {
               console.warn("Failed to apply theme from DB preferences:", error);
             }
-          } else if (dbPreferences.themeName && !dbPreferences.customTheme) {
+          } else if (!themeEditedRef.current && dbPreferences.themeName && !dbPreferences.customTheme) {
             try {
-              await setThemeById(dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-"));
+              await setThemeSelection({ themeId: dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-") },
+                { source: "preferences", expectedUserSelectionRevision: themeRevisionBaselineRef.current });
             } catch (error) {
               console.warn("Failed to apply theme from DB preferences:", error);
             }
@@ -985,7 +514,9 @@ export default function TypingPractice({
           // They would need to be stored as theme JSON files
 
           // Apply settings from DB
-          setSettings((prev) => ({
+          {
+            const prev = settingsRef.current;
+            const restored = normalizePracticeSettings({
             ...prev,
             mode: dbPreferences.defaultMode as typeof prev.mode,
             duration: dbPreferences.defaultDuration,
@@ -1009,18 +540,31 @@ export default function TypingPractice({
             textAlign: dbPreferences.textAlign as typeof prev.textAlign,
             showOnScreenKeyboard: (dbPreferences as Record<string, unknown>).showOnScreenKeyboard as boolean ?? prev.showOnScreenKeyboard,
             keyboardLayout: ((dbPreferences as Record<string, unknown>).keyboardLayout as KeyboardLayoutId) ?? prev.keyboardLayout,
-          }));
+            });
+            for (const key of preferenceEditsRef.current) {
+              if (key in prev) Object.assign(restored, { [key]: prev[key as keyof SettingsState] });
+            }
+            if (isRunningRef.current || isFinishedRef.current || composingRef.current) {
+              const pending: Partial<SettingsState> = {};
+              for (const key of PROMPT_SETTING_KEYS) {
+                if (restored[key] !== prev[key]) Object.assign(pending, { [key]: restored[key] });
+                Object.assign(restored, { [key]: prev[key] });
+              }
+              setPendingPromptPreferences(Object.keys(pending).length ? pending : null);
+            }
+            setSettings(restored);
+          }
 
-          if (typeof dbPreferences.linePreview === "number") {
+          if (!preferenceEditsRef.current.has("linePreview") && typeof dbPreferences.linePreview === "number") {
             setLinePreview(Math.max(1, Math.min(6, Math.round(dbPreferences.linePreview))));
           }
 
-          if (typeof dbPreferences.maxWordsPerLine === "number") {
+          if (!preferenceEditsRef.current.has("maxWordsPerLine") && typeof dbPreferences.maxWordsPerLine === "number") {
             setMaxWordsPerLine(Math.max(1, Math.min(10, Math.round(dbPreferences.maxWordsPerLine))));
           }
         } finally {
           if (!isCancelled) {
-            needsSnapshotStamp.current = true;
+            needsSnapshotStamp.current = preferenceEditsRef.current.size === 0 && !themeEditedRef.current;
             setHasResolvedDbPrefs(true);
           }
         }
@@ -1029,12 +573,13 @@ export default function TypingPractice({
 
     return () => {
       isCancelled = true;
+      cancelAnimationFrame(hydrationFrame);
     };
-  }, [dbPreferences, hasResolvedDbPrefs, setThemeById, buildPrefsSnapshot, user?.id]);
+  }, [dbPreferences, hasResolvedDbPrefs, setThemeSelection, user?.id, connectMode]);
 
   // --- Save Preferences to DB (debounced, dirty-checked, for logged-in users) ---
   useEffect(() => {
-    if (!user || !hasLoadedFromStorage.current || !hasResolvedDbPrefs) return;
+    if (connectMode || !user || !hasResolvedDbPrefs) return;
 
     const currentSnapshot = buildPrefsSnapshot();
 
@@ -1068,15 +613,7 @@ export default function TypingPractice({
         clearTimeout(prefsDebounceRef.current);
       }
     };
-  }, [user, hasResolvedDbPrefs, buildPrefsSnapshot, savePreferencesMutation]);
-
-  // --- Load available themes ---
-  useEffect(() => {
-    fetchAllThemes().then((themes) => {
-      setAvailableThemes(themes);
-      setGroupedThemes(groupThemesByCategory(themes));
-    });
-  }, []);
+  }, [user, hasResolvedDbPrefs, buildPrefsSnapshot, savePreferencesMutation, connectMode]);
 
   // --- Load sound manifest ---
   useEffect(() => {
@@ -1093,50 +630,33 @@ export default function TypingPractice({
     fetchQuotesManifest().then(setQuotesManifest);
   }, []);
 
-  // --- Apply locked settings from connect mode ---
+  // Connect owns run identity. Locked configuration applies without becoming a preference edit.
   useEffect(() => {
-    if (connectMode && lockedSettings) {
-      requestAnimationFrame(() => {
-        setSettings((prev) => ({ ...prev, ...lockedSettings }));
-      });
-    }
+    if (connectMode && lockedSettings) setSettings((prev) => normalizePracticeSettings({ ...prev, ...lockedSettings }));
   }, [connectMode, lockedSettings]);
-
-  // --- Load word pool ---
-  useEffect(() => {
-    const difficulty = settings.difficulty || wordsManifest?.default || "medium";
-    fetchWords(difficulty).then(setWordPool);
-  }, [settings.difficulty, wordsManifest]);
-
-  // --- Load quotes ---
-  useEffect(() => {
-    if (settings.mode !== "quote") return;
-    const length = settings.quoteLength === "all" 
-      ? (quotesManifest?.default || "medium") 
-      : settings.quoteLength;
-    fetchQuotes(length).then(setQuotes);
-  }, [settings.mode, settings.quoteLength, quotesManifest]);
 
   // --- Callbacks ---
   const updateSettings = useCallback((updates: Partial<SettingsState>) => {
-    setSettings((prev) => ({ ...prev, ...updates }));
+    Object.keys(updates).forEach((key) => preferenceEditsRef.current.add(key));
+    // Explicit prompt edits start a new attempt, so apply queued account defaults at that boundary too.
+    const startsPrompt = PROMPT_SETTING_KEYS.some((key) => key in updates);
+    if (startsPrompt) setPendingPromptPreferences(null);
+    setSettings((prev) => normalizePracticeSettings({ ...prev, ...(startsPrompt ? pendingPromptPreferences : {}), ...updates }));
+  }, [pendingPromptPreferences]);
+
+  const updateLinePreview = useCallback((value: number) => {
+    preferenceEditsRef.current.add("linePreview");
+    setLinePreview(value);
+  }, []);
+
+  const updateMaxWordsPerLine = useCallback((value: number) => {
+    preferenceEditsRef.current.add("maxWordsPerLine");
+    setMaxWordsPerLine(value);
   }, []);
 
   const openCustomCountModal = useCallback(() => {
-    if (settings.mode === "time") {
-      setCustomDuration(durationToDialValues(settings.duration));
-    } else if (settings.mode === "words") {
-      setCustomWordDigits(
-        wordTargetToDigits(
-          clampNumber(settings.wordTarget || CUSTOM_WORD_MIN, CUSTOM_WORD_MIN, CUSTOM_WORD_MAX)
-        )
-      );
-    } else {
-      return;
-    }
-
-    setShowCustomCountModal(true);
-  }, [settings.duration, settings.mode, settings.wordTarget]);
+    if (settings.mode === "time" || settings.mode === "words") setShowCustomCountModal(true);
+  }, [settings.mode]);
 
   const resetSession = useCallback((isRepeat = false) => {
     const existingSessionId = sessionIdRef.current;
@@ -1146,27 +666,31 @@ export default function TypingPractice({
     savingRef.current = false;
     isFinishedRef.current = false;
     if (existingSessionId) {
-      void cancelSessionMutation({ sessionId: existingSessionId });
+      void cancelSessionMutation({ sessionId: existingSessionId }).catch(() => {});
     }
     sessionEpochRef.current += 1;
     setSessionEpoch(sessionEpochRef.current);
 
+    typedTextRef.current = "";
+    isRunningRef.current = false;
+    elapsedMsRef.current = 0;
+    repeatRef.current = isRepeat;
+    startingSessionRef.current = false;
+    setRankingStatus(isRepeat || !isSignedInRef.current || settingsRef.current.mode === "zen" ? "unranked" : "pending");
+    composingRef.current = false;
+    setCompositionDraft(null);
     setTypedText("");
     setIsRunning(false);
     setIsFinished(false);
-    setStartTime(null);
-    setElapsedMs(0);
-    setScrollOffset(0);
-    setGhostCharIndex(0);
+    resetClock();
     setIsRepeated(isRepeat);
-    setIsFocused(true);
+    focusRequestedRef.current = !overlayOpenRef.current;
+    setIsFocused(document.activeElement === inputRef.current);
     setIsWarningPlayed(false);
-    setUiOpacity(1);
     setSaveState("idle");
     setLastResultIsValid(null);
     setLastResultInvalidReason(undefined);
-    inputRef.current?.focus();
-  }, [cancelSessionMutation]);
+  }, [cancelSessionMutation, resetClock]);
 
   // Ref to store pending plan result
   const pendingPlanResultRef = useRef<{
@@ -1175,12 +699,13 @@ export default function TypingPractice({
   } | null>(null);
 
   const finishSession = useCallback(() => {
-    if (isFinished) return;
+    if (isFinishedRef.current) return;
     isFinishedRef.current = true;
 
     const currentTypedText = typedTextRef.current;
     const currentWords = wordsRef.current;
-    const currentElapsedMs = elapsedMsRef.current;
+    const currentElapsedMs = readElapsed();
+    elapsedMsRef.current = currentElapsedMs;
 
     // If in plan mode, prepare the result to be recorded
     if (isPlanActive && !isPlanSplash) {
@@ -1208,7 +733,6 @@ export default function TypingPractice({
 
     setIsFinished(true);
     setIsRunning(false);
-    setUiOpacity(1);
 
     // Record plan result synchronously after state updates
     if (pendingPlanResultRef.current) {
@@ -1219,7 +743,7 @@ export default function TypingPractice({
       }));
       pendingPlanResultRef.current = null;
     }
-  }, [isFinished, isPlanActive, isPlanSplash, plan, planIndex, planResults]);
+  }, [isPlanActive, isPlanSplash, plan, planIndex, planResults, readElapsed]);
 
   const finishSessionRef = useRef(finishSession);
   useEffect(() => { finishSessionRef.current = finishSession; }, [finishSession]);
@@ -1272,7 +796,19 @@ export default function TypingPractice({
 
     if (!user) {
       pendingResultRef.current = dataToSave;
-      openSignIn();
+      const pendingEpoch = sessionEpochRef.current;
+      const opened = await openSignIn();
+      if (sessionEpochRef.current !== pendingEpoch || userRef.current) return;
+      if (!opened) {
+        setSaveState("error");
+        toast.error(authStatus === "loading"
+          ? "Sign-in is still loading. Your result is kept here; try saving again shortly."
+          : authStatus === "unavailable"
+            ? "Sign-in is unavailable. Your result is kept here; try saving again when sign-in is available."
+            : "Could not open sign-in. Your result is kept here; try saving again.");
+      } else {
+        setSaveState("idle");
+      }
       return;
     }
 
@@ -1280,6 +816,9 @@ export default function TypingPractice({
       return;
     }
 
+    const epoch = sessionEpochRef.current;
+    const finalTypedText = typedTextRef.current;
+    const finalElapsedMs = readElapsed();
     const sessionId = sessionIdRef.current;
     if (!sessionId && startingSessionRef.current) {
       setSaveState("saving");
@@ -1296,6 +835,7 @@ export default function TypingPractice({
         avatarUrl: user.imageUrl,
       });
 
+      if (sessionEpochRef.current !== epoch) return;
       const calendar = getLocalCalendarFields();
 
       const showAchievementToasts = (achievementIds: string[]) => {
@@ -1354,7 +894,7 @@ export default function TypingPractice({
         try {
           await recordProgressMutation({
             sessionId,
-            typedLength: typedTextRef.current.length,
+            typedLength: finalTypedText.length,
           });
         } catch {
           // Still finalize; progress is best-effort.
@@ -1362,8 +902,8 @@ export default function TypingPractice({
 
         const result = await finalizeSessionMutation({
           sessionId,
-          typedText: typedTextRef.current,
-          clientElapsedMs: elapsedMsRef.current,
+          typedText: finalTypedText,
+          clientElapsedMs: finalElapsedMs,
           localDate: calendar.localDate,
           localHour: calendar.localHour,
           dayOfWeek: calendar.dayOfWeek,
@@ -1371,6 +911,7 @@ export default function TypingPractice({
           day: calendar.day,
         });
 
+        if (sessionEpochRef.current !== epoch) return;
         finalizedRef.current = true;
         sessionIdRef.current = null;
         setLastResultIsValid(result.isValid);
@@ -1384,13 +925,15 @@ export default function TypingPractice({
         return;
       }
 
-      // Guest-then-sign-in has no session: history-only saveResult (not ranked).
-      if (resultData) {
+      // No matching server-owned prompt: history only; this server endpoint always sets rankedEligible:false.
+      if (!sessionId) {
         const result = await saveResultMutation({
           clerkId: user.id,
           ...dataToSave,
           ...calendar,
         });
+        if (sessionEpochRef.current !== epoch) return;
+        finalizedRef.current = true;
         setLastResultIsValid(null);
         setSaveState("saved");
         pendingResultRef.current = null;
@@ -1406,11 +949,11 @@ export default function TypingPractice({
       setSaveState("error");
     } catch (error) {
       console.error("Failed to save result:", error);
-      setSaveState("error");
+      if (sessionEpochRef.current === epoch) setSaveState("error");
     } finally {
-      savingRef.current = false;
+      if (sessionEpochRef.current === epoch) savingRef.current = false;
     }
-  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, addNotification, saveState]);
+  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, authStatus, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, addNotification, saveState, readElapsed]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {
@@ -1425,17 +968,20 @@ export default function TypingPractice({
   useEffect(() => { saveResultsRef.current = saveResults; }, [saveResults]);
 
   const ensureSoloSessionStarted = useCallback((targetText?: string) => {
-    if (connectModeRef.current) return;
+    if (connectModeRef.current || composingRef.current || repeatRef.current || isRunningRef.current || typedTextRef.current || isFinishedRef.current) return;
     const currentUser = userRef.current;
     if (!currentUser || !isSignedInRef.current) return;
     if (sessionIdRef.current || startingSessionRef.current || finalizedRef.current) return;
 
     const s = settingsRef.current;
+    if (s.mode === "zen" || s.mode === "plan" || attemptedSessionEpochRef.current === sessionEpochRef.current) return;
+    attemptedSessionEpochRef.current = sessionEpochRef.current;
     const needsClientPrompt = s.mode === "quote" || s.mode === "preset";
     const text = targetText || wordsRef.current;
     if (needsClientPrompt && !text) return;
 
     startingSessionRef.current = true;
+    setRankingStatus("pending");
     const epoch = sessionEpochRef.current;
 
     void getOrCreateUser({
@@ -1444,8 +990,9 @@ export default function TypingPractice({
       username: currentUser.username ?? currentUser.firstName ?? "User",
       avatarUrl: currentUser.imageUrl,
     })
-      .then(() =>
-        startSessionMutation({
+      .then(() => {
+        if (sessionEpochRef.current !== epoch || composingRef.current || isRunningRef.current || typedTextRef.current || userRef.current?.id !== currentUser.id) return null;
+        return startSessionMutation({
           clerkId: currentUser.id,
           mode: s.mode,
           duration: s.duration,
@@ -1464,19 +1011,19 @@ export default function TypingPractice({
             capitalization: s.capitalization,
           },
           ...(needsClientPrompt ? { targetText: text } : {}),
-        })
-      )
+        });
+      })
       .then((res) => {
         if (!res?.sessionId) return;
-        if (sessionEpochRef.current !== epoch) {
-          void cancelSessionMutation({ sessionId: res.sessionId });
+        if (sessionEpochRef.current !== epoch || userRef.current?.id !== currentUser.id || composingRef.current || isRunningRef.current || typedTextRef.current.length > 0 || repeatRef.current || isFinishedRef.current) {
+          void cancelSessionMutation({ sessionId: res.sessionId }).catch(() => {});
           return;
         }
+        // Commit both identities before input can start; no client text is attached to a different server prompt.
+        wordsRef.current = res.targetText;
         sessionIdRef.current = res.sessionId;
-        if (res.targetText && typedTextRef.current.length === 0) {
-          wordsRef.current = res.targetText;
-          setWords(res.targetText);
-        }
+        setWords(res.targetText);
+        setRankingStatus("ranked");
         const len = Math.max(
           typedTextRef.current.length,
           pendingTypedLengthRef.current
@@ -1494,8 +1041,10 @@ export default function TypingPractice({
       })
       .catch((error) => {
         console.warn("Failed to start typing session:", error);
+        if (sessionEpochRef.current === epoch) setRankingStatus("unranked");
       })
       .finally(() => {
+        if (sessionEpochRef.current !== epoch) return;
         startingSessionRef.current = false;
         if (isFinishedRef.current && !finalizedRef.current && !sessionIdRef.current) {
           void saveResultsRef.current();
@@ -1509,28 +1058,36 @@ export default function TypingPractice({
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
     pendingTypedLengthRef.current = 0;
-    void recordProgressMutation({ sessionId, typedLength });
+    void recordProgressMutation({ sessionId, typedLength }).catch(() => {});
   }, [recordProgressMutation]);
 
   useEffect(() => {
-    if (connectMode || !isSignedIn || !user || !words) return;
+    if (connectMode || !isSignedIn || !user || !words || promptConfigRef.current !== promptConfigKey || dataset.status !== "ready") return;
     ensureSoloSessionStarted(words);
-  }, [sessionEpoch, connectMode, isSignedIn, user, words, ensureSoloSessionStarted]);
+  }, [sessionEpoch, connectMode, isSignedIn, user, words, ensureSoloSessionStarted, promptConfigKey, dataset.status]);
 
   useEffect(() => {
     if (!isFinished || connectMode || !isSignedIn) return;
-    if (finalizedRef.current) return;
+    if (finalizedRef.current || autoSaveAttemptedEpochRef.current === sessionEpochRef.current) return;
+    autoSaveAttemptedEpochRef.current = sessionEpochRef.current;
     void saveResults();
   }, [isFinished, connectMode, isSignedIn, saveResults]);
 
-  const generateTest = useCallback(() => {
+  const generatePrompt = useCallback(() => {
+    resetSession(false);
+    promptConfigRef.current = promptConfigKey;
+    setCurrentQuote(null);
+    wordsRef.current = "";
+    setWords("");
+    if (dataset.status !== "ready") return;
+    if (settings.mode === "plan") return;
     if (settings.mode === "quote") {
       if (quotes.length === 0) return;
       const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
       if (randomQuote) {
         setCurrentQuote(randomQuote);
-        setWords(randomQuote.quote);
-        resetSession(false);
+        wordsRef.current = randomQuote.quote.replace(/\s+/g, " ").trim();
+        setWords(wordsRef.current);
       }
       return;
     }
@@ -1540,23 +1097,23 @@ export default function TypingPractice({
         setShowPresetInput(true);
         return;
       }
-      setWords(settings.presetText);
-      resetSession(false);
+      wordsRef.current = settings.presetText.replace(/\s+/g, " ").trim();
+      setWords(wordsRef.current);
       return;
     }
 
     if (wordPool.length === 0) return;
 
     const wordCount = settings.mode === "words" && settings.wordTarget > 0 ? settings.wordTarget : 200;
-    setWords(
-      generateWords(wordCount, wordPool, {
+    const generated = generateWords(wordCount, wordPool, {
         punctuation: settings.punctuation,
         numbers: settings.numbers,
         capitalization: settings.capitalization,
-      })
-    );
-    resetSession(false);
+      });
+    wordsRef.current = generated;
+    setWords(generated);
   }, [
+    dataset.status, promptConfigKey,
     settings.mode,
     settings.wordTarget,
     settings.punctuation,
@@ -1568,55 +1125,24 @@ export default function TypingPractice({
     resetSession,
   ]);
 
-  const applyCustomCount = useCallback(() => {
-    if (settings.mode === "time") {
-      const totalSeconds =
-        customDuration.hours * 3600 +
-        customDuration.minutes * 60 +
-        customDuration.seconds;
-
-      if (totalSeconds <= 0) {
-        toast.error("Set at least 1 second.");
-        return;
-      }
-
-      const nextDuration = TIME_PRESETS.find((preset) => preset === totalSeconds) ?? totalSeconds;
-
-      if (settings.duration === nextDuration) {
-        generateTest();
-      } else {
-        updateSettings({ duration: nextDuration });
-      }
-    } else if (settings.mode === "words") {
-      const rawWordTarget = digitsToWordTarget(customWordDigits);
-      if (rawWordTarget <= 0) {
-        toast.error("Set at least 1 word.");
-        return;
-      }
-
-      const nextWordTarget = clampNumber(rawWordTarget, CUSTOM_WORD_MIN, CUSTOM_WORD_MAX);
-      const normalizedWordTarget =
-        WORD_PRESETS.find((preset) => preset === nextWordTarget) ?? nextWordTarget;
-
-      if (settings.wordTarget === normalizedWordTarget) {
-        generateTest();
-      } else {
-        updateSettings({ wordTarget: normalizedWordTarget });
-      }
+  const generateTest = useCallback(() => {
+    if (pendingPromptPreferences) {
+      setSettings((prev) => normalizePracticeSettings({ ...prev, ...pendingPromptPreferences }));
+      setPendingPromptPreferences(null);
+      return; // The resolved configuration/dataset effect generates the next prompt.
     }
+    generatePrompt();
+  }, [generatePrompt, pendingPromptPreferences]);
 
-    setShowCustomCountModal(false);
-  }, [
-    customDuration.hours,
-    customDuration.minutes,
-    customDuration.seconds,
-    customWordDigits,
-    generateTest,
-    settings.duration,
-    settings.mode,
-    settings.wordTarget,
-    updateSettings,
-  ]);
+  const applyCustomCount = useCallback((value: number) => {
+    if (settings.mode === "time") {
+      if (settings.duration === value) generateTest();
+      else updateSettings({ duration: value });
+    } else if (settings.mode === "words") {
+      if (settings.wordTarget === value) generateTest();
+      else updateSettings({ wordTarget: value });
+    }
+  }, [generateTest, settings.duration, settings.mode, settings.wordTarget, updateSettings]);
 
   const enableKidMode = useCallback(() => {
     setPreKidModeSettings({
@@ -1633,8 +1159,8 @@ export default function TypingPractice({
       ghostWriterEnabled: false,
       showOnScreenKeyboard: true,
     });
-    setLinePreview(2);
-    setMaxWordsPerLine(5);
+    updateLinePreview(2);
+    updateMaxWordsPerLine(5);
     setIsKidMode(true);
   }, [
     settings.mode,
@@ -1644,6 +1170,8 @@ export default function TypingPractice({
     linePreview,
     maxWordsPerLine,
     updateSettings,
+    updateLinePreview,
+    updateMaxWordsPerLine,
   ]);
 
   const disableKidMode = useCallback((nextMode?: SettingsState["mode"]) => {
@@ -1654,14 +1182,14 @@ export default function TypingPractice({
         ghostWriterEnabled: preKidModeSettings.ghostWriterEnabled,
         showOnScreenKeyboard: preKidModeSettings.showOnScreenKeyboard,
       });
-      setLinePreview(preKidModeSettings.linePreview);
-      setMaxWordsPerLine(preKidModeSettings.maxWordsPerLine);
+      updateLinePreview(preKidModeSettings.linePreview);
+      updateMaxWordsPerLine(preKidModeSettings.maxWordsPerLine);
     } else {
       updateSettings({ mode: nextMode ?? "zen" });
     }
     setPreKidModeSettings(null);
     setIsKidMode(false);
-  }, [preKidModeSettings, updateSettings]);
+  }, [preKidModeSettings, updateSettings, updateLinePreview, updateMaxWordsPerLine]);
 
   const handleModeSelect = useCallback((mode: ModeSelectorOption) => {
     if (mode === "kid") {
@@ -1685,87 +1213,36 @@ export default function TypingPractice({
     }
   }, [disableKidMode, enableKidMode, generateTest, isKidMode, settings.mode, updateSettings]);
 
-  // Keep generateTest ref fresh without triggering the effect below
-  const generateTestRef = useRef(generateTest);
-  useEffect(() => { generateTestRef.current = generateTest; }, [generateTest]);
+  useEffect(() => { generatePrompt(); }, [generatePrompt]);
 
-  // Generate test on mode/difficulty change (NOT on generateTest identity change)
+  // The clock owns elapsed time; ghost position derives from that same elapsed value, including spaces.
   useEffect(() => {
-    if (isRunningRef.current) return;
-    if (wordPool.length > 0 || settings.mode === "quote" || settings.mode === "preset") {
-      requestAnimationFrame(() => {
-        generateTestRef.current();
-      });
+    if (!isRunning || (connectMode && !isTestActive) || !isTimedPractice(settings)) return;
+    if (elapsedMs >= settings.duration * 1000) finishSessionRef.current();
+    if (!isWarningPlayed && elapsedMs >= (settings.duration - 5) * 1000 && settings.duration >= 10) {
+      playWarningSound();
+      setIsWarningPlayed(true);
     }
-  }, [settings.mode, settings.difficulty, wordPool.length, settings.punctuation, settings.numbers, settings.capitalization]);
-
-  // --- Timer ---
-  useEffect(() => {
-    if (!isRunning || !startTime) return;
-
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const elapsed = now - startTime;
-      setElapsedMs(elapsed);
-
-      if (settings.mode === "time" && elapsed >= settings.duration * 1000) {
-        finishSessionRef.current();
-      }
-
-      if (
-        settings.mode === "time" &&
-        !isWarningPlayed &&
-        elapsed >= (settings.duration - 5) * 1000 &&
-        settings.duration >= 10
-      ) {
-        playWarningSound();
-        setIsWarningPlayed(true);
-      }
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [isRunning, startTime, settings.mode, settings.duration, playWarningSound, isWarningPlayed]);
-
-  // --- Ghost Writer ---
-  useEffect(() => {
-    if (!settings.ghostWriterEnabled || !isRunning || isFinished) return;
-
-    const charsPerSecond = (settings.ghostWriterSpeed * 5) / 60;
-    const interval = setInterval(() => {
-      setGhostCharIndex((prev) => {
-        const next = prev + charsPerSecond / 10;
-        return Math.min(next, words.length);
-      });
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, [settings.ghostWriterEnabled, settings.ghostWriterSpeed, isRunning, isFinished, words.length]);
-
-  // --- UI Fade while typing ---
-  useEffect(() => {
-    if (isRunning && !isFinished) {
-      const timeout = setTimeout(() => {
-        setUiOpacity(0);
-      }, 2000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isRunning, isFinished, typedText]);
+  }, [elapsedMs, isRunning, connectMode, isTestActive, settings, isWarningPlayed, playWarningSound]);
 
   // --- Notify parent of typing state ---
   useEffect(() => {
     if (onTypingStateChange) {
-      onTypingStateChange(isRunning && !isFinished);
+      onTypingStateChange(isRunning && !isFinished && isFocused && (!connectMode || isTestActive));
     }
-  }, [isRunning, isFinished, onTypingStateChange]);
+  }, [isRunning, isFinished, isFocused, connectMode, isTestActive, onTypingStateChange]);
 
+  const onStatsUpdateRef = useRef(onStatsUpdate);
+  onStatsUpdateRef.current = onStatsUpdate;
   // --- Report stats to parent (connect mode) ---
   useEffect(() => {
-    if (onStatsUpdate) {
-      onStatsUpdate(
+    if (!promptReady || (connectMode && !isTestActive)) return;
+    if (onStatsUpdateRef.current) {
+      onStatsUpdateRef.current(
         {
           wpm: Math.round(wpm) || 0,
           accuracy: accuracy || 100,
-          progress: words.length > 0 ? (typedText.length / words.length) * 100 : 0,
+          progress: words.length > 0 ? getInputPosition(typedText, words).referencePosition / words.length * 100 : 0,
           wordsTyped: Math.floor(typedText.length / 5),
           timeElapsed: elapsedMs,
           isFinished,
@@ -1774,89 +1251,49 @@ export default function TypingPractice({
         words
       );
     }
-  }, [wpm, accuracy, typedText, words, elapsedMs, isFinished, onStatsUpdate]);
+  }, [wpm, accuracy, typedText, words, elapsedMs, isFinished, connectMode, isTestActive, promptReady]);
 
-  // --- Input handling ---
   const handleInput = (value: string) => {
-    if (isFinished) return;
-    if (connectMode && !isTestActive) return;
-
-    // Collapse consecutive spaces to prevent word-index misalignment
-    const sanitized = value.replace(/  +/g, " ");
-
-    if (!isRunning) {
-      setIsRunning(true);
-      setStartTime(Date.now());
-    }
-
+    if (isFinishedRef.current || !promptReady || (connectMode && !isTestActive)) return;
+    const sanitized = sanitizeTypingInput(value);
+    isRunningRef.current = true;
+    if (!isRunning) setIsRunning(true);
+    typedTextRef.current = sanitized;
+    setTypedText(sanitized);
     if (!connectMode) {
-      typedTextRef.current = sanitized;
-      pendingTypedLengthRef.current = sanitized.length;
-      ensureSoloSessionStarted();
+      if (!sessionIdRef.current) setRankingStatus("unranked");
       reportSoloProgress(sanitized.length);
     }
-
-    setTypedText(sanitized);
     playClickSound();
-
     if (settings.mode === "quote" || settings.mode === "preset") {
-      if (sanitized.length === words.length) {
-        finishSession();
-      }
+      if (hasCompletedPrompt(sanitized, wordsRef.current)) finishSession();
       return;
     }
-
     if (settings.mode === "time" || settings.mode === "zen") {
-      const currentWordCount = sanitized.trim().split(/\s+/).length;
-      const totalWords = wordsRef.current.split(" ").length;
-      if (totalWords - currentWordCount < 50) {
-        const newWords = generateWords(50, wordPool, {
-          punctuation: settings.punctuation,
-          numbers: settings.numbers,
-          capitalization: settings.capitalization,
-        });
-        if (newWords) {
-          setWords((prev) => prev + " " + newWords);
-        }
+      const remaining = wordsRef.current.split(" ").length - sanitized.split(" ").length;
+      if (remaining < 50 && !sessionIdRef.current) {
+        const addition = generateWords(50, wordPool, settings);
+        if (addition) { wordsRef.current += " " + addition; setWords(wordsRef.current); }
       }
     }
-
-    if (settings.mode === "words" && settings.wordTarget > 0) {
-      const typedWordCount = sanitized.trim().split(/\s+/).length;
-      if (sanitized.endsWith(" ") && typedWordCount >= settings.wordTarget) {
-        finishSession();
-      }
-    }
+    if (settings.mode === "words" && sanitized.endsWith(" ") && hasCompletedPrompt(sanitized, wordsRef.current)) finishSession();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Tab") {
-      e.preventDefault();
-      if (e.shiftKey) {
-        resetSession(true);
-      }
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (composingRef.current) return;
+    constrainEditingKey(event);
+    if (event.nativeEvent.isComposing) return;
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && !connectMode) {
+      event.preventDefault();
+      resetSession(true);
     }
-    if (e.key === "Enter" && isFinished) {
-      generateTest();
-    }
-    if (e.key === "Escape" && isRunning && !isFinished) {
-      e.preventDefault();
+    if (event.key === "Escape" && isRunning && !isFinished) {
+      event.preventDefault();
       finishSession();
     }
   };
 
-  const hasErrors = useMemo(() => {
-    for (let i = 0; i < typedText.length; i++) {
-      if (typedText[i] !== words[i]) return true;
-    }
-    return false;
-  }, [typedText, words]);
-
-  const nextChar = useMemo(() => {
-    if (isFinished || !words) return null;
-    if (hasErrors) return "Backspace";
-    return words[typedText.length] ?? null;
-  }, [typedText.length, words, isFinished, hasErrors]);
+  const nextChar = isFinished ? null : getNextTypingKey(typedText, words);
 
   useEffect(() => {
     const handleKeyEvent = (e: KeyboardEvent) => {
@@ -1876,40 +1313,12 @@ export default function TypingPractice({
     };
   }, []);
 
-  // --- Global keyboard listener for results screen ---
-  useEffect(() => {
-    if (!isFinished) return;
-
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        generateTest();
-      }
-      if (e.key === "Tab") {
-        e.preventDefault();
-        resetSession(true);
-      }
-      // Spacebar to save results (only if not already saved/saving, not invalid, and not in connect mode)
-      if (e.key === " " && !connectMode && saveState !== "saving" && saveState !== "saved" && lastResultIsValid !== false) {
-        e.preventDefault();
-        saveResults();
-      }
-    };
-
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [isFinished, generateTest, resetSession, connectMode, saveState, saveResults, lastResultIsValid]);
-
   const handlePresetSubmit = (text: string) => {
     const sanitized = text.replace(/[^\x20-\x7E\n]/g, "").replace(/\s+/g, " ").trim();
     if (sanitized.length > 0 && sanitized.length <= 10000) {
       updateSettings({ presetText: sanitized });
       setShowPresetInput(false);
     }
-  };
-
-  const handleThemeSelect = async (themeId: string, variantId?: string, mode?: ThemeMode) => {
-    await setThemeSelection({ themeId, variantId, mode });
   };
 
   // --- Plan Mode Handlers ---
@@ -1974,32 +1383,6 @@ export default function TypingPractice({
     setPlanResults({});
   }, []);
 
-  // --- Scroll handling ---
-  useLayoutEffect(() => {
-    if (!containerRef.current || !activeWordRef.current) return;
-
-    const container = containerRef.current;
-    const activeWord = activeWordRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const wordRect = activeWord.getBoundingClientRect();
-
-    // Calculate relative position
-    const relativeTop = wordRect.top - containerRect.top;
-    const lineHeight = parseFloat(getComputedStyle(container).lineHeight || "0");
-
-    // If word is on 3rd line or below (index 2+), scroll up
-    // We want active line to be line 2 (index 1), unless we only have 1 line preview
-    const targetTop = linePreview === 1 ? 0 : lineHeight;
-
-    // Adjust scroll offset to keep the active word at the target position
-    // We use a threshold to prevent jitter
-    const diff = relativeTop - targetTop;
-
-    if (Math.abs(diff) > 10) {
-      setScrollOffset((prev) => Math.max(0, prev + diff));
-    }
-  }, [typedText, settings.typingFontSize, linePreview]);
-
   useLayoutEffect(() => {
     if (isCompactMode || isFinished) {
       setTypingCenterOffset(0);
@@ -2042,140 +1425,14 @@ export default function TypingPractice({
     showQuickSettings,
   ]);
 
-  // --- Render Typing Area ---
-  const renderTypingArea = () => {
-    const wordsArray = words.split(" ");
-    const typedWords = typedText.split(" ");
-    const currentWordIndex = typedWords.length - 1;
-    const initialCharIndex = 0;
-
-    return wordsArray.reduce<{ nodes: React.ReactNode[]; currentIndex: number }>(
-      (acc, word, wordIdx) => {
-        const wordStartIndex = acc.currentIndex;
-        const typedWord = typedWords[wordIdx] || "";
-        const isCurrentWord = wordIdx === currentWordIndex;
-        const isPastWord = wordIdx < currentWordIndex;
-
-        const wordNode = (
-          <span
-            key={wordIdx}
-            ref={isCurrentWord ? activeWordRef : null}
-            className="inline-block mr-[0.5em] relative"
-          >
-            {word.split("").map((char, charIdx) => {
-              const globalCharIndex = wordStartIndex + charIdx;
-              const typedChar = typedWord[charIdx];
-              const isTyped = typedChar !== undefined;
-              const isCorrect = typedChar === char;
-              const isCursor = isCurrentWord && charIdx === typedWord.length;
-              const isGhost =
-                settings.ghostWriterEnabled && Math.floor(ghostCharIndex) === globalCharIndex;
-
-              let charColor: string = tv.typing.default;
-              if (!isTyped) {
-                if (isPastWord) charColor = tv.typing.incorrect;
-                else if (isCursor) charColor = tv.typing.upcoming;
-              } else {
-                charColor = isCorrect ? tv.typing.correct : tv.typing.incorrect;
-              }
-
-              return (
-                <span key={charIdx} className="relative" style={{ color: charColor }}>
-                  {char}
-                  {isCursor && (
-                    <span
-                      className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                      style={{ backgroundColor: tv.typing.cursor }}
-                    />
-                  )}
-                  {isGhost && (
-                    <span
-                      className="absolute left-0 top-0 h-full w-0.5 opacity-70"
-                      style={{ backgroundColor: tv.typing.cursorGhost }}
-                    />
-                  )}
-                </span>
-              );
-            })}
-            {(isCurrentWord || isPastWord) && typedWord.length > word.length && (
-              <span style={{ color: tv.typing.incorrect }}>{typedWord.slice(word.length)}</span>
-            )}
-            {isCurrentWord && typedWord.length === word.length && (
-              <span className="relative">
-                <span
-                  className="absolute left-0 top-0 h-full w-0.5 animate-pulse"
-                  style={{ backgroundColor: tv.typing.cursor }}
-                />
-              </span>
-            )}
-          </span>
-        );
-
-        acc.nodes.push(wordNode);
-        // Insert line break after every maxWordsPerLine words
-        if ((wordIdx + 1) % maxWordsPerLine === 0 && wordIdx < wordsArray.length - 1) {
-          acc.nodes.push(<br key={`br-${wordIdx}`} />);
-        }
-        acc.currentIndex += word.length + 1;
-        return acc;
-      },
-      { nodes: [], currentIndex: initialCharIndex }
-    ).nodes;
-  };
-
-  const formatRemValue = (value: number) => {
-    const normalized = value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
-    return `${normalized}rem`;
-  };
-
-  const getSoundPackOptions = (category: "typing" | "warning" | "error") => {
-    if (!soundManifest?.[category]) return [];
-    return Object.keys(soundManifest[category]);
-  };
-
-  const playSettingsSoundPreview = (category: "typing" | "warning" | "error", pack: string) => {
-    if (!pack || !soundManifest) return;
-    const soundUrl = getRandomSoundUrl(soundManifest, category, pack);
-    if (!soundUrl) return;
-
-    try {
-      const audio = new Audio(soundUrl);
-      audio.volume = 0.5;
-      audio.play().catch(() => {});
-    } catch {
-      // Ignore preview errors
-    }
-  };
-
-  const clampedTextSize = Math.max(3, Math.min(6, settings.typingFontSize));
-  const clampedLinePreview = Math.max(1, Math.min(6, linePreview));
-  const clampedMaxWordsPerLine = Math.max(1, Math.min(10, maxWordsPerLine));
   const selectedDurationPreset = TIME_PRESETS.find((preset) => preset === settings.duration);
   const selectedWordPreset = WORD_PRESETS.find((preset) => preset === settings.wordTarget);
   const isCustomDurationSelected = selectedDurationPreset === undefined;
   const isCustomWordTargetSelected = selectedWordPreset === undefined;
-  const customDurationSeconds =
-    customDuration.hours * 3600 + customDuration.minutes * 60 + customDuration.seconds;
-  const formattedCustomDuration = `${customDuration.hours.toString().padStart(2, "0")}:${customDuration.minutes
-    .toString()
-    .padStart(2, "0")}:${customDuration.seconds.toString().padStart(2, "0")}`;
-  const customWordValue = digitsToWordTarget(customWordDigits);
-  const formattedCustomWordValue = customWordValue.toString().padStart(4, "0");
-  const typingSoundOptions = getSoundPackOptions("typing");
-  const warningSoundOptions = getSoundPackOptions("warning");
-  const errorSoundOptions = getSoundPackOptions("error");
-  const selectedTypingSound = typingSoundOptions.includes(settings.typingSound)
-    ? settings.typingSound
-    : undefined;
-  const selectedWarningSound = warningSoundOptions.includes(settings.warningSound)
-    ? settings.warningSound
-    : undefined;
-  const selectedErrorSound = errorSoundOptions.includes(settings.errorSound)
-    ? settings.errorSound
-    : "";
-  const closeSettingsModal = () => {
-    setActiveSettingsTab("all");
-    setShowSettings(false);
+  const configurationProps = {
+    settings, updateSettings, generateTest, isKidMode, handleModeSelect,
+    wordsManifest, quotesManifest, openCustomCountModal,
+    isCustomDurationSelected, isCustomWordTargetSelected,
   };
 
   return (
@@ -2184,248 +1441,17 @@ export default function TypingPractice({
       style={{ backgroundColor: tv.bg.base }}
     >
       <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
-      {/* Header clearance spacer */}
-      <div className={`shrink-0 w-full ${settings.showOnScreenKeyboard && isRunning && !isFinished ? "pt-8 md:pt-10" : "pt-20 md:pt-24"}`} />
+      <div className="h-4 shrink-0" />
 
-      {/* Settings Controls */}
-      {!connectMode && !isRunning && !isFinished && (
-        <div
-          className="shrink-0 w-full flex flex-col items-center justify-center gap-3 transition-opacity duration-300 pb-2"
-          style={{ 
-            fontSize: `${settings.iconFontSize}rem`, 
-            opacity: uiOpacity,
-          }}
-        >
-          {/* Compact Mode: Quick Settings */}
-          {isCompactMode && (
-            <button
-              type="button"
-              onClick={() => setShowQuickSettings(true)}
-              className="rounded-lg px-4 py-2 text-sm transition hover:text-gray-200"
-              style={{ backgroundColor: tv.bg.surface, color: tv.interactive.primary.DEFAULT }}
-              title="Quick Settings"
-            >
-              Quick Settings
-            </button>
-          )}
-
-          {/* Row 1: Mode | Modifiers (hidden in compact mode) */}
-          {!isCompactMode && (
-          <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400">
-            {/* Test Modes */}
-            <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Mode</span>
-            <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
-              {MODE_SELECTOR_OPTIONS.map((m) => {
-                const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => handleModeSelect(m)}
-                    className={`px-3 py-1 rounded transition ${isModeActive ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                    style={{ color: isModeActive ? tv.interactive.secondary.DEFAULT : undefined }}
-                  >
-                    {m}
-                  </button>
-                );
-              })}
-            </div>
-
-            {!isKidMode && (
-              <>
-                <div className="w-px h-4 bg-gray-700"></div>
-
-                {/* Modifiers: Caps, Punctuation & Numbers */}
-                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Modifiers</span>
-                <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: tv.bg.surface }}>
-                  <button
-                    type="button"
-                    onClick={() => updateSettings({ capitalization: !settings.capitalization })}
-                    className={`flex items-center gap-2 transition ${settings.capitalization ? "" : "hover:text-gray-200"}`}
-                    style={{ color: settings.capitalization ? tv.interactive.secondary.DEFAULT : undefined }}
-                    disabled={settings.mode === "quote"}
-                    title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle capitalization"}
-                  >
-                    <span
-                      className={settings.capitalization ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                      style={{
-                        backgroundColor: settings.capitalization ? tv.interactive.secondary.DEFAULT : undefined,
-                        opacity: settings.mode === "quote" ? 0.5 : 1
-                      }}
-                    >
-                      Aa
-                    </span>
-                    <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>caps</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateSettings({ punctuation: !settings.punctuation })}
-                    className={`flex items-center gap-2 transition ${settings.punctuation ? "" : "hover:text-gray-200"}`}
-                    style={{ color: settings.punctuation ? tv.interactive.secondary.DEFAULT : undefined }}
-                    disabled={settings.mode === "quote"}
-                    title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle punctuation"}
-                  >
-                    <span
-                      className={settings.punctuation ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                      style={{
-                        backgroundColor: settings.punctuation ? tv.interactive.secondary.DEFAULT : undefined,
-                        opacity: settings.mode === "quote" ? 0.5 : 1
-                      }}
-                    >
-                      @
-                    </span>
-                    <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>punctuation</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateSettings({ numbers: !settings.numbers })}
-                    className={`flex items-center gap-2 transition ${settings.numbers ? "" : "hover:text-gray-200"}`}
-                    style={{ color: settings.numbers ? tv.interactive.secondary.DEFAULT : undefined }}
-                    disabled={settings.mode === "quote"}
-                    title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle numbers"}
-                  >
-                    <span
-                      className={settings.numbers ? "text-gray-900 rounded px-1 text-[0.75em] font-bold" : "bg-gray-700 rounded px-1 text-[0.75em]"}
-                      style={{
-                        backgroundColor: settings.numbers ? tv.interactive.secondary.DEFAULT : undefined,
-                        opacity: settings.mode === "quote" ? 0.5 : 1
-                      }}
-                    >
-                      #
-                    </span>
-                    <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>numbers</span>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-          )}
-
-          {/* Row 3: Time/Word Count/Quote Length + Difficulty with labels (hidden in compact mode or kid mode) */}
-          {!isCompactMode && !isKidMode && (
-          <div className="flex flex-wrap items-center justify-center gap-3 text-gray-400">
-            {/* Time Duration */}
-            {settings.mode === "time" && (
-              <>
-                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Duration</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
-                  {TIME_PRESETS.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => {
-                        if (settings.duration === d) generateTest();
-                        else updateSettings({ duration: d });
-                      }}
-                      className={`px-3 py-1 rounded transition ${settings.duration === d ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                      style={{ color: settings.duration === d ? tv.interactive.secondary.DEFAULT : undefined }}
-                    >
-                      {d}s
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={openCustomCountModal}
-                    className={`px-3 py-1 rounded transition ${isCustomDurationSelected ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                    style={{ color: isCustomDurationSelected ? tv.interactive.secondary.DEFAULT : undefined }}
-                  >
-                    custom
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Word Count */}
-            {settings.mode === "words" && (
-              <>
-                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Word Count</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
-                  {WORD_PRESETS.map((w) => (
-                    <button
-                      key={w}
-                      type="button"
-                      onClick={() => {
-                        if (settings.wordTarget === w) generateTest();
-                        else updateSettings({ wordTarget: w });
-                      }}
-                      className={`px-3 py-1 rounded transition ${settings.wordTarget === w ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                      style={{ color: settings.wordTarget === w ? tv.interactive.secondary.DEFAULT : undefined }}
-                    >
-                      {w}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={openCustomCountModal}
-                    className={`px-3 py-1 rounded transition ${isCustomWordTargetSelected ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                    style={{ color: isCustomWordTargetSelected ? tv.interactive.secondary.DEFAULT : undefined }}
-                  >
-                    custom
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Quote Length */}
-            {settings.mode === "quote" && quotesManifest && (
-              <>
-                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Quote Length</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
-                  {["all", ...quotesManifest.lengths].map((l) => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => {
-                        if (settings.quoteLength === l) generateTest();
-                        else updateSettings({ quoteLength: l as typeof settings.quoteLength });
-                      }}
-                      className={`px-3 py-1 rounded transition ${settings.quoteLength === l ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                      style={{ color: settings.quoteLength === l ? tv.interactive.secondary.DEFAULT : undefined }}
-                    >
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Zen mode - show infinity symbol */}
-            {settings.mode === "zen" && (
-              <>
-                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Duration</span>
-                <div className="flex rounded-lg px-4 py-1.5" style={{ backgroundColor: tv.bg.surface }}>
-                  <span className="text-lg" style={{ color: tv.interactive.secondary.DEFAULT }}>∞</span>
-                </div>
-              </>
-            )}
-
-            {/* Difficulty (shown for time, words, zen modes) */}
-            {settings.mode !== "quote" && wordsManifest && (
-              <>
-                <div className="w-px h-4 bg-gray-700"></div>
-                <span className="text-sm font-medium" style={{ color: tv.text.secondary }}>Difficulty</span>
-                <div className="flex rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
-                  {wordsManifest.difficulties.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => {
-                        if (settings.difficulty === d) generateTest();
-                        else updateSettings({ difficulty: d as typeof settings.difficulty });
-                      }}
-                      className={`px-3 py-1 rounded transition ${settings.difficulty === d ? "font-medium bg-gray-800" : "hover:text-gray-200"}`}
-                      style={{ color: settings.difficulty === d ? tv.interactive.secondary.DEFAULT : undefined }}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          )}
-        </div>
-      )}
+      <PracticeControls
+        {...configurationProps}
+        connectMode={connectMode}
+        isRunning={isRunning}
+        isFinished={isFinished}
+        isCompactMode={isCompactMode}
+        uiOpacity={uiOpacity}
+        setShowQuickSettings={setShowQuickSettings}
+      />
 
       {/* Live Stats Widget - Unified 2-row layout */}
       {isRunning && !isFinished && (() => {
@@ -2454,7 +1480,7 @@ export default function TypingPractice({
               </div>
 
               {/* Time Mode: Countdown Timer */}
-              {settings.mode === "time" && (
+              {isTimedPractice(settings) && (
                 <div
                   className={pillCls}
                   style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
@@ -2529,7 +1555,7 @@ export default function TypingPractice({
           )}
 
           {/* Row 2: Progress Bar - shown in time/words/zen modes, hidden in kid mode */}
-          {(settings.mode === "time" || settings.mode === "words" || settings.mode === "zen") && !isKidMode && (
+          {(isTimedPractice(settings) || settings.mode === "words" || settings.mode === "zen") && !isKidMode && (
             <div className={`flex ${kb ? "gap-1.5" : "gap-2 md:gap-3"} items-center`}>
               <div
                 className={kb ? "w-48 px-2.5 py-1.5 backdrop-blur-md rounded-full shadow-lg" : "w-56 md:w-80 px-3 py-2.5 md:px-4 md:py-4 backdrop-blur-md rounded-full shadow-lg"}
@@ -2568,7 +1594,7 @@ export default function TypingPractice({
                     className={kb ? "h-1.5" : "h-2 md:h-2.5"}
                     style={{ backgroundColor: tv.border.subtle }}
                     indicatorStyle={{
-                      backgroundColor: settings.mode === "time" && timeRemaining < 10
+                      backgroundColor: isTimedPractice(settings) && timeRemaining < 10
                         ? tv.status.error.DEFAULT
                         : tv.status.success.DEFAULT,
                     }}
@@ -2619,7 +1645,7 @@ export default function TypingPractice({
         {/* Quote Info */}
         {settings.mode === "quote" && currentQuote && !isFinished && (
           <div
-            className="mb-4 flex flex-col items-center text-center animate-fade-in transition-opacity duration-500"
+            className="mb-4 flex flex-col items-center text-center transition-opacity motion-reduce:transition-none duration-300"
             style={{ opacity: uiOpacity }}
           >
             <div className="text-xl font-medium" style={{ color: tv.interactive.secondary.DEFAULT }}>
@@ -2643,15 +1669,20 @@ export default function TypingPractice({
               ref={inputRef}
               name="typing-test-input"
               type="text"
-              value={typedText}
-              onChange={(e) => handleInput(e.target.value)}
+              value={compositionDraft ?? typedText}
+              aria-label="Typing practice"
+              aria-describedby="practice-editing-help"
+              onChange={(event) => { if (composingRef.current) setCompositionDraft(event.target.value); else handleInput(event.target.value); }}
+              onCompositionStart={(event) => { composingRef.current = true; setCompositionDraft(event.currentTarget.value); }}
+              onCompositionEnd={(event) => { composingRef.current = false; setCompositionDraft(null); handleInput(event.currentTarget.value); placeCaretAtEnd(event.currentTarget); }}
+              onSelect={(event) => { if (!composingRef.current) placeCaretAtEnd(event.currentTarget); }}
               onPaste={(e) => {
                 if (!connectMode) {
                   e.preventDefault();
                 }
               }}
               onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
+              onFocus={(event) => { setIsFocused(true); placeCaretAtEnd(event.currentTarget); }}
               onBlur={() => setIsFocused(false)}
               autoFocus
               autoComplete="off"
@@ -2660,7 +1691,7 @@ export default function TypingPractice({
               data-lpignore="true"
               className="absolute left-0 top-0 -z-10 opacity-0"
               style={{ caretColor: "transparent", color: "transparent", appearance: "none" }}
-              disabled={connectMode && !isTestActive}
+              disabled={!promptReady || (connectMode && !isTestActive)}
             />
 
             <div
@@ -2681,15 +1712,20 @@ export default function TypingPractice({
               }}
               onClick={() => inputRef.current?.focus()}
             >
-              <div
-                style={{ transform: `translateY(-${scrollOffset}px)`, transition: "transform 0.1s ease-out" }}
-              >
-                {renderTypingArea()}
+              <div ref={contentRef} className="relative motion-safe:transition-transform motion-safe:duration-100"
+                style={{ transform: `translateY(-${scrollOffset}px)` }}>
+                {promptReady && <PracticeText targetText={words} typedText={compositionDraft ?? typedText} caretRef={caretRef}
+                  maxWordsPerLine={maxWordsPerLine} ghostPosition={settings.ghostWriterEnabled ? ghostCharIndex : undefined} />}
               </div>
             </div>
 
+            {!promptReady && <div role="status" className="py-8 text-center" style={{ color: tv.text.secondary }}>
+              {dataset.status === "error" ? <>Could not load this prompt. <button type="button" onClick={() => { if (settings.mode === "quote") void fetchQuotesManifest().then(setQuotesManifest); dataset.retry(); }}>Retry</button></>
+                : settings.mode === "plan" ? "Waiting for the host to choose a plan step." : "Loading prompt…"}
+            </div>}
+            <span id="practice-editing-help" className="sr-only">Type at the end of the text. Use Backspace to correct the current word. Tab moves to the next control.</span>
             {/* Click to focus overlay */}
-            {!isFocused && (
+            {!isFocused && promptReady && (
               <div
                 className="absolute inset-0 flex items-center justify-center cursor-pointer"
                 onClick={() => inputRef.current?.focus()}
@@ -2719,389 +1755,22 @@ export default function TypingPractice({
             )}
           </div>
         ) : (
-          // Results Screen
-          <div className="w-full max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* WPM */}
-              <motion.div
-                className="relative overflow-hidden rounded-2xl p-6 md:p-10 flex flex-col items-center justify-center group transition-colors"
-                style={{ backgroundColor: tv.bg.surface, borderWidth: 1, borderColor: tv.border.subtle }}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-              >
-                <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: tv.text.secondary }}>
-                  Words Per Minute
-                </div>
-                <AnimatedWpmDisplay value={Math.round(wpm)} color={tv.interactive.secondary.DEFAULT} />
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" style={{ color: tv.text.primary }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                </div>
-              </motion.div>
-
-              {/* Accuracy */}
-              <motion.div
-                className="relative overflow-hidden rounded-2xl p-6 md:p-10 flex flex-col items-center justify-center group transition-colors"
-                style={{ backgroundColor: tv.bg.surface, borderWidth: 1, borderColor: tv.border.subtle }}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
-              >
-                <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: tv.text.secondary }}>
-                  Accuracy
-                </div>
-                <AnimatedAccuracyDisplay value={Math.round(accuracy)} color={tv.interactive.secondary.DEFAULT} />
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity" style={{ color: tv.text.primary }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Secondary Stats - Grouped by Words and Characters */}
-            <motion.div
-              className="flex flex-col md:flex-row gap-4 mb-12"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3, ease: "easeOut" }}
-            >
-              {/* Words Group */}
-              <div className="flex-1 rounded-xl p-4" style={{ backgroundColor: `${colors.bg.surface}80`, borderWidth: 1, borderColor: tv.border.subtle }}>
-                <div className="text-xs font-semibold uppercase tracking-wide text-center mb-3" style={{ color: tv.text.secondary }}>Words</div>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Correct Words with Hover */}
-                  <HoverCard openDelay={100} closeDelay={100}>
-                    <HoverCardTrigger asChild>
-                      <div className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
-                        <div className="text-3xl font-bold mb-1" style={{ color: tv.status.success.DEFAULT }}>{wordResults.correctWords.length}</div>
-                        <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.text.secondary }}>Correct</div>
-                      </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent
-                      className="w-56 p-0"
-                      style={{ backgroundColor: tv.bg.surface, borderColor: tv.border.subtle }}
-                    >
-                      <div className="p-3" style={{ borderBottomWidth: 1, borderColor: tv.border.subtle }}>
-                        <div className="text-sm font-semibold" style={{ color: tv.text.primary }}>Correct Words</div>
-                        <div className="text-xs" style={{ color: tv.text.secondary }}>{wordResults.correctWords.length} words</div>
-                      </div>
-                      <div className="max-h-32 overflow-y-auto">
-                        {wordResults.correctWords.length > 0 ? (
-                          <div className="p-2 flex flex-wrap gap-1.5">
-                            {wordResults.correctWords.map((word, idx) => (
-                              <span
-                                key={idx}
-                                className="px-2 py-0.5 text-xs rounded-md font-mono"
-                                style={{ backgroundColor: `${colors.interactive.secondary.DEFAULT}30`, color: tv.interactive.secondary.DEFAULT }}
-                              >
-                                {word}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="p-3 text-center text-sm" style={{ color: tv.text.secondary }}>
-                            No correct words
-                          </div>
-                        )}
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-
-                  {/* Incorrect Words with Hover */}
-                  <HoverCard openDelay={100} closeDelay={100}>
-                    <HoverCardTrigger asChild>
-                      <div className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
-                        <div className="text-3xl font-bold mb-1" style={{ color: tv.status.error.DEFAULT }}>{wordResults.incorrectWords.length}</div>
-                        <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.text.secondary }}>Incorrect</div>
-                      </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent
-                      className="w-64 p-0"
-                      style={{ backgroundColor: tv.bg.surface, borderColor: tv.border.subtle }}
-                    >
-                      <div className="p-3" style={{ borderBottomWidth: 1, borderColor: tv.border.subtle }}>
-                        <div className="text-sm font-semibold" style={{ color: tv.text.primary }}>Incorrect Words</div>
-                        <div className="text-xs" style={{ color: tv.text.secondary }}>{wordResults.incorrectWords.length} mistakes</div>
-                      </div>
-                      <div className="max-h-40 overflow-y-auto">
-                        {wordResults.incorrectWords.length > 0 ? (
-                          <div className="p-2 space-y-1.5">
-                            {wordResults.incorrectWords.map((item, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center gap-2 px-2 py-1 rounded text-xs font-mono"
-                                style={{ backgroundColor: tv.bg.surface }}
-                              >
-                                <span style={{ color: tv.status.error.DEFAULT }}>{item.typed}</span>
-                                <span style={{ color: tv.text.secondary }}>→</span>
-                                <span style={{ color: tv.interactive.secondary.DEFAULT }}>{item.expected}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="p-3 text-center text-sm" style={{ color: tv.text.secondary }}>
-                            No mistakes - perfect!
-                          </div>
-                        )}
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                </div>
-              </div>
-
-              {/* Characters Group */}
-              <div className="flex-1 rounded-xl p-4" style={{ backgroundColor: `${colors.bg.surface}80`, borderWidth: 1, borderColor: tv.border.subtle }}>
-                <div className="text-xs font-semibold uppercase tracking-wide text-center mb-3" style={{ color: tv.text.secondary }}>Characters</div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="text-3xl font-bold mb-1" style={{ color: tv.text.primary }}>{stats.missed}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.text.secondary }}>Missed</div>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="text-3xl font-bold mb-1" style={{ color: tv.text.primary }}>{stats.extra}</div>
-                    <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.text.secondary }}>Extra</div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Quote Attribution */}
-            {settings.mode === "quote" && currentQuote && (
-              <div className="text-center mb-8" style={{ color: tv.text.secondary }}>
-                — {currentQuote.author}
-                {currentQuote.source && `, ${currentQuote.source}`}
-              </div>
-            )}
-
-            {/* Unverified Test Warning */}
-            {lastResultIsValid === false && (
-              <div
-                className="w-full mb-6 p-4 rounded-lg border"
-                style={{
-                  backgroundColor: colors.status.error.muted,
-                  borderColor: tv.status.error.DEFAULT,
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="flex-shrink-0"
-                    style={{ color: tv.status.error.DEFAULT }}
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <div className="flex-1">
-                    <span className="font-medium" style={{ color: tv.status.error.DEFAULT }}>
-                      Unverified
-                    </span>
-                    <span className="text-sm ml-2" style={{ color: tv.text.secondary }}>
-                      {lastResultInvalidReason?.includes("progress")
-                        ? "Not enough typing activity reached the server"
-                        : lastResultInvalidReason?.includes("WPM exceeds")
-                          ? "Speed exceeded the 300 WPM cap"
-                          : lastResultInvalidReason?.includes("Burst") || lastResultInvalidReason?.includes("paste")
-                            ? "Input appeared faster than allowed"
-                            : lastResultInvalidReason?.includes("too fast")
-                              ? "Test completed too quickly (need full duration)"
-                              : lastResultInvalidReason?.includes("Session was not established")
-                                ? "Could not verify this test with a server session"
-                              : "Could not verify this test"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <motion.div
-              className="flex gap-4 justify-center"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.5, ease: "easeOut" }}
-            >
-              {/* Save Results Button */}
-              {!connectMode && (
-                <button
-                  type="button"
-                  onClick={() => saveResults()}
-                  disabled={saveState === "saving" || saveState === "saved" || lastResultIsValid === false}
-                  className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: lastResultIsValid === false
-                      ? colors.status.error.muted
-                      : saveState === "saved"
-                        ? colors.status.success.muted
-                        : saveState === "error"
-                          ? colors.status.error.muted
-                          : tv.interactive.secondary.DEFAULT,
-                    color: lastResultIsValid === false
-                      ? tv.status.error.DEFAULT
-                      : saveState === "saved"
-                        ? tv.status.success.DEFAULT
-                        : saveState === "error"
-                          ? tv.status.error.DEFAULT
-                          : tv.text.inverse
-                  }}
-                >
-                  {lastResultIsValid === false && (
-                    <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-2"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="15" y1="9" x2="9" y2="15" />
-                        <line x1="9" y1="9" x2="15" y2="15" />
-                      </svg>
-                      Invalid
-                    </>
-                  )}
-                  {lastResultIsValid !== false && saveState === "idle" && (
-                    <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-2"
-                      >
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                        <polyline points="17 21 17 13 7 13 7 21" />
-                        <polyline points="7 3 7 8 15 8" />
-                      </svg>
-                      Save Results
-                    </>
-                  )}
-                  {lastResultIsValid !== false && saveState === "saving" && (
-                    <>
-                      <div
-                        className="h-4 w-4 rounded-full border-2 border-t-transparent animate-spin mr-2"
-                        style={{ borderColor: "currentColor", borderTopColor: "transparent" }}
-                      />
-                      Saving...
-                    </>
-                  )}
-                  {lastResultIsValid !== false && saveState === "saved" && (
-                    <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-2"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      Saved
-                    </>
-                  )}
-                  {lastResultIsValid !== false && saveState === "error" && (
-                    <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="mr-2"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                      Error - Try Again
-                    </>
-                  )}
-                </button>
-              )}
-              {!connectMode && (
-                <button
-                  type="button"
-                  onClick={() => generateTest()}
-                  className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}
-                >
-                  <span className="mr-2 transition-transform group-hover:rotate-180">↻</span>
-                  Next Test
-                  <div className="absolute bottom-0 left-0 h-1 w-full scale-x-0 transition-transform duration-200 group-hover:scale-x-100 rounded-b-lg" style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}></div>
-                </button>
-              )}
-              {connectMode && onLeave && (
-                <button
-                  type="button"
-                  onClick={onLeave}
-                  className="px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  style={{ color: tv.status.error.DEFAULT, backgroundColor: colors.status.error.muted, borderWidth: 1, borderColor: tv.status.error.DEFAULT }}
-                >
-                  Leave Room
-                </button>
-              )}
-            </motion.div>
-
-            <motion.div
-              className="mt-6 text-center text-sm"
-              style={{ color: tv.text.secondary }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.7 }}
-            >
-              <div>
-                {lastResultIsValid === true && (
-                  <>
-                    Verified
-                    {" · "}
-                  </>
-                )}
-                {lastResultIsValid !== false && saveState !== "saved" && saveState !== "saving" && (
-                  <>
-                    Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}>Space</kbd> to save
-                    {" · "}
-                  </>
-                )}
-                <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}>Enter</kbd> to continue
-              </div>
-              <div className="mt-1">
-                Press <kbd className="px-1.5 py-0.5 rounded font-sans" style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}>Tab</kbd> to repeat this test
-              </div>
-            </motion.div>
-          </div>
+          <PracticeResults
+            wpm={wpm}
+            accuracy={accuracy}
+            stats={stats}
+            wordResults={wordResults}
+            settings={settings}
+            currentQuote={currentQuote}
+            lastResultIsValid={lastResultIsValid}
+            lastResultInvalidReason={lastResultInvalidReason}
+            connectMode={connectMode}
+            saveState={saveState}
+            saveResults={saveResults}
+            generateTest={generateTest}
+            onLeave={onLeave}
+            {...{ repeatTest: () => resetSession(true), rankingStatus, isRepeated }}
+          />
         )}
         </div>
       </div>
@@ -3115,8 +1784,7 @@ export default function TypingPractice({
           >
             {isRepeated && <div className="mb-2 text-red-500 font-medium">REPEATED</div>}
             <div>
-              Press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Tab</kbd> +{" "}
-              <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-400 font-sans">Shift</kbd> to restart
+              Press <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to repeat · <kbd>Tab</kbd> to move focus
             </div>
             <div>Click on the text area and start typing</div>
           </div>
@@ -3129,1775 +1797,43 @@ export default function TypingPractice({
       {/* Flexible spacer - keeps typing area vertically centered */}
       <div className={settings.showOnScreenKeyboard && !isFinished ? "shrink-0" : "flex-1"} />
 
-      {/* Preset Input Modal */}
-      {showPresetInput && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowPresetInput(false)}
-        >
-          <div
-            className="w-full max-w-xl rounded-lg p-6 shadow-xl mx-4"
-            style={{ backgroundColor: tv.bg.surface }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-semibold mb-4" style={{ color: tv.text.primary }}>Enter Custom Text</h2>
-            <textarea
-              value={tempPresetText}
-              onChange={(e) => setTempPresetText(e.target.value)}
-              className="w-full h-48 rounded px-3 py-2 focus:outline-none focus:ring-2"
-              style={{ backgroundColor: tv.bg.base, color: tv.text.primary, "--tw-ring-color": tv.interactive.secondary.DEFAULT } as React.CSSProperties}
-              placeholder="Paste or type your custom text here..."
-            />
-            <div className="flex justify-end gap-4 mt-4">
-              <button onClick={() => setShowPresetInput(false)} className="px-4 py-2 hover:opacity-80 transition-opacity" style={{ color: tv.text.secondary }}>
-                Cancel
-              </button>
-              <button
-                onClick={() => handlePresetSubmit(tempPresetText)}
-                className="px-4 py-2 rounded text-white"
-                style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
-              >
-                Start
-              </button>
-            </div>
-          </div>
-        </div>
+      <PracticePresetDialog
+        showPresetInput={showPresetInput}
+        setShowPresetInput={setShowPresetInput}
+        handlePresetSubmit={handlePresetSubmit}
+      />
+
+      <PracticeThemePicker showThemeModal={showThemeModal} setShowThemeModal={setShowThemeModal} {...{ onUserSelection: () => { themeEditedRef.current = true; } }} />
+
+      <PracticeSettingsDialog
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
+        settings={settings}
+        updateSettings={updateSettings}
+        linePreview={linePreview}
+        setLinePreview={updateLinePreview}
+        maxWordsPerLine={maxWordsPerLine}
+        setMaxWordsPerLine={updateMaxWordsPerLine}
+        soundManifest={soundManifest}
+      />
+
+      {showCustomCountModal && (
+        <PracticeCountDialog
+          settings={settings}
+          setShowCustomCountModal={setShowCustomCountModal}
+          onApply={applyCustomCount}
+        />
       )}
 
-      {/* Theme Modal */}
-      {showThemeModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => {
-            setShowThemeModal(false);
-            setIsCustomThemeOpen(false);
-            setPreviewTheme(null);
-            setSelectedCategory(null);
-            setThemeSearchQuery("");
-            setCollapsedCategories(getDefaultCollapsedCategories());
-          }}
-        >
-          <div
-            className="w-[calc(100vw-1.5rem)] sm:w-[calc(100vw-2rem)] lg:w-[calc(100vw-3rem)] max-h-[85vh] rounded-lg shadow-xl flex overflow-hidden"
-            style={{ backgroundColor: tv.bg.surface }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Left: Preview Panel (40%) - Realistic Homepage Preview */}
-            <div 
-              className="w-2/5 overflow-hidden relative"
-              style={{ backgroundColor: resolvedPreviewColors.bg.base }}
-            >
-              {/* Mini Header - Absolute positioned at top */}
-              <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 z-10">
-                {/* Theme name + variant label */}
-                <div className="min-w-0">
-                  <div
-                    className="text-lg font-semibold truncate"
-                    style={{ color: resolvedPreviewColors.interactive.secondary.DEFAULT }}
-                  >
-                    {previewThemeDef?.name ?? selectedThemeName}
-                  </div>
-                  {previewThemeDef && previewThemeDef.variants.length > 1 && previewThemeDef.previewVariantId && (
-                    <div
-                      className="text-xs truncate"
-                      style={{ color: resolvedPreviewColors.text.secondary }}
-                    >
-                      {previewThemeDef.variants.find(v => v.id === previewThemeDef.previewVariantId)?.label}
-                    </div>
-                  )}
-                </div>
-                {/* Header icons */}
-                <div className="flex items-center gap-3">
-                  {/* Trophy icon */}
-                  <div
-                    className="w-8 h-8 flex items-center justify-center rounded"
-                    style={{ color: resolvedPreviewColors.interactive.primary.DEFAULT }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                      <path d="M4 22h16" />
-                      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-                      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-                    </svg>
-                  </div>
-                  {/* User avatar placeholder */}
-                  <div 
-                    className="w-8 h-8 rounded-full"
-                    style={{ backgroundColor: resolvedPreviewColors.bg.surface, border: `2px solid ${resolvedPreviewColors.typing.default}40` }}
-                  />
-                </div>
-              </div>
-
-              {/* Settings Controls Area - Absolute positioned below header */}
-              <div className="absolute top-16 left-0 right-0 flex flex-col items-center gap-2 px-6 py-2 z-10">
-                {/* Row 1: Mode Selector */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium" style={{ color: resolvedPreviewColors.typing.default }}>Mode</span>
-                  <div
-                    className="flex rounded-lg p-1"
-                    style={{ backgroundColor: resolvedPreviewColors.bg.surface }}
-                  >
-                    {MODE_SELECTOR_OPTIONS.map((m, idx) => (
-                      <span
-                        key={m}
-                        className="px-3 py-1 rounded text-xs"
-                        style={{
-                          color: idx === 1 ? resolvedPreviewColors.interactive.secondary.DEFAULT : resolvedPreviewColors.interactive.primary.DEFAULT,
-                          backgroundColor: idx === 1 ? resolvedPreviewColors.bg.base : "transparent",
-                          fontWeight: idx === 1 ? 500 : 400
-                        }}
-                      >
-                        {m}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Row 2: Zen infinity + Difficulty */}
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium" style={{ color: resolvedPreviewColors.typing.default }}>Duration</span>
-                  <div
-                    className="flex rounded-lg px-4 py-1.5"
-                    style={{ backgroundColor: resolvedPreviewColors.bg.surface }}
-                  >
-                    <span className="text-base" style={{ color: resolvedPreviewColors.interactive.secondary.DEFAULT }}>∞</span>
-                  </div>
-                  <div className="w-px h-4" style={{ backgroundColor: resolvedPreviewColors.typing.default, opacity: 0.3 }} />
-                  <span className="text-xs font-medium" style={{ color: resolvedPreviewColors.typing.default }}>Difficulty</span>
-                  <div
-                    className="flex rounded-lg p-1"
-                    style={{ backgroundColor: resolvedPreviewColors.bg.surface }}
-                  >
-                    {["easy", "medium", "hard"].map((d, idx) => (
-                      <span
-                        key={d}
-                        className="px-3 py-1 rounded text-xs"
-                        style={{
-                          color: idx === 1 ? resolvedPreviewColors.interactive.secondary.DEFAULT : resolvedPreviewColors.interactive.primary.DEFAULT,
-                          backgroundColor: idx === 1 ? resolvedPreviewColors.bg.base : "transparent",
-                          fontWeight: idx === 1 ? 500 : 400
-                        }}
-                      >
-                        {d}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Main Typing Area - Full height, vertically centered */}
-              <div className="absolute inset-0 flex items-center justify-center px-8">
-                {/* Sample Typing Text */}
-                <div className="text-2xl font-mono leading-loose text-center">
-                  {/* Line 1: correctly typed */}
-                  <span style={{ color: resolvedPreviewColors.typing.correct }}>the quick brown fox </span>
-                  {/* Line 1: error */}
-                  <span style={{ color: resolvedPreviewColors.typing.incorrect }}>jum</span>
-                  {/* Cursor */}
-                  <span
-                    className="inline-block w-0.5 h-6 align-middle animate-pulse"
-                    style={{ backgroundColor: resolvedPreviewColors.typing.cursor }}
-                  />
-                  {/* Line 1: untyped */}
-                  <span style={{ color: resolvedPreviewColors.typing.default }}>ps over the lazy dog</span>
-                </div>
-              </div>
-
-              {/* Color Swatches - Absolute positioned at bottom */}
-              <div
-                className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-4 px-6 py-4 border-t"
-                style={{
-                  backgroundColor: resolvedPreviewColors.bg.surface,
-                  borderColor: `${resolvedPreviewColors.typing.default}20`
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.typing.cursor }} />
-                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>cursor</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.typing.correct }} />
-                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>correct</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.typing.incorrect }} />
-                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>incorrect</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.typing.default }} />
-                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>untyped</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: resolvedPreviewColors.interactive.secondary.DEFAULT }} />
-                  <span className="text-xs" style={{ color: resolvedPreviewColors.typing.default }}>selected</span>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Right: Theme Browser (60%) */}
-            <div className="w-3/5 p-6 flex flex-col overflow-hidden border-l" style={{ borderColor: tv.border.subtle }}>
-              {/* Header with close button */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>Theme</h2>
-                <button
-                  onClick={() => {
-                    setShowThemeModal(false);
-                    setIsCustomThemeOpen(false);
-                    setPreviewTheme(null);
-                    setSelectedCategory(null);
-                    setThemeSearchQuery("");
-                    setCollapsedCategories(getDefaultCollapsedCategories());
-                  }}
-                  className="rounded-md px-2.5 py-1.5 text-xl leading-none transition-colors"
-                  style={{ color: tv.text.secondary }}
-                  aria-label="Close theme picker"
-                  onMouseEnter={(e) => e.currentTarget.style.color = tv.text.primary}
-                  onMouseLeave={(e) => e.currentTarget.style.color = tv.text.secondary}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* TEMP_DISABLED_CATEGORIES_TAB: view mode toggle hidden while only all-themes mode is active */}
-
-              <div className="mb-4 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const allThemes = groupedThemes.flatMap((g) => g.themes);
-                    if (allThemes.length === 0) return;
-                    const theme = allThemes[Math.floor(Math.random() * allThemes.length)];
-                    const variant = theme.variants[Math.floor(Math.random() * theme.variants.length)];
-                    handleThemeSelect(theme.id, variant.id, selectedMode);
-                  }}
-                  className="shrink-0 rounded-lg p-2 transition-colors hover:opacity-80"
-                  style={{
-                    backgroundColor: tv.bg.base,
-                    color: tv.text.secondary,
-                    border: `1px solid ${tv.border.subtle}`,
-                  }}
-                  aria-label="Random theme"
-                  title="Random theme"
-                >
-                  <Shuffle size={16} />
-                </button>
-                <input
-                  type="text"
-                  value={themeSearchQuery}
-                  onChange={(e) => setThemeSearchQuery(e.target.value)}
-                  placeholder={
-                    themeViewMode === "all"
-                      ? "Search themes or categories..."
-                      : selectedCategory
-                        ? `Search ${CATEGORY_CONFIG[selectedCategory].displayName} themes...`
-                        : "Search categories..."
-                  }
-                  className="flex-1 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
-                  style={{
-                    backgroundColor: tv.bg.base,
-                    color: tv.text.primary,
-                    border: `1px solid ${tv.border.subtle}`,
-                    "--tw-ring-color": tv.interactive.secondary.DEFAULT,
-                  } as React.CSSProperties}
-                />
-                {themeViewMode === "all" && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setCollapsedCategories(new Set())}
-                      className="px-2.5 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80 whitespace-nowrap"
-                      style={{
-                        backgroundColor: tv.bg.base,
-                        color: tv.text.secondary,
-                        border: `1px solid ${tv.border.subtle}`,
-                      }}
-                    >
-                      Expand All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const all = new Set(filteredGroupedThemes.map((g) => g.category));
-                        setCollapsedCategories(all);
-                      }}
-                      className="px-2.5 py-2 rounded-lg text-xs font-medium transition-colors hover:opacity-80 whitespace-nowrap"
-                      style={{
-                        backgroundColor: tv.bg.base,
-                        color: tv.text.secondary,
-                        border: `1px solid ${tv.border.subtle}`,
-                      }}
-                    >
-                      Collapse All
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Scrollable Content Area */}
-              <div className="flex-1 overflow-y-auto pr-2">
-                {/* All Themes View */}
-                {themeViewMode === "all" && (
-                  <>
-                    {filteredGroupedThemes.length === 0 && (
-                      <div className="text-sm py-6 text-center" style={{ color: tv.text.muted }}>
-                        No themes found for "{themeSearchQuery.trim()}".
-                      </div>
-                    )}
-                    {filteredGroupedThemes.map((group, index) => {
-                      const isSearchActive = normalizedThemeSearchQuery.length > 0;
-                      const isExpanded = isSearchActive || !collapsedCategories.has(group.category);
-                      return (
-                        <div
-                          key={group.category}
-                          className={`last:mb-0 ${index === 0 ? "" : "mt-4 pt-4 border-t"}`}
-                          style={index === 0 ? undefined : { borderColor: tv.border.subtle }}
-                        >
-                          {/* Collapsible category header */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (isSearchActive) return;
-                              setCollapsedCategories((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(group.category)) {
-                                  next.delete(group.category);
-                                } else {
-                                  next.add(group.category);
-                                }
-                                return next;
-                              });
-                            }}
-                            className={`w-full flex items-center justify-between text-sm font-medium py-2 px-2 rounded-md sticky top-0 z-10 transition-colors ${
-                              isSearchActive ? "cursor-default" : "cursor-pointer hover:opacity-80"
-                            }`}
-                            style={{ backgroundColor: tv.bg.surface, color: tv.text.secondary }}
-                          >
-                            <span className="flex items-center gap-2">
-                              {group.displayName}
-                              <span className="text-xs font-normal" style={{ color: tv.text.muted }}>
-                                ({group.themes.length})
-                              </span>
-                            </span>
-                            {!isSearchActive && (
-                              <ChevronDown
-                                className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
-                                style={{ color: tv.text.secondary }}
-                              />
-                            )}
-                          </button>
-
-                          {/* Collapsible theme grid */}
-                          <div
-                            className={`overflow-hidden transition-all duration-200 ease-in-out ${
-                              isExpanded ? "max-h-[5000px] opacity-100 mt-2" : "max-h-0 opacity-0"
-                            }`}
-                          >
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                              {(() => {
-                                const elements: React.ReactNode[] = [];
-                                const expandedIndex = group.themes.findIndex(t => t.id === expandedThemeId);
-                                const expandedRow = expandedIndex >= 0 ? Math.floor(expandedIndex / themeGridColumns) : -1;
-                                const drawerAfterIndex = expandedRow >= 0
-                                  ? Math.min((expandedRow + 1) * themeGridColumns - 1, group.themes.length - 1)
-                                  : -1;
-                                const expandedThemeData = expandedIndex >= 0 ? group.themes[expandedIndex] : null;
-
-                                group.themes.forEach((themeData, idx) => {
-                                  const isMultiVariant = themeData.variants.length > 1;
-                                  const isThemeExpanded = expandedThemeId === themeData.id;
-                                  const isSelected = selectedThemeId === themeData.id;
-                                  const defaultVariant = themeData.variants.find(v => v.id === themeData.defaultVariantId) || themeData.variants[0];
-                                  const matchingVariants = normalizedThemeSearchQuery
-                                    ? themeData.variants.filter(v =>
-                                        themeSearchMatches(v.id, normalizedThemeSearchQuery) ||
-                                        themeSearchMatches(v.label, normalizedThemeSearchQuery)
-                                      )
-                                    : themeData.variants;
-
-                                  elements.push(
-                                    <div
-                                      key={themeData.id}
-                                      className="transition-opacity duration-200"
-                                      style={{
-                                        opacity: expandedThemeId && expandedThemeId !== themeData.id ? 0.5 : 1,
-                                      }}
-                                    >
-                                      <ThemeCard
-                                        themeData={themeData}
-                                        variant={defaultVariant}
-                                        label={themeData.name}
-                                        isSelected={isSelected}
-                                        isMultiVariant={isMultiVariant}
-                                        isExpanded={isThemeExpanded}
-                                        variantCount={themeData.variants.length}
-                                        matchingVariantCount={
-                                          normalizedThemeSearchQuery && matchingVariants.length > 0 && matchingVariants.length < themeData.variants.length
-                                            ? matchingVariants.length
-                                            : undefined
-                                        }
-                                        onCardClick={() => {
-                                          if (isMultiVariant) {
-                                            setExpandedThemeId(isThemeExpanded ? null : themeData.id);
-                                          } else {
-                                            handleThemeSelect(themeData.id);
-                                          }
-                                        }}
-                                        onLightClick={() => {
-                                          if (defaultVariant.light) handleThemeSelect(themeData.id, defaultVariant.id, "light");
-                                        }}
-                                        onDarkClick={() => handleThemeSelect(themeData.id, defaultVariant.id, "dark")}
-                                        onMouseEnter={() => setPreviewTheme(themeData)}
-                                        onMouseLeave={() => setPreviewTheme(null)}
-                                        onLightMouseEnter={() => defaultVariant.light && setPreviewTheme(themeData, "light", defaultVariant.id)}
-                                        onDarkMouseEnter={() => setPreviewTheme(themeData, "dark", defaultVariant.id)}
-                                      />
-                                    </div>
-                                  );
-
-                                  if (idx === drawerAfterIndex && expandedThemeData) {
-                                    const expandedMatchingVariants = normalizedThemeSearchQuery
-                                      ? expandedThemeData.variants.filter(v =>
-                                          themeSearchMatches(v.id, normalizedThemeSearchQuery) ||
-                                          themeSearchMatches(v.label, normalizedThemeSearchQuery)
-                                        )
-                                      : expandedThemeData.variants;
-                                    const displayedVariants = normalizedThemeSearchQuery && expandedMatchingVariants.length > 0
-                                      ? expandedMatchingVariants
-                                      : expandedThemeData.variants;
-
-                                    elements.push(
-                                      <VariantDrawer
-                                        key={`drawer-${expandedThemeData.id}`}
-                                        themeData={expandedThemeData}
-                                        variants={displayedVariants}
-                                        selectedThemeId={selectedThemeId}
-                                        selectedVariantId={selectedVariantId}
-                                        isOpen={true}
-                                        onClose={() => setExpandedThemeId(null)}
-                                        onVariantSelect={handleThemeSelect}
-                                        onPreviewEnter={setPreviewTheme}
-                                        onPreviewLeave={() => setPreviewTheme(null)}
-                                      />
-                                    );
-                                  }
-                                });
-
-                                return elements;
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-
-                {/*
-                  TEMP_DISABLED_CATEGORIES_TAB
-
-                Categories View
-                {themeViewMode === "categories" && !selectedCategory && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                    {filteredCategoryGroups.map((group) => (
-                      <button
-                        key={group.category}
-                        onClick={() => setSelectedCategory(group.category)}
-                        className="p-4 rounded-lg border transition text-left hover:opacity-90"
-                        style={{ backgroundColor: theme.backgroundColor, borderColor: theme.borderSubtle }}
-                      >
-                        <div className="text-sm font-medium mb-1" style={{ color: theme.textPrimary }}>
-                          {group.displayName}
-                        </div>
-                        <div className="text-xs" style={{ color: theme.textMuted }}>
-                          {group.themes.length} theme{group.themes.length !== 1 ? "s" : ""}
-                        </div>
-                        {group.themes[0] && (
-                          <div className="flex items-center gap-1 mt-2">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].dark.typing.cursor }} />
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].dark.interactive.secondary.DEFAULT }} />
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.themes[0].dark.typing.correct }} />
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                    {filteredCategoryGroups.length === 0 && (
-                      <div className="col-span-full text-sm py-6 text-center" style={{ color: theme.textMuted }}>
-                        No categories found for "{themeSearchQuery.trim()}".
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                Single Category View
-                {themeViewMode === "categories" && selectedCategory && (
-                  <>
-                    <button
-                      onClick={() => setSelectedCategory(null)}
-                      className="flex items-center gap-2 text-sm mb-4 transition hover:opacity-80"
-                      style={{ color: theme.textSecondary }}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                      Back to Categories
-                    </button>
-                    <h3 className="text-sm font-medium mb-3" style={{ color: theme.textSecondary }}>
-                      {CATEGORY_CONFIG[selectedCategory].displayName}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                      {filteredSelectedCategoryThemes.map((themeData) => (
-                          <div
-                            key={themeData.name}
-                            className={`flex rounded-lg border transition overflow-hidden min-h-[64px] ${
-                              selectedThemeName.toLowerCase() === themeData.name.toLowerCase()
-                                ? "border-gray-400 ring-1 ring-gray-400"
-                                : "border-gray-700 hover:border-gray-500"
-                            }`}
-                            style={{ backgroundColor: themeData.dark.bg.base }}
-                          >
-                            <button
-                              onClick={() => handleThemeSelect(themeData.name)}
-                              onMouseEnter={() => setPreviewTheme(themeData)}
-                              onMouseLeave={() => setPreviewTheme(null)}
-                              className="flex-1 min-w-0 p-2 text-left"
-                            >
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.typing.cursor }} />
-                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.interactive.secondary.DEFAULT }} />
-                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: themeData.dark.typing.correct }} />
-                              </div>
-                              <div className="text-xs whitespace-normal break-words leading-tight" style={{ color: themeData.dark.typing.correct }}>
-                                {themeData.name}
-                              </div>
-                            </button>
-
-                            <div className="w-10 shrink-0 flex flex-col border-l" style={{ borderColor: `${themeData.dark.typing.correct}30` }}>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (themeData.light) handleThemeSelect(themeData.name, "light");
-                                }}
-                                onMouseEnter={() => themeData.light && setPreviewTheme(themeData, "light")}
-                                onMouseLeave={() => setPreviewTheme(null)}
-                                disabled={!themeData.light}
-                                className={`flex-1 flex items-center justify-center transition-colors ${
-                                  !themeData.light
-                                    ? "opacity-30 cursor-not-allowed"
-                                    : "hover:bg-white/10 cursor-pointer"
-                                }`}
-                                title={themeData.light ? "Light mode" : "Light mode not available"}
-                              >
-                                <Sun className="w-3 h-3" style={{ color: themeData.dark.typing.correct }} />
-                              </button>
-
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleThemeSelect(themeData.name, "dark");
-                                }}
-                                onMouseEnter={() => setPreviewTheme(themeData, "dark")}
-                                onMouseLeave={() => setPreviewTheme(null)}
-                                className="flex-1 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors"
-                                title="Dark mode"
-                              >
-                                <Moon className="w-3 h-3" style={{ color: themeData.dark.typing.correct }} />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      {filteredSelectedCategoryThemes.length === 0 && (
-                        <div className="col-span-full text-sm py-6 text-center" style={{ color: theme.textMuted }}>
-                          No themes found for "{themeSearchQuery.trim()}".
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-                */}
-
-                {/* Separator */}
-                <div className="border-t border-gray-600 my-4" />
-
-                {/* Custom Theme Dropdown */}
-                <div className="border rounded-lg overflow-hidden mb-4" style={{ borderColor: tv.border.subtle }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomThemeOpen(!isCustomThemeOpen)}
-                    className="w-full flex items-center justify-between px-4 py-3 transition-colors hover:opacity-90"
-                    style={{ backgroundColor: tv.bg.base }}
-                  >
-                    <span className="text-sm font-medium" style={{ color: tv.text.primary }}>Custom Theme</span>
-                    <svg
-                      className={`w-5 h-5 transition-transform ${isCustomThemeOpen ? "rotate-180" : ""}`}
-                      style={{ color: tv.text.muted }}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-
-                  <div
-                    className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                      isCustomThemeOpen
-                        ? "max-h-[500px] opacity-100"
-                        : "max-h-0 opacity-0"
-                    }`}
-                  >
-                    <div className="p-4 space-y-3" style={{ backgroundColor: tv.bg.elevated }}>
-                      {/* Current Theme Colors (Read-only preview) */}
-                      <p className="text-sm text-center mb-4" style={{ color: tv.text.secondary }}>
-                        Current theme colors (read-only)
-                      </p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: tv.text.secondary }}>Background</span>
-                          <div
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: tv.bg.base, borderColor: tv.border.subtle }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: tv.text.secondary }}>Surface</span>
-                          <div
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: tv.bg.surface, borderColor: tv.border.subtle }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: tv.text.secondary }}>Cursor</span>
-                          <div
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: tv.typing.cursor, borderColor: tv.border.subtle }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: tv.text.secondary }}>Ghost Cursor</span>
-                          <div
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: tv.typing.cursorGhost, borderColor: tv.border.subtle }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: tv.text.secondary }}>Default Text</span>
-                          <div
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: tv.typing.default, borderColor: tv.border.subtle }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: tv.text.secondary }}>Correct Text</span>
-                          <div
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: tv.typing.correct, borderColor: tv.border.subtle }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: tv.text.secondary }}>Incorrect Text</span>
-                          <div
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: tv.typing.incorrect, borderColor: tv.border.subtle }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm" style={{ color: tv.text.secondary }}>Btn Selected</span>
-                          <div
-                            className="w-8 h-8 rounded border"
-                            style={{ backgroundColor: tv.interactive.secondary.DEFAULT, borderColor: tv.border.subtle }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Reset to Default Button */}
-                      <button
-                        onClick={() => setThemeById("typesetgo")}
-                        className="w-full py-2 mt-2 text-sm border rounded-lg transition-colors hover:opacity-80"
-                        style={{ color: tv.text.secondary, borderColor: tv.border.subtle, backgroundColor: "transparent" }}
-                      >
-                        Reset to TypeSetGo Theme
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Settings Modal */}
-      {showSettings && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-3 py-6"
-          onClick={closeSettingsModal}
-        >
-          <div
-            className="flex h-[min(90vh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-xl"
-            style={{
-              backgroundColor: tv.bg.surface,
-              borderColor: tv.border.subtle,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="flex items-start justify-between gap-4 border-b px-6 py-5"
-              style={{ borderColor: tv.border.subtle }}
-            >
-              <div>
-                <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>
-                  Settings
-                </h2>
-                <p className="mt-1 text-sm" style={{ color: tv.text.secondary }}>
-                  Organize your typing preferences by area.
-                </p>
-              </div>
-              <button
-                onClick={closeSettingsModal}
-                className="rounded-md px-2.5 py-1.5 text-xl leading-none transition-colors"
-                style={{ color: tv.text.secondary }}
-                aria-label="Close settings"
-                onMouseEnter={(e) => e.currentTarget.style.color = tv.text.primary}
-                onMouseLeave={(e) => e.currentTarget.style.color = tv.text.secondary}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <div
-                className="mb-6 grid grid-cols-4 gap-2 rounded-xl border p-1"
-                style={{
-                  backgroundColor: tv.bg.base,
-                  borderColor: tv.border.subtle,
-                }}
-              >
-                {SETTINGS_TABS.map((tab) => {
-                  const isActive = activeSettingsTab === tab.id;
-
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveSettingsTab(tab.id)}
-                      className="rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-                      style={{
-                        color: isActive ? tv.text.primary : tv.text.secondary,
-                        backgroundColor: isActive ? tv.bg.elevated : "transparent",
-                        boxShadow: isActive ? `inset 0 0 0 1px ${tv.border.default}` : "none",
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {activeSettingsTab === "all" && (
-                <div className="space-y-4">
-                  <section
-                    className="rounded-xl border p-5"
-                    style={{
-                      backgroundColor: tv.bg.base,
-                      borderColor: tv.border.subtle,
-                    }}
-                  >
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
-                        Text
-                      </h3>
-                      <span
-                        className="rounded-full px-2.5 py-1 text-xs font-medium"
-                        style={{
-                          color: tv.text.secondary,
-                          backgroundColor: tv.bg.surface,
-                        }}
-                      >
-                        Display
-                      </span>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
-                          Typing Font
-                        </label>
-                        <Select
-                          value={settings.typingFontFamily}
-                          onValueChange={(value) => updateSettings({ typingFontFamily: value })}
-                        >
-                          <SelectTrigger
-                            className="w-full"
-                            style={{
-                              backgroundColor: tv.bg.surface,
-                              borderColor: tv.border.subtle,
-                              color: tv.text.primary,
-                              fontFamily: getTypingFontFamily(settings.typingFontFamily),
-                            }}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent
-                            style={{
-                              backgroundColor: tv.bg.surface,
-                              borderColor: tv.border.subtle,
-                            }}
-                          >
-                            {TYPING_FONT_OPTIONS.map((font) => (
-                              <SelectItem
-                                key={font.value}
-                                value={font.value}
-                                style={{
-                                  color: tv.text.primary,
-                                  fontFamily: font.fontFamily,
-                                }}
-                              >
-                                {font.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="mt-1 text-xs" style={{ color: tv.text.muted }}>
-                          Changes the font used in the typing area only.
-                        </p>
-                      </div>
-
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <label className="text-sm" style={{ color: tv.text.secondary }}>
-                            Text Size
-                          </label>
-                          <span className="text-sm font-medium" style={{ color: tv.text.primary }}>
-                            {formatRemValue(clampedTextSize)}
-                          </span>
-                        </div>
-                        <Slider
-                          min={3}
-                          max={6}
-                          step={0.25}
-                          value={[clampedTextSize]}
-                          onValueChange={(value) => updateSettings({ typingFontSize: value[0] ?? 3 })}
-                          aria-label="Text Size"
-                          className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
-                          style={{
-                            ["--slider-range" as string]: tv.interactive.secondary.DEFAULT,
-                            ["--slider-track" as string]: tv.bg.surface,
-                          }}
-                        />
-                        <p className="mt-1 text-xs" style={{ color: tv.text.muted }}>
-                          Range: 3rem to 6rem
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 border-t pt-4" style={{ borderColor: tv.border.subtle }}>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label className="text-sm" style={{ color: tv.text.secondary }}>
-                          Text Alignment
-                        </label>
-                        <span className="text-xs uppercase tracking-wide" style={{ color: tv.text.muted }}>
-                          {settings.textAlign}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        {TEXT_ALIGN_OPTIONS.map((align) => {
-                          const isActive = settings.textAlign === align;
-
-                          return (
-                            <button
-                              key={align}
-                              type="button"
-                              onClick={() => updateSettings({ textAlign: align })}
-                              className="rounded-md px-3 py-2 text-sm capitalize transition-colors"
-                              style={{
-                                color: isActive ? tv.text.primary : tv.text.secondary,
-                                backgroundColor: isActive ? tv.bg.elevated : tv.bg.surface,
-                                boxShadow: isActive ? `inset 0 0 0 1px ${tv.interactive.secondary.DEFAULT}` : "none",
-                              }}
-                            >
-                              {align}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </section>
-
-                  <section
-                    className="rounded-xl border p-5"
-                    style={{
-                      backgroundColor: tv.bg.base,
-                      borderColor: tv.border.subtle,
-                    }}
-                  >
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
-                          Sound
-                        </h3>
-                        <p className="text-xs" style={{ color: tv.text.muted }}>
-                          Typing, warning, and error feedback.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
-                        className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-                        style={{
-                          color: settings.soundEnabled ? tv.text.primary : tv.text.secondary,
-                          backgroundColor: settings.soundEnabled ? tv.bg.elevated : tv.bg.surface,
-                          borderColor: settings.soundEnabled ? tv.interactive.secondary.DEFAULT : tv.border.subtle,
-                        }}
-                      >
-                        Sound {settings.soundEnabled ? "On" : "Off"}
-                      </button>
-                    </div>
-
-                    <div className={`space-y-3 ${!settings.soundEnabled ? "pointer-events-none opacity-50" : ""}`}>
-                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                        <div>
-                          <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
-                            Typing Sound
-                          </label>
-                          <Select
-                            value={selectedTypingSound}
-                            onValueChange={(value) => updateSettings({ typingSound: value })}
-                            disabled={typingSoundOptions.length === 0}
-                          >
-                            <SelectTrigger
-                              className="w-full"
-                              style={{
-                                backgroundColor: tv.bg.surface,
-                                borderColor: tv.border.subtle,
-                                color: tv.text.primary,
-                              }}
-                            >
-                              <SelectValue placeholder={typingSoundOptions.length === 0 ? "No packs found" : "Select typing sound"} />
-                            </SelectTrigger>
-                            <SelectContent
-                              style={{
-                                backgroundColor: tv.bg.surface,
-                                borderColor: tv.border.subtle,
-                              }}
-                            >
-                              {typingSoundOptions.map((pack) => (
-                                <SelectItem key={pack} value={pack} style={{ color: tv.text.primary }}>
-                                  {pack.charAt(0).toUpperCase() + pack.slice(1)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => selectedTypingSound && playSettingsSoundPreview("typing", selectedTypingSound)}
-                          className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                          style={{
-                            color: tv.text.primary,
-                            backgroundColor: tv.bg.surface,
-                            borderColor: tv.border.subtle,
-                          }}
-                          disabled={!selectedTypingSound || typingSoundOptions.length === 0}
-                        >
-                          Preview
-                        </button>
-                      </div>
-
-                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                        <div>
-                          <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
-                            Warning Sound
-                          </label>
-                          <Select
-                            value={selectedWarningSound}
-                            onValueChange={(value) => updateSettings({ warningSound: value })}
-                            disabled={warningSoundOptions.length === 0}
-                          >
-                            <SelectTrigger
-                              className="w-full"
-                              style={{
-                                backgroundColor: tv.bg.surface,
-                                borderColor: tv.border.subtle,
-                                color: tv.text.primary,
-                              }}
-                            >
-                              <SelectValue placeholder={warningSoundOptions.length === 0 ? "No packs found" : "Select warning sound"} />
-                            </SelectTrigger>
-                            <SelectContent
-                              style={{
-                                backgroundColor: tv.bg.surface,
-                                borderColor: tv.border.subtle,
-                              }}
-                            >
-                              {warningSoundOptions.map((pack) => (
-                                <SelectItem key={pack} value={pack} style={{ color: tv.text.primary }}>
-                                  {pack.charAt(0).toUpperCase() + pack.slice(1)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => selectedWarningSound && playSettingsSoundPreview("warning", selectedWarningSound)}
-                          className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                          style={{
-                            color: tv.text.primary,
-                            backgroundColor: tv.bg.surface,
-                            borderColor: tv.border.subtle,
-                          }}
-                          disabled={!selectedWarningSound || warningSoundOptions.length === 0}
-                        >
-                          Preview
-                        </button>
-                      </div>
-
-                      <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                        <div>
-                          <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
-                            Error Sound
-                          </label>
-                          <Select
-                            value={selectedErrorSound || NONE_SOUND_VALUE}
-                            onValueChange={(value) =>
-                              updateSettings({ errorSound: value === NONE_SOUND_VALUE ? "" : value })
-                            }
-                          >
-                            <SelectTrigger
-                              className="w-full"
-                              style={{
-                                backgroundColor: tv.bg.surface,
-                                borderColor: tv.border.subtle,
-                                color: tv.text.primary,
-                              }}
-                            >
-                              <SelectValue placeholder="None" />
-                            </SelectTrigger>
-                            <SelectContent
-                              style={{
-                                backgroundColor: tv.bg.surface,
-                                borderColor: tv.border.subtle,
-                              }}
-                            >
-                              <SelectItem value={NONE_SOUND_VALUE} style={{ color: tv.text.primary }}>
-                                None
-                              </SelectItem>
-                              {errorSoundOptions.map((pack) => (
-                                <SelectItem key={pack} value={pack} style={{ color: tv.text.primary }}>
-                                  {pack.charAt(0).toUpperCase() + pack.slice(1)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => selectedErrorSound && playSettingsSoundPreview("error", selectedErrorSound)}
-                          className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                          style={{
-                            color: tv.text.primary,
-                            backgroundColor: tv.bg.surface,
-                            borderColor: tv.border.subtle,
-                          }}
-                          disabled={!selectedErrorSound || errorSoundOptions.length === 0}
-                        >
-                          Preview
-                        </button>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section
-                    className="rounded-xl border p-5"
-                    style={{
-                      backgroundColor: tv.bg.base,
-                      borderColor: tv.border.subtle,
-                    }}
-                  >
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
-                          Ghost
-                        </h3>
-                        <p className="text-xs" style={{ color: tv.text.muted }}>
-                          Pace guidance while typing.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => updateSettings({ ghostWriterEnabled: !settings.ghostWriterEnabled })}
-                        className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-                        style={{
-                          color: settings.ghostWriterEnabled ? tv.text.primary : tv.text.secondary,
-                          backgroundColor: settings.ghostWriterEnabled ? tv.bg.elevated : tv.bg.surface,
-                          borderColor: settings.ghostWriterEnabled ? tv.interactive.secondary.DEFAULT : tv.border.subtle,
-                        }}
-                      >
-                        Ghost {settings.ghostWriterEnabled ? "On" : "Off"}
-                      </button>
-                    </div>
-
-                    <div className={`${!settings.ghostWriterEnabled ? "pointer-events-none opacity-50" : ""}`}>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label className="text-sm" style={{ color: tv.text.secondary }}>
-                          Target Speed
-                        </label>
-                        <span className="text-sm font-medium" style={{ color: tv.text.primary }}>
-                          {Math.max(1, Math.min(200, settings.ghostWriterSpeed))} WPM
-                        </span>
-                      </div>
-                      <Slider
-                        min={1}
-                        max={200}
-                        step={1}
-                        value={[Math.max(1, Math.min(200, settings.ghostWriterSpeed))]}
-                        onValueChange={(value) =>
-                          updateSettings({
-                            ghostWriterSpeed: Math.round(value[0] ?? 1),
-                          })
-                        }
-                        aria-label="Target Speed"
-                        className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
-                        style={{
-                          ["--slider-range" as string]: tv.interactive.secondary.DEFAULT,
-                          ["--slider-track" as string]: tv.bg.surface,
-                        }}
-                      />
-                    </div>
-                  </section>
-
-                  <section
-                    className="rounded-xl border p-5"
-                    style={{
-                      backgroundColor: tv.bg.base,
-                      borderColor: tv.border.subtle,
-                    }}
-                  >
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
-                          Keyboard
-                        </h3>
-                        <p className="text-xs" style={{ color: tv.text.muted }}>
-                          On-screen keyboard guide.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => updateSettings({ showOnScreenKeyboard: !settings.showOnScreenKeyboard })}
-                        className="rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-                        style={{
-                          color: settings.showOnScreenKeyboard ? tv.text.primary : tv.text.secondary,
-                          backgroundColor: settings.showOnScreenKeyboard ? tv.bg.elevated : tv.bg.surface,
-                          borderColor: settings.showOnScreenKeyboard ? tv.interactive.secondary.DEFAULT : tv.border.subtle,
-                        }}
-                      >
-                        Keyboard {settings.showOnScreenKeyboard ? "On" : "Off"}
-                      </button>
-                    </div>
-
-                    <div className={`${!settings.showOnScreenKeyboard ? "pointer-events-none opacity-50" : ""}`}>
-                      <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>
-                        Layout
-                      </label>
-                      <div className="flex gap-2">
-                        {(["qwerty", "dvorak", "colemak"] as const).map((layout) => (
-                          <button
-                            key={layout}
-                            type="button"
-                            onClick={() => updateSettings({ keyboardLayout: layout })}
-                            className="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
-                            style={{
-                              color: settings.keyboardLayout === layout ? tv.text.primary : tv.text.secondary,
-                              backgroundColor: settings.keyboardLayout === layout ? tv.bg.elevated : tv.bg.surface,
-                              borderColor: settings.keyboardLayout === layout ? tv.interactive.secondary.DEFAULT : tv.border.subtle,
-                            }}
-                          >
-                            {layout.toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-                </div>
-              )}
-
-              {activeSettingsTab === "type" && (
-                <section
-                  className="rounded-xl border p-5"
-                  style={{
-                    backgroundColor: tv.bg.base,
-                    borderColor: tv.border.subtle,
-                  }}
-                >
-                  <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
-                    Type
-                  </h3>
-                  <p className="mt-1 text-xs" style={{ color: tv.text.muted }}>
-                    Control how much text is visible and how each line wraps.
-                  </p>
-
-                  <div className="mt-5 space-y-5">
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label className="text-sm" style={{ color: tv.text.secondary }}>
-                          Preview Lines
-                        </label>
-                        <span className="text-sm font-medium" style={{ color: tv.text.primary }}>
-                          {clampedLinePreview}
-                        </span>
-                      </div>
-                      <Slider
-                        min={1}
-                        max={6}
-                        step={1}
-                        value={[clampedLinePreview]}
-                        onValueChange={(value) => setLinePreview(Math.round(value[0] ?? 1))}
-                        aria-label="Preview Lines"
-                        className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
-                        style={{
-                          ["--slider-range" as string]: tv.interactive.secondary.DEFAULT,
-                          ["--slider-track" as string]: tv.bg.surface,
-                        }}
-                      />
-                    </div>
-
-                    <div className="border-t pt-4" style={{ borderColor: tv.border.subtle }}>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label className="text-sm" style={{ color: tv.text.secondary }}>
-                          Max Words Per Line
-                        </label>
-                        <span className="text-sm font-medium" style={{ color: tv.text.primary }}>
-                          {clampedMaxWordsPerLine}
-                        </span>
-                      </div>
-                      <Slider
-                        min={1}
-                        max={10}
-                        step={1}
-                        value={[clampedMaxWordsPerLine]}
-                        onValueChange={(value) => setMaxWordsPerLine(Math.round(value[0] ?? 1))}
-                        aria-label="Max Words Per Line"
-                        className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
-                        style={{
-                          ["--slider-range" as string]: tv.interactive.secondary.DEFAULT,
-                          ["--slider-track" as string]: tv.bg.surface,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {activeSettingsTab === "race" && (
-                <section
-                  className="rounded-xl border p-5"
-                  style={{
-                    backgroundColor: tv.bg.base,
-                    borderColor: tv.border.subtle,
-                  }}
-                >
-                  <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
-                    Race
-                  </h3>
-                  <p className="mt-2 text-sm" style={{ color: tv.text.secondary }}>
-                    Race-specific controls are still handled in the race lobby. This tab is ready for that migration.
-                  </p>
-                </section>
-              )}
-
-              {activeSettingsTab === "lesson" && (
-                <section
-                  className="rounded-xl border p-5"
-                  style={{
-                    backgroundColor: tv.bg.base,
-                    borderColor: tv.border.subtle,
-                  }}
-                >
-                  <h3 className="text-base font-semibold" style={{ color: tv.text.primary }}>
-                    Lesson
-                  </h3>
-                  <p className="mt-2 text-sm" style={{ color: tv.text.secondary }}>
-                    Lesson-specific controls can be centralized here next.
-                  </p>
-                </section>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custom Duration / Word Count Modal */}
-      {showCustomCountModal && (settings.mode === "time" || settings.mode === "words") && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 px-4"
-          onClick={() => setShowCustomCountModal(false)}
-        >
-          <div
-            className="w-full max-w-2xl rounded-xl border p-6 shadow-2xl"
-            style={{
-              backgroundColor: tv.bg.surface,
-              borderColor: tv.border.subtle,
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>
-                  {settings.mode === "time" ? "Custom Duration" : "Custom Word Count"}
-                </h2>
-                <p className="mt-1 text-sm" style={{ color: tv.text.secondary }}>
-                  {settings.mode === "time"
-                    ? "Scroll each dial or use arrows to set hours, minutes, and seconds."
-                    : "Scroll each dial or use arrows to set a word count from 0001 to 9999."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCustomCountModal(false)}
-                className="rounded-md px-2 py-1 text-sm transition-opacity hover:opacity-80"
-                style={{ color: tv.text.muted }}
-                aria-label="Close custom selector"
-              >
-                ✕
-              </button>
-            </div>
-
-            {settings.mode === "time" ? (
-              <div className="space-y-5">
-                <div className="text-center" style={{ color: tv.text.secondary }}>
-                  <span className="text-base sm:text-lg">Selected:</span>{" "}
-                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: tv.interactive.secondary.DEFAULT }}>
-                    {formattedCustomDuration}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
-                  <NumberDial
-                    label="hours"
-                    min={0}
-                    max={CUSTOM_DURATION_MAX_HOURS}
-                    value={customDuration.hours}
-                    onChange={(hours) =>
-                      setCustomDuration((prev) => ({
-                        ...prev,
-                        hours,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="minutes"
-                    min={0}
-                    max={59}
-                    value={customDuration.minutes}
-                    onChange={(minutes) =>
-                      setCustomDuration((prev) => ({
-                        ...prev,
-                        minutes,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="seconds"
-                    min={0}
-                    max={59}
-                    value={customDuration.seconds}
-                    onChange={(seconds) =>
-                      setCustomDuration((prev) => ({
-                        ...prev,
-                        seconds,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="text-center" style={{ color: tv.text.secondary }}>
-                  <span className="text-base sm:text-lg">Selected:</span>{" "}
-                  <span className="text-2xl sm:text-3xl font-semibold tabular-nums" style={{ color: tv.interactive.secondary.DEFAULT }}>
-                    {formattedCustomWordValue}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
-                  <NumberDial
-                    label="thousands"
-                    min={0}
-                    max={9}
-                    value={customWordDigits.thousands}
-                    onChange={(thousands) =>
-                      setCustomWordDigits((prev) => ({
-                        ...prev,
-                        thousands,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="hundreds"
-                    min={0}
-                    max={9}
-                    value={customWordDigits.hundreds}
-                    onChange={(hundreds) =>
-                      setCustomWordDigits((prev) => ({
-                        ...prev,
-                        hundreds,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="tens"
-                    min={0}
-                    max={9}
-                    value={customWordDigits.tens}
-                    onChange={(tens) =>
-                      setCustomWordDigits((prev) => ({
-                        ...prev,
-                        tens,
-                      }))
-                    }
-                  />
-                  <NumberDial
-                    label="ones"
-                    min={0}
-                    max={9}
-                    value={customWordDigits.ones}
-                    onChange={(ones) =>
-                      setCustomWordDigits((prev) => ({
-                        ...prev,
-                        ones,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowCustomCountModal(false)}
-                className="rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                style={{
-                  color: tv.text.secondary,
-                  backgroundColor: tv.bg.base,
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={applyCustomCount}
-                disabled={
-                  (settings.mode === "time" && customDurationSeconds <= 0) ||
-                  (settings.mode === "words" && customWordValue <= 0)
-                }
-                className="rounded-md px-4 py-2 text-sm font-medium text-gray-900 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
-              >
-                Set {settings.mode === "time" ? "Duration" : "Word Count"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Settings Modal (for compact/zoomed mode) */}
-      {showQuickSettings && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowQuickSettings(false)}
-        >
-          <div
-            className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg p-6 shadow-xl mx-4"
-            style={{ backgroundColor: tv.bg.surface }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>Quick Settings</h2>
-              <button onClick={() => setShowQuickSettings(false)} className="hover:opacity-80 transition-opacity" style={{ color: tv.text.muted }}>
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              {/* Test Mode */}
-              <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Mode</label>
-                <div className="flex gap-2 flex-wrap justify-center">
-                  {MODE_SELECTOR_OPTIONS.map((m) => {
-                    const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
-                    return (
-                      <button
-                        key={m}
-                        onClick={() => handleModeSelect(m)}
-                        className={`rounded px-4 py-2 text-sm capitalize transition ${isModeActive ? "font-medium" : "hover:opacity-80"}`}
-                        style={{
-                          color: isModeActive ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                          backgroundColor: isModeActive ? tv.bg.elevated : tv.bg.base
-                        }}
-                      >
-                        {m}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Duration / Word Count / Quote Length */}
-              {settings.mode === "time" && (
-                <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Duration</label>
-                  <div className="flex gap-2 flex-wrap justify-center">
-                    {TIME_PRESETS.map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => {
-                          if (settings.duration === d) generateTest();
-                          else updateSettings({ duration: d });
-                        }}
-                        className={`rounded px-4 py-2 text-sm transition ${settings.duration === d ? "font-medium" : "hover:opacity-80"}`}
-                        style={{
-                          color: settings.duration === d ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                          backgroundColor: settings.duration === d ? tv.bg.elevated : tv.bg.base
-                        }}
-                      >
-                        {d}s
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => {
-                        setShowQuickSettings(false);
-                        openCustomCountModal();
-                      }}
-                      className={`rounded px-4 py-2 text-sm transition ${isCustomDurationSelected ? "font-medium" : "hover:opacity-80"}`}
-                      style={{
-                        color: isCustomDurationSelected ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                        backgroundColor: isCustomDurationSelected ? tv.bg.elevated : tv.bg.base,
-                      }}
-                    >
-                      custom
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {settings.mode === "words" && (
-                <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Word Count</label>
-                  <div className="flex gap-2 flex-wrap justify-center">
-                    {WORD_PRESETS.map((w) => (
-                      <button
-                        key={w}
-                        onClick={() => {
-                          if (settings.wordTarget === w) generateTest();
-                          else updateSettings({ wordTarget: w });
-                        }}
-                        className={`rounded px-4 py-2 text-sm transition ${settings.wordTarget === w ? "font-medium" : "hover:opacity-80"}`}
-                        style={{
-                          color: settings.wordTarget === w ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                          backgroundColor: settings.wordTarget === w ? tv.bg.elevated : tv.bg.base
-                        }}
-                      >
-                        {w}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => {
-                        setShowQuickSettings(false);
-                        openCustomCountModal();
-                      }}
-                      className={`rounded px-4 py-2 text-sm transition ${isCustomWordTargetSelected ? "font-medium" : "hover:opacity-80"}`}
-                      style={{
-                        color: isCustomWordTargetSelected ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                        backgroundColor: isCustomWordTargetSelected ? tv.bg.elevated : tv.bg.base,
-                      }}
-                    >
-                      custom
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {settings.mode === "quote" && quotesManifest && (
-                <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Quote Length</label>
-                  <div className="flex gap-2 flex-wrap justify-center">
-                    {["all", ...quotesManifest.lengths].map((l) => (
-                      <button
-                        key={l}
-                        onClick={() => {
-                          if (settings.quoteLength === l) generateTest();
-                          else updateSettings({ quoteLength: l as typeof settings.quoteLength });
-                        }}
-                        className={`rounded px-4 py-2 text-sm transition ${settings.quoteLength === l ? "font-medium" : "hover:opacity-80"}`}
-                        style={{
-                          color: settings.quoteLength === l ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                          backgroundColor: settings.quoteLength === l ? tv.bg.elevated : tv.bg.base
-                        }}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Difficulty */}
-              {settings.mode !== "quote" && wordsManifest && (
-                <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Difficulty</label>
-                  <div className="flex gap-2 flex-wrap justify-center">
-                    {wordsManifest.difficulties.map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => {
-                          if (settings.difficulty === d) generateTest();
-                          else updateSettings({ difficulty: d as typeof settings.difficulty });
-                        }}
-                        className={`rounded px-4 py-2 text-sm capitalize transition ${settings.difficulty === d ? "font-medium" : "hover:opacity-80"}`}
-                        style={{
-                          color: settings.difficulty === d ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                          backgroundColor: settings.difficulty === d ? tv.bg.elevated : tv.bg.base
-                        }}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Modifiers */}
-              <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Modifiers</label>
-                <div className="flex gap-3 flex-wrap justify-center">
-                  <button
-                    onClick={() => updateSettings({ capitalization: !settings.capitalization })}
-                    disabled={settings.mode === "quote"}
-                    className={`rounded px-4 py-2 text-sm transition ${settings.capitalization ? "font-medium" : "hover:opacity-80"}`}
-                    style={{
-                      color: settings.capitalization ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                      backgroundColor: settings.capitalization ? tv.bg.elevated : tv.bg.base,
-                      opacity: settings.mode === "quote" ? 0.5 : 1
-                    }}
-                  >
-                    Aa caps
-                  </button>
-                  <button
-                    onClick={() => updateSettings({ punctuation: !settings.punctuation })}
-                    disabled={settings.mode === "quote"}
-                    className={`rounded px-4 py-2 text-sm transition ${settings.punctuation ? "font-medium" : "hover:opacity-80"}`}
-                    style={{
-                      color: settings.punctuation ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                      backgroundColor: settings.punctuation ? tv.bg.elevated : tv.bg.base,
-                      opacity: settings.mode === "quote" ? 0.5 : 1
-                    }}
-                  >
-                    @ punctuation
-                  </button>
-                  <button
-                    onClick={() => updateSettings({ numbers: !settings.numbers })}
-                    disabled={settings.mode === "quote"}
-                    className={`rounded px-4 py-2 text-sm transition ${settings.numbers ? "font-medium" : "hover:opacity-80"}`}
-                    style={{
-                      color: settings.numbers ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                      backgroundColor: settings.numbers ? tv.bg.elevated : tv.bg.base,
-                      opacity: settings.mode === "quote" ? 0.5 : 1
-                    }}
-                  >
-                    # numbers
-                  </button>
-                </div>
-              </div>
-
-              {/* Line Preview */}
-              <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Lines to Preview</label>
-                <div className="flex gap-2 flex-wrap justify-center">
-                  {[1, 2, 3, 4, 5, 6].map((num) => (
-                    <button
-                      key={num}
-                      onClick={() => setLinePreview(num)}
-                      className={`rounded px-3 py-2 text-sm transition ${linePreview === num ? "font-medium" : "hover:opacity-80"}`}
-                      style={{
-                        color: linePreview === num ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                        backgroundColor: linePreview === num ? tv.bg.elevated : tv.bg.base
-                      }}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Max Words per Line */}
-              <div className="text-center">
-                <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Max Words per Line</label>
-                <div className="flex gap-2 flex-wrap justify-center">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <button
-                      key={num}
-                      onClick={() => setMaxWordsPerLine(num)}
-                      className={`rounded px-3 py-2 text-sm transition ${maxWordsPerLine === num ? "font-medium" : "hover:opacity-80"}`}
-                      style={{
-                        color: maxWordsPerLine === num ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                        backgroundColor: maxWordsPerLine === num ? tv.bg.elevated : tv.bg.base
-                      }}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Font Size & Text Alignment */}
-              <div className="flex gap-4 justify-center flex-wrap">
-                <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Text Size (rem)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    step="0.25"
-                    value={settings.typingFontSize}
-                    onChange={(e) => updateSettings({ typingFontSize: parseFloat(e.target.value) || 3 })}
-                    className="w-28 rounded px-3 py-2 text-center focus:outline-none focus:ring-2"
-                    style={{ backgroundColor: tv.bg.base, color: tv.text.primary, "--tw-ring-color": tv.interactive.secondary.DEFAULT } as React.CSSProperties}
-                  />
-                </div>
-                <div className="text-center">
-                  <label className="mb-2 block text-sm" style={{ color: tv.text.secondary }}>Text Alignment</label>
-                  <div className="flex gap-2 justify-center">
-                    {(["left", "center", "right", "justify"] as const).map((align) => (
-                      <button
-                        key={align}
-                        onClick={() => updateSettings({ textAlign: align })}
-                        className={`rounded px-3 py-2 text-sm capitalize transition ${settings.textAlign === align ? "font-medium" : "hover:opacity-80"}`}
-                        style={{
-                          color: settings.textAlign === align ? tv.interactive.secondary.DEFAULT : tv.text.secondary,
-                          backgroundColor: settings.textAlign === align ? tv.bg.elevated : tv.bg.base
-                        }}
-                      >
-                        {align}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <PracticeQuickSettingsDialog
+        {...configurationProps}
+        showQuickSettings={showQuickSettings}
+        setShowQuickSettings={setShowQuickSettings}
+        linePreview={linePreview}
+        setLinePreview={updateLinePreview}
+        maxWordsPerLine={maxWordsPerLine}
+        setMaxWordsPerLine={updateMaxWordsPerLine}
+      />
 
       {/* Plan Builder Modal */}
       {showPlanBuilder && (
