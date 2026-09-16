@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Attempt<T> =
   | { status: "idle" | "pending"; value?: undefined; error?: undefined }
@@ -10,12 +10,15 @@ export function useRoomAttempt<T>(enabled: boolean, request: () => Promise<T>) {
   const [state, setState] = useState<Attempt<T>>({ status: "idle" });
   const [attempt, setAttempt] = useState(0);
   const started = useRef(-1);
+  const pending = useRef<Promise<T> | null>(null);
+  const waitForResult = useCallback(() => pending.current, []);
 
   useEffect(() => {
     if (!enabled || started.current === attempt) return;
     started.current = attempt;
     setState({ status: "pending" });
-    void request().then(
+    pending.current = request();
+    void pending.current.then(
       (value) => setState({ status: "success", value }),
       (error: unknown) =>
         setState({
@@ -28,5 +31,5 @@ export function useRoomAttempt<T>(enabled: boolean, request: () => Promise<T>) {
     );
   }, [enabled, request, attempt]);
 
-  return { ...state, retry: () => setAttempt((value) => value + 1) };
+  return { ...state, waitForResult, retry: () => setAttempt((value) => value + 1) };
 }

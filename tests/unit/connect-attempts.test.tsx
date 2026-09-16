@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import { getFunctionName } from "convex/server";
 import Join from "@/pages/Join";
 import Host from "@/pages/Host";
@@ -14,6 +15,7 @@ import Host from "@/pages/Host";
 const mocks = vi.hoisted(() => ({
   join: vi.fn(),
   create: vi.fn(),
+  disconnect: vi.fn(),
   room: undefined as unknown,
   participants: undefined as unknown,
 }));
@@ -35,7 +37,9 @@ vi.mock("convex/react", () => ({
       ? mocks.join
       : name === "rooms:create"
         ? mocks.create
-        : vi.fn();
+        : name === "participants:disconnect"
+          ? mocks.disconnect
+          : vi.fn();
   },
 }));
 vi.mock("@/lib/themes", () => ({ fetchAllThemes: async () => [] }));
@@ -104,4 +108,39 @@ describe("room request recovery", () => {
     expect(mocks.create).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole("button", { name: /retry/i })).toBeVisible();
   });
+});
+
+
+it("waits for a pending join and disconnects its result before canceling navigation", async () => {
+  let resolveJoin!: (value: { participantId: string }) => void;
+  mocks.join.mockImplementation(() => new Promise((resolve) => { resolveJoin = resolve; }));
+  mocks.disconnect.mockResolvedValue(undefined);
+  function Path() { return <output data-testid="path">{useLocation().pathname}</output>; }
+  render(<MemoryRouter initialEntries={["/connect/join?code=ABC&name=Test"]}>
+    <Path /><Routes><Route path="/connect/join" element={<Join />} />
+      <Route path="/connect" element={<p>Connect hub</p>} /></Routes>
+  </MemoryRouter>);
+  await waitFor(() => expect(mocks.join).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByText("Cancel", { exact: true }));
+  expect(screen.getByTestId("path")).toHaveTextContent("/connect/join");
+  await act(async () => resolveJoin({ participantId: "pending-participant" }));
+  await waitFor(() => expect(mocks.disconnect).toHaveBeenCalledWith({ participantId: "pending-participant" }));
+  expect(await screen.findByText("Connect hub")).toBeVisible();
+});
+
+it("keeps the canceled join recoverable when disconnect fails", async () => {
+  mocks.join.mockResolvedValue({ participantId: "pending-participant" });
+  mocks.disconnect.mockRejectedValueOnce(new Error("Offline")).mockResolvedValueOnce(undefined);
+  render(<MemoryRouter initialEntries={["/connect/join?code=ABC&name=Test"]}>
+    <Routes><Route path="/connect/join" element={<Join />} />
+      <Route path="/connect" element={<p>Connect hub</p>} /></Routes>
+  </MemoryRouter>);
+  await waitFor(() => expect(mocks.join).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Unable to leave");
+  expect(screen.queryByText("Connect hub")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Retry leaving" }));
+  expect(await screen.findByText("Connect hub")).toBeVisible();
+  expect(mocks.disconnect).toHaveBeenCalledTimes(2);
+  expect(mocks.join).toHaveBeenCalledTimes(1);
 });

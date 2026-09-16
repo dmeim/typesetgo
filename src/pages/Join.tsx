@@ -62,9 +62,9 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
     room && settings
       ? practiceSessionKey(room._id, runVersion, resetVersion, settings)
       : "waiting";
-  const active = room?.status === "active" && Boolean(participant?.isConnected);
   const [feedback, setFeedback] = useState("");
   const [leaving, setLeaving] = useState(false);
+  const active = room?.status === "active" && Boolean(participant?.isConnected) && !leaving;
   const report = useRef<{
     timer?: ReturnType<typeof setTimeout>;
     signature?: string;
@@ -117,7 +117,12 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
     if (leaving) return;
     setLeaving(true);
     try {
-      if (participantId && !wasRemoved) await disconnect({ participantId });
+      // A join may complete after Cancel is clicked. Release that membership
+      // before navigation so it cannot remain connected without its UI.
+      const joined = participantId
+        ? { participantId }
+        : await attempt.waitForResult()?.catch(() => undefined);
+      if (joined && !wasRemoved) await disconnect({ participantId: joined.participantId });
       navigate("/connect");
     } catch {
       setFeedback("Unable to leave the room. Please try again.");
@@ -164,7 +169,10 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
         <p role="status" className="py-12 text-center">
           Connecting to room {code}…
         </p>
-        <Link to="/connect">Cancel</Link>
+        {feedback && <p role="alert">{feedback}</p>}
+        <RoomButton onClick={handleLeave} disabled={leaving}>
+          {leaving ? "Leaving…" : feedback ? "Retry leaving" : "Cancel"}
+        </RoomButton>
       </RoomPage>
     );
   if (!lockedSettings)
