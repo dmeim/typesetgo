@@ -66,6 +66,7 @@ No addressed audit finding proved incorrect. The audit's dormant-code warning wa
 | `3c6e004` | Foundations `7194b49` | Foreground theme queue prioritization |
 | `d1fb225` | Foundations `902fe4d` | Contrast-safe button hover |
 | `103f562` | Foundations `8244849` | Stable nested overlay Escape/focus ownership |
+| `f96c711` | Foundations `d8a019b` | Preserve submenu and IME composition Escape behavior |
 | `6437d88` | Manager | Isolated browser fixtures and lane evidence |
 | `d9afbbc` | Worker `029722f` | Leaderboard and active achievements |
 | `5678bdf` | Worker `fe28b31` | Profile history, details and chart semantics |
@@ -77,7 +78,7 @@ No addressed audit finding proved incorrect. The audit's dormant-code warning wa
 ## Final validation and review
 
 - **Build passed:** `bun run build`, including TypeScript and production bundle. With the integrated Foundations lazy routes, the entry is 449.66 kB (136.22 kB gzip), UserStats is a separate 407.02 kB chunk, and the baseline oversized-entry warning is absent. This is build evidence, not a measured loading-performance claim.
-- **Full unit suite passed:** `bun run test:run`, **135 tests across 16 files**. This includes 27 scoped profiles/leaderboard/achievement regressions and the integrated Foundations tests. Earlier targeted checks passed before the full run.
+- **Full unit suite passed:** `bun run test:run`, **137 tests across 16 files**, after the final shared submenu/IME Escape followup. This includes 27 scoped profiles/leaderboard/achievement regressions and the integrated Foundations tests. Earlier targeted checks passed before the full run.
 - **Browser passed:** `node tests/browser/profiles/check.mjs`, Chrome 152.0.7977.84, 13 check groups. All requests were restricted to the local fixture origin; no unexpected external requests or page errors occurred.
 - **Layout/visual matrix:** 320×740 light/reduced motion; 390×844 dark/normal motion; 768×900 light/reduced; 1440×1000 dark/normal; and 640×450 CSS viewport equivalent to 200% zoom on 1280×900. No page horizontal overflow, all compact leaderboard ranges present, bounded dialogs, and readable long names. The zoom check verifies reflow dimensions, not browser-chrome zoom controls. Screenshots of light/dark profile, leaderboard, chart, achievement board and nested detail were visually inspected.
 - **Behavior matrix:** keyboard chart cards, sample-high/low toggles, 99-valid-test data disclosure, lifetime best outside the latest-100 sample, absent legacy metrics, nested delete confirmation focus/rapid Escape, owner/visitor/anonymous capabilities, failed refresh/delete recovery, loading/empty/missing profiles, independently loading achievements, nested achievement focus trap/restoration, real carousel one-step arrows/direct choice with reduced motion, and real notification→achievement→Escape→persistent-trigger restoration.
@@ -86,7 +87,7 @@ No addressed audit finding proved incorrect. The audit's dormant-code warning wa
 - **Lint blocked:** final `bun run lint` still exits before source analysis with `typescript-eslint does not support TS 7.0`, identical to baseline. No lint pass is claimed.
 - `git diff --check` passed.
 
-Final screenshot evidence from the local run is in `/var/folders/hb/0b1xdv1j0x71lfng992wcljc0000gn/T/typesetgo-profiles-APukDZ`; the runner prints a fresh directory each run.
+Final screenshot evidence from the local run is in `/var/folders/hb/0b1xdv1j0x71lfng992wcljc0000gn/T/typesetgo-profiles-SOKeXU`; the runner prints a fresh directory each run.
 
 ## Disposition and remaining limits
 
