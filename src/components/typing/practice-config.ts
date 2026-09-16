@@ -6,4 +6,4 @@ export const PROMPT_SETTING_KEYS = ["mode", "duration", "wordTarget", "difficult
 
 export type ModeSelectorOption = (typeof MODE_SELECTOR_OPTIONS)[number];
 
-export { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS } from "@/lib/typing-constants";
+export { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED } from "@/lib/practice-limits";
