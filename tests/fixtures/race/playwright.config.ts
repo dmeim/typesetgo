@@ -18,6 +18,7 @@ export default defineConfig({
     command: "bunx vite --config tests/fixtures/race/vite.config.ts",
     cwd: "../../..",
     url: "http://127.0.0.1:4318/race",
-    reuseExistingServer: true,
+    // Refuse an occupied port so another worker's fixture cannot be tested accidentally.
+    reuseExistingServer: false,
   },
 });
