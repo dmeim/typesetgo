@@ -7,6 +7,7 @@ import Host from "@/pages/Host";
 import Join from "@/pages/Join";
 import Connect from "@/pages/Connect";
 import "@/index.css";
+import { NotificationProvider } from "@/lib/notification-store";
 function Fixture() {
   const { setMode } = useTheme();
   return (
@@ -25,10 +26,10 @@ function Fixture() {
 }
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ThemeProvider>
+    <NotificationProvider><ThemeProvider>
       <BrowserRouter>
         <Fixture />
       </BrowserRouter>
-    </ThemeProvider>
+    </ThemeProvider></NotificationProvider>
   </React.StrictMode>,
 );
