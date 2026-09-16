@@ -2,18 +2,34 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
+import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state";
+
 import { cn } from "@/lib/utils"
 import { overlayMotion, overlaySurface } from "./overlay-styles"
+
+const DialogTriggerCount = React.createContext<React.RefObject<number> | null>(null);
 
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  const triggerCount = React.useRef(0);
+  const overlay = useOverlayState(props);
+  return (
+    <DialogTriggerCount.Provider value={triggerCount}>
+      <OverlayScope value={overlay}><DialogPrimitive.Root data-slot="dialog" {...props} open={overlay.open} onOpenChange={overlay.onOpenChange} /></OverlayScope>
+    </DialogTriggerCount.Provider>
+  );
 }
 
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  const triggerCount = React.useContext(DialogTriggerCount);
+  React.useLayoutEffect(() => {
+    if (!triggerCount) return;
+    triggerCount.current += 1;
+    return () => { triggerCount.current -= 1; };
+  }, [triggerCount]);
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
@@ -48,17 +64,37 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  onEscapeKeyDown,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  useOverlayEscape(onEscapeKeyDown);
+  const triggerCount = React.useContext(DialogTriggerCount);
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        onOpenAutoFocus={(event) => {
+          returnFocusRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement : null;
+          onOpenAutoFocus?.(event);
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          // Radix restores registered triggers. Controlled dialogs opened by
+          // shell actions need an equivalent fallback to their surviving origin.
+          if (!event.defaultPrevented && !triggerCount?.current && returnFocusRef.current?.isConnected) {
+            event.preventDefault();
+            returnFocusRef.current.focus({ preventScroll: true });
+          }
+        }}
         className={cn(
           overlaySurface, overlayMotion,
           "fixed top-1/2 left-1/2 z-50 grid w-full min-w-0 max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain p-6 outline-none sm:max-w-lg",

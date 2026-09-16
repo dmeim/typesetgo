@@ -2,13 +2,16 @@ import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
+import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state";
+
 import { cn } from "@/lib/utils"
 import { overlayMotion, overlaySurface, overlayWidth } from "./overlay-styles"
 
 function Select({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+  const overlay = useOverlayState(props);
+  return <OverlayScope value={overlay}><SelectPrimitive.Root data-slot="select" {...props} open={overlay.open} onOpenChange={overlay.onOpenChange} /></OverlayScope>;
 }
 
 function SelectGroup({
@@ -51,12 +54,14 @@ function SelectTrigger({
 
 function SelectContent({
   className,
+  onEscapeKeyDown,
   children,
   position = "item-aligned",
   align = "center",
   collisionPadding = 16,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  useOverlayEscape(onEscapeKeyDown);
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
