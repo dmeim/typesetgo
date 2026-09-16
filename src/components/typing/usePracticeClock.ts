@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 export function createPracticeClock(initialElapsedMs = 0, now: () => number = () => performance.now()) {
   let accumulated = initialElapsedMs;
@@ -12,17 +12,38 @@ export function createPracticeClock(initialElapsedMs = 0, now: () => number = ()
   };
 }
 
+function createClockStore(initialElapsedMs: number) {
+  const clock = createPracticeClock(initialElapsedMs);
+  const listeners = new Set<() => void>();
+  let snapshot = initialElapsedMs;
+  const publish = () => {
+    const next = clock.read();
+    if (next === snapshot) return;
+    snapshot = next;
+    listeners.forEach((listener) => listener());
+  };
+  return {
+    getSnapshot: () => snapshot,
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+    read: clock.read,
+    start: clock.start,
+    pause() { clock.pause(); publish(); },
+    reset() { clock.reset(); publish(); },
+    publish,
+  };
+}
+
 export function usePracticeClock(running: boolean, initialElapsedMs = 0) {
-  const clockRef = useRef<ReturnType<typeof createPracticeClock> | null>(null);
-  if (!clockRef.current) clockRef.current = createPracticeClock(initialElapsedMs);
-  const clock = clockRef.current;
-  const [elapsedMs, setElapsedMs] = useState(initialElapsedMs);
-  const reset = useCallback(() => { clock.reset(); setElapsedMs(0); }, [clock]);
+  const [clock] = useState(() => createClockStore(initialElapsedMs));
+  const elapsedMs = useSyncExternalStore(clock.subscribe, clock.getSnapshot, clock.getSnapshot);
   useEffect(() => {
-    if (!running) { setElapsedMs(clock.pause()); return; }
+    if (!running) { clock.pause(); return; }
     clock.start();
-    const interval = setInterval(() => setElapsedMs(clock.read()), 100);
+    const interval = setInterval(clock.publish, 100);
     return () => { clearInterval(interval); clock.pause(); };
   }, [clock, running]);
-  return { elapsedMs, readElapsed: clock.read, resetClock: reset };
+  return { elapsedMs, readElapsed: clock.read, resetClock: clock.reset };
 }

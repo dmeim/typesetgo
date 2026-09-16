@@ -23,6 +23,7 @@ const normalize = (value: string) =>
 const matches = (value: string, query: string) => normalize(value).includes(query);
 const defaultCollapsed = () =>
   new Set<ThemeCategory>((Object.keys(CATEGORY_CONFIG) as ThemeCategory[]).filter((id) => id !== "default"));
+const EMPTY_THEMES: ThemeDefinition[] = [];
 
 interface PracticeThemePickerProps {
   showThemeModal: boolean;
@@ -49,7 +50,7 @@ export default function PracticeThemePicker({
   const [catalog, setCatalog] = useState<ThemeCatalogResult | null>(null);
   const catalogRef = useRef<ThemeCatalogResult | null>(null);
   const loadingRef = useRef(false);
-  const themes = catalog?.themes ?? [];
+  const themes = catalog?.themes ?? EMPTY_THEMES;
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [query, setQuery] = useState("");

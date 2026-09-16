@@ -2,7 +2,7 @@
 // Reusable typing area component extracted from TypingPractice
 // Handles core typing logic, character rendering, and WPM/accuracy calculation
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { computeStats, sanitizeTypingInput, getInputPosition, getNextTypingKey,
   hasCompletedPrompt, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
 import PracticeText from "./PracticeText";
@@ -130,7 +130,9 @@ export default function TypingArea({
   const cursorRef = useRef<HTMLSpanElement | null>(null);
 
   const callbacksRef = useRef({ onProgress, onStart, onFinish });
-  callbacksRef.current = { onProgress, onStart, onFinish };
+  useLayoutEffect(() => {
+    callbacksRef.current = { onProgress, onStart, onFinish };
+  }, [onProgress, onStart, onFinish]);
   const finishNotifiedRef = useRef(false);
   const previousTargetRef = useRef(targetText);
   const scrollOffset = useTypingScroll({ viewportRef: feedingTape ? tapeContainerRef : containerRef,

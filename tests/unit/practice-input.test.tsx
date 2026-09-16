@@ -1,11 +1,11 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TypingArea from "@/components/typing/TypingArea";
 import PracticeText from "@/components/typing/PracticeText";
 import { getNextTypingKey, hasCompletedPrompt, getInputPosition } from "@/components/typing/practice-input";
-import { createPracticeClock } from "@/components/typing/usePracticeClock";
+import { createPracticeClock, usePracticeClock } from "@/components/typing/usePracticeClock";
 import theme from "../../public/themes/typesetgo.json";
-import { createRef } from "react";
+import { createRef, StrictMode } from "react";
 
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({ colors: theme.variants.default.dark }) }));
 beforeEach(() => {
@@ -40,6 +40,31 @@ describe("word-aligned practice input", () => {
     expect(clock.read()).toBe(2000);
     clock.reset();
     expect(clock.read()).toBe(0);
+  });
+  it("publishes exact pause and reset snapshots and cleans up its single clock subscription", () => {
+    vi.useFakeTimers();
+    const { result, rerender, unmount } = renderHook(
+      ({ running }) => usePracticeClock(running, 1200),
+      { initialProps: { running: false }, wrapper: StrictMode },
+    );
+    act(() => vi.advanceTimersByTime(500));
+    expect(result.current.elapsedMs).toBe(1200);
+    rerender({ running: true });
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => vi.advanceTimersByTime(250));
+    expect(result.current.elapsedMs).toBe(1400);
+    expect(result.current.readElapsed()).toBe(1450);
+    rerender({ running: false });
+    expect(result.current.elapsedMs).toBe(1450);
+    act(() => vi.advanceTimersByTime(3000));
+    expect(result.current.readElapsed()).toBe(1450);
+    act(() => result.current.resetClock());
+    expect(result.current.elapsedMs).toBe(0);
+    rerender({ running: true });
+    act(() => vi.advanceTimersByTime(100));
+    expect(result.current.elapsedMs).toBe(100);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
   });
   it("renders the caret after extras and renders ghost positions on spaces", () => {
     const ref = createRef<HTMLSpanElement>();

@@ -15,7 +15,11 @@ export default function PracticeText({ targetText, typedText, caretRef, maxWords
   const typedWords = typedText.split(" ");
   const currentWordIndex = typedWords.length - 1;
   const targetWords = targetText.split(" ");
-  let referenceOffset = 0;
+  const wordStarts: number[] = [];
+  for (let index = 0, offset = 0; index < targetWords.length; index++) {
+    wordStarts.push(offset);
+    offset += targetWords[index].length + 1;
+  }
   const caret = (ghost = false) => (
     <span
       ref={ghost ? undefined : caretRef}
@@ -28,8 +32,7 @@ export default function PracticeText({ targetText, typedText, caretRef, maxWords
   );
 
   return <>{targetWords.map((word, wordIndex) => {
-    const wordStart = referenceOffset;
-    referenceOffset += word.length + 1;
+    const wordStart = wordStarts[wordIndex];
     const typedWord = typedWords[wordIndex] ?? "";
     const current = wordIndex === currentWordIndex;
     const past = wordIndex < currentWordIndex;
