@@ -124,6 +124,7 @@ export default function TypingArea({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const composingRef = useRef(false);
+  const [compositionDraft, setCompositionDraft] = useState<string | null>(null);
   const tapeContainerRef = useRef<HTMLDivElement | null>(null);
   const tapeContentRef = useRef<HTMLDivElement | null>(null);
   const cursorRef = useRef<HTMLSpanElement | null>(null);
@@ -134,7 +135,7 @@ export default function TypingArea({
   const previousTargetRef = useRef(targetText);
   const scrollOffset = useTypingScroll({ viewportRef: feedingTape ? tapeContainerRef : containerRef,
     contentRef: feedingTape ? tapeContentRef : contentRef, caretRef: cursorRef, visibleLines, feedingTape,
-    layoutKey: JSON.stringify([typedText, targetText, resolvedFontFamily, fontSize, maxWordsPerLine, textAlign]) });
+    layoutKey: JSON.stringify([typedText, compositionDraft, targetText, resolvedFontFamily, fontSize, maxWordsPerLine, textAlign]) });
 
   // Computed stats
   const stats = useMemo(() => computeStats(typedText, targetText), [typedText, targetText]);
@@ -227,6 +228,8 @@ export default function TypingArea({
   useEffect(() => {
     if (previousTargetRef.current === targetText) return;
     previousTargetRef.current = targetText;
+    composingRef.current = false;
+    setCompositionDraft(null);
     setTypedText("");
     setIsRunning(false);
     resetClock();
@@ -274,6 +277,7 @@ export default function TypingArea({
   }, []);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (composingRef.current) return;
     constrainEditingKey(event);
   };
 
@@ -299,12 +303,12 @@ export default function TypingArea({
         type="text"
         className="absolute opacity-0 pointer-events-none"
         style={{ position: "absolute", left: "-9999px" }}
-        value={typedText}
+        value={compositionDraft ?? typedText}
         aria-label="Typing practice"
         aria-description="Type at the end. Use Backspace to correct mistakes. Tab moves to the next control."
-        onChange={(event) => { if (!composingRef.current) handleInput(event.target.value); }}
-        onCompositionStart={() => { composingRef.current = true; }}
-        onCompositionEnd={(event) => { composingRef.current = false; handleInput(event.currentTarget.value); placeCaretAtEnd(event.currentTarget); }}
+        onChange={(event) => { if (composingRef.current) setCompositionDraft(event.target.value); else handleInput(event.target.value); }}
+        onCompositionStart={(event) => { composingRef.current = true; setCompositionDraft(event.currentTarget.value); }}
+        onCompositionEnd={(event) => { composingRef.current = false; setCompositionDraft(null); handleInput(event.currentTarget.value); placeCaretAtEnd(event.currentTarget); }}
         onSelect={(event) => { if (!composingRef.current) placeCaretAtEnd(event.currentTarget); }}
         onPaste={(event) => event.preventDefault()}
         onKeyDown={handleKeyDown}
@@ -353,7 +357,7 @@ export default function TypingArea({
               paddingRight: "50%",
             }}
           >
-            <PracticeText targetText={targetText} typedText={typedText} caretRef={cursorRef} feedingTape />
+            <PracticeText targetText={targetText} typedText={compositionDraft ?? typedText} caretRef={cursorRef} feedingTape />
           </div>
           {/* Fade edges for visual polish */}
           <div
@@ -395,7 +399,7 @@ export default function TypingArea({
             className="relative motion-safe:transition-transform motion-safe:duration-100"
             style={{ transform: `translateY(-${scrollOffset}px)` }}
           >
-            <PracticeText targetText={targetText} typedText={typedText} caretRef={cursorRef} maxWordsPerLine={maxWordsPerLine} />
+            <PracticeText targetText={targetText} typedText={compositionDraft ?? typedText} caretRef={cursorRef} maxWordsPerLine={maxWordsPerLine} />
           </div>
 
           {/* Focus indicator overlay */}
