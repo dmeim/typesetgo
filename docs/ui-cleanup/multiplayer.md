@@ -1,5 +1,7 @@
 # Multiplayer UI cleanup
 
+Latest verified source: `f2425e2`; the integration follow-up at the end records the keyboard startup repair and repaired-parser lint results.
+
 Manager: `codex/ui-multiplayer`, `/Users/dimitri/Code/typesetgo-worktrees/multiplayer`, based on main at `6c0eacb08d0fe8293e57634751902808af8492af`.
 The original main checkout contains unrelated untracked files and is not modified. No backend deployment or live database mutation is authorized or used.
 
@@ -172,3 +174,36 @@ All browser fixture servers are loopback-only, refuse unrelated existing servers
 **Remaining integration dependencies:** the optional schema contract and compatible lifecycle/frontend callers must travel together; merge Practice's shared limits before `dd3b740`, and Foundations' Escape propagation before the Plan drag veto. Owner-authored dependencies are already present on this validated manager branch. Other lanes may have later unrelated fixes; use their final reports when composing the final integration. The coordinator should update the shared README/AGENTS testing documentation and deduplicate equivalent cherry-picked dependencies.
 
 Main remains at audit commit `6c0eacb08d0fe8293e57634751902808af8492af`; its original six unrelated untracked files remain untouched. No push, deployment, backend mutation, production migration or merge into main occurred. The report itself is delivered in a final documentation-only commit after the implementation snapshot.
+
+## Integration follow-up: keyboard registration and repaired-parser lint
+
+The integration coordinator (`codex/ui-integration`, task `01a0aacd-b477-7192-9ac5-3489d5ba3fa7`) subsequently reproduced an intermittent keyboard drag cancellation failure: the unchanged original browser check failed twice in five focused repetitions. The first completed manager validation had not exposed that timing window; its earlier passing run was insufficient to establish reliability.
+
+Event instrumentation in the manager fixture established the cause without changing shared overlay code: dnd-kit 6.3.1 calls its drag-start callback synchronously, then installs the document keyboard listener in a zero-delay task. In a failing trace, Space arrived at 545.5ms, ArrowDown at 571.9ms, Escape at 574.8ms, and the sensor listener was installed only at 588.7ms. The Plan dialog veto correctly preserved the draft and propagated Escape; the sensor had no listener yet. A browser regression holding the registration task with Playwright's clock reliably failed before the repair. Debug instrumentation was removed after diagnosis; evidence remains in `/tmp/typesetgo-drag-debug.log` and `/tmp/typesetgo-drag-early-before.log`.
+
+- **`f2425e2`** adds an owned, public-API `PlanKeyboardSensor` wrapper that buffers configured cancellation keys across that registration boundary. It suppresses buffered originals to avoid double handling, removes its capture listener before replay, and guards callbacks after deactivation. Movement, coordinate calculations, standard activators and pointer dragging remain owned by dnd-kit. It deliberately does not replay movement/end sequences against possibly stale React geometry. No private library APIs, shared-overlay edits, arbitrary sleeps, package changes or lint suppressions are used.
+- The deterministic regression verifies early ArrowDown + Escape preserves the draft and ends the drag, then verifies another keyboard drag/drop, focus, pointer reorder and normal dialog dismissal. The original intermittent check passes **20/20 serial repetitions**. Ordinary movement is validated after the sensor registration task; buffering movement during that upstream activation gap is outside this cancellation repair.
+- **`1ebf413`**, from worker **`0fa0c61`**, fixes newly actionable lint findings after integration repaired the parser: Join's membership history is render-owned state; race auto-transition effects synchronize guarded backend requests while promise results own failure state and explicit retries clear errors; stale readiness-attempt failures cannot overwrite a newer attempt. Emoji keyboard indexing and the named test component are repaired. Three lifecycle regressions cover membership lag/removal, StrictMode start deduplication/stale failure, and automatic end failure/retry.
+- **`b2d6ea7`** separates RoomUI style helpers into `src/components/connect/room-styles.ts` and updates all owned imports, satisfying Fast Refresh's component-export boundary without changing styles.
+
+The lint worker had its own worktree `/Users/dimitri/Code/typesetgo-worktrees/multiplayer-lint`, branch `codex/ui-multiplayer-lint`, based on manager `18e6835`. It edited only its assigned pages, emoji picker and dedicated tests. The manager owned the sensor/RoomUI split. Read-only review passed the concrete sensor and integrated lifecycle changes with no confirmed regressions.
+
+Latest source snapshot: **`f2425e2`**. Follow-up validation:
+
+| Check | Result |
+| --- | --- |
+| Build | PASS |
+| Full unit suite | PASS, 227 tests / 24 files |
+| Repaired-parser ESLint with integration tooling | PASS on all 16 touched owned files; no suppressions |
+| Original intermittent keyboard scenario | PASS, 20/20 serial repetitions |
+| Deterministic early cancellation + subsequent keyboard/pointer drag | PASS |
+| Host browser suite | PASS, 8/8 |
+| Race browser suite | PASS, 12/12 |
+| Real Join browser suite | PASS, 1/1 |
+| Read-only source review | PASS |
+
+The coordinator owns package/config repair and repository-wide lint; local `bun run lint` still uses the original incompatible parser stack. Scoped lint was run from the multiplayer checkout using `/Users/dimitri/Code/typesetgo-worktrees/integration-tooling/node_modules/.bin/eslint --config /Users/dimitri/Code/typesetgo-worktrees/integration-tooling/eslint.config.js` with the touched paths. Logs: `/tmp/typesetgo-multiplayer-followup-{build,unit,lint,connect-browser,connect-session,race-browser}.log` and `/tmp/typesetgo-drag-repeat20.log`.
+
+These three focused follow-up commits are sequential after `18e6835`; apply them without remerging the previously delivered owner dependencies. Shared documentation, schema pairing, and package/config changes now have an active integration coordinator. No changes were made in its checkout or in main, and no live services were exercised.
+
+All follow-up fixture servers are stopped; ports 4318, 54319 and 54320 are free. Final follow-up git diff whitespace check passes.
