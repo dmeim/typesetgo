@@ -42,7 +42,7 @@ import PracticeControls from "./PracticeControls";
 import PracticeQuickSettingsDialog from "./PracticeQuickSettingsDialog";
 import PracticeSettingsDialog from "./PracticeSettingsDialog";
 import PracticeThemePicker from "./PracticeThemePicker";
-import { TIME_PRESETS, WORD_PRESETS, type ModeSelectorOption } from "./practice-config";
+import { PROMPT_SETTING_KEYS, TIME_PRESETS, WORD_PRESETS, type ModeSelectorOption } from "./practice-config";
 
 // Constants
 const PUNCTUATION_CHARS = [".", ",", "!", "?", ";", ":"];
@@ -163,6 +163,10 @@ export default function TypingPractice({
   const [settings, setSettings] = useState<SettingsState>(() => normalizePracticeSettings({
     ...DEFAULT_SETTINGS, ...loadSettings(), presetText: "", ...(connectMode ? lockedSettings : {}),
   }));
+  // Account defaults arriving during an attempt belong to the next prompt, including while results are open.
+  const [pendingPromptPreferences, setPendingPromptPreferences] = useState<Partial<SettingsState> | null>(null);
+  const preferredSettings = useMemo(() => pendingPromptPreferences
+    ? { ...settings, ...pendingPromptPreferences } : settings, [settings, pendingPromptPreferences]);
   const preferenceEditsRef = useRef(new Set<string>());
   const themeEditedRef = useRef(false);
   const themeRevisionBaselineRef = useRef(userSelectionRevision);
@@ -202,9 +206,7 @@ export default function TypingPractice({
   const [showCustomCountModal, setShowCustomCountModal] = useState(false);
   const dataset = usePracticeDataset(settings, quotesManifest);
   const { wordPool, quotes } = dataset;
-  const promptConfigKey = JSON.stringify([settings.mode, settings.duration, settings.wordTarget,
-    settings.difficulty, settings.quoteLength, settings.punctuation, settings.numbers,
-    settings.capitalization, settings.presetText, settings.presetModeType]);
+  const promptConfigKey = JSON.stringify(PROMPT_SETTING_KEYS.map((key) => settings[key]));
   const promptConfigRef = useRef("");
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const [words, setWords] = useState("");
@@ -376,7 +378,7 @@ export default function TypingPractice({
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      saveSettings(settings);
+      saveSettings(preferredSettings);
       saveLayoutSettings({ linePreview, maxWordsPerLine });
     }, 500);
 
@@ -385,7 +387,7 @@ export default function TypingPractice({
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [settings, linePreview, maxWordsPerLine, connectMode]);
+  }, [preferredSettings, linePreview, maxWordsPerLine, connectMode]);
 
   // Theme saving is now handled by ThemeContext
 
@@ -415,39 +417,39 @@ export default function TypingPractice({
     themeId: selectedThemeId,
     themeVariantId: selectedVariantId,
     themeMode: selectedMode,
-    soundEnabled: settings.soundEnabled,
-    typingSound: settings.typingSound,
-    warningSound: settings.warningSound,
-    errorSound: settings.errorSound,
-    ghostWriterEnabled: settings.ghostWriterEnabled,
-    ghostWriterSpeed: settings.ghostWriterSpeed,
-    typingFontSize: settings.typingFontSize,
-    typingFontFamily: settings.typingFontFamily,
-    iconFontSize: settings.iconFontSize,
-    helpFontSize: settings.helpFontSize,
-    textAlign: settings.textAlign,
-    defaultMode: settings.mode,
-    defaultDuration: settings.duration,
-    defaultWordTarget: settings.wordTarget,
-    defaultDifficulty: settings.difficulty,
-    defaultQuoteLength: settings.quoteLength,
-    defaultPunctuation: settings.punctuation,
-    defaultNumbers: settings.numbers,
-    defaultCapitalization: settings.capitalization,
-    defaultPresetModeType: settings.presetModeType,
+    soundEnabled: preferredSettings.soundEnabled,
+    typingSound: preferredSettings.typingSound,
+    warningSound: preferredSettings.warningSound,
+    errorSound: preferredSettings.errorSound,
+    ghostWriterEnabled: preferredSettings.ghostWriterEnabled,
+    ghostWriterSpeed: preferredSettings.ghostWriterSpeed,
+    typingFontSize: preferredSettings.typingFontSize,
+    typingFontFamily: preferredSettings.typingFontFamily,
+    iconFontSize: preferredSettings.iconFontSize,
+    helpFontSize: preferredSettings.helpFontSize,
+    textAlign: preferredSettings.textAlign,
+    defaultMode: preferredSettings.mode,
+    defaultDuration: preferredSettings.duration,
+    defaultWordTarget: preferredSettings.wordTarget,
+    defaultDifficulty: preferredSettings.difficulty,
+    defaultQuoteLength: preferredSettings.quoteLength,
+    defaultPunctuation: preferredSettings.punctuation,
+    defaultNumbers: preferredSettings.numbers,
+    defaultCapitalization: preferredSettings.capitalization,
+    defaultPresetModeType: preferredSettings.presetModeType,
     linePreview: Math.max(1, Math.min(6, linePreview)),
     maxWordsPerLine: Math.max(1, Math.min(10, maxWordsPerLine)),
-    showOnScreenKeyboard: settings.showOnScreenKeyboard,
-    keyboardLayout: settings.keyboardLayout,
+    showOnScreenKeyboard: preferredSettings.showOnScreenKeyboard,
+    keyboardLayout: preferredSettings.keyboardLayout,
   }), [
     selectedThemeId, selectedVariantId, selectedMode,
-    settings.soundEnabled, settings.typingSound, settings.warningSound, settings.errorSound,
-    settings.ghostWriterEnabled, settings.ghostWriterSpeed,
-    settings.typingFontSize, settings.typingFontFamily,
-    settings.iconFontSize, settings.helpFontSize, settings.textAlign,
-    settings.mode, settings.duration, settings.wordTarget, settings.difficulty,
-    settings.quoteLength, settings.punctuation, settings.numbers, settings.capitalization,
-    settings.presetModeType, settings.showOnScreenKeyboard, settings.keyboardLayout,
+    preferredSettings.soundEnabled, preferredSettings.typingSound, preferredSettings.warningSound, preferredSettings.errorSound,
+    preferredSettings.ghostWriterEnabled, preferredSettings.ghostWriterSpeed,
+    preferredSettings.typingFontSize, preferredSettings.typingFontFamily,
+    preferredSettings.iconFontSize, preferredSettings.helpFontSize, preferredSettings.textAlign,
+    preferredSettings.mode, preferredSettings.duration, preferredSettings.wordTarget, preferredSettings.difficulty,
+    preferredSettings.quoteLength, preferredSettings.punctuation, preferredSettings.numbers, preferredSettings.capitalization,
+    preferredSettings.presetModeType, preferredSettings.showOnScreenKeyboard, preferredSettings.keyboardLayout,
     linePreview, maxWordsPerLine,
   ]);
 
@@ -455,6 +457,7 @@ export default function TypingPractice({
   const preferencesAccountRef = useRef<string | null>(null);
   useEffect(() => {
     if (preferencesAccountRef.current && preferencesAccountRef.current !== user?.id) {
+      setPendingPromptPreferences(null);
       preferenceEditsRef.current.clear();
       themeEditedRef.current = false;
       themeRevisionBaselineRef.current = themeRevisionRef.current;
@@ -511,7 +514,8 @@ export default function TypingPractice({
           // They would need to be stored as theme JSON files
 
           // Apply settings from DB
-          setSettings((prev) => {
+          {
+            const prev = settingsRef.current;
             const restored = normalizePracticeSettings({
             ...prev,
             mode: dbPreferences.defaultMode as typeof prev.mode,
@@ -540,8 +544,16 @@ export default function TypingPractice({
             for (const key of preferenceEditsRef.current) {
               if (key in prev) Object.assign(restored, { [key]: prev[key as keyof SettingsState] });
             }
-            return restored;
-          });
+            if (isRunningRef.current || isFinishedRef.current || composingRef.current) {
+              const pending: Partial<SettingsState> = {};
+              for (const key of PROMPT_SETTING_KEYS) {
+                if (restored[key] !== prev[key]) Object.assign(pending, { [key]: restored[key] });
+                Object.assign(restored, { [key]: prev[key] });
+              }
+              setPendingPromptPreferences(Object.keys(pending).length ? pending : null);
+            }
+            setSettings(restored);
+          }
 
           if (!preferenceEditsRef.current.has("linePreview") && typeof dbPreferences.linePreview === "number") {
             setLinePreview(Math.max(1, Math.min(6, Math.round(dbPreferences.linePreview))));
@@ -626,8 +638,11 @@ export default function TypingPractice({
   // --- Callbacks ---
   const updateSettings = useCallback((updates: Partial<SettingsState>) => {
     Object.keys(updates).forEach((key) => preferenceEditsRef.current.add(key));
-    setSettings((prev) => normalizePracticeSettings({ ...prev, ...updates }));
-  }, []);
+    // Explicit prompt edits start a new attempt, so apply queued account defaults at that boundary too.
+    const startsPrompt = PROMPT_SETTING_KEYS.some((key) => key in updates);
+    if (startsPrompt) setPendingPromptPreferences(null);
+    setSettings((prev) => normalizePracticeSettings({ ...prev, ...(startsPrompt ? pendingPromptPreferences : {}), ...updates }));
+  }, [pendingPromptPreferences]);
 
   const openCustomCountModal = useCallback(() => {
     if (settings.mode === "time" || settings.mode === "words") setShowCustomCountModal(true);
@@ -1036,7 +1051,7 @@ export default function TypingPractice({
     void saveResults();
   }, [isFinished, connectMode, isSignedIn, saveResults]);
 
-  const generateTest = useCallback(() => {
+  const generatePrompt = useCallback(() => {
     resetSession(false);
     promptConfigRef.current = promptConfigKey;
     setCurrentQuote(null);
@@ -1087,6 +1102,15 @@ export default function TypingPractice({
     quotes,
     resetSession,
   ]);
+
+  const generateTest = useCallback(() => {
+    if (pendingPromptPreferences) {
+      setSettings((prev) => normalizePracticeSettings({ ...prev, ...pendingPromptPreferences }));
+      setPendingPromptPreferences(null);
+      return; // The resolved configuration/dataset effect generates the next prompt.
+    }
+    generatePrompt();
+  }, [generatePrompt, pendingPromptPreferences]);
 
   const applyCustomCount = useCallback((value: number) => {
     if (settings.mode === "time") {
@@ -1165,7 +1189,7 @@ export default function TypingPractice({
     }
   }, [disableKidMode, enableKidMode, generateTest, isKidMode, settings.mode, updateSettings]);
 
-  useEffect(() => { generateTest(); }, [generateTest]);
+  useEffect(() => { generatePrompt(); }, [generatePrompt]);
 
   // The clock owns elapsed time; ghost position derives from that same elapsed value, including spaces.
   useEffect(() => {

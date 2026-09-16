@@ -168,6 +168,67 @@ describe("solo prompt and server session ownership", () => {
 });
 
 describe("preference hydration and Connect boundaries", () => {
+  it("keeps an active ranked attempt when account prompt preferences arrive, applying them on Next Test", async () => {
+    setLocal({ typingFontSize: 2 });
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
+    mocks.mutations["typingSessions:startSession"].mockImplementation(async ({ wordTarget }: { wordTarget: number }) => ({
+      sessionId: `session-${wordTarget}`, targetText: Array(wordTarget).fill("cat").join(" "),
+    }));
+    const { container, rerender } = render(<TypingPractice />);
+    await waitFor(() => expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenCalledTimes(1));
+    const originalPrompt = Array(25).fill("cat").join(" ");
+    await waitFor(() => expect(promptWords(container)).toBe(originalPrompt));
+    const input = screen.getByRole("textbox", { name: "Typing practice" });
+    fireEvent.change(input, { target: { value: "ca" } });
+
+    mocks.preferences = accountPreferences({ defaultWordTarget: 50, defaultDifficulty: "expert" });
+    rerender(<TypingPractice />);
+    await waitFor(() => expect((container.querySelector("[data-typing-word]")?.closest("[style*='font-size']") as HTMLElement)?.style.fontSize).toBe("5rem"));
+    expect(input).toHaveValue("ca");
+    expect(promptWords(container)).toBe(originalPrompt);
+    expect(mocks.words).not.toHaveBeenCalledWith("expert");
+    expect(mocks.mutations["typingSessions:cancelSession"]).not.toHaveBeenCalled();
+    expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(input, { target: { value: originalPrompt + " " } });
+    await waitFor(() => expect(mocks.mutations["typingSessions:finalizeSession"]).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: "session-25", typedText: originalPrompt + " ",
+    })));
+    fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(50));
+    expect(mocks.words).toHaveBeenCalledWith("expert");
+    await waitFor(() => expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenLastCalledWith(expect.objectContaining({
+      mode: "words", wordTarget: 50, difficulty: "expert",
+    })));
+  });
+
+  it("preserves finished results and a pending sign-in save, repeating the old prompt before Next applies restored mode", async () => {
+    setLocal({ wordTarget: 10 });
+    const { container, rerender } = render(<TypingPractice />);
+    const originalPrompt = Array(10).fill("cat").join(" ");
+    await waitFor(() => expect(promptWords(container)).toBe(originalPrompt));
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: originalPrompt + " " } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Results" }));
+
+    const pendingUser = deferred<object>();
+    mocks.mutations["users:getOrCreateUser"].mockImplementation(() => pendingUser.promise);
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
+    mocks.preferences = accountPreferences({ defaultMode: "quote", defaultQuoteLength: "short" });
+    rerender(<TypingPractice />);
+    // Stored preferences can become the next launch defaults without replacing the current result.
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("typesetgo_settings")!).mode).toBe("quote"));
+    expect(screen.getByText("Words Per Minute")).toBeInTheDocument();
+    await act(async () => pendingUser.resolve({}));
+    await waitFor(() => expect(mocks.mutations["testResults:saveResult"]).toHaveBeenCalledWith(expect.objectContaining({ mode: "words" })));
+    expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Repeat Test" }));
+    expect(promptWords(container)).toBe(originalPrompt);
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: originalPrompt + " " } });
+    fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+    await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+  });
+
   it("restores account preferences over hydrated local defaults but preserves real edits during loading", async () => {
     setLocal({ typingFontSize: 2 });
     const { container, rerender } = render(<TypingPractice />);
