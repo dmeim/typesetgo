@@ -1,210 +1,148 @@
-// src/components/race/RaceCourse.tsx
-// Horizontal lane-based race track visualization
 import { useMemo } from "react";
-import { motion, LayoutGroup } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { tv } from "@/lib/theme-vars";
 
 interface Racer {
   sessionId: string;
   name: string;
   emoji: string;
-  progress: number; // 0-100
+  progress: number;
   wpm: number;
   isFinished: boolean;
   position?: number;
   isCurrentUser?: boolean;
 }
 
-interface RaceCourseProps {
-  racers: Racer[];
-  isRaceActive: boolean;
-}
-
-// Position ordinal suffixes
-function getOrdinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
 export default function RaceCourse({
   racers,
   isRaceActive,
-}: RaceCourseProps) {
-  // Sort racers by progress (descending) for position labels
-  const sortedRacers = useMemo(() => {
-    return [...racers].sort((a, b) => {
-      // Finished racers first, by position
-      if (a.isFinished && !b.isFinished) return -1;
-      if (!a.isFinished && b.isFinished) return 1;
-      if (a.isFinished && b.isFinished) {
-        return (a.position || 0) - (b.position || 0);
-      }
-      // Then by progress
-      return b.progress - a.progress;
-    });
-  }, [racers]);
-
-  // Assign current positions based on progress
-  const racersWithPositions = useMemo(() => {
-    return sortedRacers.map((racer, index) => ({
-      ...racer,
-      currentPosition: index + 1,
-    }));
-  }, [sortedRacers]);
+}: {
+  racers: Racer[];
+  isRaceActive: boolean;
+}) {
+  const reducedMotion = useReducedMotion();
+  const sortedRacers = useMemo(
+    () =>
+      [...racers].sort((a, b) => {
+        if (a.isFinished !== b.isFinished) return a.isFinished ? -1 : 1;
+        return a.isFinished
+          ? (a.position ?? Infinity) - (b.position ?? Infinity)
+          : b.progress - a.progress;
+      }),
+    [racers],
+  );
 
   return (
-    <div className="w-full h-full flex flex-col gap-2 py-4 px-4 overflow-y-auto">
-      {/* Track header */}
-      <div className="flex items-center justify-between px-4 mb-2">
-        <div
-          className="text-xs font-bold uppercase tracking-wider"
-          style={{ color: tv.text.secondary }}
-        >
-          Start
-        </div>
-        <div
-          className="text-xs font-bold uppercase tracking-wider"
-          style={{ color: tv.text.secondary }}
-        >
-          Finish
-        </div>
-      </div>
-
-      {/* Race lanes */}
-      <LayoutGroup>
-        <div className="flex-1 flex flex-col gap-3">
-          {racersWithPositions.map((racer) => (
+    <div
+      className="w-full max-w-6xl mx-auto p-4 sm:p-6"
+      aria-label={isRaceActive ? "Live race positions" : "Race positions"}
+    >
+      <div className="space-y-4">
+        {sortedRacers.map((racer, index) => {
+          const progress = Math.max(0, Math.min(100, racer.progress));
+          return (
             <motion.div
               key={racer.sessionId}
-              layout
-              layoutId={racer.sessionId}
-              transition={{ type: "spring", stiffness: 500, damping: 40 }}
-              className="relative flex items-center gap-3 min-h-[60px]"
+              layout={reducedMotion ? false : "position"}
+              transition={{ duration: reducedMotion ? 0 : 0.15 }}
+              className="min-w-0"
             >
-            {/* Position label */}
-            <div
-              className="w-10 text-center font-bold text-sm shrink-0"
-              style={{
-                color: racer.currentPosition <= 3
-                  ? [tv.status.warning.DEFAULT, tv.text.secondary, tv.status.error.DEFAULT][racer.currentPosition - 1] || tv.text.secondary
-                  : tv.text.muted,
-              }}
-            >
-              {getOrdinal(racer.currentPosition)}
-            </div>
-
-            {/* Lane track */}
-            <div
-              className="flex-1 relative h-12 rounded-lg overflow-hidden"
-              style={{
-                backgroundColor: racer.isCurrentUser
-                  ? tv.interactive.accent.subtle
-                  : tv.bg.elevated,
-                border: racer.isCurrentUser
-                  ? `2px solid ${tv.interactive.accent.DEFAULT}`
-                  : `1px solid ${tv.border.subtle}`,
-              }}
-            >
-              {/* Progress bar */}
-              <div
-                className={`absolute inset-y-0 left-0 ${
-                  racer.isCurrentUser ? "transition-none" : "transition-all duration-100 ease-out"
-                }`}
-                style={{
-                  width: `${Math.min(100, racer.progress)}%`,
-                  backgroundColor: racer.isFinished
-                    ? tv.status.success.muted
-                    : racer.isCurrentUser
-                    ? tv.interactive.accent.muted
-                    : tv.border.subtle,
-                }}
-              />
-
-              {/* Start line */}
-              <div
-                className="absolute left-2 inset-y-0 w-0.5"
-                style={{ backgroundColor: tv.border.default }}
-              />
-
-              {/* Finish line (checkered pattern simulation) */}
-              <div
-                className="absolute right-2 inset-y-0 w-1 flex flex-col"
-                style={{ backgroundColor: tv.text.primary }}
-              >
-                {[...Array(6)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex-1"
-                    style={{
-                      backgroundColor: i % 2 === 0 ? tv.text.primary : tv.bg.base,
-                    }}
-                  />
-                ))}
+              <div className="flex items-baseline justify-between gap-3 mb-2 text-sm">
+                <p
+                  className="min-w-0 [overflow-wrap:anywhere] font-semibold"
+                  style={{
+                    color: racer.isCurrentUser
+                      ? tv.ui.primary
+                      : tv.ui.foreground,
+                  }}
+                >
+                  <span
+                    className="mr-2"
+                    style={{ color: tv.ui.mutedForeground }}
+                  >
+                    #{index + 1}
+                  </span>
+                  {racer.name}
+                  {racer.isCurrentUser && (
+                    <span className="font-normal"> (you)</span>
+                  )}
+                </p>
+                <span
+                  className="shrink-0 tabular-nums"
+                  style={{ color: tv.ui.mutedForeground }}
+                >
+                  {racer.wpm} WPM{racer.isFinished ? " · Finished" : ""}
+                </span>
               </div>
-
-              {/* Racer avatar - positioned based on progress */}
               <div
-                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center gap-2 z-10 ${
-                  racer.isCurrentUser ? "transition-none" : "transition-all duration-100 ease-out"
-                }`}
+                data-race-track
+                className="relative h-14 rounded-lg border"
                 style={{
-                  // Progress 0: avatar center at start line (8px from left)
-                  // Progress 100: avatar center at finish line (10px from right)
-                  // Linear interpolation: left = 8px*(1-p) + (100%-10px)*p
-                  // Simplified: left = calc(p% + (8 - 0.18*p)px)
-                  left: `calc(${racer.progress}% + ${8 - 0.18 * racer.progress}px)`,
+                  borderColor: racer.isCurrentUser
+                    ? tv.ui.primary
+                    : tv.ui.border,
+                  backgroundColor: tv.ui.secondary,
                 }}
               >
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-lg ${
-                    isRaceActive && !racer.isFinished ? "animate-bounce" : ""
-                  }`}
-                  style={{
-                    backgroundColor: racer.isCurrentUser
-                      ? tv.interactive.accent.DEFAULT
-                      : tv.bg.surface,
-                    border: `2px solid ${racer.isFinished ? tv.status.success.DEFAULT : tv.border.default}`,
-                    animationDuration: "0.5s",
-                  }}
+                  className="absolute inset-0 overflow-hidden rounded-[inherit]"
+                  aria-hidden="true"
                 >
-                  {racer.emoji}
+                  <div
+                    className="h-full motion-safe:transition-[width] motion-safe:duration-150"
+                    style={{
+                      width: `${progress}%`,
+                      backgroundColor: racer.isFinished
+                        ? tv.status.success.muted
+                        : tv.interactive.accent.subtle,
+                    }}
+                  />
                 </div>
+                <div
+                  className="absolute inset-y-2 left-6 border-l"
+                  style={{ borderColor: tv.ui.border }}
+                  aria-hidden="true"
+                />
+                <div
+                  className="absolute inset-y-2 right-6 border-l-2 border-dashed"
+                  style={{ borderColor: tv.ui.mutedForeground }}
+                  aria-hidden="true"
+                />
+                <div
+                  className="absolute inset-y-0 left-6 right-6"
+                  aria-hidden="true"
+                >
+                  <div
+                    data-race-avatar
+                    className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 size-10 rounded-full flex items-center justify-center text-xl border-2 ${racer.isCurrentUser ? "" : "motion-safe:transition-[left] motion-safe:duration-150"}`}
+                    style={{
+                      left: `${progress}%`,
+                      backgroundColor: tv.ui.card,
+                      borderColor: racer.isFinished
+                        ? tv.status.success.DEFAULT
+                        : racer.isCurrentUser
+                          ? tv.ui.primary
+                          : tv.ui.border,
+                    }}
+                  >
+                    {racer.emoji}
+                  </div>
+                </div>
+                <span className="sr-only">
+                  {Math.round(progress)} percent complete
+                </span>
               </div>
-            </div>
-
-            {/* Racer info */}
-            <div className="w-24 shrink-0 text-right">
-              <p
-                className="font-bold text-sm truncate"
-                style={{
-                  color: racer.isCurrentUser ? tv.interactive.accent.DEFAULT : tv.text.primary,
-                }}
-              >
-                {racer.name}
-              </p>
-              <p
-                className="text-xs"
-                style={{ color: tv.text.secondary }}
-              >
-                {racer.wpm} WPM
-              </p>
-            </div>
-          </motion.div>
-          ))}
-        </div>
-      </LayoutGroup>
-
-      {/* Legend */}
-      {racers.length > 0 && (
-        <div
-          className="flex items-center justify-center gap-4 mt-2 text-xs"
-          style={{ color: tv.text.muted }}
+            </motion.div>
+          );
+        })}
+      </div>
+      {racers.length === 0 && (
+        <p
+          className="text-center py-8"
+          style={{ color: tv.ui.mutedForeground }}
         >
-          <span>Progress: {Math.round(racers.find(r => r.isCurrentUser)?.progress || 0)}%</span>
-          <span>•</span>
-          <span>{racers.filter(r => r.isFinished).length} / {racers.length} finished</span>
-        </div>
+          No connected racers.
+        </p>
       )}
     </div>
   );

@@ -1,9 +1,8 @@
-// src/components/race/PlayerCard.tsx
-// Player card component for the race lobby
 import { useState } from "react";
+import { Crown, Check } from "lucide-react";
 import EmojiPicker from "./EmojiPicker";
 import { tv } from "@/lib/theme-vars";
-import { Crown, Check, Loader2 } from "lucide-react";
+import { RaceError } from "./RaceState";
 
 interface PlayerCardProps {
   name: string;
@@ -13,9 +12,10 @@ interface PlayerCardProps {
   isCurrentUser: boolean;
   isCountingDown?: boolean;
   countdownValue?: number;
+  pending?: boolean;
   onReadyToggle?: () => void;
   onEmojiChange?: (emoji: string) => void;
-  onNameChange?: (name: string) => void;
+  onNameChange?: (name: string) => Promise<boolean>;
 }
 
 export default function PlayerCard({
@@ -26,172 +26,141 @@ export default function PlayerCard({
   isCurrentUser,
   isCountingDown = false,
   countdownValue,
+  pending = false,
   onReadyToggle,
   onEmojiChange,
   onNameChange,
 }: PlayerCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
-
-  const handleNameSubmit = () => {
-    if (editedName.trim() && onNameChange) {
-      onNameChange(editedName.trim());
-    }
-    setIsEditingName(false);
-  };
+  const [nameError, setNameError] = useState("");
+  const locked = pending || isCountingDown;
 
   return (
-    <div
-      className="relative rounded-xl p-4 flex flex-col items-center gap-3 transition-all duration-300"
+    <article
+      className="min-w-0 rounded-xl p-4 flex flex-col items-center gap-3"
       style={{
-        backgroundColor: tv.bg.surface,
-        border: `2px solid ${isReady ? tv.status.success.DEFAULT : tv.border.default}`,
-        boxShadow: isReady ? `0 0 20px ${tv.status.success.muted}` : "none",
+        backgroundColor: tv.ui.secondary,
+        border: `1px solid ${isReady ? tv.status.success.DEFAULT : tv.ui.border}`,
+        color: tv.ui.foreground,
       }}
     >
-      {/* Host crown */}
-      {isHost && (
-        <div
-          className="absolute -top-3 left-1/2 -translate-x-1/2"
-          style={{ color: tv.status.warning.DEFAULT }}
-        >
-          <Crown size={24} fill={tv.status.warning.DEFAULT} />
-        </div>
-      )}
-
-      {/* Ready indicator */}
-      {isReady && !isCountingDown && (
-        <div
-          className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: tv.status.success.DEFAULT }}
-        >
-          <Check size={14} color={tv.text.inverse} strokeWidth={3} />
-        </div>
-      )}
-
-      {/* Emoji avatar */}
+      <div
+        className="flex items-center gap-1 text-xs min-h-4"
+        style={{ color: tv.ui.mutedForeground }}
+      >
+        {isHost && (
+          <>
+            <Crown size={14} aria-hidden="true" /> Host
+          </>
+        )}
+        {isCurrentUser && <span>{isHost ? " · " : ""}You</span>}
+      </div>
       {isCurrentUser && onEmojiChange ? (
         <EmojiPicker
           selectedEmoji={emoji}
           onSelect={onEmojiChange}
-          disabled={isReady || isCountingDown}
+          disabled={locked || isReady}
         />
       ) : (
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
-          style={{ backgroundColor: tv.bg.elevated }}
+          className="size-12 flex items-center justify-center text-2xl"
+          aria-hidden="true"
         >
           {emoji}
         </div>
       )}
-
-      {/* Player name */}
       {isCurrentUser && !isReady && !isCountingDown && onNameChange ? (
         isEditingName ? (
-          <input
-            type="text"
-            value={editedName}
-            onChange={(e) => setEditedName(e.target.value)}
-            onBlur={handleNameSubmit}
-            onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
-            className="w-full text-center font-bold text-base rounded px-2 py-1 focus:outline-none"
-            style={{
-              backgroundColor: tv.bg.elevated,
-              color: tv.text.primary,
-              border: `1px solid ${tv.interactive.accent.DEFAULT}`,
+          <form
+            className="w-full space-y-2"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (pending) return;
+              if (!editedName.trim()) {
+                setNameError("Enter a racer name.");
+                return;
+              }
+              setNameError("");
+              if (await onNameChange(editedName.trim()))
+                setIsEditingName(false);
             }}
-            maxLength={15}
-            autoFocus
-          />
+          >
+            <label className="sr-only" htmlFor="racer-name">
+              Racer name
+            </label>
+            <input
+              id="racer-name"
+              autoFocus
+              value={editedName}
+              disabled={pending}
+              onChange={(event) => setEditedName(event.target.value)}
+              maxLength={30}
+              className="w-full rounded border px-2 py-1"
+              style={{ backgroundColor: tv.ui.card, borderColor: tv.ui.border }}
+            />
+            <RaceError>{nameError}</RaceError>
+            <div className="flex flex-wrap justify-center gap-3 text-sm">
+              <button disabled={pending} type="submit">
+                {pending ? "Saving…" : "Save"}
+              </button>
+              <button
+                disabled={pending}
+                type="button"
+                onClick={() => setIsEditingName(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         ) : (
           <button
-            onClick={() => setIsEditingName(true)}
-            className="font-bold text-base hover:opacity-80 transition-opacity"
-            style={{ color: tv.text.primary }}
-            title="Click to edit name"
+            disabled={pending}
+            aria-label={`Edit racer name: ${name}`}
+            onClick={() => {
+              setEditedName(name);
+              setIsEditingName(true);
+            }}
+            className="max-w-full font-semibold break-words [overflow-wrap:anywhere] underline decoration-dotted underline-offset-4"
           >
             {name}
           </button>
         )
       ) : (
-        <p
-          className="font-bold text-base"
-          style={{ color: tv.text.primary }}
-        >
+        <p className="max-w-full text-center font-semibold [overflow-wrap:anywhere]">
           {name}
         </p>
       )}
-
-      {/* Ready button or countdown with unready option */}
-      {isCurrentUser && onReadyToggle && (
-        isCountingDown && countdownValue !== undefined ? (
-          <div className="w-full flex flex-col items-center gap-2">
-            <div
-              className="w-full py-2.5 rounded-lg text-center font-black text-3xl animate-pulse"
-              style={{
-                backgroundColor: tv.interactive.accent.muted,
-                color: tv.interactive.accent.DEFAULT,
-              }}
-            >
-              {countdownValue}
-            </div>
-            <button
-              onClick={onReadyToggle}
-              className="w-full py-2 rounded-lg font-medium text-sm transition-all duration-200"
-              style={{
-                backgroundColor: tv.status.error.muted,
-                color: tv.status.error.DEFAULT,
-                border: `1px solid ${tv.status.error.DEFAULT}`,
-              }}
-            >
-              Cancel Ready
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={onReadyToggle}
-            className="w-full py-2.5 rounded-lg font-bold transition-all duration-200 flex items-center justify-center gap-2"
-            style={{
-              backgroundColor: isReady ? tv.status.success.muted : tv.interactive.accent.DEFAULT,
-              color: isReady ? tv.status.success.DEFAULT : tv.text.inverse,
-              border: `2px solid ${isReady ? tv.status.success.DEFAULT : "transparent"}`,
-            }}
-          >
-            {isReady ? (
-              <>
-                <Check size={18} />
-                Ready!
-              </>
-            ) : (
-              "Ready Up"
-            )}
-          </button>
-        )
-      )}
-
-      {/* Non-current user ready/waiting status */}
-      {!isCurrentUser && (
-        <div
-          className="w-full py-2 rounded-lg text-center font-medium text-sm"
+      {isCurrentUser && onReadyToggle ? (
+        <button
+          disabled={locked}
+          onClick={onReadyToggle}
+          aria-pressed={isReady}
+          className="mt-auto w-full min-h-10 px-2 py-2 rounded-lg font-semibold disabled:opacity-50"
           style={{
-            backgroundColor: isReady ? tv.status.success.muted : tv.bg.elevated,
-            color: isReady ? tv.status.success.DEFAULT : tv.text.secondary,
+            backgroundColor: isReady ? tv.ui.secondary : tv.ui.primary,
+            color: isReady ? tv.ui.foreground : tv.ui.primaryForeground,
           }}
         >
-          {isCountingDown && countdownValue !== undefined ? (
-            <span className="text-2xl font-black" style={{ color: tv.interactive.accent.DEFAULT }}>
-              {countdownValue}
-            </span>
-          ) : isReady ? (
-            "Ready"
-          ) : (
-            <span className="flex items-center justify-center gap-2">
-              <Loader2 size={14} className="animate-spin" />
-              Waiting...
-            </span>
-          )}
-        </div>
+          {pending
+            ? "Saving…"
+            : isCountingDown
+              ? `Starting in ${countdownValue}…`
+              : isReady
+                ? "Ready · Undo"
+                : "Ready Up"}
+        </button>
+      ) : (
+        <p
+          className="mt-auto text-sm flex items-center gap-1"
+          style={{
+            color: isReady ? tv.ui.foreground : tv.ui.mutedForeground,
+          }}
+        >
+          {isReady && <Check size={14} />}
+          {isReady ? "Ready" : "Waiting"}
+        </p>
       )}
-    </div>
+    </article>
   );
 }
