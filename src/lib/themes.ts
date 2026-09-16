@@ -87,19 +87,33 @@ const themeRequests = new Map<string, Promise<ThemeDefinition | null>>();
 const THEME_CONCURRENCY = 6;
 const REQUEST_TIMEOUT_MS = 15_000;
 let activeRequests = 0;
-const requestQueue: Array<() => void> = [];
+type ThemeRequestPriority = "foreground" | "background";
+const foregroundQueue = new Map<string, () => void>();
+const backgroundQueue = new Map<string, () => void>();
 
-async function withThemeSlot<T>(load: () => Promise<T>): Promise<T> {
+function promoteThemeRequest(key: string): void {
+  const start = backgroundQueue.get(key);
+  if (!start) return;
+  backgroundQueue.delete(key);
+  foregroundQueue.set(key, start);
+}
+
+async function withThemeSlot<T>(key: string, priority: ThemeRequestPriority, load: () => Promise<T>): Promise<T> {
   await new Promise<void>((resolve) => {
     const start = () => { activeRequests++; resolve(); };
     if (activeRequests < THEME_CONCURRENCY) start();
-    else requestQueue.push(start);
+    else (priority === "foreground" ? foregroundQueue : backgroundQueue).set(key, start);
   });
   try {
     return await load();
   } finally {
     activeRequests--;
-    requestQueue.shift()?.();
+    const queue = foregroundQueue.size ? foregroundQueue : backgroundQueue;
+    const next = queue.entries().next().value;
+    if (next) {
+      queue.delete(next[0]);
+      next[1]();
+    }
   }
 }
 
@@ -697,16 +711,24 @@ export function getThemeManifestFromCache(): ThemeManifest | null {
   return cachedManifest;
 }
 
-// One promise per ID, shared by selection, catalog loaders, and concurrent mounts.
+// Selection starts at the next free slot, ahead of queued catalog work.
 export async function fetchTheme(themeName: string): Promise<ThemeDefinition | null> {
+  return loadTheme(themeName, "foreground");
+}
+
+// One promise per ID, shared by selection, catalog loaders, and concurrent mounts.
+async function loadTheme(themeName: string, priority: ThemeRequestPriority): Promise<ThemeDefinition | null> {
   const key = themeName.toLowerCase();
   if (!isThemeId(key)) return null;
   const cached = themeCache.get(key);
   if (cached) return cached;
   const pending = themeRequests.get(key);
-  if (pending) return pending;
+  if (pending) {
+    if (priority === "foreground") promoteThemeRequest(key);
+    return pending;
+  }
 
-  const request = withThemeSlot(async () => {
+  const request = withThemeSlot(key, priority, async () => {
     try {
       const data = await fetchJSON(`/themes/${key}.json`);
       if (!isRecord(data)) throw new Error("Invalid theme");
@@ -767,7 +789,7 @@ export async function fetchThemeCatalog(
   const manifest = options.themeIds ? null : await loadThemeManifest();
   const manifestError = !options.themeIds && manifest === null;
   const requestedThemeIds = [...new Set((options.themeIds ?? manifest?.themes ?? []).map((id) => id.toLowerCase()))];
-  const results = await Promise.all(requestedThemeIds.map(fetchTheme));
+  const results = await Promise.all(requestedThemeIds.map((id) => loadTheme(id, "background")));
   const failedThemeIds = requestedThemeIds.filter((_, index) => results[index] === null);
   return {
     themes: sortThemes(results.filter((theme): theme is ThemeDefinition => theme !== null)),
