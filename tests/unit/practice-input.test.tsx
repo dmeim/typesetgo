@@ -98,6 +98,18 @@ describe("TypingArea contracts", () => {
       isActive onProgress={onProgress} autoFocus={false} />);
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ elapsedMs: 600 }));
   });
+  it("does not finish a restored completed run while inactive", () => {
+    const onFinish = vi.fn();
+    render(<TypingArea targetText="cat" initialInput="cat" isActive={false} onFinish={onFinish} />);
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+  it("does not report the previous input against a changed target", () => {
+    const onProgress = vi.fn();
+    const { rerender } = render(<TypingArea targetText="cat dog" initialInput="cat " onProgress={onProgress} />);
+    onProgress.mockClear();
+    rerender(<TypingArea targetText="bat" initialInput="cat " onProgress={onProgress} />);
+    expect(onProgress.mock.calls.every(([stats]) => stats.typedText === "")).toBe(true);
+  });
   it("requires race mistakes to be corrected before further input", () => {
     render(<TypingArea targetText="cat dog" mode="race" />);
     const input = screen.getByRole("textbox");
