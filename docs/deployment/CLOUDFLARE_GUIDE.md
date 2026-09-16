@@ -59,11 +59,11 @@ These initial preview checks did **not** establish authenticated save behavior, 
 
 The initial domain attachment failed with error 100117 despite a conflict-free preflight. The owner removed the old apex VPS A record and deployment then succeeded. Clerk, email, and unrelated DNS records were not changed by the agent.
 
-Deployment is manual until the repository connection below is enabled. The retired Docker publishing workflow, Dockerfile, Compose/nginx configuration, `.dockerignore`, and Docker guide have been removed. `dist/` is now ignored and untracked; always build it from source before deploying. No GitHub Actions workflow is required for Cloudflare Workers Builds.
+The owner connected the existing Worker to GitHub `main` and confirmed the required variables were moved into the build settings. The first automatic build/deployment is pending verification. The retired Docker publishing workflow, Dockerfile, Compose/nginx configuration, `.dockerignore`, and Docker guide have been removed. `dist/` is now ignored and untracked; always build it from source before deploying. No GitHub Actions workflow is required for Cloudflare Workers Builds.
 
 ## Connect the repository to Workers Builds
 
-This is the planned automation, **not yet configured or verified**. After the migration is on GitHub `main`, connect the repository to the **existing** `typesetgo` Worker under Settings → Builds. Do not create a second Worker.
+The repository connection is configured on the **existing** `typesetgo` Worker under Settings → Builds. The settings below document the setup; the first successful automatic deployment has not yet been confirmed. Do not create a second Worker.
 
 | Setting | Value |
 | --- | --- |
@@ -71,7 +71,7 @@ This is the planned automation, **not yet configured or verified**. After the mi
 | Production branch | `main` |
 | Root directory | Repository root |
 | Build command | `bun run build && bun run test:run` |
-| Deploy command | `bunx wrangler deploy` |
+| Deploy command | `npx wrangler deploy` |
 | Build variable `BUN_VERSION` | `1.3.3` |
 | Build variable `VITE_CONVEX_URL` | Same URL used by the current live app's Convex development deployment |
 | Build variable `VITE_CLERK_PUBLISHABLE_KEY` | Production `pk_live_...` publishable key from ignored `.env.local` |

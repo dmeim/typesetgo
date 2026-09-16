@@ -87,7 +87,9 @@ A modern, open-source typing practice platform with a clean, distraction-free in
 
 Live app: **https://typesetgo.app**. Cloudflare Workers Static Assets serves the frontend; production Clerk handles sign-in, and the existing Convex **development deployment** holds the app's data.
 
-Deployments are manual, not GitHub Actions-driven. After verifying your Cloudflare account and ignored local build settings:
+Cloudflare Workers Builds is connected to GitHub `main`. Pushing to `main` triggers a build, runs tests, and deploys the Worker if those steps succeed—no GitHub Actions or container build is needed. The first automated deployment is pending verification.
+
+For a manual deployment, first verify your Cloudflare account and ignored local build settings:
 
 ```bash
 bun run build
@@ -125,7 +127,7 @@ bun run dev              # Terminal 2 — frontend (port 3000)
 ## Documentation
 
 - **[Tech Stack](docs/TECH-STACK.md)** — full technology inventory with versions and roles
-- **[Cloudflare Deployment](docs/deployment/CLOUDFLARE_GUIDE.md)** — live hosting, manual deployment, and migration history
+- **[Cloudflare Deployment](docs/deployment/CLOUDFLARE_GUIDE.md)** — live hosting, automatic/manual deployment, and migration history
 - **[Core Typing Engine](docs/features/Core_Typing_Engine.md)** — modes, statistics, and architecture
 - **[Content Management](docs/features/Content_Management.md)** — word lists, quotes, and adding content
 - **[Release Notes](docs/release-notes/)** — changelog and version history
