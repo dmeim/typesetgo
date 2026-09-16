@@ -10,7 +10,8 @@ import { fetchWordsManifest } from "@/lib/words";
 import { fetchQuotesManifest } from "@/lib/quotes";
 import { tv } from "@/lib/theme-vars";
 import { isTimedPractice } from "./room-settings";
-import { fieldClass, fieldStyle, RoomButton } from "./RoomUI";
+import { RoomButton } from "./RoomUI";
+import { fieldClass, fieldStyle } from "./room-styles";
 
 export default function PracticeSettings({
   settings,

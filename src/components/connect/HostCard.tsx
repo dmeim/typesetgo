@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fieldClass, fieldStyle, panelStyle, RoomButton } from "./RoomUI";
+import { RoomButton } from "./RoomUI";
+import { fieldClass, fieldStyle, panelStyle } from "./room-styles";
 import { tv } from "@/lib/theme-vars";
 
 export default function HostCard() {

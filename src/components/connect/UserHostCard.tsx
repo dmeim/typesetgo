@@ -5,7 +5,8 @@ import { GripVertical } from "lucide-react";
 import type { SettingsState, Theme } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
 import { isTimedPractice, resolveRoomSettings } from "./room-settings";
-import { panelStyle, RoomButton } from "./RoomUI";
+import { RoomButton } from "./RoomUI";
+import { panelStyle } from "./room-styles";
 
 type User = {
   id: string;

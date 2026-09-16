@@ -31,14 +31,8 @@ import { tv } from "@/lib/theme-vars";
 import { useTheme } from "@/hooks/useTheme";
 import { useSessionId } from "@/hooks/useSessionId";
 import { HostCard, UserHostCard } from "@/components/connect";
-import {
-  RoomButton,
-  RoomDialog,
-  RoomPage,
-  fieldClass,
-  fieldStyle,
-  panelStyle,
-} from "@/components/connect/RoomUI";
+import { RoomButton, RoomDialog, RoomPage } from "@/components/connect/RoomUI";
+import { fieldClass, fieldStyle, panelStyle } from "@/components/connect/room-styles";
 import PracticeSettings from "@/components/connect/PracticeSettings";
 import {
   getPlanStep,

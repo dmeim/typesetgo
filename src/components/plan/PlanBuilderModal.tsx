@@ -21,13 +21,8 @@ import { GripVertical, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import type { Plan, PlanItem } from "@/types/plan";
 import { tv } from "@/lib/theme-vars";
 import PracticeSettings from "@/components/connect/PracticeSettings";
-import {
-  RoomButton,
-  RoomDialog,
-  fieldClass,
-  fieldStyle,
-  panelStyle,
-} from "@/components/connect/RoomUI";
+import { RoomButton, RoomDialog } from "@/components/connect/RoomUI";
+import { fieldClass, fieldStyle, panelStyle } from "@/components/connect/room-styles";
 
 interface PlanBuilderModalProps {
   initialPlan?: Plan;
