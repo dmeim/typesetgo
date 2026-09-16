@@ -8,26 +8,29 @@ interface SoundControllerProps {
   settings: SettingsState | Partial<SettingsState>;
   onUpdateSettings: (updates: Partial<SettingsState>) => void;
   soundManifest: SoundManifest | null;
+  disabled?: boolean;
 }
 
 export default function SoundController({
   settings,
   onUpdateSettings,
   soundManifest,
+  disabled = false,
 }: SoundControllerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Cast settings to SettingsState to access properties safely, assuming defaults if missing
-  const safeSettings = settings as SettingsState;
-  const soundEnabled = safeSettings.soundEnabled ?? false;
+  const soundEnabled = settings.soundEnabled ?? false;
 
   return (
     <>
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex h-[1.5em] w-[1.5em] items-center justify-center rounded transition hover:opacity-75 hover:text-white"
-        style={{ color: tv.interactive.primary.DEFAULT }}
+        disabled={disabled}
+        aria-label="Sound settings"
+        aria-haspopup="dialog"
+        className="flex min-h-10 min-w-10 items-center justify-center rounded border p-2 transition hover:opacity-75 focus-visible:outline-2 disabled:opacity-50"
+        style={{ color: tv.ui.primary }}
         title="sound settings"
       >
         {soundEnabled ? (
@@ -69,7 +72,8 @@ export default function SoundController({
       <SoundSettingsModal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        settings={safeSettings}
+        settings={settings}
+        disabled={disabled}
         onUpdateSettings={onUpdateSettings}
         soundManifest={soundManifest}
       />

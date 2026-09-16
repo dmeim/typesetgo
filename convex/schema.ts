@@ -75,6 +75,7 @@ export default defineSchema({
     hostId: v.string(),
     hostName: v.string(),
     status: v.union(v.literal("waiting"), v.literal("active")),
+    runVersion: v.optional(v.number()),
     // Game mode: practice (existing), race, or lesson
     gameMode: v.optional(
       v.union(v.literal("practice"), v.literal("race"), v.literal("lesson"))
@@ -93,6 +94,9 @@ export default defineSchema({
       ghostWriterEnabled: v.boolean(),
       ghostWriterSpeed: v.number(),
       soundEnabled: v.boolean(),
+      typingSound: v.optional(v.string()),
+      warningSound: v.optional(v.string()),
+      errorSound: v.optional(v.string()),
       typingFontSize: v.number(),
       textAlign: v.string(),
       theme: v.optional(v.any()),
@@ -116,6 +120,7 @@ export default defineSchema({
     sessionId: v.string(),
     name: v.string(),
     isConnected: v.boolean(),
+    resetVersion: v.optional(v.number()),
     stats: v.object({
       wpm: v.number(),
       accuracy: v.number(),

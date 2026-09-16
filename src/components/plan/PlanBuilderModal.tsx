@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useReducedMotion } from "framer-motion";
+import { useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -6,8 +7,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core";
-import type { DragEndEvent } from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
@@ -16,28 +17,17 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import type { Plan, PlanItem } from "@/types/plan";
-import { GLOBAL_COLORS } from "@/lib/colors";
-import type { Difficulty, SettingsState, QuoteLength } from "@/lib/typing-constants";
-import { fetchWordsManifest, type WordsManifest } from "@/lib/words";
-import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
-
-// --- Types & Constants ---
-
-const DEFAULT_SETTINGS: Partial<SettingsState> = {
-  mode: "time",
-  duration: 30,
-  wordTarget: 25,
-  punctuation: false,
-  numbers: false,
-  capitalization: false,
-  difficulty: "beginner",
-  quoteLength: "all",
-  ghostWriterEnabled: false,
-  ghostWriterSpeed: 40,
-  presetText: "",
-  presetModeType: "finish",
-};
+import { tv } from "@/lib/theme-vars";
+import PracticeSettings from "@/components/connect/PracticeSettings";
+import {
+  RoomButton,
+  RoomDialog,
+  fieldClass,
+  fieldStyle,
+  panelStyle,
+} from "@/components/connect/RoomUI";
 
 interface PlanBuilderModalProps {
   initialPlan?: Plan;
@@ -46,65 +36,91 @@ interface PlanBuilderModalProps {
   isConnectMode?: boolean;
 }
 
-// --- Sortable Item Component ---
-
-function SortableItem({
+function SortableStep({
   item,
-  isSelected,
+  index,
+  selected,
   onSelect,
   onRemove,
+  onMove,
+  total,
 }: {
   item: PlanItem;
-  isSelected: boolean;
+  index: number;
+  selected: boolean;
   onSelect: () => void;
-  onRemove: (e: React.MouseEvent) => void;
+  onRemove: () => void;
+  onMove: (direction: number) => void;
+  total: number;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
+  const reducedMotion = useReducedMotion();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
     transition,
-  };
-
+  } = useSortable({ id: item.id });
   return (
-    <div
+    <li
       ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      onClick={onSelect}
-      className={`group flex items-center justify-between p-3 mb-2 rounded cursor-pointer border transition-colors ${
-        isSelected
-          ? "bg-gray-800 border-sky-500"
-          : "bg-gray-800/50 border-gray-700 hover:border-gray-600"
-      }`}
+      className="min-w-0 rounded-lg border p-2"
+      style={{
+        ...panelStyle,
+        borderColor: selected ? tv.ui.primary : tv.ui.border,
+        transform: CSS.Transform.toString(transform),
+        transition: reducedMotion ? undefined : transition,
+      }}
     >
-      <div className="flex items-center gap-3 overflow-hidden">
-        <span className="text-gray-500 cursor-grab active:cursor-grabbing">
-          ☰
-        </span>
-        <div className="flex flex-col overflow-hidden">
-          <span className="font-medium text-gray-200 truncate">
-            {item.metadata.title || "Untitled Step"}
+      <div className="flex min-w-0 items-start gap-1">
+        <button
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`Reorder step ${index + 1}`}
+          className="min-h-10 min-w-10 touch-none cursor-grab rounded focus-visible:outline-2"
+        >
+          <GripVertical className="mx-auto size-4" />
+        </button>
+        <button
+          onClick={onSelect}
+          aria-pressed={selected}
+          className="min-w-0 flex-1 rounded p-2 text-left focus-visible:outline-2"
+        >
+          <span className="block break-words font-medium">
+            {index + 1}. {item.metadata.title || "Untitled step"}
           </span>
-          <span className="text-xs text-gray-400 truncate">
-            {item.mode} • {item.metadata.subtitle || "No subtitle"}
+          <span
+            className="block break-words text-sm"
+            style={{ color: tv.ui.mutedForeground }}
+          >
+            {item.mode} · {item.metadata.subtitle || "No subtitle"}
           </span>
-        </div>
+        </button>
       </div>
-      <button
-        onClick={onRemove}
-        className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity px-2"
-        title="Remove"
-      >
-        ✕
-      </button>
-    </div>
+      <div className="flex flex-wrap justify-end gap-1">
+        <RoomButton
+          disabled={index === 0}
+          aria-label={`Move step ${index + 1} up`}
+          onClick={() => onMove(-1)}
+        >
+          <ArrowUp className="size-4" />
+        </RoomButton>
+        <RoomButton
+          disabled={index === total - 1}
+          aria-label={`Move step ${index + 1} down`}
+          onClick={() => onMove(1)}
+        >
+          <ArrowDown className="size-4" />
+        </RoomButton>
+        <RoomButton aria-label={`Remove step ${index + 1}`} onClick={onRemove}>
+          <Trash2 className="size-4" />
+        </RoomButton>
+      </div>
+    </li>
   );
 }
-
-// --- Main Component ---
 
 export default function PlanBuilderModal({
   initialPlan = [],
@@ -112,704 +128,225 @@ export default function PlanBuilderModal({
   onClose,
   isConnectMode = false,
 }: PlanBuilderModalProps) {
-  const [items, setItems] = useState<Plan>(() => {
-    // Deep clone and validate initial plan to prevent "ghost" items or reference issues
-    const raw = initialPlan.length > 0 ? initialPlan : [];
-    try {
-      const cloned = JSON.parse(JSON.stringify(raw));
-      return Array.isArray(cloned)
-        ? cloned.filter(
-            (i: PlanItem) => i && typeof i.id === "string" && i.id.length > 0
-          )
-        : [];
-    } catch (e) {
-      console.error("Failed to initialize plan", e);
-      return [];
-    }
-  });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [wordsManifest, setWordsManifest] = useState<WordsManifest | null>(null);
-  const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
-
-  // Load manifests on mount
-  useEffect(() => {
-    fetchWordsManifest().then(setWordsManifest);
-    fetchQuotesManifest().then(setQuotesManifest);
-  }, []);
-
+  const [items, setItems] = useState<Plan>(() =>
+    structuredClone(initialPlan).filter(
+      (item) => item?.id && item.mode !== "plan",
+    ),
+  );
+  const [selectedId, setSelectedId] = useState(initialPlan[0]?.id ?? "");
+  const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const selectedItem = items.find((item) => item.id === selectedId);
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setItems((items) => {
-        const oldIndex = items.findIndex((i) => i.id === active.id);
-        const newIndex = items.findIndex((i) => i.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
-
-  const handleAddItem = () => {
-    const newItem: PlanItem = {
+  const addStep = () => {
+    const item: PlanItem = {
       id: crypto.randomUUID(),
       mode: "time",
-      settings: { ...DEFAULT_SETTINGS },
-      metadata: {
-        title: `Step ${items.length + 1}`,
-        subtitle: "30s Time Test",
+      settings: {
+        mode: "time",
+        duration: 30,
+        wordTarget: 25,
+        difficulty: "medium",
+        quoteLength: "all",
+        presetModeType: "finish",
+        presetText: "",
+        capitalization: false,
+        punctuation: false,
+        numbers: false,
       },
-      syncSettings: {
-        waitForAll: false,
-        zenWaiting: false,
-      },
+      metadata: { title: `Step ${items.length + 1}`, subtitle: "" },
+      syncSettings: { waitForAll: false, zenWaiting: false },
     };
-    setItems([...items, newItem]);
-    setSelectedId(newItem.id);
+    setItems((current) => [...current, item]);
+    setSelectedId(item.id);
+    setError("");
   };
-
-  const handleRemoveItem = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newItems = items.filter((i) => i.id !== id);
-    setItems(newItems);
-    if (selectedId === id) {
-      setSelectedId(null);
+  const updateItem = (updates: Partial<PlanItem>) =>
+    setItems((current) =>
+      current.map((item) =>
+        item.id === selectedId ? { ...item, ...updates } : item,
+      ),
+    );
+  const move = (id: string, direction: number) =>
+    setItems((current) => {
+      const index = current.findIndex((item) => item.id === id);
+      return arrayMove(
+        current,
+        index,
+        Math.max(0, Math.min(current.length - 1, index + direction)),
+      );
+    });
+  const dragEnd = ({ active, over }: DragEndEvent) => {
+    setIsDragging(false);
+    if (over && active.id !== over.id)
+      setItems((current) =>
+        arrayMove(
+          current,
+          current.findIndex((item) => item.id === active.id),
+          current.findIndex((item) => item.id === over.id),
+        ),
+      );
+  };
+  const save = () => {
+    const invalid = items.find(
+      (item) => item.mode === "preset" && !item.settings.presetText?.trim(),
+    );
+    if (invalid) {
+      setSelectedId(invalid.id);
+      setError("Add custom text to each preset step before saving.");
+      return;
     }
-  };
-
-  const handleUpdateItem = (
-    id: string,
-    updates: Partial<PlanItem> | ((prev: PlanItem) => Partial<PlanItem>)
-  ) => {
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        const newValues = typeof updates === "function" ? updates(item) : updates;
-
-        // Deep merge for nested objects if needed, but simple spread works for top level
-        // For nested settings/metadata, we need to be careful
-        return {
-          ...item,
-          ...newValues,
-          settings: { ...item.settings, ...(newValues.settings || {}) },
-          metadata: { ...item.metadata, ...(newValues.metadata || {}) },
-          syncSettings: { ...item.syncSettings, ...(newValues.syncSettings || {}) },
-        };
-      })
+    onSave(
+      items.map((item) => ({
+        ...item,
+        syncSettings: { waitForAll: false, zenWaiting: false },
+      })),
     );
-  };
-
-  const selectedItem = items.find((i) => i.id === selectedId);
-
-  const handleSave = () => {
-    const validItems = items.filter(
-      (i) => i && typeof i.id === "string" && i.id.length > 0
-    );
-    onSave(validItems);
     onClose();
   };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div
-        className="w-full max-w-5xl max-h-[80vh] rounded-xl flex overflow-hidden shadow-2xl border border-gray-800"
-        style={{ backgroundColor: GLOBAL_COLORS.surface }}
-      >
-        {/* Left Panel: List */}
-        <div className="w-1/3 min-w-[300px] border-r border-gray-800 flex flex-col bg-black/20">
-          <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-            <h2 className="text-lg font-bold text-gray-200">Plan Steps</h2>
-            <button
-              onClick={handleAddItem}
-              className="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-sm transition-colors"
-            >
-              + Add Step
-            </button>
+    <RoomDialog
+      open
+      onClose={onClose}
+      onEscapeKeyDown={(event) => {
+        // The active drag gets the first Escape; a later Escape dismisses the editor.
+        if (isDragging) event.preventDefault();
+      }}
+      title="Plan builder"
+      description={
+        isConnectMode
+          ? "Build a host-led sequence. Save your plan, then start each step from the host panel."
+          : "Build a sequence of practice steps."
+      }
+      wide
+      footer={
+        <footer className="flex flex-wrap justify-end gap-3">
+          <RoomButton onClick={onClose}>Cancel</RoomButton>
+          <RoomButton selected disabled={!items.length} onClick={save}>
+            {isConnectMode ? "Save plan" : "Start plan"}
+          </RoomButton>
+        </footer>
+      }
+    >
+      <div className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <section className="min-w-0 space-y-3" aria-label="Plan steps">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-medium">Steps ({items.length})</h2>
+            <RoomButton onClick={addStep}>Add step</RoomButton>
           </div>
-
-          <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-gray-700">
-            {items.length === 0 ? (
-              <div className="text-center text-gray-500 mt-10">
-                <p>No steps yet.</p>
-                <p className="text-sm">Click "Add Step" to begin.</p>
-              </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={items.map((i) => i.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {items.map((item) => (
-                    <SortableItem
-                      key={item.id}
-                      item={item}
-                      isSelected={selectedId === item.id}
-                      onSelect={() => setSelectedId(item.id)}
-                      onRemove={(e) => handleRemoveItem(item.id, e)}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-            )}
-          </div>
-
-          <div className="p-4 border-t border-gray-800 flex justify-between gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 py-2 text-gray-400 hover:text-white transition-colors"
+          {!items.length && (
+            <p
+              className="py-5 text-sm"
+              style={{ color: tv.ui.mutedForeground }}
             >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="flex-1 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded font-medium transition-colors"
-            >
-              Start Plan
-            </button>
-          </div>
-        </div>
-
-        {/* Right Panel: Settings */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-900/50">
-          {selectedItem ? (
-            <div className="space-y-8 max-w-2xl mx-auto animate-fade-in">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-200">
-                  Step Configuration
-                </h3>
-                <span className="text-xs text-gray-500 font-mono">
-                  {selectedItem.id.slice(0, 8)}
-                </span>
-              </div>
-
-              {/* Metadata Section */}
-              <div className="space-y-4 p-4 rounded-lg border border-gray-700 bg-gray-800/30">
-                <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-                  Display Metadata
-                </h4>
-                <div className="grid gap-4">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      Title
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedItem.metadata.title}
-                      onChange={(e) =>
-                        handleUpdateItem(selectedItem.id, {
-                          metadata: {
-                            ...selectedItem.metadata,
-                            title: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-sky-500 outline-none"
-                      placeholder="e.g. Warm Up"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      Subtitle
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedItem.metadata.subtitle}
-                      onChange={(e) =>
-                        handleUpdateItem(selectedItem.id, {
-                          metadata: {
-                            ...selectedItem.metadata,
-                            subtitle: e.target.value,
-                          },
-                        })
-                      }
-                      className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-200 focus:border-sky-500 outline-none"
-                      placeholder="e.g. 30s Time Test"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Mode Selection */}
-              <div className="space-y-4 p-4 rounded-lg border border-gray-700 bg-gray-800/30">
-                <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-                  Test Mode
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {(["time", "words", "quote", "zen", "preset"] as const).map(
-                    (m) => (
-                      <button
-                        key={m}
-                        onClick={() =>
-                          handleUpdateItem(selectedItem.id, {
-                            mode: m,
-                            settings: {
-                              ...selectedItem.settings,
-                              mode: m,
-                            },
-                          })
-                        }
-                        className={`px-4 py-2 rounded font-medium capitalize transition-colors ${
-                          selectedItem.mode === m
-                            ? "bg-sky-600 text-white"
-                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        }`}
-                      >
-                        {m}
-                      </button>
-                    )
-                  )}
-                </div>
-
-                {/* Time Mode Settings */}
-                {selectedItem.mode === "time" && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-2">
-                      Duration (seconds)
-                    </label>
-                    <div className="flex gap-2">
-                      {[15, 30, 60, 120, 300].map((d) => (
-                        <button
-                          key={d}
-                          onClick={() =>
-                            handleUpdateItem(selectedItem.id, {
-                              settings: {
-                                ...selectedItem.settings,
-                                duration: d,
-                              },
-                            })
-                          }
-                          className={`px-3 py-1 rounded text-sm ${
-                            selectedItem.settings.duration === d
-                              ? "bg-sky-600 text-white"
-                              : "bg-gray-700 text-gray-300"
-                          }`}
-                        >
-                          {d}s
-                        </button>
-                      ))}
-                      <input
-                        type="number"
-                        value={selectedItem.settings.duration}
-                        onChange={(e) =>
-                          handleUpdateItem(selectedItem.id, {
-                            settings: {
-                              ...selectedItem.settings,
-                              duration: parseInt(e.target.value) || 0,
-                            },
-                          })
-                        }
-                        className="w-20 bg-gray-900 border border-gray-700 rounded px-2 text-center text-gray-200"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Words Mode Settings */}
-                {selectedItem.mode === "words" && (
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-2">
-                      Word Count
-                    </label>
-                    <div className="flex gap-2">
-                      {[10, 25, 50, 100, 200].map((w) => (
-                        <button
-                          key={w}
-                          onClick={() =>
-                            handleUpdateItem(selectedItem.id, {
-                              settings: {
-                                ...selectedItem.settings,
-                                wordTarget: w,
-                              },
-                            })
-                          }
-                          className={`px-3 py-1 rounded text-sm ${
-                            selectedItem.settings.wordTarget === w
-                              ? "bg-sky-600 text-white"
-                              : "bg-gray-700 text-gray-300"
-                          }`}
-                        >
-                          {w}
-                        </button>
-                      ))}
-                      <input
-                        type="number"
-                        value={selectedItem.settings.wordTarget}
-                        onChange={(e) =>
-                          handleUpdateItem(selectedItem.id, {
-                            settings: {
-                              ...selectedItem.settings,
-                              wordTarget: parseInt(e.target.value) || 0,
-                            },
-                          })
-                        }
-                        className="w-20 bg-gray-900 border border-gray-700 rounded px-2 text-center text-gray-200"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Quote Mode Settings */}
-                {selectedItem.mode === "quote" && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-2">
-                        Quote Length
-                      </label>
-                      <div className="flex gap-2">
-                        {quotesManifest && [...quotesManifest.lengths, "all"].map((l) => (
-                          <button
-                            key={l}
-                            onClick={() =>
-                              handleUpdateItem(selectedItem.id, {
-                                settings: {
-                                  ...selectedItem.settings,
-                                  quoteLength: l as QuoteLength,
-                                },
-                              })
-                            }
-                            className={`px-3 py-1 rounded text-sm capitalize ${
-                              selectedItem.settings.quoteLength === l
-                                ? "bg-sky-600 text-white"
-                                : "bg-gray-700 text-gray-300"
-                            }`}
-                          >
-                            {l}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Preset Mode Settings */}
-                {selectedItem.mode === "preset" && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-2">
-                        Preset Type
-                      </label>
-                      <div className="flex gap-2">
-                        {(["finish", "time"] as const).map((t) => (
-                          <button
-                            key={t}
-                            onClick={() =>
-                              handleUpdateItem(selectedItem.id, {
-                                settings: {
-                                  ...selectedItem.settings,
-                                  presetModeType: t,
-                                },
-                              })
-                            }
-                            className={`px-3 py-1 rounded text-sm capitalize ${
-                              selectedItem.settings.presetModeType === t
-                                ? "bg-sky-600 text-white"
-                                : "bg-gray-700 text-gray-300"
-                            }`}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-2">
-                        Custom Text
-                      </label>
-                      <textarea
-                        value={selectedItem.settings.presetText || ""}
-                        onChange={(e) =>
-                          handleUpdateItem(selectedItem.id, {
-                            settings: {
-                              ...selectedItem.settings,
-                              presetText: e.target.value,
-                            },
-                          })
-                        }
-                        className="w-full h-32 bg-gray-900 border border-gray-700 rounded p-2 text-sm text-gray-200 focus:border-sky-500 outline-none font-mono"
-                        placeholder="Paste your text here..."
-                      />
-                      <div className="mt-2">
-                        <input
-                          type="file"
-                          accept=".txt"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const text = ev.target?.result as string;
-                                handleUpdateItem(selectedItem.id, {
-                                  settings: {
-                                    ...selectedItem.settings,
-                                    presetText: text,
-                                  },
-                                });
-                              };
-                              reader.readAsText(file);
-                            }
-                          }}
-                          className="block w-full text-xs text-gray-400 file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-gray-700 file:text-gray-300 hover:file:bg-gray-600"
-                        />
-                      </div>
-                    </div>
-
-                    {selectedItem.settings.presetModeType === "time" && (
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-2">
-                          Duration (seconds)
-                        </label>
-                        <div className="flex gap-2">
-                          {[15, 30, 60, 120].map((d) => (
-                            <button
-                              key={d}
-                              onClick={() =>
-                                handleUpdateItem(selectedItem.id, {
-                                  settings: {
-                                    ...selectedItem.settings,
-                                    duration: d,
-                                  },
-                                })
-                              }
-                              className={`px-3 py-1 rounded text-sm ${
-                                selectedItem.settings.duration === d
-                                  ? "bg-sky-600 text-white"
-                                  : "bg-gray-700 text-gray-300"
-                              }`}
-                            >
-                              {d}s
-                            </button>
-                          ))}
-                          <input
-                            type="number"
-                            value={selectedItem.settings.duration}
-                            onChange={(e) =>
-                              handleUpdateItem(selectedItem.id, {
-                                settings: {
-                                  ...selectedItem.settings,
-                                  duration: parseInt(e.target.value) || 0,
-                                },
-                              })
-                            }
-                            className="w-20 bg-gray-900 border border-gray-700 rounded px-2 text-center text-gray-200"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Common Toggles */}
-                {selectedItem.mode !== "quote" &&
-                  selectedItem.mode !== "zen" &&
-                  selectedItem.mode !== "preset" && (
-                    <div className="flex gap-4 pt-2">
-                      <button
-                        onClick={() =>
-                          handleUpdateItem(selectedItem.id, {
-                            settings: {
-                              ...selectedItem.settings,
-                              capitalization: !selectedItem.settings.capitalization,
-                            },
-                          })
-                        }
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
-                          selectedItem.settings.capitalization
-                            ? "bg-sky-900/50 text-sky-400 border border-sky-500/50"
-                            : "bg-gray-700 text-gray-400"
-                        }`}
-                      >
-                        <span className="font-bold">Aa</span> Caps
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleUpdateItem(selectedItem.id, {
-                            settings: {
-                              ...selectedItem.settings,
-                              punctuation: !selectedItem.settings.punctuation,
-                            },
-                          })
-                        }
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
-                          selectedItem.settings.punctuation
-                            ? "bg-sky-900/50 text-sky-400 border border-sky-500/50"
-                            : "bg-gray-700 text-gray-400"
-                        }`}
-                      >
-                        <span className="font-bold">@</span> Punctuation
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleUpdateItem(selectedItem.id, {
-                            settings: {
-                              ...selectedItem.settings,
-                              numbers: !selectedItem.settings.numbers,
-                            },
-                          })
-                        }
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
-                          selectedItem.settings.numbers
-                            ? "bg-sky-900/50 text-sky-400 border border-sky-500/50"
-                            : "bg-gray-700 text-gray-400"
-                        }`}
-                      >
-                        <span className="font-bold">#</span> Numbers
-                      </button>
-                    </div>
-                  )}
-
-                {selectedItem.mode !== "quote" &&
-                  selectedItem.mode !== "zen" &&
-                  selectedItem.mode !== "preset" &&
-                  wordsManifest && (
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-2 mt-4">
-                        Difficulty
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {wordsManifest.difficulties.map((d) => (
-                          <button
-                            key={d}
-                            onClick={() =>
-                              handleUpdateItem(selectedItem.id, {
-                                settings: {
-                                  ...selectedItem.settings,
-                                  difficulty: d as Difficulty,
-                                },
-                              })
-                            }
-                            className={`px-3 py-1 rounded text-sm capitalize ${
-                              selectedItem.settings.difficulty === d
-                                ? "bg-sky-600 text-white"
-                                : "bg-gray-700 text-gray-300"
-                            }`}
-                          >
-                            {d}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-              </div>
-
-              {/* Connect Sync Settings (Only if Connect Mode) */}
-              {isConnectMode && (
-                <div className="space-y-4 p-4 rounded-lg border border-indigo-500/30 bg-indigo-900/10">
-                  <h4 className="text-sm font-semibold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="9" cy="7" r="4"></circle>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                    Multiplayer Sync
-                  </h4>
-
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-gray-200 font-medium">
-                          Wait for All
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Require everyone to finish before moving on
-                        </div>
-                      </div>
-                      <button
-                        onClick={() =>
-                          handleUpdateItem(selectedItem.id, {
-                            syncSettings: {
-                              ...selectedItem.syncSettings,
-                              waitForAll: !selectedItem.syncSettings.waitForAll,
-                            },
-                          })
-                        }
-                        className={`w-12 h-6 rounded-full transition-colors relative ${
-                          selectedItem.syncSettings.waitForAll
-                            ? "bg-indigo-500"
-                            : "bg-gray-700"
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                            selectedItem.syncSettings.waitForAll
-                              ? "translate-x-6"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {selectedItem.syncSettings.waitForAll && (
-                      <div className="flex items-center justify-between pl-4 border-l-2 border-indigo-500/30">
-                        <div>
-                          <div className="text-gray-200 font-medium">
-                            Allow Zen Waiting
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Early finishers enter a Zen mode room
-                          </div>
-                        </div>
-                        <button
-                          onClick={() =>
-                            handleUpdateItem(selectedItem.id, {
-                              syncSettings: {
-                                ...selectedItem.syncSettings,
-                                zenWaiting: !selectedItem.syncSettings.zenWaiting,
-                              },
-                            })
-                          }
-                          className={`w-12 h-6 rounded-full transition-colors relative ${
-                            selectedItem.syncSettings.zenWaiting
-                              ? "bg-indigo-500"
-                              : "bg-gray-700"
-                          }`}
-                        >
-                          <span
-                            className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                              selectedItem.syncSettings.zenWaiting
-                                ? "translate-x-6"
-                                : "translate-x-0"
-                            }`}
-                          />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-600">
-              Select a step to configure
-            </div>
+              Add a step to begin.
+            </p>
           )}
-        </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={() => setIsDragging(true)}
+            onDragCancel={() => setIsDragging(false)}
+            onDragEnd={dragEnd}
+          >
+            <SortableContext
+              items={items.map((item) => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ol className="space-y-2">
+                {items.map((item, index) => (
+                  <SortableStep
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    selected={item.id === selectedId}
+                    total={items.length}
+                    onSelect={() => setSelectedId(item.id)}
+                    onMove={(direction) => move(item.id, direction)}
+                    onRemove={() => {
+                      setItems((current) =>
+                        current.filter((entry) => entry.id !== item.id),
+                      );
+                      if (selectedId === item.id)
+                        setSelectedId(
+                          items[index + 1]?.id ?? items[index - 1]?.id ?? "",
+                        );
+                    }}
+                  />
+                ))}
+              </ol>
+            </SortableContext>
+          </DndContext>
+        </section>
+        <section
+          className="min-w-0 space-y-5 rounded-lg border p-3 sm:p-4"
+          style={panelStyle}
+          aria-label="Step configuration"
+        >
+          {selectedItem ? (
+            <>
+              <h2 className="font-medium">Step configuration</h2>
+              <label className="block space-y-2 text-sm">
+                Title
+                <input
+                  className={fieldClass}
+                  style={fieldStyle}
+                  value={selectedItem.metadata.title}
+                  maxLength={100}
+                  onChange={(event) =>
+                    updateItem({
+                      metadata: {
+                        ...selectedItem.metadata,
+                        title: event.target.value,
+                      },
+                    })
+                  }
+                />
+              </label>
+              <label className="block space-y-2 text-sm">
+                Subtitle
+                <input
+                  className={fieldClass}
+                  style={fieldStyle}
+                  value={selectedItem.metadata.subtitle}
+                  maxLength={200}
+                  onChange={(event) =>
+                    updateItem({
+                      metadata: {
+                        ...selectedItem.metadata,
+                        subtitle: event.target.value,
+                      },
+                    })
+                  }
+                />
+              </label>
+              <PracticeSettings
+                settings={{ ...selectedItem.settings, mode: selectedItem.mode }}
+                onChange={(updates) =>
+                  updateItem({
+                    mode: updates.mode ?? selectedItem.mode,
+                    settings: { ...selectedItem.settings, ...updates },
+                  })
+                }
+              />
+            </>
+          ) : (
+            <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
+              Select a step to edit its practice settings.
+            </p>
+          )}
+        </section>
       </div>
-    </div>
+      {error && (
+        <p role="alert" style={{ color: tv.ui.destructive }}>
+          {error}
+        </p>
+      )}
+    </RoomDialog>
   );
 }

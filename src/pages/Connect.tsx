@@ -1,45 +1,26 @@
-// src/pages/Connect.tsx
 import { Link } from "react-router-dom";
-import { GLOBAL_COLORS } from "@/lib/colors";
 import { HostCard, JoinCard } from "@/components/connect";
+import { RoomPage } from "@/components/connect/RoomUI";
+import { tv } from "@/lib/theme-vars";
 
 export default function Connect() {
   return (
-    <div
-      className="min-h-[100dvh] flex items-center justify-center font-mono px-4 transition-colors duration-300"
-      style={{
-        backgroundColor: GLOBAL_COLORS.background,
-        color: GLOBAL_COLORS.text.primary,
-      }}
-    >
-      <div className="w-full max-w-4xl mx-auto animate-fade-in">
-        <div className="text-center mb-12">
-          <h1
-            className="text-4xl font-bold mb-2"
-            style={{ color: GLOBAL_COLORS.brand.primary }}
-          >
-            Connect
-          </h1>
-          <p style={{ color: GLOBAL_COLORS.text.secondary }}>
-            Compete with others in real-time
+    <RoomPage>
+      <div className="mx-auto max-w-4xl space-y-8 py-4 sm:py-12">
+        <header className="space-y-3">
+          <Link to="/" className="inline-block rounded py-2 text-sm">
+            ← Back to typing
+          </Link>
+          <h1 className="text-3xl font-semibold">Connect</h1>
+          <p style={{ color: tv.ui.mutedForeground }}>
+            Practice together with settings chosen by your host.
           </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        </header>
+        <div className="grid items-start gap-5 md:grid-cols-2">
           <HostCard />
           <JoinCard />
         </div>
-
-        <div className="text-center mt-12">
-          <Link
-            to="/"
-            className="transition text-sm hover:text-white"
-            style={{ color: GLOBAL_COLORS.text.secondary }}
-          >
-            ← Back to Typing
-          </Link>
-        </div>
       </div>
-    </div>
+    </RoomPage>
   );
 }
