@@ -105,7 +105,7 @@ export default function NotificationCenter({ disabled = false }: { disabled?: bo
           )}
         </PopoverContent>
       </Popover>
-      {selectedAchievementId && <AchievementsModal earnedAchievements={earnedAchievements} initialAchievementId={selectedAchievementId} onClose={() => { setSelectedAchievementId(null); triggerRef.current?.focus(); }} />}
+      {selectedAchievementId && <AchievementsModal earnedAchievements={earnedAchievements} initialAchievementId={selectedAchievementId} onClose={() => setSelectedAchievementId(null)} onCloseAutoFocus={(event) => { event.preventDefault(); triggerRef.current?.focus(); }} />}
     </>
   );
 }
