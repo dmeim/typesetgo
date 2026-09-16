@@ -12,7 +12,7 @@ export interface TypingFontOption {
   label: string;
   /** CSS font-family stack */
   fontFamily: string;
-  /** Whether the font needs to be loaded from Google Fonts (false = system font) */
+  /** Whether the font is served locally via src/fonts.css (false = system font) */
   isWebFont: boolean;
   /** Short description for accessibility / tooltip */
   description: string;
