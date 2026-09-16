@@ -1,26 +1,23 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import TypingPractice from "@/components/typing/TypingPractice";
 import Header from "@/components/layout/Header";
-import { useTheme } from "@/hooks/useTheme";
-import { tv } from "@/lib/theme-vars";
 
 export default function Home() {
-  useTheme();
+  const mainRef = useRef<HTMLElement>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
 
   return (
     <div
-      className="relative flex h-[100dvh] flex-col overflow-hidden"
-      style={{ backgroundColor: tv.bg.base }}
+      className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground"
     >
       {/* Header with action buttons */}
-      <Header hidden={isTyping} onOpenThemeModal={() => setShowThemeModal(true)} onOpenSettings={() => setShowSettings(true)} />
+      <Header focusTargetRef={mainRef} hidden={isTyping} onOpenThemeModal={() => setShowThemeModal(true)} onOpenSettings={() => setShowSettings(true)} />
 
       {/* Main Content - TypingPractice fills the page */}
-      <div className="min-h-0 flex-1">
+      <main ref={mainRef} tabIndex={-1} aria-label="Typing practice" className="min-h-0 flex-1 overflow-y-auto outline-none">
         <TypingPractice
           fitToParentHeight
           showSettings={showSettings}
@@ -29,22 +26,21 @@ export default function Home() {
           setShowThemeModal={setShowThemeModal}
           onTypingStateChange={setIsTyping}
         />
-      </div>
+      </main>
 
       {/* Footer with legal links - always visible for Google verification compliance */}
       <footer
-        className="shrink-0 py-3 flex justify-center gap-4 text-xs"
-        style={{ color: tv.text.secondary }}
+        className="flex shrink-0 flex-wrap justify-center gap-x-4 gap-y-2 px-3 py-3 text-xs text-muted-foreground"
       >
-        <Link to="/about" className="hover:underline opacity-70 hover:opacity-100 transition-opacity">
+        <Link to="/about" className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           About
         </Link>
-        <span style={{ opacity: 0.5 }}>|</span>
-        <Link to="/privacy" className="hover:underline opacity-70 hover:opacity-100 transition-opacity">
+        <span aria-hidden="true">|</span>
+        <Link to="/privacy" className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           Privacy Policy
         </Link>
-        <span style={{ opacity: 0.5 }}>|</span>
-        <Link to="/tos" className="hover:underline opacity-70 hover:opacity-100 transition-opacity">
+        <span aria-hidden="true">|</span>
+        <Link to="/tos" className="rounded-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           Terms of Service
         </Link>
       </footer>
