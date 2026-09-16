@@ -41,6 +41,35 @@ describe("shared overlay and field contracts", () => {
     expect(screen.getByRole("dialog", { name: "Keep open" })).toBeInTheDocument();
   });
 
+  it("lets a document keyboard controller consume Escape after dismissal is vetoed", () => {
+    const onEscape = vi.fn((event: KeyboardEvent) => event.preventDefault());
+    const onDocumentKeyDown = vi.fn();
+    render(<Dialog defaultOpen><DialogContent onEscapeKeyDown={onEscape}><DialogTitle>Drag steps</DialogTitle><DialogDescription>Reorder the plan</DialogDescription><button>Drag step</button></DialogContent></Dialog>);
+    document.addEventListener("keydown", onDocumentKeyDown);
+    try {
+      fireEvent.keyDown(screen.getByRole("button", { name: "Drag step" }), { key: "Escape", code: "Escape" });
+      expect(onEscape).toHaveBeenCalledTimes(1);
+      expect(onDocumentKeyDown).toHaveBeenCalledTimes(1);
+      expect(onDocumentKeyDown.mock.calls[0][0].defaultPrevented).toBe(true);
+      expect(screen.getByRole("dialog", { name: "Drag steps" })).toBeInTheDocument();
+    } finally {
+      document.removeEventListener("keydown", onDocumentKeyDown);
+    }
+  });
+
+  it("honors a consumer that explicitly stops propagation when vetoing Escape", () => {
+    const onDocumentKeyDown = vi.fn();
+    render(<Dialog defaultOpen><DialogContent onEscapeKeyDown={(event) => { event.preventDefault(); event.stopPropagation(); }}><DialogTitle>Owned Escape</DialogTitle><DialogDescription>Consume this key</DialogDescription><button>Inside</button></DialogContent></Dialog>);
+    document.addEventListener("keydown", onDocumentKeyDown);
+    try {
+      fireEvent.keyDown(screen.getByRole("button", { name: "Inside" }), { key: "Escape" });
+      expect(onDocumentKeyDown).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog", { name: "Owned Escape" })).toBeInTheDocument();
+    } finally {
+      document.removeEventListener("keydown", onDocumentKeyDown);
+    }
+  });
+
   it("restores an external opener for a controlled dialog without a DialogTrigger", async () => {
     function Controlled() {
       const [open, setOpen] = useState(false);
