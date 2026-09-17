@@ -18,7 +18,7 @@ The central runner executes suites sequentially and exits unsuccessfully when a 
 
 | Suite | Components exercised | Data and identity |
 | --- | --- | --- |
-| `practice` | Real Home, header, practice engine/results/dialogs/themes, TypingArea and ColorPicker | Local auth/Convex replacements; allowlisted simulated ranked calls, delayed preferences, and controlled public datasets |
+| `practice` | Real Home, header, practice engine/results/dialogs/themes, TypingArea, ColorPicker, and toast/history delivery | Local auth/Convex replacements; allowlisted simulated ranked calls, delayed preferences, and controlled public datasets |
 | `fonts` | Real Home/font picker in fresh contexts; all 20 webfonts, 27 settings choices, built CSS/font/license paths | Reuses the practice fixture; blocks foreign origins including Google Fonts/CDNFonts; verifies successful FontFace loads and actual rendered custom-font glyphs, plus all shipped subset/weight/style combinations in the build |
 | `profiles` | Real profile/history/chart, leaderboard, achievement and notification dialogs | Synthetic owner/visitor/anonymous, legacy metrics, loading/empty/missing and failed actions |
 | `connect` | Real Host, Join membership UI, plans, cards, fullscreen and settings | Local room store; typing executor replaced to isolate dashboard behavior |

@@ -96,6 +96,7 @@ Notes:
 - Missing `VITE_CLERK_PUBLISHABLE_KEY` logs a warning and disables auth-only features.
 - Feature auth uses `useAppAuth`; it safely describes missing/unavailable Clerk.
 - `ThemeProvider` wraps routes and Toaster inside `App`. Route boundaries cover loading/render failures; bootstrap configuration must still be valid.
+- Notifications use the themed shadcn Base UI `src/components/ui/toast.tsx`. Use `toast.add` from `@/lib/toast-manager` for temporary feedback, or `useNotify` for a toast plus notification-center history. History stays in browser localStorage (latest 50; not account-scoped or synced to Convex).
 - Browser acceptance uses local mocks, never the live Convex development deployment. See [`tests/browser/README.md`](tests/browser/README.md).
 - The `fonts` browser suite also checks production CSS/assets; build first with fixture environment values as documented in the browser guide.
 - Build pins native TypeScript 7; lint uses the compatible TypeScript 6 API. Use `bun run build`, not an ambiguous bare `tsc`; see [`docs/ui-cleanup/tooling.md`](docs/ui-cleanup/tooling.md).

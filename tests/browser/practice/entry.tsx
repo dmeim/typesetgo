@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toast";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { NotificationProvider } from "@/lib/notification-store";
 import { AppAuthContext, unavailableAuth } from "@/components/layout/useAppAuth";
@@ -8,6 +8,7 @@ import type { AppAuth, AppAuthUser } from "@/components/layout/useAppAuth";
 import Home from "@/pages/Home";
 import AreaFixture from "./AreaFixture";
 import ColorFixture from "./ColorFixture";
+import ToastFixture from "./ToastFixture";
 import "@/index.css";
 
 const query = new URLSearchParams(location.search);
@@ -32,7 +33,7 @@ createRoot(document.getElementById("root")!).render(
     <NotificationProvider>
       <BrowserRouter>
         <ThemeProvider>
-          {query.has("color") ? <ColorFixture /> : query.has("area") ? <AreaFixture /> : <Home />}
+          {query.has("toasts") ? <ToastFixture /> : query.has("color") ? <ColorFixture /> : query.has("area") ? <AreaFixture /> : <Home />}
           <Toaster />
         </ThemeProvider>
       </BrowserRouter>

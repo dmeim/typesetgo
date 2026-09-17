@@ -163,6 +163,15 @@ Important behavior:
 - A static footer in `index.html` is hidden after React hydration.
 - Invalid bootstrap configuration can fail before route recovery; isolated browser fixtures bypass live providers deliberately.
 
+### Notifications
+
+- `src/components/ui/toast.tsx` adapts shadcn's Base UI Toast with TypeSetGo theme tokens, top-center stacking, seven visible toasts, and a four-second default timeout. Achievement toasts use five seconds and tier styling. The expanded stack scrolls on short viewports.
+- Import `toast` from `@/lib/toast-manager` for temporary feedback (`add`, `update`, `close`, or `promise`). Use `useNotify` from `@/hooks/useNotify` to deliver a new notification to both the toast and bell history; `{ persist: false }` opts out of history.
+- `NotificationProvider` retains the latest 50 entries under localStorage key `typesetgo_notifications`, including read state. Storage remains browser-wide, without account scoping or device synchronization. Convex stores earned achievements, not this inbox.
+- Dismissing a toast does not mark its history entry read. Restoring history never emits toasts; call notification delivery from new event handlers rather than effects watching the stored list.
+- Dialogs ignore outside interactions targeting the toast viewport, so closing a toast does not dismiss the underlying form. Toasts use polite announcements and do not automatically focus; F6 reaches the viewport outside modal focus traps.
+- `tests/unit/foundations-toasts.test.tsx` covers delivery/history behavior; the practice browser suite includes `tests/browser/practice/toasts.mjs` for themes, keyboard focus, modal feedback, scrolling, and timer behavior.
+
 ### Routes (`src/components/layout/app-routes.ts`)
 Lazy route modules cover Home, leaderboard/profile, Connect host/join, race lobby/active/results, lessons, admin, and legal/info pages. `RouteRecovery.tsx` supplies loading, route error, and not-found recovery. Race/Lessons navigation remains disabled; route existence does not mean an unfinished feature is enabled.
 

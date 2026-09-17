@@ -69,6 +69,7 @@ function DialogContent({
   showCloseButton = true,
   onOpenAutoFocus,
   onCloseAutoFocus,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -81,6 +82,13 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        onInteractOutside={(event) => {
+          onInteractOutside?.(event);
+          // Toasts are portaled above modals; dismissing feedback must not dismiss the form.
+          if (event.target instanceof Element && event.target.closest('[data-slot="toast-viewport"]')) {
+            event.preventDefault();
+          }
+        }}
         onOpenAutoFocus={(event) => {
           returnFocusRef.current = document.activeElement instanceof HTMLElement
             ? document.activeElement : null;

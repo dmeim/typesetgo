@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   mutations: {} as Record<string, ReturnType<typeof vi.fn>>,
 }));
 vi.mock("@/components/layout/useAppAuth", () => ({ useAppAuth: () => mocks.auth }));
-vi.mock("sonner", () => ({ toast: { error: mocks.toastError, success: vi.fn() } }));
+vi.mock("@/lib/toast-manager", () => ({ toast: { add: mocks.toastError } }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({ colors: theme.variants.default.dark,
   userSelectionRevision: mocks.userSelectionRevision, themeId: "typesetgo", variantId: "default", themeName: "TypeSetGo", mode: "dark",
   setTheme: mocks.setTheme, setThemeSelection: mocks.setThemeSelection }) }));
@@ -200,7 +200,7 @@ describe("solo prompt and server session ownership", () => {
     await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
     fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat dog" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Results" }));
-    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining(message)));
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalledWith(expect.objectContaining({ type: "error", title: expect.stringContaining(message) })));
     expect(screen.getByRole("button", { name: "Error - Try Again" })).toBeEnabled();
     expect(mocks.mutations["testResults:saveResult"]).not.toHaveBeenCalled();
     mocks.auth.status = "signed-out"; mocks.auth.openSignIn.mockResolvedValue(true);

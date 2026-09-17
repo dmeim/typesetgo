@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-manager";
 import { motion } from "framer-motion";
 import { normalizePracticeSettings, type Quote, type SettingsState, type Theme } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
@@ -26,8 +26,8 @@ import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useNotifications } from "@/lib/notification-store";
-import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
+import { useNotify } from "@/hooks/useNotify";
+import { getAchievementById } from "@/lib/achievement-definitions";
 
 import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey,
   hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
@@ -357,8 +357,8 @@ export default function TypingPractice({
   useLayoutEffect(() => { isFinishedRef.current = isFinished; }, [isFinished]);
   useLayoutEffect(() => { isSignedInRef.current = isSignedIn; }, [isSignedIn]);
 
-  // Notification store for achievement toasts
-  const { addNotification } = useNotifications();
+  // New achievement events go to the toast and browser notification history.
+  const notify = useNotify();
 
   // Preferences sync
   const dbPreferences = useQuery(
@@ -857,11 +857,11 @@ export default function TypingPractice({
       if (sessionEpochRef.current !== pendingEpoch || userRef.current) return;
       if (!opened) {
         setSaveState("error");
-        toast.error(authStatus === "loading"
+        toast.add({ type: "error", title: authStatus === "loading"
           ? "Sign-in is still loading. Your result is kept here; try saving again shortly."
           : authStatus === "unavailable"
             ? "Sign-in is unavailable. Your result is kept here; try saving again when sign-in is available."
-            : "Could not open sign-in. Your result is kept here; try saving again.");
+            : "Could not open sign-in. Your result is kept here; try saving again." });
       } else {
         setSaveState("idle");
       }
@@ -895,51 +895,16 @@ export default function TypingPractice({
       const calendar = getLocalCalendarFields();
 
       const showAchievementToasts = (achievementIds: string[]) => {
-        for (const achievementId of achievementIds) {
+        for (const achievementId of new Set(achievementIds)) {
           const achievement = getAchievementById(achievementId);
           if (achievement) {
-            const tierColor = TIER_COLORS[achievement.tier]?.bg || "#FFD700";
-
-            addNotification({
+            notify({
               type: "achievement",
               title: achievement.title,
               description: achievement.description,
               metadata: {
                 achievementId: achievement.id,
                 achievementTier: achievement.tier,
-              },
-            });
-
-            toast.success(achievement.title, {
-              description: achievement.description,
-              icon: (
-                <span
-                  style={{
-                    fontSize: "1.75rem",
-                    display: "inline-block",
-                    animation: "achievement-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                  }}
-                >
-                  {achievement.icon}
-                </span>
-              ),
-              duration: 5000,
-              style: {
-                borderLeft: `5px solid ${tierColor}`,
-                borderTop: `2px solid ${tierColor}40`,
-                borderRight: `2px solid ${tierColor}40`,
-                borderBottom: `2px solid ${tierColor}40`,
-                backgroundColor: tv.bg.surface,
-                color: tv.text.primary,
-                boxShadow: `0 0 20px ${tierColor}30`,
-                animation: "achievement-glow 2s ease-in-out",
-              },
-              descriptionClassName: "!text-current opacity-70",
-              action: {
-                label: "Ok",
-                onClick: () => {
-                  // Dismisses the toast; details stay in the notification tray
-                },
               },
             });
           }
@@ -1009,7 +974,7 @@ export default function TypingPractice({
     } finally {
       if (sessionEpochRef.current === epoch) savingRef.current = false;
     }
-  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, authStatus, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, addNotification, saveState, readElapsed]);
+  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, authStatus, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, notify, saveState, readElapsed]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {

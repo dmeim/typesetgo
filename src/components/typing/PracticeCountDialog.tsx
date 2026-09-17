@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-manager";
 import { MAX_DURATION_SECONDS, type SettingsState } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
 
@@ -230,7 +230,7 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
   const applyCustomCount = () => {
     const value = settings.mode === "time" ? customDurationSeconds : customWordValue;
     if (value <= 0) {
-      toast.error(settings.mode === "time" ? "Set at least 1 second." : "Set at least 1 word.");
+      toast.add({ type: "error", title: settings.mode === "time" ? "Set at least 1 second." : "Set at least 1 word." });
       return;
     }
     onApply(

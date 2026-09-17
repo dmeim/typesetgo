@@ -3,7 +3,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider, type ThemeContextValue } from "@/context/ThemeContext";
 import { useTheme } from "@/hooks/useTheme";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toast";
 import { fetchTheme, fetchThemeManifest, getDefaultTheme } from "@/lib/themes";
 import { deriveThemeUI } from "@/lib/colors";
 import type { ThemeDefinition } from "@/types/theme";
@@ -12,12 +12,6 @@ vi.mock("@/lib/themes", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/themes")>(),
   fetchTheme: vi.fn(),
   fetchThemeManifest: vi.fn(),
-}));
-
-vi.mock("sonner", () => ({
-  Toaster: ({ theme, toastOptions }: { theme: string; toastOptions: { style: object } }) => (
-    <div data-testid="toaster" data-mode={theme} style={toastOptions.style} />
-  ),
 }));
 
 function deferred<T>() {
@@ -47,7 +41,7 @@ function Probe() {
 }
 
 async function mount() {
-  const result = render(<ThemeProvider><Probe /><Toaster richColors /></ThemeProvider>);
+  const result = render(<ThemeProvider><Probe /><Toaster /></ThemeProvider>);
   await waitFor(() => expect(latest.isLoading).toBe(false));
   return result;
 }
@@ -56,7 +50,6 @@ function expectCommitted(theme: ThemeDefinition, mode: "dark" | "light", variant
   const variant = theme.variants.find((v) => v.id === variantId)!;
   const colors = mode === "light" ? variant.light! : variant.dark;
   expect(screen.getByTestId("selection")).toHaveTextContent(`${theme.id}/${variantId}/${mode}`);
-  expect(screen.getByTestId("toaster")).toHaveAttribute("data-mode", mode);
   expect(document.documentElement).toHaveAttribute("data-theme-mode", mode);
   expect(document.documentElement.classList.contains("dark")).toBe(mode === "dark");
   expect(document.documentElement.style.colorScheme).toBe(mode);
@@ -78,12 +71,11 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("atomic effective theme selection", () => {
-  it("applies saved light mode and keeps Sonner, root mode, raw and semantic colors in sync", async () => {
+  it("applies saved light mode and keeps root mode, raw and semantic colors in sync", async () => {
     localStorage.setItem("typesetgo-theme-mode", "light");
     await mount();
     expectCommitted(fixture("typesetgo"), "light");
     expect(latest.userSelectionRevision).toBe(0);
-    expect(screen.getByTestId("toaster")).toHaveStyle({ background: "var(--popover)", color: "var(--popover-foreground)", boxShadow: "none" });
     act(() => latest.setVariant("dark-only"));
     expectCommitted(fixture("typesetgo"), "dark", "dark-only");
     act(() => latest.setMode("light"));

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { ChevronDown, LogIn, LogOut, UserRound } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast-manager";
 import { api } from "../../../convex/_generated/api";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export default function UserButton({ inactive = false }: { inactive?: boolean })
   }, [isSignedIn, user, getOrCreateUser]);
 
   const runAction = async (action: () => Promise<boolean>, message: string) => {
-    if (!await action()) toast.error(message);
+    if (!await action()) toast.add({ type: "error", title: message });
   };
 
   if (status === "unavailable") {

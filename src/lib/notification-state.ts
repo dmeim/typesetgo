@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
 } from "react";
+import { tv } from "@/lib/theme-vars";
 
 // =============================================================================
 // Types
@@ -127,16 +128,16 @@ export function useNotifications(): NotificationStore {
 export function getNotificationColor(type: NotificationType): string {
   switch (type) {
     case "achievement":
-      return "#FFD700"; // Gold - will be overridden by tier color
+      return tv.ui.primary; // Achievement tiers override this fallback.
     case "maintenance":
-      return "#F59E0B"; // Amber
+      return tv.status.warning.DEFAULT;
     case "warning":
-      return "#EAB308"; // Yellow
+      return tv.status.warning.DEFAULT;
     case "error":
-      return "#EF4444"; // Red
+      return tv.ui.destructive;
     case "info":
     default:
-      return "#3B82F6"; // Blue
+      return tv.ui.primary;
   }
 }
 
