@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
@@ -21,7 +21,7 @@ export default function Privacy() {
             className="inline-flex items-center gap-2 transition text-sm hover:opacity-100"
             style={{ color: tv.typing.default, opacity: 0.7 }}
           >
-            <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+            <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
             Back to Homepage
           </Link>
         </div>

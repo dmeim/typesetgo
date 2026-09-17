@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Volume2, VolumeOff } from "lucide-react";
+import { SpeakerHighIcon, SpeakerSlashIcon } from "@phosphor-icons/react";
 import type { SettingsState } from "@/lib/typing-constants";
 import type { SoundManifest } from "@/lib/sounds";
 import { tv } from "@/lib/theme-vars";
@@ -35,9 +35,9 @@ export default function SoundController({
         title="sound settings"
       >
         {soundEnabled ? (
-          <Volume2 size="1em" aria-hidden="true" />
+          <SpeakerHighIcon size="1em" aria-hidden="true" />
         ) : (
-          <VolumeOff size="1em" aria-hidden="true" />
+          <SpeakerSlashIcon size="1em" aria-hidden="true" />
         )}
       </button>
 

@@ -1,7 +1,7 @@
 import { useReducedMotion } from "framer-motion";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, RotateCw, UserMinus } from "lucide-react";
+import { ArrowClockwiseIcon, DotsSixVerticalIcon, UserMinusIcon } from "@phosphor-icons/react";
 import type { SettingsState, Theme } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
 import { isTimedPractice, resolveRoomSettings } from "./room-settings";
@@ -97,7 +97,7 @@ export default function UserHostCard({
           aria-label={`Reorder ${user.name}`}
           className="min-h-10 min-w-10 rounded touch-none cursor-grab focus-visible:outline-2"
         >
-          <GripVertical className="mx-auto size-5" />
+          <DotsSixVerticalIcon aria-hidden="true" className="mx-auto size-5" />
         </button>
         <h3 className="min-w-0 break-words py-2 font-semibold">{user.name}</h3>
       </header>
@@ -153,7 +153,7 @@ export default function UserHostCard({
             aria-label={`Reset ${user.name}`}
             onClick={() => onReset(user.id)}
           >
-            <RotateCw className="size-4 shrink-0" aria-hidden="true" />
+            <ArrowClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
             Reset
           </RoomButton>
           <RoomButton
@@ -161,7 +161,7 @@ export default function UserHostCard({
             onClick={() => onKick(user.id)}
             style={{ color: tv.ui.destructive }}
           >
-            <UserMinus className="size-4 shrink-0" aria-hidden="true" />
+            <UserMinusIcon className="size-4 shrink-0" aria-hidden="true" />
             Remove
           </RoomButton>
         </div>

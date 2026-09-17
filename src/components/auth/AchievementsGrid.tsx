@@ -1,4 +1,4 @@
-import { RefreshCw, Trophy } from "lucide-react";
+import { ArrowsClockwiseIcon, TrophyIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useMutation } from "convex/react";
@@ -100,7 +100,7 @@ export default function AchievementsGrid({
         className="p-4 rounded-xl flex flex-col items-center justify-center h-full"
         style={{ backgroundColor: `${colors.bg.base}80` }}
       >
-        <Trophy className="mb-2 size-8 text-muted-foreground" aria-hidden="true" />
+        <TrophyIcon className="mb-2 size-8 text-muted-foreground" aria-hidden="true" />
         <div
           className="text-sm text-center"
           style={{ color: tv.text.secondary }}
@@ -140,7 +140,7 @@ export default function AchievementsGrid({
               aria-label="Refresh achievements"
               title="Refresh achievements"
             >
-              <RefreshCw className={`size-3 ${isRefreshing ? "motion-safe:animate-spin" : ""}`} aria-hidden="true" />
+              <ArrowsClockwiseIcon className={`size-3 ${isRefreshing ? "motion-safe:animate-spin" : ""}`} aria-hidden="true" />
             </button>
             <button
               onClick={() => setShowAchievementsModal(true)}

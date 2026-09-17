@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
 import AchievementIcon from "@/components/auth/AchievementIcon";
 import {
   getAchievementById,
@@ -179,7 +179,7 @@ export default function AchievementsCategoryGrid({
               disabled={isRefreshing || isLoading}
               className="flex min-h-10 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <RefreshCw aria-hidden="true" className="size-4" />
+              <ArrowsClockwiseIcon aria-hidden="true" className="size-4" />
               {isRefreshing ? "Refreshing…" : "Refresh achievements"}
             </button>
           )}

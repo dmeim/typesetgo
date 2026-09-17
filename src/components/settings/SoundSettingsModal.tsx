@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Play } from "lucide-react";
+import { PlayIcon } from "@phosphor-icons/react";
 import type { SettingsState } from "@/lib/typing-constants";
 import { getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { tv } from "@/lib/theme-vars";
@@ -153,7 +153,7 @@ export default function SoundSettingsModal({
                     className="min-h-10 min-w-10 rounded border p-2 hover:opacity-80 focus-visible:outline-2 disabled:opacity-50"
                     style={{ borderColor: tv.ui.border }}
                   >
-                    <Play className="mx-auto size-4" aria-hidden="true" />
+                    <PlayIcon className="mx-auto size-4" aria-hidden="true" />
                   </button>
                 </div>
                 {selected && !available && soundManifest && (

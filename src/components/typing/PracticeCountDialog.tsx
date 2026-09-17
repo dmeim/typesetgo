@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { CaretDownIcon, CaretUpIcon, XIcon } from "@phosphor-icons/react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/lib/toast-manager";
 import { MAX_DURATION_SECONDS, type SettingsState } from "@/lib/typing-constants";
@@ -98,7 +98,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
         style={{ color: tv.ui.mutedForeground, backgroundColor: tv.bg.base }}
         aria-label={`${label} up`}
       >
-        <ChevronUp className="h-4 w-4" />
+        <CaretUpIcon aria-hidden="true" className="h-4 w-4" />
       </button>
 
       <div
@@ -202,7 +202,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
         style={{ color: tv.ui.mutedForeground, backgroundColor: tv.bg.base }}
         aria-label={`${label} down`}
       >
-        <ChevronDown className="h-4 w-4" />
+        <CaretDownIcon aria-hidden="true" className="h-4 w-4" />
       </button>
 
       <span className="text-xs uppercase tracking-wide" style={{ color: tv.ui.mutedForeground }}>
@@ -265,7 +265,7 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
             style={{ color: tv.ui.mutedForeground }}
             aria-label="Close custom selector"
           >
-            <X className="size-4" aria-hidden="true" />
+            <XIcon className="size-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -389,7 +389,7 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
               backgroundColor: tv.bg.base,
             }}
           >
-            <X className="size-4 shrink-0" aria-hidden="true" />
+            <XIcon className="size-4 shrink-0" aria-hidden="true" />
             Cancel
           </button>
           <button

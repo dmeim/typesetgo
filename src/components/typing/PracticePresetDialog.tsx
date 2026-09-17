@@ -1,4 +1,4 @@
-import { Play, X } from "lucide-react";
+import { PlayIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,7 +43,7 @@ export default function PracticePresetDialog({
             className="px-4 py-2 hover:opacity-80 transition-opacity"
             style={{ color: tv.text.secondary }}
           >
-            <X className="size-4 shrink-0" aria-hidden="true" />
+            <XIcon className="size-4 shrink-0" aria-hidden="true" />
             Cancel
           </Button>
           <Button
@@ -52,7 +52,7 @@ export default function PracticePresetDialog({
             onClick={() => handlePresetSubmit(tempPresetText)}
             className="rounded bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
           >
-            <Play className="size-4 shrink-0" aria-hidden="true" />
+            <PlayIcon className="size-4 shrink-0" aria-hidden="true" />
             Start
           </Button>
         </div>

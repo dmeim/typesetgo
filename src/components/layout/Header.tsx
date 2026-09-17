@@ -1,7 +1,17 @@
 import { useLayoutEffect, useRef, type ComponentProps, type RefObject } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "convex/react";
-import { Sun, Moon, Keyboard, Flag, GraduationCap, Palette, Settings, Trophy, ChartNoAxesColumn } from "lucide-react";
+import {
+  ChartBarIcon,
+  FlagCheckeredIcon,
+  GearSixIcon,
+  GraduationCapIcon,
+  KeyboardIcon,
+  MoonIcon,
+  PaletteIcon,
+  SunIcon,
+  TrophyIcon,
+} from "@phosphor-icons/react";
 import { api } from "../../../convex/_generated/api";
 import { useTheme } from "@/hooks/useTheme";
 import UserButton from "@/components/auth/UserButton";
@@ -18,9 +28,9 @@ interface HeaderProps {
 }
 
 const NAV_TABS = [
-  { label: "Type", path: "/", icon: Keyboard, enabled: true },
-  { label: "Race", path: "/race", icon: Flag, enabled: false },
-  { label: "Lessons", path: "/lessons", icon: GraduationCap, enabled: false },
+  { label: "Type", path: "/", icon: KeyboardIcon, enabled: true },
+  { label: "Race", path: "/race", icon: FlagCheckeredIcon, enabled: false },
+  { label: "Lessons", path: "/lessons", icon: GraduationCapIcon, enabled: false },
 ] as const;
 
 function HeaderAction({ label, hint = label, ...props }: ComponentProps<typeof Button> & { label: string; hint?: string }) {
@@ -98,12 +108,12 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
           <div className="order-3 flex flex-wrap items-center gap-1 lg:order-2">
             {onOpenSettings && (
               <HeaderAction type="button" onClick={onOpenSettings} label="Settings">
-                <Settings className="size-5" aria-hidden="true" />
+                <GearSixIcon className="size-5" aria-hidden="true" />
               </HeaderAction>
             )}
             {onOpenThemeModal && (
               <HeaderAction type="button" onClick={onOpenThemeModal} label="Change theme">
-                <Palette className="size-5" aria-hidden="true" />
+                <PaletteIcon className="size-5" aria-hidden="true" />
               </HeaderAction>
             )}
             <HeaderAction
@@ -113,7 +123,7 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
               label={supportsLightMode ? `Switch to ${mode === "dark" ? "light" : "dark"} mode` : "Light mode unavailable for this theme"}
               hint={supportsLightMode ? `Switch to ${mode === "dark" ? "light" : "dark"} mode` : "This theme supports dark mode only"}
             >
-              {mode === "dark" ? <Sun className="size-5" aria-hidden="true" /> : <Moon className="size-5" aria-hidden="true" />}
+              {mode === "dark" ? <SunIcon className="size-5" aria-hidden="true" /> : <MoonIcon className="size-5" aria-hidden="true" />}
             </HeaderAction>
           </div>
         </div>
@@ -140,15 +150,15 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
         <div className="contents lg:col-start-3 lg:row-start-1 lg:flex lg:min-w-0 lg:flex-wrap lg:items-center lg:justify-end lg:gap-x-4 lg:gap-y-2">
           <div className="order-4 flex flex-wrap items-center justify-end gap-1">
             <HeaderAction asChild label="Leaderboard"><Link to="/leaderboard">
-              <Trophy className="size-5" aria-hidden="true" />
+              <TrophyIcon className="size-5" aria-hidden="true" />
             </Link></HeaderAction>
             {accountFeaturesEnabled && statsUrl ? (
               <HeaderAction asChild label="Your stats"><Link to={statsUrl}>
-                <ChartNoAxesColumn className="size-5" aria-hidden="true" />
+                <ChartBarIcon className="size-5" aria-hidden="true" />
               </Link></HeaderAction>
             ) : (
               <HeaderAction type="button" disabled label={accountFeaturesEnabled ? "Loading your stats" : "Sign in to view your stats"}>
-                <ChartNoAxesColumn className="size-5" aria-hidden="true" />
+                <ChartBarIcon className="size-5" aria-hidden="true" />
               </HeaderAction>
             )}
             <NotificationCenter disabled={!accountFeaturesEnabled || hidden} />

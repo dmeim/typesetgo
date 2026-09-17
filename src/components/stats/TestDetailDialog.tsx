@@ -1,4 +1,4 @@
-import { LoaderCircle, Trash2 } from "lucide-react";
+import { CircleNotchIcon, TrashIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
@@ -95,7 +95,7 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
             <AlertDialogTrigger asChild>
               <Button
                 variant="outline" type="button" className={`${actionClass} text-destructive`}>
-                <Trash2 className="size-4 shrink-0" aria-hidden="true" />
+                <TrashIcon className="size-4 shrink-0" aria-hidden="true" />
                 Delete test
               </Button>
             </AlertDialogTrigger>
@@ -111,7 +111,7 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting} className={actionClass}>Cancel</AlertDialogCancel>
                 <AlertDialogAction variant="destructive" disabled={isDeleting} onClick={(event) => { event.preventDefault(); void handleDelete(); }} className={actionClass}>
-                  {isDeleting ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <Trash2 className="size-4 shrink-0" aria-hidden="true" />}
+                  {isDeleting ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <TrashIcon className="size-4 shrink-0" aria-hidden="true" />}
                   {isDeleting ? "Deleting…" : "Confirm delete"}
                 </AlertDialogAction>
               </AlertDialogFooter>

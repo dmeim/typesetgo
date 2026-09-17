@@ -89,7 +89,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 
 ## Provider Stack (`src/main.tsx`)
 
-`NotificationProvider` -> optional `ClerkProvider` -> `ConvexClerkProvider` (or anonymous `ConvexProvider`) -> `AppAuthProvider` -> `App`. App owns `ThemeProvider`, `MotionConfig reducedMotion="user"`, lazy `RouterProvider`, and themed `Toaster`.
+`NotificationProvider` -> optional `ClerkProvider` -> `ConvexClerkProvider` (or anonymous `ConvexProvider`) -> `AppAuthProvider` -> `App`. App owns `ThemeProvider`, `IconProvider`, `MotionConfig reducedMotion="user"`, lazy `RouterProvider`, and themed `Toaster`.
 
 Notes:
 - `VITE_CONVEX_URL` is required for the Convex client.
@@ -115,8 +115,9 @@ Notes:
 - Components: `PascalCase.tsx`; utilities: `kebab-case.ts` where applicable.
 - Prefer `@/` imports for local `src/` modules.
 - Prefer existing `@/components/ui/` primitives before adding base UI components.
-- Use `lucide-react` for UI icons; use custom artwork or text glyphs only when Lucide has no suitable icon. Place action icons before their text with a consistent gap (`gap-2`), hide decorative icons from assistive technology, and label icon-only controls.
-- Keep related states cohesive: `Save` / `SaveCheck` / `SaveOff` for saving, `RotateCw` for repeat/reset, `ArrowBigRight` for advancing tests, `ArrowLeft` for back navigation, and `LogOut` for leaving a room. Achievement icon names are shared through `src/lib/achievement-icons.ts`.
+- Use `@phosphor-icons/react` with `Icon`-suffixed exports for all UI icons, including shared Shadcn controls. `IconProvider` supplies `weight="bold"` and a 24px fallback size; use `weight="regular"` for lighter artwork and `weight="fill"` for solid indicators. Use weights rather than `strokeWidth`. Custom artwork or text glyphs are fallbacks only when Phosphor has no suitable icon. Place action icons before their text with `gap-2`, hide decorative icons from assistive technology, and label icon-only controls.
+- Keep related states cohesive: `FloppyDiskIcon` / `CheckCircleIcon` / `WarningCircleIcon` for saving, `CircleNotchIcon` while pending, `ArrowClockwiseIcon` for repeat/reset, `ArrowsClockwiseIcon` for refresh/retry, `ArrowFatRightIcon` for advancing tests, `ArrowLeftIcon` for back navigation, `SignOutIcon` for leaving a room, and `CopyIcon` / `CheckIcon` for copying. Achievement icon keys are shared through `src/lib/achievement-icons.ts`.
+- `components.json` selects `"iconLibrary": "phosphor"` for new Shadcn components. Check generated imports for the `Icon` suffix and replace icon `strokeWidth` styling with the appropriate weight.
 - Keep changes focused; avoid unrelated refactors.
 - Do not run git write operations (`git add`, `commit`, `push`, history rewrites) unless explicitly asked.
 

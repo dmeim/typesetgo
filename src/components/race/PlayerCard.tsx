@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Crown, CircleCheck, Clock, Pencil, Undo2, LoaderCircle, Save, SaveOff, X } from "lucide-react";
+import {
+  ArrowUUpLeftIcon,
+  CheckCircleIcon,
+  CircleNotchIcon,
+  CrownIcon,
+  FloppyDiskIcon,
+  PencilSimpleIcon,
+  TimerIcon,
+  WarningCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import EmojiPicker from "./EmojiPicker";
 import { tv } from "@/lib/theme-vars";
 import { RaceError } from "./RaceState";
@@ -51,7 +61,7 @@ export default function PlayerCard({
       >
         {isHost && (
           <>
-            <Crown size={14} aria-hidden="true" /> Host
+            <CrownIcon size={14} aria-hidden="true" /> Host
           </>
         )}
         {isCurrentUser && <span>{isHost ? " · " : ""}You</span>}
@@ -102,7 +112,7 @@ export default function PlayerCard({
             <RaceError>{nameError}</RaceError>
             <div className="flex flex-wrap justify-center gap-3 text-sm">
               <button disabled={pending} type="submit" className="inline-flex items-center justify-center gap-2">
-                {pending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : nameError ? <SaveOff className="size-4 shrink-0" aria-hidden="true" /> : <Save className="size-4 shrink-0" aria-hidden="true" />}
+                {pending ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : nameError ? <WarningCircleIcon className="size-4 shrink-0" aria-hidden="true" /> : <FloppyDiskIcon className="size-4 shrink-0" aria-hidden="true" />}
                 {pending ? "Saving…" : "Save"}
               </button>
               <button
@@ -111,7 +121,7 @@ export default function PlayerCard({
                 onClick={() => setIsEditingName(false)}
                 className="inline-flex items-center justify-center gap-2"
               >
-                <X className="size-4 shrink-0" aria-hidden="true" />
+                <XIcon className="size-4 shrink-0" aria-hidden="true" />
                 Cancel
               </button>
             </div>
@@ -126,7 +136,7 @@ export default function PlayerCard({
             }}
             className="inline-flex items-center justify-center gap-2 max-w-full font-semibold break-words [overflow-wrap:anywhere] underline decoration-dotted underline-offset-4"
           >
-            <Pencil className="size-4 shrink-0" aria-hidden="true" />
+            <PencilSimpleIcon className="size-4 shrink-0" aria-hidden="true" />
             <span className="min-w-0">{name}</span>
           </button>
         )
@@ -146,10 +156,10 @@ export default function PlayerCard({
             color: isReady ? tv.ui.foreground : tv.ui.primaryForeground,
           }}
         >
-          {pending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
-            : isCountingDown ? <Clock className="size-4 shrink-0" aria-hidden="true" />
-              : isReady ? <Undo2 className="size-4 shrink-0" aria-hidden="true" />
-                : <CircleCheck className="size-4 shrink-0" aria-hidden="true" />}
+          {pending ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
+            : isCountingDown ? <TimerIcon className="size-4 shrink-0" aria-hidden="true" />
+              : isReady ? <ArrowUUpLeftIcon className="size-4 shrink-0" aria-hidden="true" />
+                : <CheckCircleIcon className="size-4 shrink-0" aria-hidden="true" />}
           {pending
             ? "Saving…"
             : isCountingDown
@@ -165,7 +175,7 @@ export default function PlayerCard({
             color: isReady ? tv.ui.foreground : tv.ui.mutedForeground,
           }}
         >
-          {isReady && <CircleCheck size={14} aria-hidden="true" />}
+          {isReady && <CheckCircleIcon size={14} aria-hidden="true" />}
           {isReady ? "Ready" : "Waiting"}
         </p>
       )}

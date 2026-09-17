@@ -1,4 +1,4 @@
-import { CaseSensitive, AtSign, Hash, Infinity as InfinityIcon, Settings, SlidersHorizontal } from "lucide-react";
+import { AtIcon, HashIcon, InfinityIcon, SlidersHorizontalIcon, TextAaIcon } from "@phosphor-icons/react";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -72,7 +72,7 @@ export default function PracticeControls({
               }}
               title="Quick Settings"
             >
-              <Settings className="size-4 shrink-0" aria-hidden="true" />
+              <SlidersHorizontalIcon className="size-4 shrink-0" aria-hidden="true" />
               Quick Settings
             </Button>
           )}
@@ -124,7 +124,7 @@ export default function PracticeControls({
                       disabled={settings.mode === "quote"}
                       title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle capitalization"}
                     >
-                      <CaseSensitive className="size-4 shrink-0" aria-hidden="true" />
+                      <TextAaIcon className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>caps</span>
                     </Toggle>
                     <Toggle
@@ -138,7 +138,7 @@ export default function PracticeControls({
                       disabled={settings.mode === "quote"}
                       title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle punctuation"}
                     >
-                      <AtSign className="size-4 shrink-0" aria-hidden="true" />
+                      <AtIcon className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>punctuation</span>
                     </Toggle>
                     <Toggle
@@ -152,7 +152,7 @@ export default function PracticeControls({
                       disabled={settings.mode === "quote"}
                       title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle numbers"}
                     >
-                      <Hash className="size-4 shrink-0" aria-hidden="true" />
+                      <HashIcon className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>numbers</span>
                     </Toggle>
                   </div>
@@ -200,7 +200,7 @@ export default function PracticeControls({
                         color: isCustomDurationSelected ? tv.ui.primary : undefined,
                       }}
                     >
-                      <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
+                      <SlidersHorizontalIcon className="size-4 shrink-0" aria-hidden="true" />
                       custom
                     </Button>
                   </ToggleGroup>
@@ -243,7 +243,7 @@ export default function PracticeControls({
                         color: isCustomWordTargetSelected ? tv.ui.primary : undefined,
                       }}
                     >
-                      <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
+                      <SlidersHorizontalIcon className="size-4 shrink-0" aria-hidden="true" />
                       custom
                     </Button>
                   </ToggleGroup>

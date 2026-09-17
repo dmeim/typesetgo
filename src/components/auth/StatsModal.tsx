@@ -1,4 +1,15 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, ChartNoAxesColumn, CircleCheck, CircleX, Flame, LoaderCircle, X, Trash2 } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ArrowsDownUpIcon,
+  ChartBarIcon,
+  CheckCircleIcon,
+  CircleNotchIcon,
+  FireIcon,
+  TrashIcon,
+  XCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useState, useMemo, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
@@ -147,9 +158,9 @@ function ValidIcon({
       title={!isValid && result.invalidReason ? `Invalid: ${result.invalidReason}` : undefined}
     >
       {isValid ? (
-        <CircleCheck className="size-4" style={{ color: tv.status.success.DEFAULT }} aria-hidden="true" />
+        <CheckCircleIcon className="size-4" style={{ color: tv.status.success.DEFAULT }} aria-hidden="true" />
       ) : (
-        <CircleX className="size-4" style={{ color: tv.status.error.DEFAULT }} aria-hidden="true" />
+        <XCircleIcon className="size-4" style={{ color: tv.status.error.DEFAULT }} aria-hidden="true" />
       )}
     </div>
   );
@@ -172,7 +183,7 @@ function SortableHeader({
   align?: "left" | "right";
 }) {
   const isActive = currentColumn === column;
-  const SortIcon = !isActive ? ArrowUpDown : currentDirection === "asc" ? ArrowUp : ArrowDown;
+  const SortIcon = !isActive ? ArrowsDownUpIcon : currentDirection === "asc" ? ArrowUpIcon : ArrowDownIcon;
 
   return (
     <button
@@ -221,7 +232,7 @@ function DeleteConfirmModal({
               color: tv.bg.base,
             }}
           >
-            <X className="size-4 shrink-0" aria-hidden="true" />
+            <XIcon className="size-4 shrink-0" aria-hidden="true" />
             NOOO!!!
           </button>
           <button
@@ -233,7 +244,7 @@ function DeleteConfirmModal({
               color: tv.bg.base,
             }}
           >
-            {isDeleting ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <Trash2 className="size-4 shrink-0" aria-hidden="true" />}
+            {isDeleting ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <TrashIcon className="size-4 shrink-0" aria-hidden="true" />}
             {isDeleting ? "Deleting..." : "Yes, Delete"}
           </button>
         </div>
@@ -297,7 +308,7 @@ function TestDetailModal({
               className="p-1.5 rounded-lg transition hover:opacity-80"
               style={{ color: tv.text.muted }}
             >
-              <X className="size-[18px]" aria-hidden="true" />
+              <XIcon className="size-[18px]" aria-hidden="true" />
             </button>
           </div>
 
@@ -408,7 +419,7 @@ function TestDetailModal({
               color: tv.status.error.DEFAULT,
             }}
           >
-            <Trash2 className="size-4 shrink-0" aria-hidden="true" />
+            <TrashIcon className="size-4 shrink-0" aria-hidden="true" />
             Delete
           </button>
         </div>
@@ -535,14 +546,14 @@ export default function StatsModal({ onClose }: StatsModalProps) {
             className="p-2 rounded-lg transition hover:opacity-80"
             style={{ color: tv.text.muted }}
           >
-            <X className="size-5" aria-hidden="true" />
+            <XIcon className="size-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
-            <LoaderCircle className="size-8 motion-safe:animate-spin" style={{ color: tv.interactive.secondary.DEFAULT }} aria-hidden="true" />
+            <CircleNotchIcon className="size-8 motion-safe:animate-spin" style={{ color: tv.interactive.secondary.DEFAULT }} aria-hidden="true" />
           </div>
         )}
 
@@ -620,7 +631,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                         opacity: (streak?.currentStreak ?? 0) > 0 ? 1 : 0.5,
                       }}
                     >
-                      <Flame className="size-5" aria-hidden="true" />
+                      <FireIcon className="size-5" aria-hidden="true" />
                     </span>
                     {streak?.currentStreak ?? 0}
                   </div>
@@ -774,7 +785,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
         {/* Empty State - Only show when no data at all */}
         {!isLoading && stats && stats.totalTests === 0 && (
           <div className="text-center py-8">
-            <ChartNoAxesColumn className="mx-auto mb-3 size-9" aria-hidden="true" />
+            <ChartBarIcon className="mx-auto mb-3 size-9" aria-hidden="true" />
             <p className="text-lg font-medium" style={{ color: tv.text.primary }}>
               No tests saved yet
             </p>

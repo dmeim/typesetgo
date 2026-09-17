@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { IconProvider } from "@/components/ui/icon-provider";
 import UserStats from "@/pages/UserStats";
 import Leaderboard from "@/pages/Leaderboard";
 import NotificationCenter from "@/components/layout/NotificationCenter";
@@ -25,17 +26,19 @@ localStorage.setItem("typesetgo_notifications", JSON.stringify([{
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <MotionConfig reducedMotion="user">
-        <BrowserRouter>
-          <NotificationProvider>
-          <Routes>
-            <Route path="/user/:userId" element={<UserStats />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/notifications" element={<main className="min-h-dvh bg-background p-4 text-foreground"><h1>Notification fixture</h1><NotificationCenter /></main>} />
-          </Routes>
-          </NotificationProvider>
-        </BrowserRouter>
-      </MotionConfig>
+      <IconProvider>
+        <MotionConfig reducedMotion="user">
+          <BrowserRouter>
+            <NotificationProvider>
+            <Routes>
+              <Route path="/user/:userId" element={<UserStats />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/notifications" element={<main className="min-h-dvh bg-background p-4 text-foreground"><h1>Notification fixture</h1><NotificationCenter /></main>} />
+            </Routes>
+            </NotificationProvider>
+          </BrowserRouter>
+        </MotionConfig>
+      </IconProvider>
     </ThemeProvider>
   </StrictMode>,
 );

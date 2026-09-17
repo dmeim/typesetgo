@@ -1,5 +1,16 @@
 import { useEffect, useRef } from "react";
-import { ArrowBigRight, ArrowRight, CircleAlert, Gauge, Target, LoaderCircle, LogOut, RotateCw, Save, SaveCheck, SaveOff } from "lucide-react";
+import {
+  ArrowClockwiseIcon,
+  ArrowFatRightIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  CircleNotchIcon,
+  FloppyDiskIcon,
+  SignOutIcon,
+  SpeedometerIcon,
+  TargetIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { useTheme } from "@/hooks/useTheme";
@@ -72,8 +83,8 @@ export default function PracticeResults({
   const { colors } = useTheme();
   const reducedMotion = useReducedMotion();
   const resultsRef = useRef<HTMLDivElement>(null);
-  const SaveIcon = lastResultIsValid === false || saveState === "error" ? SaveOff
-    : saveState === "saved" ? SaveCheck : saveState === "saving" ? LoaderCircle : Save;
+  const SaveIcon = lastResultIsValid === false || saveState === "error" ? WarningCircleIcon
+    : saveState === "saved" ? CheckCircleIcon : saveState === "saving" ? CircleNotchIcon : FloppyDiskIcon;
   const saveLabel = lastResultIsValid === false ? "Invalid" : {
     idle: "Save Results",
     saving: "Saving...",
@@ -143,7 +154,7 @@ export default function PracticeResults({
               className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
               style={{ color: tv.ui.foreground }}
             >
-              <Gauge size={120} strokeWidth={1} aria-hidden="true" />
+              <SpeedometerIcon size={120} weight="regular" aria-hidden="true" />
             </div>
           </motion.div>
 
@@ -171,7 +182,7 @@ export default function PracticeResults({
               className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
               style={{ color: tv.ui.foreground }}
             >
-              <Target size={120} strokeWidth={1} aria-hidden="true" />
+              <TargetIcon size={120} weight="regular" aria-hidden="true" />
             </div>
           </motion.div>
         </div>
@@ -316,7 +327,7 @@ export default function PracticeResults({
                             style={{ backgroundColor: tv.bg.surface }}
                           >
                             <span style={{ color: tv.status.error.DEFAULT }}>{item.typed}</span>
-                            <ArrowRight className="size-3 shrink-0" style={{ color: tv.ui.mutedForeground }} aria-hidden="true" />
+                            <ArrowRightIcon className="size-3 shrink-0" style={{ color: tv.ui.mutedForeground }} aria-hidden="true" />
                             <span
                               style={{
                                 color: tv.ui.primary,
@@ -392,7 +403,7 @@ export default function PracticeResults({
             }}
           >
             <div className="flex items-center gap-3">
-              <CircleAlert className="size-5 shrink-0" style={{ color: tv.status.error.DEFAULT }} aria-hidden="true" />
+              <WarningCircleIcon className="size-5 shrink-0" style={{ color: tv.status.error.DEFAULT }} aria-hidden="true" />
               <div className="flex-1">
                 <span className="font-medium" style={{ color: tv.status.error.DEFAULT }}>
                   Unverified
@@ -462,7 +473,7 @@ export default function PracticeResults({
                 color: tv.ui.foreground,
               }}
             >
-              <ArrowBigRight className="size-[18px] shrink-0" aria-hidden="true" />
+              <ArrowFatRightIcon className="size-[18px] shrink-0" aria-hidden="true" />
               Next Test
             </button>
           )}
@@ -472,7 +483,7 @@ export default function PracticeResults({
               onClick={repeatTest}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-6 py-3 font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <RotateCw className="size-[18px] shrink-0" aria-hidden="true" />
+              <ArrowClockwiseIcon className="size-[18px] shrink-0" aria-hidden="true" />
               Repeat Test
             </button>
           )}
@@ -488,7 +499,7 @@ export default function PracticeResults({
                 borderColor: tv.status.error.DEFAULT,
               }}
             >
-              <LogOut className="size-[18px] shrink-0" aria-hidden="true" />
+              <SignOutIcon className="size-[18px] shrink-0" aria-hidden="true" />
               Leave Room
             </button>
           )}

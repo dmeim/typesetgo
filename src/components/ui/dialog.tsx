@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { XIcon } from "lucide-react"
+import { XIcon } from "@phosphor-icons/react";
 
 import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state";
 
@@ -116,7 +116,7 @@ function DialogContent({
             data-slot="dialog-close"
             className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-sm hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
-            <XIcon />
+            <XIcon aria-hidden="true" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}

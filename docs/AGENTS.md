@@ -156,7 +156,7 @@ Provider order is:
 1. `StrictMode` and `NotificationProvider`.
 2. When configured, `ClerkProvider` and `ConvexClerkProvider`; otherwise anonymous `ConvexProvider`.
 3. `AppAuthProvider`, exposing safe `useAppAuth` availability and guarded account actions.
-4. `App`: `ThemeProvider` → `MotionConfig reducedMotion="user"` → `RouterProvider` and themed `Toaster`.
+4. `App`: `ThemeProvider` → `IconProvider` → `MotionConfig reducedMotion="user"` → `RouterProvider` and themed `Toaster`.
 
 Important behavior:
 - Missing Clerk configuration continues with a supported anonymous experience. Loading and failed auth remain distinct states.
@@ -240,9 +240,11 @@ Rules:
   - external first, internal second,
   - prefer `@/` alias for local source imports.
 - Prefer existing UI primitives under `@/components/ui/` before introducing new base components.
-- Use `lucide-react` for UI icons. Custom artwork or text glyphs are fallbacks only when Lucide has no suitable icon; logos, profile photos, and player-selected avatars remain content.
+- Use `@phosphor-icons/react` with `Icon`-suffixed exports for all UI icons, including shared Shadcn controls. Custom artwork or text glyphs are fallbacks only when Phosphor has no suitable icon; logos, profile photos, and player-selected avatars remain content.
+- `src/components/ui/icon-provider.tsx` sets the shared defaults to `weight="bold"` and a 24px fallback size. Use `weight="regular"` where lighter artwork is needed (the large WPM/accuracy result icons), and `weight="fill"` for solid indicators such as the dropdown radio dot. Use Phosphor weights rather than SVG `strokeWidth`; CSS size classes and explicit `size` props still control dimensions. Browser fixtures use the same provider as the app.
+- `components.json` selects `"iconLibrary": "phosphor"` for future Shadcn components; it does not rewrite existing components. Check newly generated imports for the `Icon` suffix and replace icon `strokeWidth` styling with the appropriate weight.
 - Place action icons before their text with `gap-2`; hide decorative icons with `aria-hidden="true"` and give icon-only controls an accessible label. Disclosure indicators may stay at the trailing edge of selects and menus.
-- Keep icon families consistent across screens and states: `Save` / `SaveCheck` / `SaveOff` for save actions, `LoaderCircle` while pending, `RotateCw` for repeat/reset, `RefreshCw` for refresh/retry, `ArrowBigRight` for advancing tests, `ArrowLeft` for back navigation, `LogOut` for leaving a room, `Copy` / `CopyCheck` for copying, and `Trash2` for deletion.
+- Keep icon families consistent across screens and states: `FloppyDiskIcon` / `CheckCircleIcon` / `WarningCircleIcon` for save actions, `CircleNotchIcon` while pending, `ArrowClockwiseIcon` for repeat/reset, `ArrowsClockwiseIcon` for refresh/retry, `ArrowFatRightIcon` for advancing tests, `ArrowLeftIcon` for back navigation, `SignOutIcon` for leaving a room, `CopyIcon` / `CheckIcon` for copying, and `TrashIcon` for deletion. Keep the labels that distinguish a failed save from an invalid result.
 - Achievement definitions use typed icon names from `src/lib/achievement-icons.ts`; render them with `AchievementIcon` so cards, details, toasts, and notification history use the same symbol.
 
 ---

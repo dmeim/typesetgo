@@ -1,4 +1,4 @@
-import { Radio } from "lucide-react";
+import { BroadcastIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RoomButton } from "./RoomUI";
@@ -46,7 +46,7 @@ export default function HostCard() {
           disabled={!name.trim()}
           className="w-full"
         >
-          <Radio className="size-4 shrink-0" aria-hidden="true" />
+          <BroadcastIcon className="size-4 shrink-0" aria-hidden="true" />
           Start hosting
         </RoomButton>
       </form>

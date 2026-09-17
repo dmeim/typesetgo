@@ -1,4 +1,4 @@
-import { TriangleAlert } from "lucide-react";
+import { ArrowFatLineUpIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { computeStats, sanitizeTypingInput, getInputPosition, getNextTypingKey,
   hasCompletedPrompt, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
@@ -426,7 +426,7 @@ export default function TypingArea({
           className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
           style={{ color: tv.status.warning.DEFAULT }}
         >
-          <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+          <ArrowFatLineUpIcon className="size-5 shrink-0" aria-hidden="true" />
           <span>CAPS Lock is ON</span>
         </div>
       )}

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { motion, AnimatePresence, useReducedMotion, useIsPresent } from "framer-motion";
-import { X } from "lucide-react";
+import { XIcon } from "@phosphor-icons/react";
 import type { ThemeDefinition, ThemeVariantDefinition, ThemeMode } from "@/types/theme";
 import ThemeCard from "./ThemeCard";
 
@@ -62,7 +62,7 @@ export default function VariantDrawer({
                 aria-label={`Close ${themeData.name} variants`}
                 className="rounded p-2 text-muted-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
               >
-                <X size={16} aria-hidden="true" />
+                <XIcon size={16} aria-hidden="true" />
               </button>
             </div>
             <div

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { GraduationCap, Keyboard } from "lucide-react";
+import { GraduationCapIcon, KeyboardIcon } from "@phosphor-icons/react";
 import Header from "@/components/layout/Header";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
@@ -24,7 +24,7 @@ export default function Lessons() {
             className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
             style={{ backgroundColor: tv.interactive.accent.muted }}
           >
-            <GraduationCap
+            <GraduationCapIcon aria-hidden="true"
               className="w-8 h-8"
               style={{ color: tv.interactive.accent.DEFAULT }}
             />
@@ -53,7 +53,7 @@ export default function Lessons() {
               color: tv.text.inverse,
             }}
           >
-            <Keyboard className="size-4 shrink-0" aria-hidden="true" />
+            <KeyboardIcon className="size-4 shrink-0" aria-hidden="true" />
             Practice Typing
           </Link>
         </div>

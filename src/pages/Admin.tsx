@@ -1,4 +1,4 @@
-import { ArrowLeft, LoaderCircle, LogIn, LogOut } from "lucide-react";
+import { ArrowLeftIcon, CircleNotchIcon, SignInIcon, SignOutIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useConvex } from "convex/react";
@@ -192,7 +192,7 @@ export default function Admin() {
             className="inline-flex items-center gap-2 transition text-sm hover:opacity-100"
             style={{ color: tv.typing.default, opacity: 0.7 }}
           >
-            <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+            <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
             Back to Homepage
           </Link>
           {isLoggedIn && (
@@ -202,7 +202,7 @@ export default function Admin() {
               className="inline-flex items-center justify-center gap-2 text-sm transition hover:opacity-100"
               style={{ color: tv.text.secondary, opacity: 0.8 }}
             >
-              <LogOut className="size-4 shrink-0" aria-hidden="true" />
+              <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />
               Sign out
             </button>
           )}
@@ -259,7 +259,7 @@ export default function Admin() {
                 color: tv.text.inverse,
               }}
             >
-              {isLoggingIn ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <LogIn className="size-4 shrink-0" aria-hidden="true" />}
+              {isLoggingIn ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <SignInIcon className="size-4 shrink-0" aria-hidden="true" />}
               {isLoggingIn ? "Signing in..." : "Sign in"}
             </Button>
           </form>

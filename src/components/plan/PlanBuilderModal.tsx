@@ -16,7 +16,16 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2, ArrowUp, ArrowDown, Play, Plus, Save, X } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  DotsSixVerticalIcon,
+  FloppyDiskIcon,
+  PlayIcon,
+  PlusIcon,
+  TrashIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { PlanKeyboardSensor } from "./PlanKeyboardSensor";
 import type { Plan, PlanItem } from "@/types/plan";
 import { tv } from "@/lib/theme-vars";
@@ -76,7 +85,7 @@ function SortableStep({
           aria-label={`Reorder step ${index + 1}`}
           className="min-h-10 min-w-10 touch-none cursor-grab rounded focus-visible:outline-2"
         >
-          <GripVertical className="mx-auto size-4" />
+          <DotsSixVerticalIcon aria-hidden="true" className="mx-auto size-4" />
         </button>
         <button
           onClick={onSelect}
@@ -100,17 +109,17 @@ function SortableStep({
           aria-label={`Move step ${index + 1} up`}
           onClick={() => onMove(-1)}
         >
-          <ArrowUp className="size-4" />
+          <ArrowUpIcon aria-hidden="true" className="size-4" />
         </RoomButton>
         <RoomButton
           disabled={index === total - 1}
           aria-label={`Move step ${index + 1} down`}
           onClick={() => onMove(1)}
         >
-          <ArrowDown className="size-4" />
+          <ArrowDownIcon aria-hidden="true" className="size-4" />
         </RoomButton>
         <RoomButton aria-label={`Remove step ${index + 1}`} onClick={onRemove}>
-          <Trash2 className="size-4" />
+          <TrashIcon aria-hidden="true" className="size-4" />
         </RoomButton>
       </div>
     </li>
@@ -222,11 +231,11 @@ export default function PlanBuilderModal({
       footer={
         <footer className="flex flex-wrap justify-end gap-3">
           <RoomButton onClick={onClose}>
-            <X className="size-4 shrink-0" aria-hidden="true" />
+            <XIcon className="size-4 shrink-0" aria-hidden="true" />
             Cancel
           </RoomButton>
           <RoomButton selected disabled={!items.length} onClick={save}>
-            {isConnectMode ? <Save className="size-4 shrink-0" aria-hidden="true" /> : <Play className="size-4 shrink-0" aria-hidden="true" />}
+            {isConnectMode ? <FloppyDiskIcon className="size-4 shrink-0" aria-hidden="true" /> : <PlayIcon className="size-4 shrink-0" aria-hidden="true" />}
             {isConnectMode ? "Save plan" : "Start plan"}
           </RoomButton>
         </footer>
@@ -237,7 +246,7 @@ export default function PlanBuilderModal({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-medium">Steps ({items.length})</h2>
             <RoomButton onClick={addStep}>
-              <Plus className="size-4 shrink-0" aria-hidden="true" />
+              <PlusIcon className="size-4 shrink-0" aria-hidden="true" />
               Add step
             </RoomButton>
           </div>

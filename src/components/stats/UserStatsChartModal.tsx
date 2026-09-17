@@ -1,4 +1,4 @@
-import { ChartNoAxesColumn } from "lucide-react";
+import { ChartBarIcon } from "@phosphor-icons/react";
 import { useState, useMemo } from "react";
 import {
   CartesianGrid,
@@ -456,7 +456,7 @@ export default function UserStatsChartModal({
             className="flex flex-col items-center justify-center py-16"
           >
             <div className="text-3xl mb-2 opacity-50">
-              <ChartNoAxesColumn className="size-8 text-muted-foreground" aria-hidden="true" />
+              <ChartBarIcon className="size-8 text-muted-foreground" aria-hidden="true" />
             </div>
             <p className="text-sm text-muted-foreground">
               No valid tests in the recent history sample.

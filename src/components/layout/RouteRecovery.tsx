@@ -1,4 +1,4 @@
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeftIcon, ArrowsClockwiseIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import { Link, Outlet, useLocation, useNavigation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -44,12 +44,12 @@ function Recovery({ missing }: { missing: boolean }) {
         </p>
         <div className="flex flex-wrap gap-3">
           {!missing && <Button onClick={() => window.location.reload()}>
-            <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+            <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
             Reload page
           </Button>}
           <Button variant={missing ? "default" : "outline"} asChild>
             <Link to="/" className="inline-flex items-center justify-center gap-2">
-              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
               Back to practice
             </Link>
           </Button>

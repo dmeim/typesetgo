@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation } from "convex/react";
-import { Flag, LogIn, LoaderCircle, ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon, CircleNotchIcon, FlagCheckeredIcon, SignInIcon } from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import Header from "@/components/layout/Header";
@@ -34,7 +34,7 @@ function RaceEntryCard({ host }: { host: boolean }) {
   const valid =
     isLoaded && name.trim().length > 0 && (host || code.trim().length > 0);
   const prefix = host ? "host" : "join";
-  const Icon = host ? Flag : LogIn;
+  const Icon = host ? FlagCheckeredIcon : SignInIcon;
 
   return (
     <section
@@ -159,9 +159,9 @@ function RaceEntryCard({ host }: { host: boolean }) {
             color: host ? tv.ui.primaryForeground : tv.ui.foreground,
           }}
         >
-          {pending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
-            : host && !createdRoom ? <Flag className="size-4 shrink-0" aria-hidden="true" />
-              : <LogIn className="size-4 shrink-0" aria-hidden="true" />}
+          {pending ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
+            : host && !createdRoom ? <FlagCheckeredIcon className="size-4 shrink-0" aria-hidden="true" />
+              : <SignInIcon className="size-4 shrink-0" aria-hidden="true" />}
           {pending
             ? host
               ? "Creating…"
@@ -202,7 +202,7 @@ export default function Race() {
               className="inline-flex items-center gap-2 underline underline-offset-4 text-sm"
               style={{ color: tv.ui.mutedForeground }}
             >
-              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
               Back to Typing
             </Link>
           </p>

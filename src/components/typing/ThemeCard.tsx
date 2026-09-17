@@ -1,4 +1,4 @@
-import { Sun, Moon, ChevronDown } from "lucide-react";
+import { CaretDownIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import type { ThemeDefinition, ThemeVariantDefinition, ThemeMode } from "@/types/theme";
 
 interface ThemeCardProps {
@@ -72,7 +72,7 @@ export default function ThemeCard({
           {isMultiVariant && (
             <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
               {matchingVariantCount ?? variantCount}
-              <ChevronDown size={14} className={isExpanded ? "rotate-180" : ""} aria-hidden="true" />
+              <CaretDownIcon size={14} className={isExpanded ? "rotate-180" : ""} aria-hidden="true" />
             </span>
           )}
         </span>
@@ -93,7 +93,7 @@ export default function ThemeCard({
             title={variant.light ? "Light mode" : "Light mode unavailable"}
             className="flex min-h-10 flex-1 items-center justify-center hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:opacity-40"
           >
-            <Sun size={16} aria-hidden="true" />
+            <SunIcon size={16} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -106,7 +106,7 @@ export default function ThemeCard({
             aria-pressed={selectedMode ? isSelected && selectedMode === "dark" : undefined}
             className="flex min-h-10 flex-1 items-center justify-center hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
-            <Moon size={16} aria-hidden="true" />
+            <MoonIcon size={16} aria-hidden="true" />
           </button>
         </div>
       )}

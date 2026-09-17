@@ -1,4 +1,11 @@
-import { TriangleAlert, LogOut, RefreshCw, ArrowLeft, ArrowBigRight, ChartNoAxesColumn } from "lucide-react";
+import {
+  ArrowFatLineUpIcon,
+  ArrowFatRightIcon,
+  ArrowLeftIcon,
+  ArrowsClockwiseIcon,
+  ChartBarIcon,
+  SignOutIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useMutation, useQuery } from "convex/react";
@@ -1713,7 +1720,7 @@ export default function TypingPractice({
 
             {!promptReady && <div role="status" className="py-8 text-center" style={{ color: tv.text.secondary }}>
               {dataset.status === "error" ? <>Could not load this prompt. <button type="button" onClick={() => { if (settings.mode === "quote") void fetchQuotesManifest().then(setQuotesManifest); dataset.retry(); }} className="inline-flex items-center justify-center gap-2">
-                <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+                <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
                 Retry
               </button></>
                 : settings.mode === "plan" ? "Waiting for the host to choose a plan step." : "Loading prompt…"}
@@ -1734,7 +1741,7 @@ export default function TypingPractice({
                 className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
                 style={{ color: tv.status.warning.DEFAULT }}
               >
-                <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+                <ArrowFatLineUpIcon className="size-5 shrink-0" aria-hidden="true" />
                 <span>CAPS Lock is ON</span>
               </div>
             )}
@@ -1848,7 +1855,7 @@ export default function TypingPractice({
               className="inline-flex items-center justify-center gap-2 px-4 py-2 transition-colors hover:opacity-80"
               style={{ color: tv.text.secondary }}
             >
-              <LogOut className="size-4 shrink-0" aria-hidden="true" />
+              <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />
               Exit Plan
             </button>
           </div>
@@ -1884,7 +1891,7 @@ export default function TypingPractice({
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors hover:opacity-90"
               style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}
             >
-              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
               Previous
             </button>
           )}
@@ -1894,8 +1901,8 @@ export default function TypingPractice({
             style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
           >
             {planIndex < plan.length - 1
-              ? <ArrowBigRight className="size-4 shrink-0" aria-hidden="true" />
-              : <ChartNoAxesColumn className="size-4 shrink-0" aria-hidden="true" />}
+              ? <ArrowFatRightIcon className="size-4 shrink-0" aria-hidden="true" />
+              : <ChartBarIcon className="size-4 shrink-0" aria-hidden="true" />}
             {planIndex < plan.length - 1 ? "Next" : "View Results"}
           </button>
         </div>

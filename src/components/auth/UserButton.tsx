@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
-import { ChevronDown, LogIn, LogOut, UserRound, RefreshCw } from "lucide-react";
+import { ArrowsClockwiseIcon, CaretDownIcon, SignInIcon, SignOutIcon, UserGearIcon, UserIcon } from "@phosphor-icons/react";
 import { toast } from "@/lib/toast-manager";
 import { api } from "../../../convex/_generated/api";
 import { useAppAuth } from "@/components/layout/useAppAuth";
@@ -44,7 +44,7 @@ export default function UserButton({ inactive = false }: { inactive?: boolean })
       <Popover open={!inactive && unavailableOpen} onOpenChange={setUnavailableOpen}>
         <PopoverTrigger asChild>
           <Button variant="ghost" className="h-10 gap-2 px-2" aria-label="Account unavailable">
-            <UserRound className="size-5" aria-hidden="true" /><span className="hidden sm:inline">Guest</span>
+            <UserIcon className="size-5" aria-hidden="true" /><span className="hidden sm:inline">Guest</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" aria-labelledby="account-unavailable-title" className="w-72 max-w-[calc(100vw-1.5rem)] space-y-3">
@@ -55,7 +55,7 @@ export default function UserButton({ inactive = false }: { inactive?: boolean })
               : "You can practice as a guest. Sign-in and saved account progress aren’t available in this session."}
           </p>
           {unavailableReason === "load-failed" && <Button variant="outline" onClick={() => window.location.reload()}>
-            <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+            <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
             Reload sign-in
           </Button>}
         </PopoverContent>
@@ -64,13 +64,13 @@ export default function UserButton({ inactive = false }: { inactive?: boolean })
   }
 
   if (!isLoaded) {
-    return <span role="status" className="inline-flex h-10 items-center gap-2 px-2 text-sm text-muted-foreground"><UserRound className="size-5" aria-hidden="true" /><span className="sr-only sm:not-sr-only">Loading account…</span></span>;
+    return <span role="status" className="inline-flex h-10 items-center gap-2 px-2 text-sm text-muted-foreground"><UserIcon className="size-5" aria-hidden="true" /><span className="sr-only sm:not-sr-only">Loading account…</span></span>;
   }
 
   if (!isSignedIn) {
     return (
       <Button variant="ghost" className="h-10 gap-2 px-2" aria-label="Sign in" onClick={() => void runAction(openSignIn, "Sign-in couldn’t open. Please try again.")}>
-        <LogIn className="size-5" aria-hidden="true" /><span className="hidden sm:inline">Sign in</span>
+        <SignInIcon className="size-5" aria-hidden="true" /><span className="hidden sm:inline">Sign in</span>
       </Button>
     );
   }
@@ -82,15 +82,15 @@ export default function UserButton({ inactive = false }: { inactive?: boolean })
         <Button variant="ghost" className="h-10 max-w-full gap-2 px-2" aria-label={`Account: ${name}`}>
           {user?.imageUrl ? <img src={user.imageUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" /> : <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">{name[0]?.toUpperCase() || "U"}</span>}
           <span className="hidden max-w-24 truncate text-sm sm:inline">{name}</span>
-          <ChevronDown className="hidden size-4 shrink-0 sm:block" aria-hidden="true" />
+          <CaretDownIcon className="hidden size-4 shrink-0 sm:block" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <div className="min-w-0 px-3 py-2"><p className="break-words text-sm font-medium">{name}</p><p className="truncate text-xs text-muted-foreground">{user?.primaryEmailAddress?.emailAddress}</p></div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void runAction(openUserProfile, "Account settings couldn’t open. Please try again.")}><UserRound className="size-4" aria-hidden="true" />Account settings</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void runAction(openUserProfile, "Account settings couldn’t open. Please try again.")}><UserGearIcon className="size-4" aria-hidden="true" />Account settings</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void runAction(signOut, "Sign-out didn’t finish. Please try again.")}><LogOut className="size-4" aria-hidden="true" />Sign out</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void runAction(signOut, "Sign-out didn’t finish. Please try again.")}><SignOutIcon className="size-4" aria-hidden="true" />Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

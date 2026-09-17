@@ -39,7 +39,7 @@ Tailwind v4 is integrated via `@tailwindcss/postcss` rather than the older plugi
 |---------|---------|------|
 | Shadcn/UI | 4.x (CLI) | Component system (new-york style, CSS variables, neutral base color) |
 | Radix UI | various | Accessible headless primitives |
-| Lucide React | latest | Icon library |
+| Phosphor React | 2.1.10 | Unified UI icon library (`@phosphor-icons/react`); bold default, regular for lighter artwork |
 | class-variance-authority | 0.7 | Component variant API |
 | clsx | 2.x | Conditional class merging |
 | tailwind-merge | 3.x | Tailwind-aware class deduplication |

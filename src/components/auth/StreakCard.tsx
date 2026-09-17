@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import { FireIcon } from "@phosphor-icons/react";
 import type { Theme } from "@/lib/typing-constants";
 
 interface StreakCardProps {
@@ -25,7 +25,7 @@ export default function StreakCard({
           opacity: currentStreak > 0 ? 1 : 0.5,
         }}
       >
-        <Flame className="size-9" style={{ color: currentStreak > 0 ? theme.buttonSelected : theme.defaultText }} aria-hidden="true" />
+        <FireIcon className="size-9" style={{ color: currentStreak > 0 ? theme.buttonSelected : theme.defaultText }} aria-hidden="true" />
       </div>
 
       {/* Current Streak Number */}

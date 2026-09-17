@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ghost } from "lucide-react";
+import { GhostIcon } from "@phosphor-icons/react";
 import type { SettingsState } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
 import GhostWriterSettingsModal from "@/components/settings/GhostWriterSettingsModal";
@@ -34,7 +34,7 @@ export default function GhostWriterController({
         aria-haspopup="dialog"
         title="ghost writer settings"
       >
-        <Ghost size="1em" aria-hidden="true" />
+        <GhostIcon size="1em" aria-hidden="true" />
       </button>
 
       <GhostWriterSettingsModal

@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { RotateCw, LogOut, Trophy, ArrowLeft, LoaderCircle, Save } from "lucide-react";
+import {
+  ArrowClockwiseIcon,
+  ArrowLeftIcon,
+  CircleNotchIcon,
+  FloppyDiskIcon,
+  SignOutIcon,
+  TrophyIcon,
+} from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { Podium } from "@/components/race";
@@ -109,7 +116,7 @@ export default function RaceResults() {
                 )
               }
             >
-              {pending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <Save className="size-4 shrink-0" aria-hidden="true" />}
+              {pending ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <FloppyDiskIcon className="size-4 shrink-0" aria-hidden="true" />}
               {pending ? "Preparing…" : "Prepare results"}
             </button>
           ) : (
@@ -121,7 +128,7 @@ export default function RaceResults() {
                   : `/race/lobby/${room._id}`
               }
             >
-              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
               <span>Return to {room.raceStartTime ? "race" : "lobby"}</span>
             </Link>
           )}
@@ -130,7 +137,7 @@ export default function RaceResults() {
             className="inline-flex items-center justify-center gap-2 underline"
             onClick={() => void leave()}
           >
-            {isLeaving ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <LogOut className="size-4 shrink-0" aria-hidden="true" />}
+            {isLeaving ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />}
             {isLeaving ? "Leaving…" : "Leave Race"}
           </button>
         </div>
@@ -145,7 +152,7 @@ export default function RaceResults() {
       <div className="max-w-5xl mx-auto min-w-0">
         <header className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h1 className="text-2xl font-bold inline-flex items-center gap-2">
-            <Trophy size={24} />
+            <TrophyIcon aria-hidden="true" size={24} />
             Race Results
           </h1>
           <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
@@ -242,7 +249,7 @@ export default function RaceResults() {
                 color: tv.ui.primaryForeground,
               }}
             >
-              <RotateCw size={18} />
+              <ArrowClockwiseIcon aria-hidden="true" size={18} />
               {pending ? "Resetting…" : "Race Again"}
             </button>
           ) : participant?.isConnected ? (
@@ -259,7 +266,7 @@ export default function RaceResults() {
             className="inline-flex items-center gap-2 px-4 py-3 rounded-lg disabled:opacity-50"
             style={{ backgroundColor: tv.ui.secondary }}
           >
-            <LogOut size={18} />
+            <SignOutIcon aria-hidden="true" size={18} />
             {isLeaving ? "Leaving…" : "Leave Race"}
           </button>
         </div>

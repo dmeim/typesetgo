@@ -1,5 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Shuffle, ChevronsDownUp, ChevronsUpDown, RefreshCw, RotateCw } from "lucide-react";
+import {
+  ArrowClockwiseIcon,
+  ArrowsClockwiseIcon,
+  ArrowsInLineVerticalIcon,
+  ArrowsOutLineVerticalIcon,
+  CaretDownIcon,
+  ShuffleIcon,
+} from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import {
   fetchThemeCatalog,
@@ -194,7 +201,7 @@ export default function PracticeThemePicker({
                 }}
                 className="rounded-md border border-input p-2 text-foreground hover:bg-accent disabled:opacity-50"
               >
-                <Shuffle size={18} />
+                <ShuffleIcon aria-hidden="true" size={18} />
               </button>
               {!normalizedQuery && (
                 <div className="flex gap-2">
@@ -203,7 +210,7 @@ export default function PracticeThemePicker({
                     onClick={() => setCollapsed(new Set())}
                     className="inline-flex items-center justify-center gap-2 rounded-md border border-input px-2 py-2 text-xs text-foreground hover:bg-accent"
                   >
-                    <ChevronsUpDown className="size-4 shrink-0" aria-hidden="true" />
+                    <ArrowsOutLineVerticalIcon className="size-4 shrink-0" aria-hidden="true" />
                     Expand all
                   </button>
                   <button
@@ -214,7 +221,7 @@ export default function PracticeThemePicker({
                     }}
                     className="inline-flex items-center justify-center gap-2 rounded-md border border-input px-2 py-2 text-xs text-foreground hover:bg-accent"
                   >
-                    <ChevronsDownUp className="size-4 shrink-0" aria-hidden="true" />
+                    <ArrowsInLineVerticalIcon className="size-4 shrink-0" aria-hidden="true" />
                     Collapse all
                   </button>
                 </div>
@@ -237,7 +244,7 @@ export default function PracticeThemePicker({
                     void loadCatalog(true);
                   }}
                 >
-                  <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+                  <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
                   Retry
                 </button>
               </div>
@@ -276,7 +283,7 @@ export default function PracticeThemePicker({
                       <span>
                         {group.displayName} <span className="text-muted-foreground">({group.themes.length})</span>
                       </span>
-                      <ChevronDown size={16} className={open ? "rotate-180" : ""} aria-hidden="true" />
+                      <CaretDownIcon size={16} className={open ? "rotate-180" : ""} aria-hidden="true" />
                     </button>
                     {open && (
                       <div
@@ -364,7 +371,7 @@ export default function PracticeThemePicker({
                   className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm text-foreground"
                 >
                   Current theme details
-                  <ChevronDown size={16} className={detailsOpen ? "rotate-180" : ""} />
+                  <CaretDownIcon aria-hidden="true" size={16} className={detailsOpen ? "rotate-180" : ""} />
                 </button>
                 {detailsOpen && (
                   <div
@@ -401,7 +408,7 @@ export default function PracticeThemePicker({
                       }}
                       className="inline-flex items-center justify-center gap-2 rounded-md border border-input px-3 py-2 text-foreground"
                     >
-                      <RotateCw className="size-4 shrink-0" aria-hidden="true" />
+                      <ArrowClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
                       Reset to TypeSetGo Theme
                     </button>
                   </div>

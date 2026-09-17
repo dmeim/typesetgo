@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowBigRight } from "lucide-react";
+import { ArrowFatRightIcon, ArrowLeftIcon } from "@phosphor-icons/react";
 import { GLOBAL_COLORS } from "@/lib/colors";
 
 interface PlanNavigationProps {
@@ -35,7 +35,7 @@ export default function PlanNavigation({
         }`}
         title="Previous Step"
       >
-        <ArrowLeft className="size-5 shrink-0 transition-transform group-hover:-translate-x-1" aria-hidden="true" />
+        <ArrowLeftIcon className="size-5 shrink-0 transition-transform group-hover:-translate-x-1" aria-hidden="true" />
         Prev
       </button>
 
@@ -52,7 +52,7 @@ export default function PlanNavigation({
         }`}
         title="Next Step"
       >
-        <ArrowBigRight className="size-5 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+        <ArrowFatRightIcon className="size-5 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden="true" />
         {nextLabel || "Next"}
         <div
           className="absolute bottom-0 left-0 h-1 w-full scale-x-0 transition-transform duration-200 group-hover:scale-x-100 rounded-b-lg"

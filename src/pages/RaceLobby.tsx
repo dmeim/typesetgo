@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Copy, CopyCheck, Settings, Users, LogOut, LogIn, RefreshCw } from "lucide-react";
+import {
+  ArrowsClockwiseIcon,
+  CheckIcon,
+  CopyIcon,
+  SignInIcon,
+  SignOutIcon,
+  SlidersHorizontalIcon,
+  UsersIcon,
+} from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { PlayerCard } from "@/components/race";
@@ -173,7 +181,7 @@ export default function RaceLobby() {
           className="inline-flex items-center gap-2 underline"
           to={`/race?code=${encodeURIComponent(room.code)}`}
         >
-          <LogIn className="size-4 shrink-0" aria-hidden="true" />
+          <SignInIcon className="size-4 shrink-0" aria-hidden="true" />
           <span>Join room {room.code}</span>
         </Link>
       </RaceState>
@@ -202,7 +210,7 @@ export default function RaceLobby() {
             className="inline-flex items-center gap-2 min-h-10 px-3 rounded-lg border disabled:opacity-50"
             style={{ borderColor: tv.ui.border }}
           >
-            <LogOut size={16} aria-hidden="true" />
+            <SignOutIcon size={16} aria-hidden="true" />
             {isLeaving ? "Leaving…" : "Leave Race"}
           </button>
         </header>
@@ -222,7 +230,7 @@ export default function RaceLobby() {
             className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border"
             style={{ borderColor: tv.ui.border, backgroundColor: tv.ui.card }}
           >
-            {copied ? <CopyCheck className="size-4 shrink-0" aria-hidden="true" /> : <Copy className="size-4 shrink-0" aria-hidden="true" />}
+            {copied ? <CheckIcon className="size-4 shrink-0" aria-hidden="true" /> : <CopyIcon className="size-4 shrink-0" aria-hidden="true" />}
             <span className="text-sm">Room code</span>
             <span
               className="font-mono font-bold tracking-widest"
@@ -256,7 +264,7 @@ export default function RaceLobby() {
               }}
               className="inline-flex items-center justify-center gap-2 underline mb-4 disabled:opacity-50"
             >
-              <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+              <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
               Retry race start
             </button>
           </div>
@@ -270,7 +278,7 @@ export default function RaceLobby() {
               style={{ borderColor: tv.ui.border, backgroundColor: tv.ui.card }}
             >
               <h2 className="font-semibold text-lg flex items-center gap-2 mb-5">
-                <Settings size={18} />
+                <SlidersHorizontalIcon aria-hidden="true" size={18} />
                 Race Settings
               </h2>
               <fieldset disabled={locked} className="mb-6">
@@ -351,7 +359,7 @@ export default function RaceLobby() {
           >
             <div className="flex flex-wrap justify-between gap-2 mb-5">
               <h2 className="font-semibold text-lg flex items-center gap-2">
-                <Users size={18} />
+                <UsersIcon aria-hidden="true" size={18} />
                 Racers ({connectedParticipants.length})
               </h2>
               <span

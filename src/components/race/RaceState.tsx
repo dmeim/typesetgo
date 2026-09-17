@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon, CircleNotchIcon } from "@phosphor-icons/react";
 import { tv } from "@/lib/theme-vars";
 
 export function RaceError({ children }: { children: ReactNode }) {
@@ -33,7 +33,7 @@ export default function RaceState({
     >
       <div className="w-full max-w-md text-center space-y-4">
         {loading && (
-          <Loader2
+          <CircleNotchIcon
             aria-hidden="true"
             className="mx-auto motion-safe:animate-spin"
           />
@@ -53,7 +53,7 @@ export default function RaceState({
               className="inline-flex items-center gap-2 underline underline-offset-4"
               to="/race"
             >
-              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
               Back to Race
             </Link>
           ))}

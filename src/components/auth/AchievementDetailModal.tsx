@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import AchievementIcon from "@/components/auth/AchievementIcon";
 import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -98,12 +98,12 @@ export default function AchievementDetailModal({ achievements, initialIndex, onC
             <div className="flex items-center justify-between gap-2">
               <Button
                 variant="outline" type="button" aria-label="Previous achievement" disabled={currentIndex === 0} onClick={() => api?.scrollPrev(jump)} className="flex min-h-10 items-center gap-1 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring">
-                <ChevronLeft aria-hidden="true" className="size-4" />Prev
+                <CaretLeftIcon aria-hidden="true" className="size-4" />Prev
               </Button>
               <p role="status" className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">{currentIndex + 1} / {achievements.length}</p>
               <Button
                 variant="outline" type="button" aria-label="Next achievement" disabled={currentIndex === achievements.length - 1} onClick={() => api?.scrollNext(jump)} className="flex min-h-10 items-center gap-1 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring">
-                <ChevronRight aria-hidden="true" className="size-4" />Next
+                <CaretRightIcon aria-hidden="true" className="size-4" />Next
               </Button>
             </div>
             <NativeSelect aria-label="Choose achievement" value={currentIndex} onChange={(event) => api?.scrollTo(Number(event.target.value), jump)} className="min-w-0 w-full rounded-md border border-input bg-background pl-2 pr-9 py-2 text-sm">

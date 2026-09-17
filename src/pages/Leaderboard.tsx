@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
-import { Trophy, ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon, TrophyIcon } from "@phosphor-icons/react";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption } from "@/components/ui/table";
 import { api } from "../../convex/_generated/api";
 
@@ -153,10 +153,10 @@ export default function Leaderboard() {
     <div className="min-h-[100dvh] bg-background font-mono text-foreground">
       <header className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-4 py-5 md:px-6">
         <Link to="/" className="inline-flex items-center gap-2 rounded text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
-          <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+          <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
           Homepage
         </Link>
-        <h1 className="flex items-center gap-2 text-xl font-semibold"><Trophy aria-hidden="true" className="size-5" />Leaderboard</h1>
+        <h1 className="flex items-center gap-2 text-xl font-semibold"><TrophyIcon aria-hidden="true" className="size-5" />Leaderboard</h1>
       </header>
       <main className="mx-auto max-w-[1600px] px-4 pb-6 md:px-6">
         <p className="mb-5 text-sm text-muted-foreground">

@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 import { HostCard, JoinCard } from "@/components/connect";
 import { RoomPage } from "@/components/connect/RoomUI";
@@ -10,7 +10,7 @@ export default function Connect() {
       <div className="mx-auto max-w-4xl space-y-8 py-4 sm:py-12">
         <header className="space-y-3">
           <Link to="/" className="inline-flex items-center gap-2 rounded py-2 text-sm">
-            <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+            <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
             Back to typing
           </Link>
           <h1 className="text-3xl font-semibold">Connect</h1>

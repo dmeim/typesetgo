@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Clock, Flag, LogOut, ArrowLeft, LoaderCircle, LogIn, Play, RefreshCw, RotateCw, SaveOff } from "lucide-react";
+import {
+  ArrowClockwiseIcon,
+  ArrowLeftIcon,
+  ArrowsClockwiseIcon,
+  CircleNotchIcon,
+  FlagCheckeredIcon,
+  PlayIcon,
+  SignInIcon,
+  SignOutIcon,
+  TimerIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { RaceCourse } from "@/components/race";
@@ -58,7 +69,7 @@ export default function RaceActive() {
           className="inline-flex items-center gap-2 underline"
           to={`/race?code=${encodeURIComponent(room.code)}`}
         >
-          <LogIn className="size-4 shrink-0" aria-hidden="true" />
+          <SignInIcon className="size-4 shrink-0" aria-hidden="true" />
           <span>Rejoin room {room.code}</span>
         </Link>
       </RaceState>
@@ -67,7 +78,7 @@ export default function RaceActive() {
     return (
       <RaceState title="The race has not started">
         <Link className="inline-flex items-center gap-2 underline" to={`/race/lobby/${room._id}`}>
-          <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+          <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
           Return to lobby
         </Link>
       </RaceState>
@@ -257,7 +268,7 @@ function RaceAttempt({
       >
         <div>
           <h1 className="flex items-center gap-2 font-bold">
-            <Flag size={18} />
+            <FlagCheckeredIcon aria-hidden="true" size={18} />
             Race in progress
           </h1>
           <p className="text-sm mt-1" style={{ color: tv.ui.mutedForeground }}>
@@ -270,7 +281,7 @@ function RaceAttempt({
               className="flex items-center gap-1 text-sm"
               style={{ color: tv.ui.mutedForeground }}
             >
-              <Clock size={16} />
+              <TimerIcon aria-hidden="true" size={16} />
               {remaining}s remaining
             </span>
           )}
@@ -285,7 +296,7 @@ function RaceAttempt({
                 className="inline-flex items-center gap-2 border rounded-lg px-3 py-2"
                 style={{ borderColor: tv.ui.border }}
               >
-                <LogOut size={16} />
+                <SignOutIcon aria-hidden="true" size={16} />
                 Leave Race
               </button>
             </DialogTrigger>
@@ -309,7 +320,7 @@ function RaceAttempt({
                   style={{ backgroundColor: tv.ui.secondary }}
                   onClick={() => setShowLeave(false)}
                 >
-                  <Play className="size-4 shrink-0" aria-hidden="true" />
+                  <PlayIcon className="size-4 shrink-0" aria-hidden="true" />
                   Keep Racing
                 </button>
                 <button
@@ -324,7 +335,7 @@ function RaceAttempt({
                     await leave();
                   }}
                 >
-                  {isLeaving ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <LogOut className="size-4 shrink-0" aria-hidden="true" />}
+                  {isLeaving ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />}
                   {isLeaving ? "Leaving…" : "Leave Race"}
                 </button>
               </DialogFooter>
@@ -343,14 +354,14 @@ function RaceAttempt({
               void finishRace();
             }}
           >
-            <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+            <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
             Retry results
           </button>
         )}
         <RaceError>{progressError}</RaceError>
         {progressError && (
           <button className="inline-flex items-center justify-center gap-2 underline" onClick={() => void flush()}>
-            <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+            <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
             Retry sync
           </button>
         )}
@@ -389,7 +400,7 @@ function RaceAttempt({
                 color: tv.ui.primaryForeground,
               }}
             >
-              {resetPending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <RotateCw className="size-4 shrink-0" aria-hidden="true" />}
+              {resetPending ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <ArrowClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />}
               {resetPending ? "Restarting…" : "Restart my attempt"}
             </button>
           </div>
@@ -415,7 +426,7 @@ function RaceAttempt({
                 className="inline-flex items-center justify-center gap-2 underline"
                 onClick={() => void handleFinish(finishStats)}
               >
-                <SaveOff className="size-4 shrink-0" aria-hidden="true" />
+                <WarningCircleIcon className="size-4 shrink-0" aria-hidden="true" />
                 Retry saving finish
               </button>
             )}

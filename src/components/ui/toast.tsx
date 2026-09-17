@@ -1,6 +1,15 @@
 import type { CSSProperties } from "react";
 import { Toast as ToastPrimitive } from "@base-ui/react/toast";
-import { CircleCheckIcon, InfoIcon, Loader2Icon, CircleXIcon, TriangleAlertIcon, TrophyIcon, WrenchIcon, XIcon } from "lucide-react";
+import {
+  CheckCircleIcon,
+  CircleNotchIcon,
+  InfoIcon,
+  TrophyIcon,
+  WarningIcon,
+  WrenchIcon,
+  XCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import AchievementIcon from "@/components/auth/AchievementIcon";
 import { Button } from "@/components/ui/button";
 import { overlaySurface } from "@/components/ui/overlay-styles";
@@ -58,8 +67,8 @@ function ToastIcon({ item }: { item: ToastPrimitive.Root.ToastObject<ToastData> 
   }
   const type = item.type;
   const Icon = achievement ? TrophyIcon : item.data?.notificationType === "maintenance" ? WrenchIcon
-    : type === "success" ? CircleCheckIcon : type === "warning" ? TriangleAlertIcon
-      : type === "error" ? CircleXIcon : type === "loading" ? Loader2Icon : InfoIcon;
+    : type === "success" ? CheckCircleIcon : type === "warning" ? WarningIcon
+      : type === "error" ? XCircleIcon : type === "loading" ? CircleNotchIcon : InfoIcon;
   const color = type === "success" ? tv.status.success.DEFAULT : type === "warning" ? tv.status.warning.DEFAULT
     : type === "error" ? tv.ui.destructive : tv.ui.primary;
   return <Icon aria-hidden="true" className={cn("size-4 shrink-0", type === "loading" && "motion-safe:animate-spin")} style={{ color }} />;

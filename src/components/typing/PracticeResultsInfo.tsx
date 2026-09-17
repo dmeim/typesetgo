@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Info } from "lucide-react";
+import { InfoIcon } from "@phosphor-icons/react";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function PracticeResultsInfo({ children }: { children: ReactNode }) {
@@ -48,7 +48,7 @@ export default function PracticeResultsInfo({ children }: { children: ReactNode 
                 setMode((current) => current === "pinned" ? "closed" : "pinned");
               }}
             >
-              <Info className="size-4" aria-hidden="true" />
+              <InfoIcon className="size-4" aria-hidden="true" />
             </button>
           </PopoverTrigger>
         </div>

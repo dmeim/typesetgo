@@ -1,5 +1,15 @@
 import { useId, useRef, useState } from "react";
-import { BellIcon, TrophyIcon, WrenchIcon, InfoIcon, TriangleAlertIcon, CircleXIcon, CheckCheckIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  BellIcon,
+  ChecksIcon,
+  InfoIcon,
+  TrashIcon,
+  TrophyIcon,
+  WarningIcon,
+  WrenchIcon,
+  XCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useAppAuth } from "@/components/layout/useAppAuth";
@@ -19,7 +29,7 @@ function NotificationIcon({ notification }: { notification: Notification }) {
   if (achievement) {
     return <span className="mt-0.5" style={{ color }}><AchievementIcon icon={achievement.icon} className="size-4" /></span>;
   }
-  const Icon = ({ achievement: TrophyIcon, maintenance: WrenchIcon, warning: TriangleAlertIcon, error: CircleXIcon, info: InfoIcon })[notification.type] ?? InfoIcon;
+  const Icon = ({ achievement: TrophyIcon, maintenance: WrenchIcon, warning: WarningIcon, error: XCircleIcon, info: InfoIcon })[notification.type] ?? InfoIcon;
   return <Icon className="mt-0.5 size-4 shrink-0" style={{ color }} aria-hidden="true" />;
 }
 
@@ -82,8 +92,8 @@ export default function NotificationCenter({ disabled = false }: { disabled?: bo
           {notifications.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">No notifications yet</p> : (
             <>
               <div className="flex flex-wrap gap-1 border-b border-border p-2">
-                {unreadCount > 0 && <Button variant="ghost" size="sm" onClick={() => { markAllAsRead(); headingRef.current?.focus(); }}><CheckCheckIcon className="size-4" aria-hidden="true" />Mark all read</Button>}
-                <Button variant="ghost" size="sm" onClick={() => { clearAll(); headingRef.current?.focus(); }}><Trash2Icon className="size-4" aria-hidden="true" />Clear all</Button>
+                {unreadCount > 0 && <Button variant="ghost" size="sm" onClick={() => { markAllAsRead(); headingRef.current?.focus(); }}><ChecksIcon className="size-4" aria-hidden="true" />Mark all read</Button>}
+                <Button variant="ghost" size="sm" onClick={() => { clearAll(); headingRef.current?.focus(); }}><TrashIcon className="size-4" aria-hidden="true" />Clear all</Button>
               </div>
               <ul aria-label="Notifications" className="max-h-72 overflow-y-auto overscroll-contain p-1">
                 {notifications.map((notification) => (

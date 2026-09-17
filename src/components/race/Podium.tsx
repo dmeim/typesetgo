@@ -1,4 +1,4 @@
-import { Trophy, Medal, Award } from "lucide-react";
+import { MedalIcon, MedalMilitaryIcon, TrophyIcon } from "@phosphor-icons/react";
 import { tv } from "@/lib/theme-vars";
 
 interface RaceRanking {
@@ -42,10 +42,10 @@ export default function Podium({
               {podiumOrder.map((racer) => {
                 const Icon =
                   racer.position === 1
-                    ? Trophy
+                    ? TrophyIcon
                     : racer.position === 2
-                      ? Medal
-                      : Award;
+                      ? MedalIcon
+                      : MedalMilitaryIcon;
                 const color =
                   racer.position === 1
                     ? tv.status.warning.DEFAULT
