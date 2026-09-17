@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Shuffle } from "lucide-react";
+import { ChevronDown, Shuffle, ChevronsDownUp, ChevronsUpDown, RefreshCw, RotateCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   fetchThemeCatalog,
@@ -201,8 +201,9 @@ export default function PracticeThemePicker({
                   <button
                     type="button"
                     onClick={() => setCollapsed(new Set())}
-                    className="rounded-md border border-input px-2 py-2 text-xs text-foreground hover:bg-accent"
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-input px-2 py-2 text-xs text-foreground hover:bg-accent"
                   >
+                    <ChevronsUpDown className="size-4 shrink-0" aria-hidden="true" />
                     Expand all
                   </button>
                   <button
@@ -211,8 +212,9 @@ export default function PracticeThemePicker({
                       setCollapsed(new Set(Object.keys(CATEGORY_CONFIG) as ThemeCategory[]));
                       setExpandedThemeId(null);
                     }}
-                    className="rounded-md border border-input px-2 py-2 text-xs text-foreground hover:bg-accent"
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-input px-2 py-2 text-xs text-foreground hover:bg-accent"
                   >
+                    <ChevronsDownUp className="size-4 shrink-0" aria-hidden="true" />
                     Collapse all
                   </button>
                 </div>
@@ -230,11 +232,12 @@ export default function PracticeThemePicker({
                   : "Themes could not be loaded."}
                 <button
                   type="button"
-                  className="rounded border px-3 py-1"
+                  className="inline-flex items-center justify-center gap-2 rounded border px-3 py-1"
                   onClick={() => {
                     void loadCatalog(true);
                   }}
                 >
+                  <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
                   Retry
                 </button>
               </div>
@@ -396,8 +399,9 @@ export default function PracticeThemePicker({
                           setSelectionError("The default theme could not be loaded. Try again."),
                         );
                       }}
-                      className="rounded-md border border-input px-3 py-2 text-foreground"
+                      className="inline-flex items-center justify-center gap-2 rounded-md border border-input px-3 py-2 text-foreground"
                     >
+                      <RotateCw className="size-4 shrink-0" aria-hidden="true" />
                       Reset to TypeSetGo Theme
                     </button>
                   </div>

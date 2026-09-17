@@ -240,6 +240,10 @@ Rules:
   - external first, internal second,
   - prefer `@/` alias for local source imports.
 - Prefer existing UI primitives under `@/components/ui/` before introducing new base components.
+- Use `lucide-react` for UI icons. Custom artwork or text glyphs are fallbacks only when Lucide has no suitable icon; logos, profile photos, and player-selected avatars remain content.
+- Place action icons before their text with `gap-2`; hide decorative icons with `aria-hidden="true"` and give icon-only controls an accessible label. Disclosure indicators may stay at the trailing edge of selects and menus.
+- Keep icon families consistent across screens and states: `Save` / `SaveCheck` / `SaveOff` for save actions, `LoaderCircle` while pending, `RotateCw` for repeat/reset, `RefreshCw` for refresh/retry, `ArrowBigRight` for advancing tests, `ArrowLeft` for back navigation, `LogOut` for leaving a room, `Copy` / `CopyCheck` for copying, and `Trash2` for deletion.
+- Achievement definitions use typed icon names from `src/lib/achievement-icons.ts`; render them with `AchievementIcon` so cards, details, toasts, and notification history use the same symbol.
 
 ---
 

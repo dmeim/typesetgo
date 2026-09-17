@@ -1,3 +1,4 @@
+import { LoaderCircle, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,10 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
           }}>
             <AlertDialogTrigger asChild>
               <Button
-                variant="outline" type="button" className={`${actionClass} text-destructive`}>Delete test</Button>
+                variant="outline" type="button" className={`${actionClass} text-destructive`}>
+                <Trash2 className="size-4 shrink-0" aria-hidden="true" />
+                Delete test
+              </Button>
             </AlertDialogTrigger>
             <AlertDialogContent
               className="max-h-[calc(100dvh-2rem)] overflow-y-auto bg-card text-card-foreground shadow-none sm:max-w-sm"
@@ -106,7 +110,10 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
               {deleteError && <p role="alert" className="text-sm text-destructive">{deleteError}</p>}
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isDeleting} className={actionClass}>Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" disabled={isDeleting} onClick={(event) => { event.preventDefault(); void handleDelete(); }} className={actionClass}>{isDeleting ? "Deleting…" : "Confirm delete"}</AlertDialogAction>
+                <AlertDialogAction variant="destructive" disabled={isDeleting} onClick={(event) => { event.preventDefault(); void handleDelete(); }} className={actionClass}>
+                  {isDeleting ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <Trash2 className="size-4 shrink-0" aria-hidden="true" />}
+                  {isDeleting ? "Deleting…" : "Confirm delete"}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

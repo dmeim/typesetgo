@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Copy, Check, Settings, Users, ArrowLeft } from "lucide-react";
+import { Copy, CopyCheck, Settings, Users, LogOut, LogIn, RefreshCw } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { PlayerCard } from "@/components/race";
@@ -170,10 +170,11 @@ export default function RaceLobby() {
         description="You are not connected to this room."
       >
         <Link
-          className="underline"
+          className="inline-flex items-center gap-2 underline"
           to={`/race?code=${encodeURIComponent(room.code)}`}
         >
-          Join room {room.code}
+          <LogIn className="size-4 shrink-0" aria-hidden="true" />
+          <span>Join room {room.code}</span>
         </Link>
       </RaceState>
     );
@@ -201,7 +202,7 @@ export default function RaceLobby() {
             className="inline-flex items-center gap-2 min-h-10 px-3 rounded-lg border disabled:opacity-50"
             style={{ borderColor: tv.ui.border }}
           >
-            <ArrowLeft size={16} />
+            <LogOut size={16} aria-hidden="true" />
             {isLeaving ? "Leaving…" : "Leave Race"}
           </button>
         </header>
@@ -221,6 +222,7 @@ export default function RaceLobby() {
             className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border"
             style={{ borderColor: tv.ui.border, backgroundColor: tv.ui.card }}
           >
+            {copied ? <CopyCheck className="size-4 shrink-0" aria-hidden="true" /> : <Copy className="size-4 shrink-0" aria-hidden="true" />}
             <span className="text-sm">Room code</span>
             <span
               className="font-mono font-bold tracking-widest"
@@ -228,7 +230,6 @@ export default function RaceLobby() {
             >
               {room.code}
             </span>
-            {copied ? <Check size={16} /> : <Copy size={16} />}
           </button>
           <span
             role="status"
@@ -253,8 +254,9 @@ export default function RaceLobby() {
                 startAttempted.current = null;
                 void beginRace();
               }}
-              className="underline mb-4 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 underline mb-4 disabled:opacity-50"
             >
+              <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
               Retry race start
             </button>
           </div>

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
+import AchievementIcon from "@/components/auth/AchievementIcon";
 import {
   getAchievementById,
   TIER_COLORS,
@@ -98,13 +99,13 @@ function CategoryCard({
       className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 text-left text-card-foreground hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <span className="flex w-full flex-wrap items-start gap-x-2 gap-y-1">
-        <span aria-hidden="true" className="text-xl">{categoryInfo.icon}</span>
+        <AchievementIcon icon={categoryInfo.icon} className="size-5" />
         <span className="min-w-0 flex-1 text-sm font-semibold [overflow-wrap:anywhere]">{categoryInfo.name}</span>
         <span className="text-xs text-muted-foreground">{earnedCount}/{categoryAchievements.length}</span>
       </span>
       {highestAchievement ? (
         <span className="flex items-start gap-2 border-t border-border pt-3">
-          <span aria-hidden="true" className="text-xl">{highestAchievement.icon}</span>
+          <AchievementIcon icon={highestAchievement.icon} className="size-5" />
           <span className="min-w-0">
             <span className="block text-sm [overflow-wrap:anywhere]">{highestAchievement.title}</span>
             <span className="mt-1 flex items-center gap-1.5 text-xs capitalize text-muted-foreground">

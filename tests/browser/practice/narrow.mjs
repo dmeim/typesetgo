@@ -14,7 +14,6 @@ await withFixtureBrowser(async browser => {
     mode: "words",
     wordTarget: 10,
     soundEnabled: false,
-    showOnScreenKeyboard: true,
     ghostWriterEnabled: true,
     ghostWriterSpeed: 60
   })));
@@ -47,6 +46,18 @@ await withFixtureBrowser(async browser => {
   });
   await expect(i).toBeEnabled();
   await expect(p.locator("[data-key]")).toHaveCount(51);
+  const keyboard = p.getByRole("region", { name: "On-screen keyboard" });
+  await i.dispatchEvent("keydown", { key: "CapsLock", code: "CapsLock", modifierCapsLock: true });
+  await expect(keyboard.getByRole("status")).toHaveText("Caps Lock is on");
+  await expect(keyboard.locator('[data-key="Shift"]')).not.toHaveAttribute("data-next-key", "true");
+  await expect(keyboard.locator('[data-key="Shift"]')).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(keyboard.locator('[data-key="CapsLock"]')).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(keyboard.locator('[data-key="c"]')).toHaveAttribute("data-next-key", "true");
+  await p.screenshot({ path: artifactPath("practice-caps-lock-narrow.png") });
+  await i.dispatchEvent("keyup", { key: "CapsLock", code: "CapsLock", modifierCapsLock: false });
+  await expect(keyboard.getByRole("status")).toBeEmpty();
+  await expect(keyboard.locator('[data-key="CapsLock"]')).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  console.log("Keyboard defaults on; Caps Lock highlights only Caps, with next-letter guidance intact PASS");
   expect(themeFetches).toBeLessThanOrEqual(1);
   await i.fill("x ");
   await expect(p.locator("[data-next-key=true][data-key=c]")).toHaveCount(1);

@@ -1,7 +1,8 @@
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowRight, ArrowLeft } from "lucide-react";
 import { useState, useMemo, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useQuery, useMutation } from "convex/react";
+import { useAppAuth } from "@/components/layout/useAppAuth";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import AchievementsCategoryGrid from "@/components/auth/AchievementsCategoryGrid";
@@ -76,7 +77,10 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
       <main className="min-h-dvh bg-background p-4 font-mono text-foreground flex flex-col items-center justify-center gap-4">
         <h1 className="text-xl font-semibold">User not found</h1>
         <p className="text-sm text-muted-foreground">The user profile you're looking for doesn't exist.</p>
-        <Link to="/" className={`rounded-md border border-border px-4 py-2 ${focusClass}`}>Back to Homepage</Link>
+        <Link to="/" className={`inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 ${focusClass}`}>
+          <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+          Back to Homepage
+        </Link>
       </main>
     );
   }
@@ -93,7 +97,10 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
   return (
     <main className="min-h-dvh bg-background font-mono text-foreground">
       <header className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:gap-8 md:px-6">
-        <Link to="/" className={`w-fit shrink-0 rounded text-sm text-muted-foreground hover:text-foreground ${focusClass}`}>← Back to Homepage</Link>
+        <Link to="/" className={`inline-flex items-center gap-2 w-fit shrink-0 rounded text-sm text-muted-foreground hover:text-foreground ${focusClass}`}>
+          <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+          Back to Homepage
+        </Link>
         <div className="flex min-w-0 items-center gap-3">
           {profileUser?.avatarUrl ? (
             <img src={profileUser.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
@@ -146,8 +153,13 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
                       aria-pressed={sortColumn === column}
                       aria-label={`${label}${sortColumn === column ? `, ${sortDirection === "desc" ? "descending" : "ascending"}` : ""}`}
                       onClick={() => handleSort(column)}
-                      className={`min-h-9 rounded-md border border-border px-2 py-1 ${sortColumn === column ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"} ${focusClass}`}
-                    >{label} {sortColumn === column ? (sortDirection === "desc" ? "↓" : "↑") : ""}</button>
+                      className={`inline-flex items-center gap-2 min-h-9 rounded-md border border-border px-2 py-1 ${sortColumn === column ? "bg-secondary text-secondary-foreground" : "text-muted-foreground"} ${focusClass}`}
+                    >
+                      {sortColumn !== column ? <ArrowUpDown className="size-3 shrink-0" aria-hidden="true" />
+                        : sortDirection === "desc" ? <ArrowDown className="size-3 shrink-0" aria-hidden="true" />
+                          : <ArrowUp className="size-3 shrink-0" aria-hidden="true" />}
+                      {label}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -171,7 +183,7 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
                         <span className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-sm tabular-nums">
                           <span><strong>{result.wpm}</strong> WPM</span>
                           <span><strong>{Math.round(result.accuracy)}%</strong> accuracy</span>
-                          <span className="ml-auto text-xs text-muted-foreground">View details →</span>
+                          <span className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground"><ArrowRight className="size-3 shrink-0" aria-hidden="true" />View details</span>
                         </span>
                       </button>
                     </li>

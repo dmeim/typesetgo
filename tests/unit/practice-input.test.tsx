@@ -11,7 +11,7 @@ vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({ colors: theme.variants.d
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe("word-aligned practice input", () => {
   it("finishes only after reaching the final word despite earlier extra or skipped characters", () => {
@@ -78,6 +78,19 @@ describe("word-aligned practice input", () => {
 });
 
 describe("TypingArea contracts", () => {
+  it("shows the keyboard by default and allows an explicit override", () => {
+    const { rerender } = render(<TypingArea targetText="cat" />);
+    expect(screen.getByTestId("keyboard-container")).toBeInTheDocument();
+    rerender(<TypingArea targetText="cat" showOnScreenKeyboard={false} />);
+    expect(screen.queryByTestId("keyboard-container")).not.toBeInTheDocument();
+  });
+  it("respects the saved keyboard visibility unless the caller overrides it", () => {
+    localStorage.setItem("typesetgo_settings", JSON.stringify({ showOnScreenKeyboard: false }));
+    const { rerender } = render(<TypingArea targetText="cat" />);
+    expect(screen.queryByTestId("keyboard-container")).not.toBeInTheDocument();
+    rerender(<TypingArea targetText="cat" showOnScreenKeyboard />);
+    expect(screen.getByTestId("keyboard-container")).toBeInTheDocument();
+  });
   it("restores input and elapsed time once without re-emitting for callback identity", () => {
     const initialCallback = vi.fn();
     const { rerender } = render(<TypingArea targetText="cat dog" initialInput="cat " initialElapsedMs={1400}

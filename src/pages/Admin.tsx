@@ -1,3 +1,4 @@
+import { ArrowLeft, LoaderCircle, LogIn, LogOut } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useConvex } from "convex/react";
@@ -188,18 +189,20 @@ export default function Admin() {
         <div className="mb-6 flex items-center justify-between gap-4">
           <Link
             to="/"
-            className="transition text-sm hover:opacity-100"
+            className="inline-flex items-center gap-2 transition text-sm hover:opacity-100"
             style={{ color: tv.typing.default, opacity: 0.7 }}
           >
-            ← Back to Homepage
+            <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+            Back to Homepage
           </Link>
           {isLoggedIn && (
             <button
               type="button"
               onClick={handleSignOut}
-              className="text-sm transition hover:opacity-100"
+              className="inline-flex items-center justify-center gap-2 text-sm transition hover:opacity-100"
               style={{ color: tv.text.secondary, opacity: 0.8 }}
             >
+              <LogOut className="size-4 shrink-0" aria-hidden="true" />
               Sign out
             </button>
           )}
@@ -256,6 +259,7 @@ export default function Admin() {
                 color: tv.text.inverse,
               }}
             >
+              {isLoggingIn ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <LogIn className="size-4 shrink-0" aria-hidden="true" />}
               {isLoggingIn ? "Signing in..." : "Sign in"}
             </Button>
           </form>

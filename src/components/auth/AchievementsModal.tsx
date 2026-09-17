@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import AchievementIcon from "@/components/auth/AchievementIcon";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Dialog,
@@ -104,7 +105,7 @@ export default function AchievementsModal({
                   tabIndex={-1}
                   className="mb-3 flex scroll-mt-4 flex-wrap items-center gap-2 rounded text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
-                  <span aria-hidden="true" className="text-xl">{info.icon}</span>
+                  <AchievementIcon icon={info.icon} className="size-5" />
                   {info.name}
                   <span className="ml-auto text-xs font-normal text-muted-foreground">{count} / {achievements.length}</span>
                 </h3>
@@ -128,7 +129,7 @@ export default function AchievementsModal({
                           <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: isEarned ? TIER_COLORS[achievement.tier].bg : "currentColor" }} />
                           {achievement.tier}
                         </span>
-                        <span aria-hidden="true" className={`text-2xl ${isEarned ? "" : "grayscale"}`}>{achievement.icon}</span>
+                        <AchievementIcon icon={achievement.icon} className={`size-6 ${isEarned ? "" : "text-muted-foreground"}`} />
                         <span className="text-sm font-medium [overflow-wrap:anywhere]">{achievement.title}</span>
                         <span className="text-xs text-muted-foreground">{isEarned ? "Earned" : "Not yet earned"}</span>
                       </button>

@@ -24,7 +24,7 @@ describe("leaderboard ranges", () => {
     expect(within(today).getByRole("status")).toHaveTextContent("Loading today scores");
     expect(today).toHaveAttribute("aria-busy", "true");
     expect(within(week).getByText("No scores yet")).toBeVisible();
-    expect(screen.getByRole("link", { name: "← Homepage" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Homepage" })).toHaveAttribute("href", "/");
   });
 
   it("shows every score immediately and preserves full long usernames", () => {

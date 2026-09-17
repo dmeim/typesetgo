@@ -115,6 +115,8 @@ Notes:
 - Components: `PascalCase.tsx`; utilities: `kebab-case.ts` where applicable.
 - Prefer `@/` imports for local `src/` modules.
 - Prefer existing `@/components/ui/` primitives before adding base UI components.
+- Use `lucide-react` for UI icons; use custom artwork or text glyphs only when Lucide has no suitable icon. Place action icons before their text with a consistent gap (`gap-2`), hide decorative icons from assistive technology, and label icon-only controls.
+- Keep related states cohesive: `Save` / `SaveCheck` / `SaveOff` for saving, `RotateCw` for repeat/reset, `ArrowBigRight` for advancing tests, `ArrowLeft` for back navigation, and `LogOut` for leaving a room. Achievement icon names are shared through `src/lib/achievement-icons.ts`.
 - Keep changes focused; avoid unrelated refactors.
 - Do not run git write operations (`git add`, `commit`, `push`, history rewrites) unless explicitly asked.
 

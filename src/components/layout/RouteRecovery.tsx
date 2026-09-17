@@ -1,3 +1,4 @@
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link, Outlet, useLocation, useNavigation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -42,9 +43,15 @@ function Recovery({ missing }: { missing: boolean }) {
             : "Something went wrong while opening this page. Reload to try again, or return to typing practice."}
         </p>
         <div className="flex flex-wrap gap-3">
-          {!missing && <Button onClick={() => window.location.reload()}>Reload page</Button>}
+          {!missing && <Button onClick={() => window.location.reload()}>
+            <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+            Reload page
+          </Button>}
           <Button variant={missing ? "default" : "outline"} asChild>
-            <Link to="/">Back to practice</Link>
+            <Link to="/" className="inline-flex items-center justify-center gap-2">
+              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              Back to practice
+            </Link>
           </Button>
         </div>
       </section>

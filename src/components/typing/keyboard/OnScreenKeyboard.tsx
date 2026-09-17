@@ -72,8 +72,10 @@ export default function OnScreenKeyboard({
 
   const match = useMemo(() => (nextChar ? findKeyForChar(layout, nextChar) : null), [layout, nextChar]);
 
+  // Caps Lock has its own indicator; do not suggest holding Shift to cancel it.
   const requiresShift =
-    match !== null && (match.key.type === "letter" ? match.requiresShift !== capsLockOn : match.requiresShift);
+    match !== null && match.requiresShift && (match.key.type !== "letter" || !capsLockOn);
+  const needsCapsLockOff = capsLockOn && match?.key.type === "letter" && !match.requiresShift;
   const rowHeight = unitSize * 1.2;
 
   return (
@@ -91,6 +93,7 @@ export default function OnScreenKeyboard({
           ? `Next key: ${requiresShift ? "Shift + " : ""}${match.key.type === "space" ? "Space" : match.key.type === "backspace" ? "Backspace" : match.key.label}.`
           : "No next key guidance."}
         {capsLockOn ? " Caps Lock is on." : ""}
+        {needsCapsLockOff ? " Turn Caps Lock off for lowercase letters." : ""}
         {tooSmall && visible ? " Keyboard preview is hidden at this width." : ""}
       </p>
       <AnimatePresence>

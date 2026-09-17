@@ -1,3 +1,4 @@
+import { Minus, Plus } from "lucide-react";
 import { useState } from "react";
 import type { SettingsState } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
@@ -118,6 +119,7 @@ export default function GhostWriterSettingsModal({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    aria-label="Decrease ghost speed by 10 WPM"
                     onClick={() => {
                       const newSpeed = Math.max(1, customSpeed - 10);
                       setCustomSpeed(newSpeed);
@@ -126,7 +128,7 @@ export default function GhostWriterSettingsModal({
                     className="w-8 h-8 flex items-center justify-center rounded hover:opacity-75 transition"
                     style={{ backgroundColor: `${colors.typing.default}20`, color: tv.typing.correct }}
                   >
-                    −
+                    <Minus className="size-4" aria-hidden="true" />
                   </button>
                   <input
                     type="number"
@@ -165,6 +167,7 @@ export default function GhostWriterSettingsModal({
                   />
                   <button
                     type="button"
+                    aria-label="Increase ghost speed by 10 WPM"
                     onClick={() => {
                       const newSpeed = Math.min(500, customSpeed + 10);
                       setCustomSpeed(newSpeed);
@@ -173,7 +176,7 @@ export default function GhostWriterSettingsModal({
                     className="w-8 h-8 flex items-center justify-center rounded hover:opacity-75 transition"
                     style={{ backgroundColor: `${colors.typing.default}20`, color: tv.typing.correct }}
                   >
-                    +
+                    <Plus className="size-4" aria-hidden="true" />
                   </button>
                 </div>
                 <span className="text-sm" style={{ color: tv.text.secondary }}>WPM</span>

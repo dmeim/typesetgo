@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { Toast as ToastPrimitive } from "@base-ui/react/toast";
-import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon, TrophyIcon, WrenchIcon, XIcon } from "lucide-react";
+import { CircleCheckIcon, InfoIcon, Loader2Icon, CircleXIcon, TriangleAlertIcon, TrophyIcon, WrenchIcon, XIcon } from "lucide-react";
+import AchievementIcon from "@/components/auth/AchievementIcon";
 import { Button } from "@/components/ui/button";
 import { overlaySurface } from "@/components/ui/overlay-styles";
 import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
@@ -53,15 +54,15 @@ function ToastIcon({ item }: { item: ToastPrimitive.Root.ToastObject<ToastData> 
   const definition = achievement && item.data?.metadata?.achievementId
     ? getAchievementById(item.data.metadata.achievementId) : undefined;
   if (definition) {
-    return <span aria-hidden="true" className="toast-achievement-icon shrink-0 text-[1.75rem] leading-none">{definition.icon}</span>;
+    return <AchievementIcon icon={definition.icon} className="toast-achievement-icon size-7" />;
   }
   const type = item.type;
   const Icon = achievement ? TrophyIcon : item.data?.notificationType === "maintenance" ? WrenchIcon
     : type === "success" ? CircleCheckIcon : type === "warning" ? TriangleAlertIcon
-      : type === "error" ? OctagonXIcon : type === "loading" ? Loader2Icon : InfoIcon;
+      : type === "error" ? CircleXIcon : type === "loading" ? Loader2Icon : InfoIcon;
   const color = type === "success" ? tv.status.success.DEFAULT : type === "warning" ? tv.status.warning.DEFAULT
     : type === "error" ? tv.ui.destructive : tv.ui.primary;
-  return <Icon aria-hidden="true" className={cn("size-4 shrink-0", type === "loading" && "animate-spin")} style={{ color }} />;
+  return <Icon aria-hidden="true" className={cn("size-4 shrink-0", type === "loading" && "motion-safe:animate-spin")} style={{ color }} />;
 }
 
 function ToastList() {

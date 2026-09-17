@@ -1,3 +1,4 @@
+import { LogIn } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { RoomButton } from "./RoomUI";
@@ -63,6 +64,7 @@ export default function JoinCard() {
           disabled={!name.trim() || !code.trim()}
           className="w-full"
         >
+          <LogIn className="size-4 shrink-0" aria-hidden="true" />
           Join room
         </RoomButton>
       </form>

@@ -6,6 +6,17 @@ import { MAX_WORD_TARGET, MAX_GHOST_SPEED } from "../../src/lib/practice-limits"
 
 afterEach(() => localStorage.clear());
 describe("practice preference boundaries", () => {
+  it("shows the keyboard by default for new and older settings", () => {
+    expect(DEFAULT_SETTINGS.showOnScreenKeyboard).toBe(true);
+    localStorage.setItem("typesetgo_settings", JSON.stringify({ mode: "words" }));
+    expect(loadSettings()?.showOnScreenKeyboard).toBe(true);
+  });
+  it("preserves an explicitly saved keyboard visibility preference", () => {
+    for (const showOnScreenKeyboard of [false, true]) {
+      saveSettings({ ...DEFAULT_SETTINGS, presetText: "", showOnScreenKeyboard });
+      expect(loadSettings()?.showOnScreenKeyboard).toBe(showOnScreenKeyboard);
+    }
+  });
   it("uses one supported text range for persisted settings and actual edits", () => {
     expect([TEXT_SIZE_MIN, TEXT_SIZE_MAX]).toEqual([1, 6]);
     localStorage.setItem("typesetgo_settings", JSON.stringify({ typingFontSize: 10 }));

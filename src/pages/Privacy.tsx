@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
@@ -17,10 +18,11 @@ export default function Privacy() {
         <div className="mb-6">
           <Link
             to="/"
-            className="transition text-sm hover:opacity-100"
+            className="inline-flex items-center gap-2 transition text-sm hover:opacity-100"
             style={{ color: tv.typing.default, opacity: 0.7 }}
           >
-            ← Back to Homepage
+            <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+            Back to Homepage
           </Link>
         </div>
 

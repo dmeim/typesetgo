@@ -1,3 +1,4 @@
+import { ChartNoAxesColumn } from "lucide-react";
 import { useState, useMemo } from "react";
 import {
   CartesianGrid,
@@ -455,21 +456,7 @@ export default function UserStatsChartModal({
             className="flex flex-col items-center justify-center py-16"
           >
             <div className="text-3xl mb-2 opacity-50">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-muted-foreground"
-              >
-                <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-                <path d="m19 9-5 5-4-4-3 3" />
-              </svg>
+              <ChartNoAxesColumn className="size-8 text-muted-foreground" aria-hidden="true" />
             </div>
             <p className="text-sm text-muted-foreground">
               No valid tests in the recent history sample.

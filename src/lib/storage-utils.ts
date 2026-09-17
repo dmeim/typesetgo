@@ -46,7 +46,7 @@ export const DEFAULT_SETTINGS: Omit<
   warningSound: "clock",
   errorSound: "",
   presetModeType: "finish",
-  showOnScreenKeyboard: false,
+  showOnScreenKeyboard: true,
   keyboardLayout: "qwerty" as KeyboardLayoutId,
 };
 

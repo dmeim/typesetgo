@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, ArrowUpDown, ChartNoAxesColumn, CircleCheck, CircleX, Flame, LoaderCircle, X, Trash2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useQuery, useMutation } from "convex/react";
@@ -141,39 +142,14 @@ function ValidIcon({
   return (
     <div
       className="flex items-center justify-center"
+      role="img"
+      aria-label={isValid ? "Valid test" : "Invalid test"}
       title={!isValid && result.invalidReason ? `Invalid: ${result.invalidReason}` : undefined}
     >
       {isValid ? (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ color: tv.status.success.DEFAULT }}
-        >
-          <path d="M20 6 9 17l-5-5" />
-        </svg>
+        <CircleCheck className="size-4" style={{ color: tv.status.success.DEFAULT }} aria-hidden="true" />
       ) : (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ color: tv.status.error.DEFAULT }}
-        >
-          <path d="M18 6 6 18" />
-          <path d="m6 6 12 12" />
-        </svg>
+        <CircleX className="size-4" style={{ color: tv.status.error.DEFAULT }} aria-hidden="true" />
       )}
     </div>
   );
@@ -196,6 +172,7 @@ function SortableHeader({
   align?: "left" | "right";
 }) {
   const isActive = currentColumn === column;
+  const SortIcon = !isActive ? ArrowUpDown : currentDirection === "asc" ? ArrowUp : ArrowDown;
 
   return (
     <button
@@ -205,25 +182,8 @@ function SortableHeader({
       }`}
       style={{ color: isActive ? tv.interactive.secondary.DEFAULT : tv.text.secondary }}
     >
+      <SortIcon className="size-3 shrink-0" aria-hidden="true" />
       <span>{label}</span>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="12"
-        height="12"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{
-          opacity: isActive ? 1 : 0.4,
-          transform: isActive && currentDirection === "asc" ? "rotate(180deg)" : "none",
-          transition: "transform 0.15s ease",
-        }}
-      >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
     </button>
   );
 }
@@ -255,23 +215,25 @@ function DeleteConfirmModal({
           <button
             onClick={onCancel}
             disabled={isDeleting}
-            className="flex-1 py-3 px-4 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 flex-1 py-3 px-4 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
             style={{
               backgroundColor: tv.interactive.secondary.DEFAULT,
               color: tv.bg.base,
             }}
           >
+            <X className="size-4 shrink-0" aria-hidden="true" />
             NOOO!!!
           </button>
           <button
             onClick={onConfirm}
             disabled={isDeleting}
-            className="flex-1 py-3 px-4 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 flex-1 py-3 px-4 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
             style={{
               backgroundColor: tv.status.error.DEFAULT,
               color: tv.bg.base,
             }}
           >
+            {isDeleting ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <Trash2 className="size-4 shrink-0" aria-hidden="true" />}
             {isDeleting ? "Deleting..." : "Yes, Delete"}
           </button>
         </div>
@@ -331,23 +293,11 @@ function TestDetailModal({
             </h3>
             <button
               onClick={onClose}
+              aria-label="Close test details"
               className="p-1.5 rounded-lg transition hover:opacity-80"
               style={{ color: tv.text.muted }}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
+              <X className="size-[18px]" aria-hidden="true" />
             </button>
           </div>
 
@@ -452,12 +402,13 @@ function TestDetailModal({
           {/* Delete Button */}
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="w-full py-2.5 rounded-lg font-medium transition-opacity hover:opacity-80"
+            className="inline-flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-medium transition-opacity hover:opacity-80"
             style={{
               backgroundColor: tv.status.error.muted,
               color: tv.status.error.DEFAULT,
             }}
           >
+            <Trash2 className="size-4 shrink-0" aria-hidden="true" />
             Delete
           </button>
         </div>
@@ -580,33 +531,18 @@ export default function StatsModal({ onClose }: StatsModalProps) {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close stats"
             className="p-2 rounded-lg transition hover:opacity-80"
             style={{ color: tv.text.muted }}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
+            <X className="size-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
-            <div
-              className="h-8 w-8 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: tv.interactive.secondary.DEFAULT, borderTopColor: "transparent" }}
-            />
+            <LoaderCircle className="size-8 motion-safe:animate-spin" style={{ color: tv.interactive.secondary.DEFAULT }} aria-hidden="true" />
           </div>
         )}
 
@@ -677,7 +613,6 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                     Day Streak
                   </div>
                   <div className="text-lg font-bold flex items-center gap-1" style={{ color: tv.interactive.secondary.DEFAULT }}>
-                    {streak?.currentStreak ?? 0}
                     <span
                       className="text-lg"
                       style={{
@@ -685,8 +620,9 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                         opacity: (streak?.currentStreak ?? 0) > 0 ? 1 : 0.5,
                       }}
                     >
-                      🔥
+                      <Flame className="size-5" aria-hidden="true" />
                     </span>
+                    {streak?.currentStreak ?? 0}
                   </div>
                 </div>
 
@@ -838,7 +774,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
         {/* Empty State - Only show when no data at all */}
         {!isLoading && stats && stats.totalTests === 0 && (
           <div className="text-center py-8">
-            <div className="text-4xl mb-3">📊</div>
+            <ChartNoAxesColumn className="mx-auto mb-3 size-9" aria-hidden="true" />
             <p className="text-lg font-medium" style={{ color: tv.text.primary }}>
               No tests saved yet
             </p>

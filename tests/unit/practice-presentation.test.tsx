@@ -366,7 +366,9 @@ describe("accessible practice dialogs and results", () => {
     fireEvent.click(screen.getByRole("button", { name: "1 Incorrect" }));
     expect(screen.getByText("dig")).toBeVisible();
     expect(screen.getByText("dog")).toBeVisible();
-    expect(screen.getByText(/will not appear on leaderboards/)).toBeInTheDocument();
+    expect(screen.queryByText(/will not appear on leaderboards/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "About these results" }));
+    expect(screen.getByText(/will not appear on leaderboards/)).toBeVisible();
   });
 });
 
@@ -556,18 +558,33 @@ describe("dialog focus ownership", () => {
   });
 });
 
-it("accounts for Caps Lock when guiding Shift on letter keys", () => {
-  const props = { nextChar: "A", capsLockOn: true, layoutId: "qwerty" as const, activeKey: null, visible: true };
+it.each(["qwerty", "dvorak", "colemak"] as const)("does not highlight Shift just because Caps Lock is on in %s", (layoutId) => {
+  const props = { nextChar: "A", capsLockOn: true, layoutId, activeKey: null, visible: true };
   const { rerender } = render(<OnScreenKeyboard {...props} />);
-  expect(screen.getByRole("region", { name: "On-screen keyboard" })).toHaveAccessibleDescription(
+  const keyboard = screen.getByRole("region", { name: "On-screen keyboard" });
+  const shift = keyboard.querySelector('[data-key="Shift"]');
+  const caps = keyboard.querySelector('[data-key="CapsLock"]') as HTMLElement;
+  const capsOnBackground = caps.style.backgroundColor;
+  expect(keyboard).toHaveAccessibleDescription(
     "Next key: A. Caps Lock is on.",
   );
-  expect(document.querySelector('[data-key="Shift"][data-next-key="true"]')).toBeNull();
+  expect(shift).not.toHaveAttribute("data-next-key");
   rerender(<OnScreenKeyboard {...props} nextChar="a" />);
-  expect(screen.getByRole("region", { name: "On-screen keyboard" })).toHaveAccessibleDescription(
-    "Next key: Shift + A. Caps Lock is on.",
+  expect(keyboard).toHaveAccessibleDescription(
+    "Next key: A. Caps Lock is on. Turn Caps Lock off for lowercase letters.",
   );
-  expect(document.querySelector('[data-key="Shift"][data-next-key="true"]')).not.toBeNull();
+  expect(shift).not.toHaveAttribute("data-next-key");
+  expect(shift).not.toHaveAttribute("data-active-key");
+  expect((shift as HTMLElement).style.backgroundColor).toBe("transparent");
+  rerender(<OnScreenKeyboard {...props} capsLockOn={false} />);
+  expect(keyboard).toHaveAccessibleDescription("Next key: Shift + A.");
+  expect(shift).toHaveAttribute("data-next-key", "true");
+  expect(caps.style.backgroundColor).not.toBe(capsOnBackground);
+  rerender(<OnScreenKeyboard {...props} nextChar="a" capsLockOn={false} />);
+  expect(shift).not.toHaveAttribute("data-next-key");
+  rerender(<OnScreenKeyboard {...props} nextChar="!" />);
+  expect(keyboard).toHaveAccessibleDescription("Next key: Shift + 1. Caps Lock is on.");
+  expect(shift).toHaveAttribute("data-next-key", "true");
 });
 
 describe("custom duration boundary", () => {

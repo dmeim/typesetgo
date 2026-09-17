@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { tv } from "@/lib/theme-vars";
 
 export function RaceError({ children }: { children: ReactNode }) {
@@ -50,9 +50,10 @@ export default function RaceState({
         {children ||
           (!loading && (
             <Link
-              className="inline-block underline underline-offset-4"
+              className="inline-flex items-center gap-2 underline underline-offset-4"
               to="/race"
             >
+              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
               Back to Race
             </Link>
           ))}

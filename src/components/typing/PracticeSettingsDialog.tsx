@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X, Play } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -113,7 +114,7 @@ export default function PracticeSettingsDialog({
             onMouseEnter={(e) => (e.currentTarget.style.color = tv.ui.foreground)}
             onMouseLeave={(e) => (e.currentTarget.style.color = tv.ui.mutedForeground)}
           >
-            ✕
+            <X className="size-4" aria-hidden="true" />
           </Button>
         </div>
 
@@ -335,6 +336,7 @@ export default function PracticeSettingsDialog({
                     }}
                     disabled={!settings.soundEnabled || !selectedTypingSound || typingSoundOptions.length === 0}
                   >
+                    <Play className="size-4 shrink-0" aria-hidden="true" />
                     Preview
                   </Button>
                 </div>
@@ -392,6 +394,7 @@ export default function PracticeSettingsDialog({
                     }}
                     disabled={!settings.soundEnabled || !selectedWarningSound || warningSoundOptions.length === 0}
                   >
+                    <Play className="size-4 shrink-0" aria-hidden="true" />
                     Preview
                   </Button>
                 </div>
@@ -455,6 +458,7 @@ export default function PracticeSettingsDialog({
                       }}
                       disabled={!settings.soundEnabled || !selectedErrorSound || errorSoundOptions.length === 0}
                     >
+                      <Play className="size-4 shrink-0" aria-hidden="true" />
                       Preview
                     </Button>
                   </div>

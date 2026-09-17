@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
+import { ArrowBigRight, ArrowRight, CircleAlert, Gauge, Target, LoaderCircle, LogOut, RotateCw, Save, SaveCheck, SaveOff } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { useTheme } from "@/hooks/useTheme";
 import type { Quote, SettingsState } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import PracticeResultsInfo from "@/components/typing/PracticeResultsInfo";
 
 // Animated counter display for WPM
 function AnimatedWpmDisplay({ value, color }: { value: number; color: string }) {
@@ -70,6 +72,21 @@ export default function PracticeResults({
   const { colors } = useTheme();
   const reducedMotion = useReducedMotion();
   const resultsRef = useRef<HTMLDivElement>(null);
+  const SaveIcon = lastResultIsValid === false || saveState === "error" ? SaveOff
+    : saveState === "saved" ? SaveCheck : saveState === "saving" ? LoaderCircle : Save;
+  const saveLabel = lastResultIsValid === false ? "Invalid" : {
+    idle: "Save Results",
+    saving: "Saving...",
+    saved: "Saved",
+    error: "Error - Try Again",
+  }[saveState];
+  const resultsInfo = lastResultIsValid === false
+    ? "This test could not be verified and cannot be saved."
+    : isRepeated || rankingStatus === "unranked"
+      ? "This practice can be saved to your history, but will not appear on leaderboards."
+      : rankingStatus === "pending"
+        ? "Waiting for verification…"
+        : "Review your words per minute, accuracy, and typing details below.";
   useEffect(() => {
     // Completion moves focus to the result summary, unless a modal currently owns it.
     if (!document.querySelector('[role="dialog"]')) resultsRef.current?.focus({ preventScroll: true });
@@ -104,6 +121,7 @@ export default function PracticeResults({
           }
         }}
       >
+        <PracticeResultsInfo>{resultsInfo}</PracticeResultsInfo>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* WPM */}
           <motion.div
@@ -125,20 +143,7 @@ export default function PracticeResults({
               className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
               style={{ color: tv.ui.foreground }}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="120"
-                height="120"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
+              <Gauge size={120} strokeWidth={1} aria-hidden="true" />
             </div>
           </motion.div>
 
@@ -166,20 +171,7 @@ export default function PracticeResults({
               className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
               style={{ color: tv.ui.foreground }}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="120"
-                height="120"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
+              <Target size={120} strokeWidth={1} aria-hidden="true" />
             </div>
           </motion.div>
         </div>
@@ -324,7 +316,7 @@ export default function PracticeResults({
                             style={{ backgroundColor: tv.bg.surface }}
                           >
                             <span style={{ color: tv.status.error.DEFAULT }}>{item.typed}</span>
-                            <span style={{ color: tv.ui.mutedForeground }}>→</span>
+                            <ArrowRight className="size-3 shrink-0" style={{ color: tv.ui.mutedForeground }} aria-hidden="true" />
                             <span
                               style={{
                                 color: tv.ui.primary,
@@ -400,23 +392,7 @@ export default function PracticeResults({
             }}
           >
             <div className="flex items-center gap-3">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="flex-shrink-0"
-                style={{ color: tv.status.error.DEFAULT }}
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
+              <CircleAlert className="size-5 shrink-0" style={{ color: tv.status.error.DEFAULT }} aria-hidden="true" />
               <div className="flex-1">
                 <span className="font-medium" style={{ color: tv.status.error.DEFAULT }}>
                   Unverified
@@ -456,7 +432,7 @@ export default function PracticeResults({
               type="button"
               onClick={() => saveResults()}
               disabled={saveState === "saving" || saveState === "saved" || lastResultIsValid === false}
-              className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed"
+              className="group relative inline-flex items-center justify-center gap-2 px-8 py-3 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed"
               style={{
                 backgroundColor:
                   lastResultIsValid === false || saveState === "error"
@@ -472,113 +448,21 @@ export default function PracticeResults({
                       : tv.ui.primaryForeground,
               }}
             >
-              {lastResultIsValid === false && (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="15" y1="9" x2="9" y2="15" />
-                    <line x1="9" y1="9" x2="15" y2="15" />
-                  </svg>
-                  Invalid
-                </>
-              )}
-              {lastResultIsValid !== false && saveState === "idle" && (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                  >
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
-                  </svg>
-                  Save Results
-                </>
-              )}
-              {lastResultIsValid !== false && saveState === "saving" && (
-                <>
-                  <div
-                    className="h-4 w-4 rounded-full border-2 border-t-transparent animate-spin mr-2"
-                    style={{
-                      borderColor: "currentColor",
-                      borderTopColor: "transparent",
-                    }}
-                  />
-                  Saving...
-                </>
-              )}
-              {lastResultIsValid !== false && saveState === "saved" && (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Saved
-                </>
-              )}
-              {lastResultIsValid !== false && saveState === "error" && (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  Error - Try Again
-                </>
-              )}
+              <SaveIcon className={`size-[18px] shrink-0 ${saveState === "saving" && lastResultIsValid !== false ? "motion-safe:animate-spin" : ""}`} aria-hidden="true" />
+              {saveLabel}
             </button>
           )}
           {!connectMode && (
             <button
               type="button"
               onClick={() => generateTest()}
-              className="group relative inline-flex items-center justify-center px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
+              className="group relative inline-flex items-center justify-center gap-2 px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{
                 backgroundColor: tv.bg.surface,
                 color: tv.ui.foreground,
               }}
             >
-              <span className="mr-2">↻</span>
+              <ArrowBigRight className="size-[18px] shrink-0" aria-hidden="true" />
               Next Test
             </button>
           )}
@@ -586,8 +470,9 @@ export default function PracticeResults({
             <button
               type="button"
               onClick={repeatTest}
-              className="rounded-lg border border-border bg-background px-6 py-3 font-medium text-foreground hover:bg-accent"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-6 py-3 font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
+              <RotateCw className="size-[18px] shrink-0" aria-hidden="true" />
               Repeat Test
             </button>
           )}
@@ -595,7 +480,7 @@ export default function PracticeResults({
             <button
               type="button"
               onClick={onLeave}
-              className="px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{
                 color: tv.status.error.DEFAULT,
                 backgroundColor: colors.status.error.muted,
@@ -603,6 +488,7 @@ export default function PracticeResults({
                 borderColor: tv.status.error.DEFAULT,
               }}
             >
+              <LogOut className="size-[18px] shrink-0" aria-hidden="true" />
               Leave Room
             </button>
           )}
@@ -616,9 +502,6 @@ export default function PracticeResults({
           transition={{ duration: reducedMotion ? 0 : 0.2, delay: 0 }}
         >
           {lastResultIsValid === true && <p>Verified</p>}
-          {(isRepeated || rankingStatus === "unranked") && (
-            <p>This practice can be saved to your history, but will not appear on leaderboards.</p>
-          )}
           {rankingStatus === "pending" && <p>Waiting for verification…</p>}
           {!connectMode && (
             <p>

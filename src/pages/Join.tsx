@@ -1,3 +1,4 @@
+import { ArrowLeft, LoaderCircle, LogOut, Pencil, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
@@ -149,15 +150,20 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {attempt.status === "error" && (
-              <RoomButton onClick={attempt.retry}>Retry</RoomButton>
+              <RoomButton onClick={attempt.retry}>
+                <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+                Retry
+              </RoomButton>
             )}
             <Link
               to={`/connect?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name)}`}
-              className="rounded border px-3 py-2"
+              className="inline-flex items-center gap-2 rounded border px-3 py-2"
             >
+              <Pencil className="size-4 shrink-0" aria-hidden="true" />
               Edit code
             </Link>
-            <Link to="/connect" className="rounded px-3 py-2">
+            <Link to="/connect" className="inline-flex items-center gap-2 rounded px-3 py-2">
+              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
               Back to Connect
             </Link>
           </div>
@@ -173,6 +179,7 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
         </p>
         {feedback && <p role="alert">{feedback}</p>}
         <RoomButton onClick={handleLeave} disabled={leaving}>
+          {leaving ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : feedback ? <LogOut className="size-4 shrink-0" aria-hidden="true" /> : <X className="size-4 shrink-0" aria-hidden="true" />}
           {leaving ? "Leaving…" : feedback ? "Retry leaving" : "Cancel"}
         </RoomButton>
       </RoomPage>
@@ -184,6 +191,7 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
           Waiting for the host to select a plan step.
         </p>
         <RoomButton onClick={handleLeave} disabled={leaving}>
+          <LogOut className="size-4 shrink-0" aria-hidden="true" />
           Leave room
         </RoomButton>
       </RoomPage>
@@ -197,8 +205,12 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
           style={{ backgroundColor: tv.ui.card, color: tv.ui.foreground }}
         >
           {feedback}
-          <RoomButton onClick={() => setFeedback("")}>Dismiss</RoomButton>
+          <RoomButton onClick={() => setFeedback("")}>
+            <X className="size-4 shrink-0" aria-hidden="true" />
+            Dismiss
+          </RoomButton>
           <RoomButton onClick={handleLeave} disabled={leaving}>
+            <LogOut className="size-4 shrink-0" aria-hidden="true" />
             Leave room
           </RoomButton>
         </div>
@@ -223,7 +235,10 @@ export default function Join() {
     return (
       <RoomPage>
         <div className="mx-auto max-w-md space-y-6 py-6">
-          <Link to="/connect">← Back to Connect</Link>
+          <Link to="/connect" className="inline-flex items-center justify-center gap-2">
+            <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+            Back to Connect
+          </Link>
           <JoinCard />
         </div>
       </RoomPage>

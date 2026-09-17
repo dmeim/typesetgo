@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
-import { ChevronDown, LogIn, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, LogIn, LogOut, UserRound, RefreshCw } from "lucide-react";
 import { toast } from "@/lib/toast-manager";
 import { api } from "../../../convex/_generated/api";
 import { useAppAuth } from "@/components/layout/useAppAuth";
@@ -54,7 +54,10 @@ export default function UserButton({ inactive = false }: { inactive?: boolean })
               ? "Sign-in couldn’t connect. You can keep practicing as a guest, or reload to try again."
               : "You can practice as a guest. Sign-in and saved account progress aren’t available in this session."}
           </p>
-          {unavailableReason === "load-failed" && <Button variant="outline" onClick={() => window.location.reload()}>Reload sign-in</Button>}
+          {unavailableReason === "load-failed" && <Button variant="outline" onClick={() => window.location.reload()}>
+            <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+            Reload sign-in
+          </Button>}
         </PopoverContent>
       </Popover>
     );

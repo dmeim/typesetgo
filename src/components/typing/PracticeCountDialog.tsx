@@ -1,6 +1,6 @@
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/lib/toast-manager";
 import { MAX_DURATION_SECONDS, type SettingsState } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
@@ -265,7 +265,7 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
             style={{ color: tv.ui.mutedForeground }}
             aria-label="Close custom selector"
           >
-            ✕
+            <X className="size-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -383,12 +383,13 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
           <button
             type="button"
             onClick={() => setShowCustomCountModal(false)}
-            className="rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+            className="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
             style={{
               color: tv.ui.mutedForeground,
               backgroundColor: tv.bg.base,
             }}
           >
+            <X className="size-4 shrink-0" aria-hidden="true" />
             Cancel
           </button>
           <button

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Clock, Flag, LogOut } from "lucide-react";
+import { Clock, Flag, LogOut, ArrowLeft, LoaderCircle, LogIn, Play, RefreshCw, RotateCw, SaveOff } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { RaceCourse } from "@/components/race";
@@ -55,17 +55,19 @@ export default function RaceActive() {
     return (
       <RaceState title="You are not connected to this race">
         <Link
-          className="underline"
+          className="inline-flex items-center gap-2 underline"
           to={`/race?code=${encodeURIComponent(room.code)}`}
         >
-          Rejoin room {room.code}
+          <LogIn className="size-4 shrink-0" aria-hidden="true" />
+          <span>Rejoin room {room.code}</span>
         </Link>
       </RaceState>
     );
   if (!room.raceStartTime || !room.targetText)
     return (
       <RaceState title="The race has not started">
-        <Link className="underline" to={`/race/lobby/${room._id}`}>
+        <Link className="inline-flex items-center gap-2 underline" to={`/race/lobby/${room._id}`}>
+          <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
           Return to lobby
         </Link>
       </RaceState>
@@ -303,15 +305,16 @@ function RaceAttempt({
               <DialogFooter>
                 <button
                   disabled={isLeaving}
-                  className="rounded-lg px-4 py-2"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2"
                   style={{ backgroundColor: tv.ui.secondary }}
                   onClick={() => setShowLeave(false)}
                 >
+                  <Play className="size-4 shrink-0" aria-hidden="true" />
                   Keep Racing
                 </button>
                 <button
                   disabled={isLeaving}
-                  className="rounded-lg px-4 py-2"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2"
                   style={{
                     backgroundColor: tv.status.error.muted,
                     color: tv.ui.destructive,
@@ -321,6 +324,7 @@ function RaceAttempt({
                     await leave();
                   }}
                 >
+                  {isLeaving ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <LogOut className="size-4 shrink-0" aria-hidden="true" />}
                   {isLeaving ? "Leaving…" : "Leave Race"}
                 </button>
               </DialogFooter>
@@ -332,19 +336,21 @@ function RaceAttempt({
         <RaceError>{endError}</RaceError>
         {endError && (
           <button
-            className="underline"
+            className="inline-flex items-center justify-center gap-2 underline"
             onClick={() => {
               setEndError("");
               endGuard.current = false;
               void finishRace();
             }}
           >
+            <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
             Retry results
           </button>
         )}
         <RaceError>{progressError}</RaceError>
         {progressError && (
-          <button className="underline" onClick={() => void flush()}>
+          <button className="inline-flex items-center justify-center gap-2 underline" onClick={() => void flush()}>
+            <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
             Retry sync
           </button>
         )}
@@ -377,12 +383,13 @@ function RaceAttempt({
                   setResetPending(false);
                 }
               }}
-              className="rounded-lg px-4 py-2 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 disabled:opacity-50"
               style={{
                 backgroundColor: tv.ui.primary,
                 color: tv.ui.primaryForeground,
               }}
             >
+              {resetPending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <RotateCw className="size-4 shrink-0" aria-hidden="true" />}
               {resetPending ? "Restarting…" : "Restart my attempt"}
             </button>
           </div>
@@ -405,9 +412,10 @@ function RaceAttempt({
             {finishError && finishStats && (
               <button
                 disabled={finishPending}
-                className="underline"
+                className="inline-flex items-center justify-center gap-2 underline"
                 onClick={() => void handleFinish(finishStats)}
               >
+                <SaveOff className="size-4 shrink-0" aria-hidden="true" />
                 Retry saving finish
               </button>
             )}

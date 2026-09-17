@@ -1,3 +1,4 @@
+import { ArrowBigRight, ArrowDown, ArrowLeft, ArrowUp, Copy, LayoutGrid, List, Maximize, Minimize, Palette, Pencil, Play, RefreshCw, RotateCw, SaveOff, Settings, Square, UserMinus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
@@ -304,12 +305,16 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
           {attempt.status === "error" ? (
             <>
               <p role="alert">{attempt.error}</p>
-              <RoomButton onClick={attempt.retry}>Retry</RoomButton>
+              <RoomButton onClick={attempt.retry}>
+                <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+                Retry
+              </RoomButton>
             </>
           ) : (
             <p role="status">{sessionId ? "Creating room…" : "Loading…"}</p>
           )}
-          <Link to="/connect" className="block py-2">
+          <Link to="/connect" className="inline-flex items-center gap-2 py-2">
+            <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
             Back to Connect
           </Link>
         </div>
@@ -319,7 +324,10 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
     return (
       <RoomPage>
         <p>This room is no longer available.</p>
-        <Link to="/connect">Back to Connect</Link>
+        <Link to="/connect" className="inline-flex items-center justify-center gap-2">
+          <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+          Back to Connect
+        </Link>
       </RoomPage>
     );
   if (!room)
@@ -333,8 +341,9 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-5">
           <div className="space-y-2">
-            <Link to="/connect" className="inline-block py-2 text-sm">
-              ← Connect
+            <Link to="/connect" className="inline-flex items-center gap-2 py-2 text-sm">
+              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              Connect
             </Link>
             <h1 className="text-3xl font-semibold">Host panel</h1>
             <p
@@ -376,6 +385,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             </div>
             <div className="flex flex-wrap gap-2">
               <RoomButton onClick={reset} disabled={busy}>
+                <RotateCw className="size-4 shrink-0" aria-hidden="true" />
                 Reset room
               </RoomButton>
               <RoomButton
@@ -389,6 +399,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                       !readyToStart))
                 }
               >
+                {active ? <Square className="size-4 shrink-0" aria-hidden="true" /> : <Play className="size-4 shrink-0" aria-hidden="true" />}
                 {active ? "Stop test" : "Start test"}
               </RoomButton>
             </div>
@@ -405,6 +416,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 onClick={() => void saveSettings(settingsRef.current)}
                 disabled={locked || pendingSettings > 0}
               >
+                <SaveOff className="size-4 shrink-0" aria-hidden="true" />
                 Retry saving settings
               </RoomButton>
             </div>
@@ -441,6 +453,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                       updateSettings({ planIndex: Math.max(0, stepIndex - 1) })
                     }
                   >
+                    <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
                     Previous step
                   </RoomButton>
                   <RoomButton
@@ -454,9 +467,11 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                       })
                     }
                   >
+                    <ArrowBigRight className="size-4 shrink-0" aria-hidden="true" />
                     Next step
                   </RoomButton>
                   <RoomButton onClick={() => setModal("plan")}>
+                    <Pencil className="size-4 shrink-0" aria-hidden="true" />
                     Edit plan
                   </RoomButton>
                 </div>
@@ -467,9 +482,13 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
               style={{ borderColor: tv.ui.border }}
             >
               <RoomButton onClick={() => setModal("settings")}>
+                <Settings className="size-4 shrink-0" aria-hidden="true" />
                 Appearance & ghost
               </RoomButton>
-              <RoomButton onClick={openThemes}>Participant theme</RoomButton>
+              <RoomButton onClick={openThemes}>
+                <Palette className="size-4 shrink-0" aria-hidden="true" />
+                Participant theme
+              </RoomButton>
               <SoundController
                 disabled={locked}
                 settings={settings}
@@ -544,7 +563,8 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 onClick={() => setDescending((value) => !value)}
                 aria-label={descending ? "Sort ascending" : "Sort descending"}
               >
-                {descending ? "Descending ↓" : "Ascending ↑"}
+                {descending ? <ArrowDown className="size-4 shrink-0" aria-hidden="true" /> : <ArrowUp className="size-4 shrink-0" aria-hidden="true" />}
+                {descending ? "Descending" : "Ascending"}
               </RoomButton>
               <div
                 className="flex gap-1"
@@ -556,6 +576,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                   aria-pressed={viewMode === "grid"}
                   onClick={() => setViewMode("grid")}
                 >
+                  <LayoutGrid className="size-4 shrink-0" aria-hidden="true" />
                   Grid
                 </RoomButton>
                 <RoomButton
@@ -563,6 +584,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                   aria-pressed={viewMode === "list"}
                   onClick={() => setViewMode("list")}
                 >
+                  <List className="size-4 shrink-0" aria-hidden="true" />
                   List
                 </RoomButton>
               </div>
@@ -575,6 +597,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                   })
                 }
               >
+                {fullscreen ? <Minimize className="size-4 shrink-0" aria-hidden="true" /> : <Maximize className="size-4 shrink-0" aria-hidden="true" />}
                 {fullscreen ? "Exit fullscreen" : "Fullscreen"}
               </RoomButton>
             </div>
@@ -682,6 +705,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
           </label>
           <div className="flex flex-wrap gap-2">
             <RoomButton onClick={() => void copy(roomCode)}>
+              <Copy className="size-4 shrink-0" aria-hidden="true" />
               Copy code
             </RoomButton>
             <RoomButton
@@ -691,6 +715,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 )
               }
             >
+              <Copy className="size-4 shrink-0" aria-hidden="true" />
               Copy link
             </RoomButton>
           </div>
@@ -784,7 +809,10 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             {themeError && (
               <p role="alert">
                 {themeError}
-                <RoomButton onClick={loadThemes}>Retry</RoomButton>
+                <RoomButton onClick={loadThemes}>
+                  <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+                  Retry
+                </RoomButton>
               </p>
             )}
             <label className="block space-y-2 text-sm">
@@ -866,6 +894,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 updateSettings({ theme: DEFAULT_THEME });
               }}
             >
+              <RotateCw className="size-4 shrink-0" aria-hidden="true" />
               Reset theme
             </RoomButton>
           </fieldset>
@@ -887,6 +916,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
           {actionError && <p role="alert">{actionError}</p>}
           <div className="flex flex-wrap justify-end gap-3">
             <RoomButton onClick={() => setConfirmation(null)} disabled={busy}>
+              <X className="size-4 shrink-0" aria-hidden="true" />
               Cancel
             </RoomButton>
             <RoomButton
@@ -906,6 +936,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 if (result) setConfirmation(null);
               }}
             >
+              {confirmation?.kind === "remove" ? <UserMinus className="size-4 shrink-0" aria-hidden="true" /> : <RotateCw className="size-4 shrink-0" aria-hidden="true" />}
               {confirmation?.kind === "remove"
                 ? "Remove participant"
                 : "Reset participant"}
@@ -924,7 +955,10 @@ export default function Host() {
     return (
       <RoomPage>
         <div className="mx-auto max-w-md space-y-6 py-6">
-          <Link to="/connect">← Back to Connect</Link>
+          <Link to="/connect" className="inline-flex items-center justify-center gap-2">
+            <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+            Back to Connect
+          </Link>
           <HostCard />
         </div>
       </RoomPage>

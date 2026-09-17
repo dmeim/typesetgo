@@ -1,7 +1,4 @@
-// src/components/typing/TypingArea.tsx
-// Reusable typing area component extracted from TypingPractice
-// Handles core typing logic, character rendering, and WPM/accuracy calculation
-
+import { TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { computeStats, sanitizeTypingInput, getInputPosition, getNextTypingKey,
   hasCompletedPrompt, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
@@ -11,7 +8,7 @@ import { usePracticeClock } from "./usePracticeClock";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
-import { loadSettings } from "@/lib/storage-utils";
+import { DEFAULT_SETTINGS, loadSettings } from "@/lib/storage-utils";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
 
@@ -97,18 +94,21 @@ export default function TypingArea({
   className = "",
   textAlign = "left",
   typingFontFamily: typingFontFamilyProp,
-  showOnScreenKeyboard = false,
-  keyboardLayout = "qwerty",
+  showOnScreenKeyboard: showOnScreenKeyboardProp,
+  keyboardLayout: keyboardLayoutProp,
 }: TypingAreaProps) {
   // Theme
   const { colors } = useTheme();
 
-  // Resolve typing font: use prop if provided, else read from persisted settings
-  const resolvedFontFamily = useMemo(() => {
-    if (typingFontFamilyProp) return getTypingFontFamily(typingFontFamilyProp);
+  const { resolvedFontFamily, showOnScreenKeyboard, keyboardLayout } = useMemo(() => {
     const stored = loadSettings();
-    return getTypingFontFamily(stored?.typingFontFamily);
-  }, [typingFontFamilyProp]);
+    return {
+      resolvedFontFamily: getTypingFontFamily(typingFontFamilyProp ?? stored?.typingFontFamily),
+      showOnScreenKeyboard: showOnScreenKeyboardProp
+        ?? stored?.showOnScreenKeyboard ?? DEFAULT_SETTINGS.showOnScreenKeyboard,
+      keyboardLayout: keyboardLayoutProp ?? stored?.keyboardLayout ?? DEFAULT_SETTINGS.keyboardLayout,
+    };
+  }, [typingFontFamilyProp, showOnScreenKeyboardProp, keyboardLayoutProp]);
 
   // State
   const [typedText, setTypedText] = useState(() => sanitizeTypingInput(initialInput ?? initialTypedText));
@@ -426,7 +426,7 @@ export default function TypingArea({
           className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
           style={{ color: tv.status.warning.DEFAULT }}
         >
-          <span>&#9888;</span>
+          <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
           <span>CAPS Lock is ON</span>
         </div>
       )}

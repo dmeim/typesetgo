@@ -1,3 +1,4 @@
+import { LoaderCircle, Play, Users } from "lucide-react";
 import { useEffect } from "react";
 import type { PlanItem } from "@/types/plan";
 import type { Theme } from "@/lib/typing-constants";
@@ -85,9 +86,10 @@ export default function PlanSplash({
         {!isLocked ? (
           <button
             onClick={onStart}
-            className="w-full py-4 text-white rounded-lg font-bold text-lg shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] hover:opacity-90"
+            className="inline-flex items-center justify-center gap-2 w-full py-4 text-white rounded-lg font-bold text-lg shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] hover:opacity-90"
             style={{ backgroundColor: theme.buttonSelected, boxShadow: `0 10px 15px -3px ${theme.buttonSelected}30` }}
           >
+            <Play className="size-4 shrink-0" aria-hidden="true" />
             Begin Step
           </button>
         ) : (
@@ -97,7 +99,7 @@ export default function PlanSplash({
               className="w-full py-4 rounded-lg font-medium cursor-not-allowed flex items-center justify-center gap-2"
               style={{ backgroundColor: theme.surfaceColor, color: theme.defaultText, borderWidth: 1, borderColor: `${theme.defaultText}30` }}
             >
-              <span className="animate-pulse">●</span> Waiting for Group...
+              <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" /> Waiting for Group...
             </button>
 
             {canEnterZen && onEnterZen && (
@@ -106,6 +108,7 @@ export default function PlanSplash({
                 className="w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 hover:opacity-80"
                 style={{ backgroundColor: `${theme.ghostCursor}20`, color: theme.ghostCursor, borderWidth: 1, borderColor: `${theme.ghostCursor}30` }}
               >
+                <Users className="size-4 shrink-0" aria-hidden="true" />
                 Enter Waiting Room (Zen)
               </button>
             )}

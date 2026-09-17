@@ -1,6 +1,8 @@
 // Achievement definitions for the typing application
 // Data-driven achievement system with 5 tiers (40 levels per progressive category)
 
+import type { AchievementIconName } from "./achievement-icons";
+
 import {
   type AchievementTier,
   type ProgressiveCategory,
@@ -48,7 +50,7 @@ export interface Achievement {
   category: AchievementCategory;
   title: string;
   description: string;
-  icon: string;
+  icon: AchievementIconName;
   tier: AchievementTier;
   // For progressive achievements, the target value
   target?: number;
@@ -59,86 +61,86 @@ export interface Achievement {
 // Category display info
 export const ACHIEVEMENT_CATEGORIES: Record<
   AchievementCategory,
-  { name: string; icon: string; description: string }
+  { name: string; icon: AchievementIconName; description: string }
 > = {
   speed: {
     name: "Speed Demons",
-    icon: "⚡",
+    icon: "zap",
     description: "WPM milestone achievements",
   },
   words: {
     name: "Word Warrior",
-    icon: "📝",
+    icon: "file-text",
     description: "Cumulative words typed achievements",
   },
   accuracy: {
     name: "Accuracy Ace",
-    icon: "🎯",
+    icon: "target",
     description: "Precision and accuracy achievements",
   },
   time: {
     name: "Time Traveler",
-    icon: "⏱️",
+    icon: "timer",
     description: "Cumulative typing time achievements",
   },
   streak: {
     name: "Streak Star",
-    icon: "🔥",
+    icon: "flame",
     description: "Daily streak achievements",
   },
   tests: {
     name: "Test Champion",
-    icon: "🏆",
+    icon: "trophy",
     description: "Tests completed achievements",
   },
   explorer: {
     name: "Explorer",
-    icon: "🧭",
+    icon: "compass",
     description: "Mode and feature diversity achievements",
   },
   special: {
     name: "Special Moments",
-    icon: "✨",
+    icon: "sparkles",
     description: "Unique and fun achievements",
   },
   consistency: {
     name: "Consistency",
-    icon: "📊",
+    icon: "chart-no-axes-column",
     description: "Performance stability achievements",
   },
   improvement: {
     name: "Improvement",
-    icon: "📈",
+    icon: "trending-up",
     description: "Personal growth and records",
   },
   challenge: {
     name: "Challenge Mode",
-    icon: "💪",
+    icon: "biceps-flexed",
     description: "Difficult setting combinations",
   },
   endurance: {
     name: "Endurance",
-    icon: "🏋️",
+    icon: "dumbbell",
     description: "Long sessions and marathons",
   },
   timebased: {
     name: "Time-Based",
-    icon: "🕐",
+    icon: "clock",
     description: "Specific times and dates",
   },
   milestone: {
     name: "Milestones",
-    icon: "🎖️",
+    icon: "medal",
     description: "Multi-requirement achievements",
   },
   quirky: {
     name: "Fun & Quirky",
-    icon: "🎲",
+    icon: "dices",
     description: "Humor and specific numbers",
   },
   collection: {
     name: "Collection",
-    icon: "🗃️",
+    icon: "archive",
     description: "Meta achievements",
   },
 };
@@ -150,7 +152,7 @@ export const ACHIEVEMENT_CATEGORIES: Record<
 interface ProgressiveAchievementMeta {
   category: AchievementCategory;
   progressiveGroup: ProgressiveGroup;
-  icon: string;
+  icon: AchievementIconName;
   descriptionFn: (value: number) => string;
   titleFn?: (value: number, tier: AchievementTier, level: number) => string;
 }
@@ -206,7 +208,7 @@ function generateSpeedAchievements(): Achievement[] {
   return generateFromThresholds("speed", {
     category: "speed",
     progressiveGroup: "speed",
-    icon: "⚡",
+    icon: "zap",
     descriptionFn: (wpm) => `Reach ${wpm} WPM in a single test`,
     titleFn: (wpm, tier, level) => {
       // Special names for milestone WPM values
@@ -230,7 +232,7 @@ function generateWordAchievements(): Achievement[] {
   return generateFromThresholds("words", {
     category: "words",
     progressiveGroup: "words",
-    icon: "📝",
+    icon: "file-text",
     descriptionFn: (words) => `Type ${words.toLocaleString()} correct words total`,
     titleFn: (words, tier, level) => {
       // Special names for milestone word counts
@@ -259,7 +261,7 @@ function generateAccuracyAchievements(): Achievement[] {
     category: "accuracy",
     title: "Perfectionist",
     description: "Achieve 100% accuracy on any test",
-    icon: "🎯",
+    icon: "target",
     tier: "copper",
     target: 1,
     // Not progressive - standalone achievement
@@ -269,7 +271,7 @@ function generateAccuracyAchievements(): Achievement[] {
   const accuracy95 = generateFromThresholds("accuracy-95", {
     category: "accuracy",
     progressiveGroup: "accuracy-95",
-    icon: "🎯",
+    icon: "target",
     descriptionFn: (count) => `Complete ${count} tests with 95%+ accuracy`,
     titleFn: (count, tier, level) => {
       const specialNames: Record<number, string> = {
@@ -287,7 +289,7 @@ function generateAccuracyAchievements(): Achievement[] {
   const accuracyStreak = generateFromThresholds("accuracy-streak", {
     category: "accuracy",
     progressiveGroup: "accuracy-streak",
-    icon: "🎯",
+    icon: "target",
     descriptionFn: (count) => `Get 100% accuracy on ${count} tests in a row`,
     titleFn: (count) => {
       if (count >= 50) return "Untouchable";
@@ -304,7 +306,7 @@ function generateTimeAchievements(): Achievement[] {
   return generateFromThresholds("time", {
     category: "time",
     progressiveGroup: "time",
-    icon: "⏱️",
+    icon: "timer",
     descriptionFn: (minutes) => {
       if (minutes >= 60) {
         const hours = minutes / 60;
@@ -337,7 +339,7 @@ function generateStreakAchievements(): Achievement[] {
   return generateFromThresholds("streak", {
     category: "streak",
     progressiveGroup: "streak",
-    icon: "🔥",
+    icon: "flame",
     descriptionFn: (days) => `Maintain a ${days}-day typing streak`,
     titleFn: (days) => {
       // Special names for milestone streaks
@@ -362,7 +364,7 @@ function generateTestAchievements(): Achievement[] {
   return generateFromThresholds("tests", {
     category: "tests",
     progressiveGroup: "tests",
-    icon: "🏆",
+    icon: "trophy",
     descriptionFn: (count) =>
       `Complete ${count.toLocaleString()} typing test${count > 1 ? "s" : ""}`,
     titleFn: (count) => {
@@ -393,7 +395,7 @@ function generateExplorerAchievements(): Achievement[] {
       category: "explorer",
       title: "Time Keeper",
       description: "Complete a time mode test",
-      icon: "🧭",
+      icon: "compass",
       tier: "copper",
     },
     {
@@ -401,7 +403,7 @@ function generateExplorerAchievements(): Achievement[] {
       category: "explorer",
       title: "Word Counter",
       description: "Complete a words mode test",
-      icon: "🧭",
+      icon: "compass",
       tier: "copper",
     },
     {
@@ -409,7 +411,7 @@ function generateExplorerAchievements(): Achievement[] {
       category: "explorer",
       title: "Quotable",
       description: "Complete a quote mode test",
-      icon: "🧭",
+      icon: "compass",
       tier: "copper",
     },
     {
@@ -417,7 +419,7 @@ function generateExplorerAchievements(): Achievement[] {
       category: "explorer",
       title: "Scholar",
       description: "Complete a preset mode test",
-      icon: "🧭",
+      icon: "compass",
       tier: "copper",
     },
     {
@@ -425,7 +427,7 @@ function generateExplorerAchievements(): Achievement[] {
       category: "explorer",
       title: "Punctuation Pro",
       description: "Complete a test with punctuation enabled",
-      icon: "🧭",
+      icon: "compass",
       tier: "silver",
     },
     {
@@ -433,7 +435,7 @@ function generateExplorerAchievements(): Achievement[] {
       category: "explorer",
       title: "Number Cruncher",
       description: "Complete a test with numbers enabled",
-      icon: "🧭",
+      icon: "compass",
       tier: "silver",
     },
     {
@@ -441,7 +443,7 @@ function generateExplorerAchievements(): Achievement[] {
       category: "explorer",
       title: "Difficulty Master",
       description: "Complete tests on easy, medium, and hard difficulty",
-      icon: "🧭",
+      icon: "compass",
       tier: "gold",
     },
   ];
@@ -455,7 +457,7 @@ function generateSpecialAchievements(): Achievement[] {
       category: "special",
       title: "First Steps",
       description: "Complete your very first typing test",
-      icon: "✨",
+      icon: "sparkles",
       tier: "copper",
     },
     {
@@ -463,7 +465,7 @@ function generateSpecialAchievements(): Achievement[] {
       category: "special",
       title: "Night Owl",
       description: "Complete a test between midnight and 5am",
-      icon: "🦉",
+      icon: "moon",
       tier: "silver",
     },
     {
@@ -471,7 +473,7 @@ function generateSpecialAchievements(): Achievement[] {
       category: "special",
       title: "Early Bird",
       description: "Complete a test between 5am and 7am",
-      icon: "🐦",
+      icon: "sunrise",
       tier: "silver",
     },
     {
@@ -479,7 +481,7 @@ function generateSpecialAchievements(): Achievement[] {
       category: "special",
       title: "Weekend Warrior",
       description: "Complete 10 tests on weekends",
-      icon: "🎉",
+      icon: "party-popper",
       tier: "silver",
       target: 10,
     },
@@ -488,7 +490,7 @@ function generateSpecialAchievements(): Achievement[] {
       category: "special",
       title: "Marathon Runner",
       description: "Complete a test that lasts 120+ seconds",
-      icon: "🏃",
+      icon: "footprints",
       tier: "silver",
     },
     {
@@ -496,7 +498,7 @@ function generateSpecialAchievements(): Achievement[] {
       category: "special",
       title: "Speed and Precision",
       description: "Achieve 100+ WPM with 95%+ accuracy in a single test",
-      icon: "💫",
+      icon: "orbit",
       tier: "diamond",
     },
   ];
@@ -510,7 +512,7 @@ function generateConsistencyAchievements(): Achievement[] {
     category: "consistency",
     title: "Deja Vu",
     description: "Get the same WPM (rounded) 3 times",
-    icon: "📊",
+    icon: "chart-no-axes-column",
     tier: "copper",
   };
 
@@ -518,7 +520,7 @@ function generateConsistencyAchievements(): Achievement[] {
   const variance = generateFromThresholds("consistency-variance", {
     category: "consistency",
     progressiveGroup: "consistency-variance",
-    icon: "📊",
+    icon: "chart-no-axes-column",
     descriptionFn: (count) => `Complete ${count} tests with less than 5 WPM variance`,
     titleFn: (count, tier, level) => {
       const specialNames: Record<number, string> = {
@@ -536,7 +538,7 @@ function generateConsistencyAchievements(): Achievement[] {
   const accuracy90 = generateFromThresholds("consistency-90plus", {
     category: "consistency",
     progressiveGroup: "consistency-90plus",
-    icon: "📊",
+    icon: "chart-no-axes-column",
     descriptionFn: (count) => `${count} consecutive tests above 90% accuracy`,
     titleFn: (count, tier, level) => {
       const specialNames: Record<number, string> = {
@@ -562,7 +564,7 @@ function generateImprovementAchievements(): Achievement[] {
       category: "improvement",
       title: "Big Leap",
       description: "Beat your PB by 10+ WPM in a single test",
-      icon: "📈",
+      icon: "trending-up",
       tier: "silver",
     },
     {
@@ -570,7 +572,7 @@ function generateImprovementAchievements(): Achievement[] {
       category: "improvement",
       title: "Massive Jump",
       description: "Beat your PB by 20+ WPM in a single test",
-      icon: "📈",
+      icon: "trending-up",
       tier: "gold",
     },
     {
@@ -578,7 +580,7 @@ function generateImprovementAchievements(): Achievement[] {
       category: "improvement",
       title: "Doubled Up",
       description: "Double your first test's WPM",
-      icon: "📈",
+      icon: "trending-up",
       tier: "gold",
     },
     {
@@ -586,7 +588,7 @@ function generateImprovementAchievements(): Achievement[] {
       category: "improvement",
       title: "Rising Average",
       description: "Improve your average WPM by 20+ since starting",
-      icon: "📈",
+      icon: "trending-up",
       tier: "emerald",
     },
   ];
@@ -595,7 +597,7 @@ function generateImprovementAchievements(): Achievement[] {
   const pbCount = generateFromThresholds("improvement-pb", {
     category: "improvement",
     progressiveGroup: "improvement-pb",
-    icon: "📈",
+    icon: "trending-up",
     descriptionFn: (count) =>
       count === 1 ? "Beat your previous best WPM" : `Set ${count} personal bests`,
     titleFn: (count, tier, level) => {
@@ -622,7 +624,7 @@ function generateChallengeAchievements(): Achievement[] {
       category: "challenge",
       title: "Punctuation Pro",
       description: "Complete hard difficulty with punctuation enabled",
-      icon: "💪",
+      icon: "biceps-flexed",
       tier: "silver",
     },
     {
@@ -630,7 +632,7 @@ function generateChallengeAchievements(): Achievement[] {
       category: "challenge",
       title: "Number Cruncher Pro",
       description: "Complete hard difficulty with numbers enabled",
-      icon: "💪",
+      icon: "biceps-flexed",
       tier: "silver",
     },
     {
@@ -638,7 +640,7 @@ function generateChallengeAchievements(): Achievement[] {
       category: "challenge",
       title: "Full Challenge",
       description: "Complete hard difficulty with punctuation AND numbers",
-      icon: "💪",
+      icon: "biceps-flexed",
       tier: "gold",
     },
     {
@@ -646,7 +648,7 @@ function generateChallengeAchievements(): Achievement[] {
       category: "challenge",
       title: "Hard Mode Hero",
       description: "Achieve 80+ WPM on hard difficulty",
-      icon: "💪",
+      icon: "biceps-flexed",
       tier: "diamond",
     },
     {
@@ -654,7 +656,7 @@ function generateChallengeAchievements(): Achievement[] {
       category: "challenge",
       title: "Ultimate Challenge",
       description: "80+ WPM on hard with punctuation and numbers",
-      icon: "💪",
+      icon: "biceps-flexed",
       tier: "emerald",
     },
     {
@@ -662,7 +664,7 @@ function generateChallengeAchievements(): Achievement[] {
       category: "challenge",
       title: "Perfect Challenge",
       description: "100% accuracy on hard difficulty",
-      icon: "💪",
+      icon: "biceps-flexed",
       tier: "emerald",
     },
   ];
@@ -677,7 +679,7 @@ function generateEnduranceAchievements(): Achievement[] {
       category: "endurance",
       title: "Ultra Marathon",
       description: "Complete a 180+ second test",
-      icon: "🏋️",
+      icon: "dumbbell",
       tier: "silver",
     },
     {
@@ -685,7 +687,7 @@ function generateEnduranceAchievements(): Achievement[] {
       category: "endurance",
       title: "Epic Marathon",
       description: "Complete a 300+ second test (5 minutes)",
-      icon: "🏋️",
+      icon: "dumbbell",
       tier: "gold",
     },
     {
@@ -693,7 +695,7 @@ function generateEnduranceAchievements(): Achievement[] {
       category: "endurance",
       title: "Word Mountain",
       description: "Complete a 500+ word test",
-      icon: "🏋️",
+      icon: "dumbbell",
       tier: "gold",
     },
   ];
@@ -702,7 +704,7 @@ function generateEnduranceAchievements(): Achievement[] {
   const dailyTests = generateFromThresholds("endurance-daily", {
     category: "endurance",
     progressiveGroup: "endurance-daily",
-    icon: "🏋️",
+    icon: "dumbbell",
     descriptionFn: (count) => `Complete ${count} tests in one day`,
     titleFn: (count, tier, level) => {
       const specialNames: Record<number, string> = {
@@ -728,7 +730,7 @@ function generateTimebasedAchievements(): Achievement[] {
       category: "timebased",
       title: "Lunch Break Typist",
       description: "Complete a test between 12pm-2pm",
-      icon: "🕐",
+      icon: "clock",
       tier: "copper",
     },
     {
@@ -736,7 +738,7 @@ function generateTimebasedAchievements(): Achievement[] {
       category: "timebased",
       title: "Midnight Typist",
       description: "Complete a test at exactly midnight (12am hour)",
-      icon: "🕐",
+      icon: "clock",
       tier: "silver",
     },
     {
@@ -744,7 +746,7 @@ function generateTimebasedAchievements(): Achievement[] {
       category: "timebased",
       title: "New Year Typist",
       description: "Complete a test on January 1st",
-      icon: "🕐",
+      icon: "clock",
       tier: "gold",
     },
     {
@@ -752,7 +754,7 @@ function generateTimebasedAchievements(): Achievement[] {
       category: "timebased",
       title: "TGIF",
       description: "Complete a test on Friday",
-      icon: "🕐",
+      icon: "clock",
       tier: "copper",
     },
     {
@@ -760,7 +762,7 @@ function generateTimebasedAchievements(): Achievement[] {
       category: "timebased",
       title: "Case of the Mondays",
       description: "Complete a test on Monday",
-      icon: "🕐",
+      icon: "clock",
       tier: "copper",
     },
     {
@@ -768,7 +770,7 @@ function generateTimebasedAchievements(): Achievement[] {
       category: "timebased",
       title: "Holiday Spirit",
       description: "Complete a test on a major holiday",
-      icon: "🕐",
+      icon: "clock",
       tier: "silver",
     },
     {
@@ -776,7 +778,7 @@ function generateTimebasedAchievements(): Achievement[] {
       category: "timebased",
       title: "Weekday Warrior",
       description: "Complete tests on all 5 weekdays",
-      icon: "🕐",
+      icon: "clock",
       tier: "silver",
     },
     {
@@ -784,7 +786,7 @@ function generateTimebasedAchievements(): Achievement[] {
       category: "timebased",
       title: "Weekend Complete",
       description: "Complete tests on both Saturday and Sunday",
-      icon: "🕐",
+      icon: "clock",
       tier: "copper",
     },
   ];
@@ -798,7 +800,7 @@ function generateMilestoneAchievements(): Achievement[] {
       category: "milestone",
       title: "Perfect Century",
       description: "100+ WPM with 100% accuracy in a single test",
-      icon: "🎖️",
+      icon: "medal",
       tier: "emerald",
     },
     {
@@ -806,7 +808,7 @@ function generateMilestoneAchievements(): Achievement[] {
       category: "milestone",
       title: "Elite Typist",
       description: "80+ WPM with 98%+ accuracy in a single test",
-      icon: "🎖️",
+      icon: "medal",
       tier: "diamond",
     },
     {
@@ -814,7 +816,7 @@ function generateMilestoneAchievements(): Achievement[] {
       category: "milestone",
       title: "Hard Perfection",
       description: "50+ WPM with 100% accuracy on hard difficulty",
-      icon: "🎖️",
+      icon: "medal",
       tier: "diamond",
     },
     {
@@ -822,7 +824,7 @@ function generateMilestoneAchievements(): Achievement[] {
       category: "milestone",
       title: "Triple Threat",
       description: "100+ WPM on a 100+ word test lasting 100+ seconds",
-      icon: "🎖️",
+      icon: "medal",
       tier: "diamond",
     },
     {
@@ -830,7 +832,7 @@ function generateMilestoneAchievements(): Achievement[] {
       category: "milestone",
       title: "Speed Marathoner",
       description: "80+ WPM on a 120+ second test",
-      icon: "🎖️",
+      icon: "medal",
       tier: "gold",
     },
     {
@@ -838,7 +840,7 @@ function generateMilestoneAchievements(): Achievement[] {
       category: "milestone",
       title: "Accurate Thousand",
       description: "1000 total words with 95%+ average accuracy",
-      icon: "🎖️",
+      icon: "medal",
       tier: "silver",
     },
     {
@@ -846,7 +848,7 @@ function generateMilestoneAchievements(): Achievement[] {
       category: "milestone",
       title: "Mode Master",
       description: "80+ WPM in time, words, and quote modes",
-      icon: "🎖️",
+      icon: "medal",
       tier: "diamond",
     },
     {
@@ -854,7 +856,7 @@ function generateMilestoneAchievements(): Achievement[] {
       category: "milestone",
       title: "Consistent Speed",
       description: "7-day streak with 100+ WPM each day",
-      icon: "🎖️",
+      icon: "medal",
       tier: "emerald",
     },
   ];
@@ -868,7 +870,7 @@ function generateQuirkyAchievements(): Achievement[] {
       category: "quirky",
       title: "SIIIX SEEEVVVEEENNN",
       description: "Get exactly 67 WPM",
-      icon: "🎲",
+      icon: "dices",
       tier: "copper",
     },
     {
@@ -876,7 +878,7 @@ function generateQuirkyAchievements(): Achievement[] {
       category: "quirky",
       title: "Lucky Sevens",
       description: "Get exactly 77 WPM",
-      icon: "🎲",
+      icon: "dices",
       tier: "copper",
     },
     {
@@ -884,7 +886,7 @@ function generateQuirkyAchievements(): Achievement[] {
       category: "quirky",
       title: "Perfectly Round",
       description: "Get exactly 100 WPM",
-      icon: "🎲",
+      icon: "dices",
       tier: "silver",
     },
     {
@@ -892,7 +894,7 @@ function generateQuirkyAchievements(): Achievement[] {
       category: "quirky",
       title: "Palindrome",
       description: "Get a palindrome WPM (11, 22, 33, etc.)",
-      icon: "🎲",
+      icon: "dices",
       tier: "copper",
     },
     {
@@ -900,7 +902,7 @@ function generateQuirkyAchievements(): Achievement[] {
       category: "quirky",
       title: "Answer to Everything",
       description: "Get exactly 42 WPM",
-      icon: "🎲",
+      icon: "dices",
       tier: "copper",
     },
     {
@@ -908,7 +910,7 @@ function generateQuirkyAchievements(): Achievement[] {
       category: "quirky",
       title: "Easy as 123",
       description: "Get exactly 123 WPM",
-      icon: "🎲",
+      icon: "dices",
       tier: "gold",
     },
     {
@@ -916,7 +918,7 @@ function generateQuirkyAchievements(): Achievement[] {
       category: "quirky",
       title: "Pi Day",
       description: "Get 31 WPM on March 14th",
-      icon: "🎲",
+      icon: "dices",
       tier: "gold",
     },
   ];
@@ -930,7 +932,7 @@ function generateCollectionAchievements(): Achievement[] {
     category: "collection",
     title: "Category Master",
     description: "Complete all achievements in any category",
-    icon: "🗃️",
+    icon: "archive",
     tier: "emerald",
   };
 
@@ -938,7 +940,7 @@ function generateCollectionAchievements(): Achievement[] {
   const collection = generateFromThresholds("collection", {
     category: "collection",
     progressiveGroup: "collection",
-    icon: "🗃️",
+    icon: "archive",
     descriptionFn: (count) => `Earn ${count} achievements`,
     titleFn: (count, tier, level) => {
       const specialNames: Record<number, string> = {

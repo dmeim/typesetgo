@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { RotateCcw, LogOut, Trophy } from "lucide-react";
+import { RotateCw, LogOut, Trophy, ArrowLeft, LoaderCircle, Save } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { Podium } from "@/components/race";
@@ -97,7 +97,7 @@ export default function RaceResults() {
           {room.raceEndTime ? (
             <button
               disabled={pending || isLeaving}
-              className="block mx-auto underline"
+              className="inline-flex items-center justify-center gap-2 mx-auto underline"
               onClick={() =>
                 void runAction(
                   () =>
@@ -109,25 +109,28 @@ export default function RaceResults() {
                 )
               }
             >
+              {pending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <Save className="size-4 shrink-0" aria-hidden="true" />}
               {pending ? "Preparing…" : "Prepare results"}
             </button>
           ) : (
             <Link
-              className="block underline"
+              className="inline-flex items-center gap-2 underline"
               to={
                 room.raceStartTime
                   ? `/race/${room._id}`
                   : `/race/lobby/${room._id}`
               }
             >
-              Return to {room.raceStartTime ? "race" : "lobby"}
+              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              <span>Return to {room.raceStartTime ? "race" : "lobby"}</span>
             </Link>
           )}
           <button
             disabled={isLeaving || pending}
-            className="underline"
+            className="inline-flex items-center justify-center gap-2 underline"
             onClick={() => void leave()}
           >
+            {isLeaving ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <LogOut className="size-4 shrink-0" aria-hidden="true" />}
             {isLeaving ? "Leaving…" : "Leave Race"}
           </button>
         </div>
@@ -239,7 +242,7 @@ export default function RaceResults() {
                 color: tv.ui.primaryForeground,
               }}
             >
-              <RotateCcw size={18} />
+              <RotateCw size={18} />
               {pending ? "Resetting…" : "Race Again"}
             </button>
           ) : participant?.isConnected ? (

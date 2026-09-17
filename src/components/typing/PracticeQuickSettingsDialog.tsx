@@ -1,3 +1,4 @@
+import { SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
@@ -103,6 +104,7 @@ export default function PracticeQuickSettingsDialog({
                     backgroundColor: isCustomDurationSelected ? tv.bg.elevated : tv.bg.base,
                   }}
                 >
+                  <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
                   custom
                 </Button>
               </ToggleGroup>
@@ -143,6 +145,7 @@ export default function PracticeQuickSettingsDialog({
                     backgroundColor: isCustomWordTargetSelected ? tv.bg.elevated : tv.bg.base,
                   }}
                 >
+                  <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
                   custom
                 </Button>
               </ToggleGroup>

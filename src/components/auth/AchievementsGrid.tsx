@@ -1,6 +1,8 @@
+import { RefreshCw, Trophy } from "lucide-react";
 import { useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useMutation } from "convex/react";
+import AchievementIcon from "@/components/auth/AchievementIcon";
 import { api } from "../../../convex/_generated/api";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
@@ -98,7 +100,7 @@ export default function AchievementsGrid({
         className="p-4 rounded-xl flex flex-col items-center justify-center h-full"
         style={{ backgroundColor: `${colors.bg.base}80` }}
       >
-        <div className="text-3xl mb-2 opacity-50">🏆</div>
+        <Trophy className="mb-2 size-8 text-muted-foreground" aria-hidden="true" />
         <div
           className="text-sm text-center"
           style={{ color: tv.text.secondary }}
@@ -135,26 +137,10 @@ export default function AchievementsGrid({
               disabled={isRefreshing || !user}
               className="p-1 rounded transition-all hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ color: tv.text.secondary }}
+              aria-label="Refresh achievements"
               title="Refresh achievements"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className={isRefreshing ? "animate-spin" : ""}
-                style={{ animationDirection: "reverse" }}
-              >
-                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                <path d="M16 16h5v5" />
-              </svg>
+              <RefreshCw className={`size-3 ${isRefreshing ? "motion-safe:animate-spin" : ""}`} aria-hidden="true" />
             </button>
             <button
               onClick={() => setShowAchievementsModal(true)}
@@ -199,7 +185,7 @@ export default function AchievementsGrid({
                     {achievement.tier}
                   </div>
                   {/* Icon (middle) */}
-                  <div className="text-xl mb-1">{achievement.icon}</div>
+                  <AchievementIcon icon={achievement.icon} className="mb-1 size-5" />
                   {/* Title (bottom) */}
                   <div
                     className="text-[10px] font-medium text-center leading-tight line-clamp-2"

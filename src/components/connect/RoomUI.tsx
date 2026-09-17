@@ -7,7 +7,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { tv } from "@/lib/theme-vars";
-
 import { panelStyle } from "./room-styles";
 
 export function RoomButton({
@@ -19,7 +18,7 @@ export function RoomButton({
     <button
       type="button"
       {...props}
-      className={`min-h-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors motion-reduce:transition-none hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${props.className ?? ""}`}
+      className={`inline-flex items-center justify-center gap-2 min-h-10 rounded-md border px-3 py-2 text-sm font-medium transition-colors motion-reduce:transition-none hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${props.className ?? ""}`}
       style={{
         backgroundColor: selected ? tv.ui.accent : tv.ui.secondary,
         borderColor: selected ? tv.ui.primary : tv.ui.border,

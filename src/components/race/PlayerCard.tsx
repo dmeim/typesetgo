@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Crown, Check } from "lucide-react";
+import { Crown, CircleCheck, Clock, Pencil, Undo2, LoaderCircle, Save, SaveOff, X } from "lucide-react";
 import EmojiPicker from "./EmojiPicker";
 import { tv } from "@/lib/theme-vars";
 import { RaceError } from "./RaceState";
@@ -101,14 +101,17 @@ export default function PlayerCard({
             />
             <RaceError>{nameError}</RaceError>
             <div className="flex flex-wrap justify-center gap-3 text-sm">
-              <button disabled={pending} type="submit">
+              <button disabled={pending} type="submit" className="inline-flex items-center justify-center gap-2">
+                {pending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : nameError ? <SaveOff className="size-4 shrink-0" aria-hidden="true" /> : <Save className="size-4 shrink-0" aria-hidden="true" />}
                 {pending ? "Saving…" : "Save"}
               </button>
               <button
                 disabled={pending}
                 type="button"
                 onClick={() => setIsEditingName(false)}
+                className="inline-flex items-center justify-center gap-2"
               >
+                <X className="size-4 shrink-0" aria-hidden="true" />
                 Cancel
               </button>
             </div>
@@ -121,9 +124,10 @@ export default function PlayerCard({
               setEditedName(name);
               setIsEditingName(true);
             }}
-            className="max-w-full font-semibold break-words [overflow-wrap:anywhere] underline decoration-dotted underline-offset-4"
+            className="inline-flex items-center justify-center gap-2 max-w-full font-semibold break-words [overflow-wrap:anywhere] underline decoration-dotted underline-offset-4"
           >
-            {name}
+            <Pencil className="size-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0">{name}</span>
           </button>
         )
       ) : (
@@ -136,12 +140,16 @@ export default function PlayerCard({
           disabled={locked}
           onClick={onReadyToggle}
           aria-pressed={isReady}
-          className="mt-auto w-full min-h-10 px-2 py-2 rounded-lg font-semibold disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 mt-auto w-full min-h-10 px-2 py-2 rounded-lg font-semibold disabled:opacity-50"
           style={{
             backgroundColor: isReady ? tv.ui.secondary : tv.ui.primary,
             color: isReady ? tv.ui.foreground : tv.ui.primaryForeground,
           }}
         >
+          {pending ? <LoaderCircle className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
+            : isCountingDown ? <Clock className="size-4 shrink-0" aria-hidden="true" />
+              : isReady ? <Undo2 className="size-4 shrink-0" aria-hidden="true" />
+                : <CircleCheck className="size-4 shrink-0" aria-hidden="true" />}
           {pending
             ? "Saving…"
             : isCountingDown
@@ -157,7 +165,7 @@ export default function PlayerCard({
             color: isReady ? tv.ui.foreground : tv.ui.mutedForeground,
           }}
         >
-          {isReady && <Check size={14} />}
+          {isReady && <CircleCheck size={14} aria-hidden="true" />}
           {isReady ? "Ready" : "Waiting"}
         </p>
       )}

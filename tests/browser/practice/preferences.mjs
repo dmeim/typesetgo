@@ -78,7 +78,7 @@ await withFixtureBrowser(async browser => {
     name: "Test results"
   })).toBeVisible();
   await p.getByRole("button", {
-    name: "\u21BB Next Test",
+    name: "Next Test",
     exact: true
   }).click();
   await expect(p.locator("[data-typing-word]")).toHaveCount(50);

@@ -15,9 +15,9 @@ import {
   verticalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
-import { PlanKeyboardSensor } from "./PlanKeyboardSensor";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { GripVertical, Trash2, ArrowUp, ArrowDown, Play, Plus, Save, X } from "lucide-react";
+import { PlanKeyboardSensor } from "./PlanKeyboardSensor";
 import type { Plan, PlanItem } from "@/types/plan";
 import { tv } from "@/lib/theme-vars";
 import PracticeSettings from "@/components/connect/PracticeSettings";
@@ -221,8 +221,12 @@ export default function PlanBuilderModal({
       wide
       footer={
         <footer className="flex flex-wrap justify-end gap-3">
-          <RoomButton onClick={onClose}>Cancel</RoomButton>
+          <RoomButton onClick={onClose}>
+            <X className="size-4 shrink-0" aria-hidden="true" />
+            Cancel
+          </RoomButton>
           <RoomButton selected disabled={!items.length} onClick={save}>
+            {isConnectMode ? <Save className="size-4 shrink-0" aria-hidden="true" /> : <Play className="size-4 shrink-0" aria-hidden="true" />}
             {isConnectMode ? "Save plan" : "Start plan"}
           </RoomButton>
         </footer>
@@ -232,7 +236,10 @@ export default function PlanBuilderModal({
         <section className="min-w-0 space-y-3" aria-label="Plan steps">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-medium">Steps ({items.length})</h2>
-            <RoomButton onClick={addStep}>Add step</RoomButton>
+            <RoomButton onClick={addStep}>
+              <Plus className="size-4 shrink-0" aria-hidden="true" />
+              Add step
+            </RoomButton>
           </div>
           {!items.length && (
             <p

@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import type { Plan, PlanStepResult } from "@/types/plan";
 import type { Theme } from "@/lib/typing-constants";
 import { DEFAULT_THEME } from "@/lib/typing-constants";
@@ -40,10 +41,11 @@ export default function PlanResultsModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close session results"
             className="w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:opacity-80"
             style={{ color: theme.defaultText }}
           >
-            ✕
+            <X className="size-4" aria-hidden="true" />
           </button>
         </div>
 

@@ -1,6 +1,8 @@
+import { TriangleAlert, LogOut, RefreshCw, ArrowLeft, ArrowBigRight, ChartNoAxesColumn } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { toast } from "@/lib/toast-manager";
 import { motion } from "framer-motion";
+import { useMutation, useQuery } from "convex/react";
+import { toast } from "@/lib/toast-manager";
 import { normalizePracticeSettings, type Quote, type SettingsState, type Theme } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { useTheme } from "@/hooks/useTheme";
@@ -23,12 +25,10 @@ import PlanSplash from "@/components/plan/PlanSplash";
 import PlanResultsModal from "@/components/plan/PlanResultsModal";
 import { Progress } from "@/components/ui/progress";
 import { useAppAuth } from "@/components/layout/useAppAuth";
-import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useNotify } from "@/hooks/useNotify";
 import { getAchievementById } from "@/lib/achievement-definitions";
-
 import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey,
   hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
 import { usePracticeClock } from "./usePracticeClock";
@@ -1712,7 +1712,10 @@ export default function TypingPractice({
             </div>
 
             {!promptReady && <div role="status" className="py-8 text-center" style={{ color: tv.text.secondary }}>
-              {dataset.status === "error" ? <>Could not load this prompt. <button type="button" onClick={() => { if (settings.mode === "quote") void fetchQuotesManifest().then(setQuotesManifest); dataset.retry(); }}>Retry</button></>
+              {dataset.status === "error" ? <>Could not load this prompt. <button type="button" onClick={() => { if (settings.mode === "quote") void fetchQuotesManifest().then(setQuotesManifest); dataset.retry(); }} className="inline-flex items-center justify-center gap-2">
+                <RefreshCw className="size-4 shrink-0" aria-hidden="true" />
+                Retry
+              </button></>
                 : settings.mode === "plan" ? "Waiting for the host to choose a plan step." : "Loading prompt…"}
             </div>}
             <span id="practice-editing-help" className="sr-only">Type at the end of the text. Use Backspace to correct the current word. Tab moves to the next control.</span>
@@ -1731,7 +1734,7 @@ export default function TypingPractice({
                 className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
                 style={{ color: tv.status.warning.DEFAULT }}
               >
-                <span>&#9888;</span>
+                <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
                 <span>CAPS Lock is ON</span>
               </div>
             )}
@@ -1842,9 +1845,10 @@ export default function TypingPractice({
           <div className="absolute top-4 right-4">
             <button
               onClick={exitPlanMode}
-              className="px-4 py-2 transition-colors hover:opacity-80"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 transition-colors hover:opacity-80"
               style={{ color: tv.text.secondary }}
             >
+              <LogOut className="size-4 shrink-0" aria-hidden="true" />
               Exit Plan
             </button>
           </div>
@@ -1877,18 +1881,22 @@ export default function TypingPractice({
           {planIndex > 0 && (
             <button
               onClick={handlePlanPrev}
-              className="px-6 py-3 rounded-lg font-medium transition-colors hover:opacity-90"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors hover:opacity-90"
               style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}
             >
-              ← Previous
+              <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
+              Previous
             </button>
           )}
           <button
             onClick={handlePlanNext}
-            className="px-6 py-3 text-white rounded-lg font-medium transition-colors hover:opacity-90"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-white rounded-lg font-medium transition-colors hover:opacity-90"
             style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
           >
-            {planIndex < plan.length - 1 ? "Next →" : "View Results"}
+            {planIndex < plan.length - 1
+              ? <ArrowBigRight className="size-4 shrink-0" aria-hidden="true" />
+              : <ChartNoAxesColumn className="size-4 shrink-0" aria-hidden="true" />}
+            {planIndex < plan.length - 1 ? "Next" : "View Results"}
           </button>
         </div>
       )}

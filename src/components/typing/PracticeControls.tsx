@@ -1,3 +1,4 @@
+import { CaseSensitive, AtSign, Hash, Infinity as InfinityIcon, Settings, SlidersHorizontal } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -71,6 +72,7 @@ export default function PracticeControls({
               }}
               title="Quick Settings"
             >
+              <Settings className="size-4 shrink-0" aria-hidden="true" />
               Quick Settings
             </Button>
           )}
@@ -122,19 +124,7 @@ export default function PracticeControls({
                       disabled={settings.mode === "quote"}
                       title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle capitalization"}
                     >
-                      <span
-                        className={
-                          settings.capitalization
-                            ? "text-primary-foreground rounded px-1 text-[0.75em] font-bold"
-                            : "bg-muted rounded px-1 text-[0.75em]"
-                        }
-                        style={{
-                          backgroundColor: settings.capitalization ? tv.ui.primary : undefined,
-                          opacity: settings.mode === "quote" ? 0.5 : 1,
-                        }}
-                      >
-                        Aa
-                      </span>
+                      <CaseSensitive className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>caps</span>
                     </Toggle>
                     <Toggle
@@ -148,19 +138,7 @@ export default function PracticeControls({
                       disabled={settings.mode === "quote"}
                       title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle punctuation"}
                     >
-                      <span
-                        className={
-                          settings.punctuation
-                            ? "text-primary-foreground rounded px-1 text-[0.75em] font-bold"
-                            : "bg-muted rounded px-1 text-[0.75em]"
-                        }
-                        style={{
-                          backgroundColor: settings.punctuation ? tv.ui.primary : undefined,
-                          opacity: settings.mode === "quote" ? 0.5 : 1,
-                        }}
-                      >
-                        @
-                      </span>
+                      <AtSign className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>punctuation</span>
                     </Toggle>
                     <Toggle
@@ -174,19 +152,7 @@ export default function PracticeControls({
                       disabled={settings.mode === "quote"}
                       title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle numbers"}
                     >
-                      <span
-                        className={
-                          settings.numbers
-                            ? "text-primary-foreground rounded px-1 text-[0.75em] font-bold"
-                            : "bg-muted rounded px-1 text-[0.75em]"
-                        }
-                        style={{
-                          backgroundColor: settings.numbers ? tv.ui.primary : undefined,
-                          opacity: settings.mode === "quote" ? 0.5 : 1,
-                        }}
-                      >
-                        #
-                      </span>
+                      <Hash className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>numbers</span>
                     </Toggle>
                   </div>
@@ -234,6 +200,7 @@ export default function PracticeControls({
                         color: isCustomDurationSelected ? tv.ui.primary : undefined,
                       }}
                     >
+                      <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
                       custom
                     </Button>
                   </ToggleGroup>
@@ -276,6 +243,7 @@ export default function PracticeControls({
                         color: isCustomWordTargetSelected ? tv.ui.primary : undefined,
                       }}
                     >
+                      <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
                       custom
                     </Button>
                   </ToggleGroup>
@@ -323,9 +291,7 @@ export default function PracticeControls({
                     Duration
                   </span>
                   <div className="flex rounded-lg px-4 py-1.5" style={{ backgroundColor: tv.bg.surface }}>
-                    <span className="text-lg" style={{ color: tv.ui.primary }}>
-                      ∞
-                    </span>
+                    <InfinityIcon className="size-5" style={{ color: tv.ui.primary }} aria-label="Unlimited" role="img" />
                   </div>
                 </>
               )}

@@ -37,6 +37,27 @@ await withFixtureBrowser(async browser => {
   });
   await page.goto(fixtureOrigin);
   await expect(input).toBeEnabled();
+  const tabs = page.getByRole("navigation", { name: "Practice modes" }).locator(":scope > div");
+  const expectPageCentered = async (locator) => {
+    await expect.poll(async () => {
+      const bounds = await locator.boundingBox();
+      return bounds ? Math.abs(bounds.x + bounds.width / 2 - page.viewportSize().width / 2) : Infinity;
+    }).toBeLessThan(1);
+  };
+  for (const width of [1920, 1440, 1280, 1024, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expectPageCentered(tabs);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width >= 1024) {
+      const tabBounds = await tabs.boundingBox();
+      const leftBounds = await page.getByRole("button", { name: "Settings", exact: true }).locator("..").boundingBox();
+      const rightBounds = await page.getByRole("link", { name: "Leaderboard", exact: true }).locator("..").boundingBox();
+      expect(leftBounds.x + leftBounds.width).toBeLessThanOrEqual(tabBounds.x);
+      expect(rightBounds.x).toBeGreaterThanOrEqual(tabBounds.x + tabBounds.width);
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  console.log("header tabs stay page-centered from 320 to 1920px without overlapping side controls PASS");
   await page.getByRole("radio", {
     name: "words",
     exact: true
@@ -68,6 +89,43 @@ await withFixtureBrowser(async browser => {
   await expect(input).toHaveValue("cat");
   await input.fill(Array(10).fill("cat").join(" ") + " ");
   await expect(results).toBeVisible();
+  const heading = results.getByRole("heading", { name: "Results", exact: true });
+  const info = results.getByRole("button", { name: "About these results" });
+  const explanation = page.getByRole("dialog", { name: "About these results" });
+  await expect(heading).toBeVisible();
+  await expect(explanation).toHaveCount(0);
+  await expect(results).toBeFocused();
+  await info.hover();
+  await expect(explanation).toContainText("This practice can be saved to your history, but will not appear on leaderboards.");
+  await expectPageCentered(explanation);
+  await expect(results).toBeFocused();
+  await explanation.hover();
+  await expect(explanation).toBeVisible();
+  await heading.hover();
+  await expect(explanation).toHaveCount(0);
+  await expect(results).toBeFocused();
+  await info.hover();
+  await info.click();
+  await heading.hover();
+  // Wait beyond the hover-dismiss delay to prove that clicking pinned it.
+  await page.waitForTimeout(250);
+  await expect(explanation).toBeVisible();
+  await info.click();
+  await expect(explanation).toHaveCount(0);
+  await info.click();
+  await heading.click();
+  await expect(explanation).toHaveCount(0);
+  await info.focus();
+  await page.keyboard.press("Enter");
+  await expect(explanation).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(explanation).toHaveCount(0);
+  await expect(info).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(explanation).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(explanation).toHaveCount(0);
+  console.log("results info hover, pointer transfer, pin, toggle, outside click and keyboard PASS");
   const oldText = Array(10).fill("cat").join(" ");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const dialog = page.getByRole("dialog");
@@ -93,7 +151,7 @@ await withFixtureBrowser(async browser => {
   await input.fill(oldText + " ");
   await expect(results).toBeVisible();
   await page.getByRole("button", {
-    name: "\u21BB Next Test",
+    name: "Next Test",
     exact: true
   }).click();
   await expect(input).toBeEnabled();
@@ -114,4 +172,11 @@ await withFixtureBrowser(async browser => {
   await page.screenshot({
     path: artifactPath("practice-final-results-wide.png")
   });
+  await info.click();
+  await expect(explanation).toBeVisible();
+  for (const width of [1920, 1024, 390, 320, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expectPageCentered(explanation);
+  }
+  await page.screenshot({ path: artifactPath("practice-results-info-wide.png") });
 });

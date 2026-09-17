@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
+import { GraduationCap, Keyboard } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
-import { GraduationCap } from "lucide-react";
 
 export default function Lessons() {
   useTheme();
@@ -53,6 +53,7 @@ export default function Lessons() {
               color: tv.text.inverse,
             }}
           >
+            <Keyboard className="size-4 shrink-0" aria-hidden="true" />
             Practice Typing
           </Link>
         </div>

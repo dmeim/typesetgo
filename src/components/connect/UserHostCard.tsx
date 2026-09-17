@@ -1,7 +1,7 @@
 import { useReducedMotion } from "framer-motion";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, RotateCw, UserMinus } from "lucide-react";
 import type { SettingsState, Theme } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
 import { isTimedPractice, resolveRoomSettings } from "./room-settings";
@@ -153,6 +153,7 @@ export default function UserHostCard({
             aria-label={`Reset ${user.name}`}
             onClick={() => onReset(user.id)}
           >
+            <RotateCw className="size-4 shrink-0" aria-hidden="true" />
             Reset
           </RoomButton>
           <RoomButton
@@ -160,6 +161,7 @@ export default function UserHostCard({
             onClick={() => onKick(user.id)}
             style={{ color: tv.ui.destructive }}
           >
+            <UserMinus className="size-4 shrink-0" aria-hidden="true" />
             Remove
           </RoomButton>
         </div>

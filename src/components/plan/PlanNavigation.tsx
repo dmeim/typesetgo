@@ -1,3 +1,4 @@
+import { ArrowLeft, ArrowBigRight } from "lucide-react";
 import { GLOBAL_COLORS } from "@/lib/colors";
 
 interface PlanNavigationProps {
@@ -25,7 +26,7 @@ export default function PlanNavigation({
       <button
         onClick={onPrev}
         disabled={!showPrev || isPrevDisabled}
-        className={`group relative inline-flex items-center justify-center px-6 py-2 font-medium text-white transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 ${
+        className={`group relative inline-flex items-center justify-center gap-2 px-6 py-2 font-medium text-white transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 ${
           !showPrev
             ? "opacity-0 pointer-events-none"
             : isPrevDisabled
@@ -34,20 +35,7 @@ export default function PlanNavigation({
         }`}
         title="Previous Step"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="mr-2 transition-transform group-hover:-translate-x-1"
-        >
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
+        <ArrowLeft className="size-5 shrink-0 transition-transform group-hover:-translate-x-1" aria-hidden="true" />
         Prev
       </button>
 
@@ -55,7 +43,7 @@ export default function PlanNavigation({
       <button
         onClick={onNext}
         disabled={!showNext || isNextDisabled}
-        className={`group relative inline-flex items-center justify-center px-6 py-2 font-medium text-white transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 ${
+        className={`group relative inline-flex items-center justify-center gap-2 px-6 py-2 font-medium text-white transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 ${
           !showNext
             ? "opacity-0 pointer-events-none"
             : isNextDisabled
@@ -64,21 +52,8 @@ export default function PlanNavigation({
         }`}
         title="Next Step"
       >
+        <ArrowBigRight className="size-5 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden="true" />
         {nextLabel || "Next"}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="ml-2 transition-transform group-hover:translate-x-1"
-        >
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
         <div
           className="absolute bottom-0 left-0 h-1 w-full scale-x-0 transition-transform duration-200 group-hover:scale-x-100 rounded-b-lg"
           style={{ backgroundColor: GLOBAL_COLORS.brand.primary }}

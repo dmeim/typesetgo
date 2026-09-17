@@ -1,19 +1,25 @@
 import { useId, useRef, useState } from "react";
-import { BellIcon, TrophyIcon, WrenchIcon, InfoIcon, AlertTriangleIcon, XCircleIcon, CheckIcon, Trash2Icon, XIcon } from "lucide-react";
+import { BellIcon, TrophyIcon, WrenchIcon, InfoIcon, TriangleAlertIcon, CircleXIcon, CheckCheckIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useNotifications, getRelativeTime, getNotificationColor, type Notification } from "@/lib/notification-store";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { TIER_COLORS } from "@/lib/achievement-definitions";
+import AchievementIcon from "@/components/auth/AchievementIcon";
+import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
 import AchievementsModal from "@/components/auth/AchievementsModal";
 
 function NotificationIcon({ notification }: { notification: Notification }) {
   const color = notification.type === "achievement" && notification.metadata?.achievementTier
     ? TIER_COLORS[notification.metadata.achievementTier as keyof typeof TIER_COLORS]?.bg || getNotificationColor(notification.type)
     : getNotificationColor(notification.type);
-  const Icon = ({ achievement: TrophyIcon, maintenance: WrenchIcon, warning: AlertTriangleIcon, error: XCircleIcon, info: InfoIcon })[notification.type] ?? InfoIcon;
+  const achievement = notification.type === "achievement" && notification.metadata?.achievementId
+    ? getAchievementById(notification.metadata.achievementId) : undefined;
+  if (achievement) {
+    return <span className="mt-0.5" style={{ color }}><AchievementIcon icon={achievement.icon} className="size-4" /></span>;
+  }
+  const Icon = ({ achievement: TrophyIcon, maintenance: WrenchIcon, warning: TriangleAlertIcon, error: CircleXIcon, info: InfoIcon })[notification.type] ?? InfoIcon;
   return <Icon className="mt-0.5 size-4 shrink-0" style={{ color }} aria-hidden="true" />;
 }
 
@@ -76,7 +82,7 @@ export default function NotificationCenter({ disabled = false }: { disabled?: bo
           {notifications.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">No notifications yet</p> : (
             <>
               <div className="flex flex-wrap gap-1 border-b border-border p-2">
-                {unreadCount > 0 && <Button variant="ghost" size="sm" onClick={() => { markAllAsRead(); headingRef.current?.focus(); }}><CheckIcon className="size-4" aria-hidden="true" />Mark all read</Button>}
+                {unreadCount > 0 && <Button variant="ghost" size="sm" onClick={() => { markAllAsRead(); headingRef.current?.focus(); }}><CheckCheckIcon className="size-4" aria-hidden="true" />Mark all read</Button>}
                 <Button variant="ghost" size="sm" onClick={() => { clearAll(); headingRef.current?.focus(); }}><Trash2Icon className="size-4" aria-hidden="true" />Clear all</Button>
               </div>
               <ul aria-label="Notifications" className="max-h-72 overflow-y-auto overscroll-contain p-1">
