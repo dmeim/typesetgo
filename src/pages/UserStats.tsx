@@ -78,9 +78,9 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
       <main className="min-h-dvh bg-background p-4 font-mono text-foreground flex flex-col items-center justify-center gap-4">
         <h1 className="text-xl font-semibold">User not found</h1>
         <p className="text-sm text-muted-foreground">The user profile you're looking for doesn't exist.</p>
-        <Link to="/" className={`inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 ${focusClass}`}>
+        <Link to="/leaderboard" className={`inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 ${focusClass}`}>
           <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
-          Back to Homepage
+          Back to Leaderboard
         </Link>
       </main>
     );
@@ -97,12 +97,12 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
 
   return (
     <main className="min-h-dvh bg-background font-mono text-foreground">
-      <header className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:gap-8 md:px-6">
-        <Link to="/" className={`inline-flex items-center gap-2 w-fit shrink-0 rounded text-sm text-muted-foreground hover:text-foreground ${focusClass}`}>
+      <header className="mx-auto grid max-w-[1600px] grid-cols-1 items-center gap-4 px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
+        <Link to="/leaderboard" className={`inline-flex items-center gap-2 w-fit shrink-0 rounded text-sm text-muted-foreground hover:text-foreground ${focusClass}`}>
           <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
-          Back to Homepage
+          Back to Leaderboard
         </Link>
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 max-w-full items-center justify-self-center gap-3 text-center">
           {profileUser?.avatarUrl ? (
             <img src={profileUser.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
           ) : (
@@ -113,7 +113,7 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
       </header>
       {isLoading && <p role="status" className="p-12 text-center text-sm text-muted-foreground">Loading profile…</p>}
       {!isLoading && stats && (
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-6 md:px-6">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-5 px-4 pb-6 md:px-6">
           <section aria-labelledby="lifetime-heading">
             <h2 id="lifetime-heading" className="text-sm font-semibold">Lifetime statistics</h2>
             <p className="mt-1 mb-3 text-xs text-muted-foreground">{stats.totalTests.toLocaleString()} valid tests. Select a statistic to view recent tests. Characters are estimated as words × 5.</p>

@@ -202,7 +202,7 @@ export default function AchievementsCategoryGrid({
             initial={reduceMotion ? false : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="grid grid-cols-1 gap-3 @min-[20rem]:grid-cols-2 @min-[42rem]:grid-cols-3"
+            className="grid grid-cols-1 gap-3 @min-[20rem]:grid-cols-2 @min-[34rem]:grid-cols-3"
           >
             {["collection" as const, ...CATEGORIES].map((category) => (
               <CategoryCard
