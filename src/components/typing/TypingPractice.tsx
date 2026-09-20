@@ -1714,7 +1714,8 @@ export default function TypingPractice({
               <div ref={contentRef} className="relative motion-safe:transition-transform motion-safe:duration-100"
                 style={{ transform: `translateY(-${scrollOffset}px)` }}>
                 {promptReady && <PracticeText targetText={words} typedText={compositionDraft ?? typedText} caretRef={caretRef}
-                  maxWordsPerLine={maxWordsPerLine} ghostPosition={settings.ghostWriterEnabled ? ghostCharIndex : undefined} />}
+                  maxWordsPerLine={maxWordsPerLine} justifyLines={settings.textAlign === "justify"}
+                  ghostPosition={settings.ghostWriterEnabled ? ghostCharIndex : undefined} />}
               </div>
             </div>
 

@@ -8,10 +8,11 @@ interface PracticeTextProps {
   maxWordsPerLine?: number;
   feedingTape?: boolean;
   ghostPosition?: number;
+  justifyLines?: boolean;
 }
 
 export default function PracticeText({ targetText, typedText, caretRef, maxWordsPerLine = 10,
-  feedingTape = false, ghostPosition }: PracticeTextProps) {
+  feedingTape = false, ghostPosition, justifyLines = false }: PracticeTextProps) {
   const typedWords = typedText.split(" ");
   const currentWordIndex = typedWords.length - 1;
   const targetWords = targetText.split(" ");
@@ -33,7 +34,7 @@ export default function PracticeText({ targetText, typedText, caretRef, maxWords
     />
   );
 
-  return <>{targetWords.map((word, wordIndex) => {
+  const renderedWords = targetWords.map((word, wordIndex) => {
     const wordStart = wordStarts[wordIndex];
     const typedWord = typedWords[wordIndex] ?? "";
     const current = wordIndex === currentWordIndex;
@@ -58,9 +59,27 @@ export default function PracticeText({ targetText, typedText, caretRef, maxWords
         {ghostPosition === wordStart + word.length && <span className="relative">{caret(true)}</span>}
       </span>
       {wordIndex < targetWords.length - 1 && " "}
-      {!feedingTape && (wordIndex + 1) % maxWordsPerLine === 0 && wordIndex < targetWords.length - 1 && <br />}
+      {!feedingTape && !justifyLines && (wordIndex + 1) % maxWordsPerLine === 0 && wordIndex < targetWords.length - 1 && <br />}
     </span>;
-  })}
-    {currentWordIndex >= targetWords.length && <span className="relative">{caret()}</span>}
-  </>;
+  });
+  const terminalCaret = currentWordIndex >= targetWords.length && <span className="relative">{caret()}</span>;
+
+  if (!justifyLines || feedingTape) return <>{renderedWords}{terminalCaret}</>;
+
+  // A forced <br> is a paragraph-ending line for CSS justification. Give each
+  // capped group its own block so full groups fill the width, while a short
+  // final group keeps natural spacing. Word indices and real spaces stay intact.
+  const groupSize = Number.isFinite(maxWordsPerLine) && maxWordsPerLine >= 1
+    ? Math.floor(maxWordsPerLine) : targetWords.length;
+  const groups = [];
+  for (let start = 0; start < renderedWords.length; start += groupSize) {
+    const end = Math.min(start + groupSize, renderedWords.length);
+    groups.push(
+      <div key={start} data-typing-line style={{ textAlignLast: end - start === groupSize ? "justify" : "start" }}>
+        {renderedWords.slice(start, end)}
+        {end === renderedWords.length && terminalCaret}
+      </div>,
+    );
+  }
+  return <>{groups}</>;
 }

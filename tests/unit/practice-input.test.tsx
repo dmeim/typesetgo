@@ -75,6 +75,24 @@ describe("word-aligned practice input", () => {
     rerender(<PracticeText targetText="cat dog" typedText="cat dog " caretRef={ref} />);
     expect(container.querySelectorAll("[data-typing-caret]")).toHaveLength(1);
   });
+  it("preserves word indices, spaces and terminal carets across justified groups", () => {
+    const ref = createRef<HTMLSpanElement>();
+    const { container, rerender } = render(<PracticeText targetText="cat dog fox owl bat" typedText="cat dog foxxx"
+      maxWordsPerLine={2} justifyLines caretRef={ref} ghostPosition={8} />);
+    expect(container.textContent).toBe("cat dog foxxx owl bat");
+    expect(container.querySelectorAll("[data-typing-caret]")).toHaveLength(1);
+    expect(ref.current?.closest("[data-typing-word]")?.textContent).toBe("foxxx");
+    expect(container.querySelector("[data-ghost-caret]")?.closest("[data-typing-word]")?.textContent).toBe("foxxx");
+    rerender(<PracticeText targetText="cat dog fox owl bat" typedText="cat dog fox owl bat "
+      maxWordsPerLine={2} justifyLines caretRef={ref} />);
+    expect(container.querySelectorAll("[data-typing-caret]")).toHaveLength(1);
+    expect(ref.current?.closest("[data-typing-line]")).toBe(container.lastElementChild);
+    rerender(<PracticeText targetText="cat dog fox owl bat" typedText="cat dog foxxx"
+      maxWordsPerLine={2} justifyLines feedingTape caretRef={ref} />);
+    expect(container.querySelector("[data-typing-line]")).toBeNull();
+    expect(container.querySelector("br")).toBeNull();
+    expect(container.textContent).toBe("cat dog foxxx owl bat");
+  });
 });
 
 describe("TypingArea contracts", () => {
