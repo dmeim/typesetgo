@@ -235,3 +235,16 @@ The generated index is excluded from theme discovery, ignored by Git, and regene
 - Full `bun run lint` remains blocked by the pre-existing untracked `worker/index 2.ts` triple-slash-reference error (plus warnings in `worker/worker-configuration.d 2.ts`). Lint passes with only those two unrelated duplicate files excluded. They were not edited or committed.
 
 Browser acceptance suites use isolated data/service fixtures with unexpected external requests blocked. The separate check of the user's running app was read-only; no live test result, achievement refresh or deletion was submitted. Native browser-toolbar zoom, other browser engines and production network latency were not measured. User review remains the gate before any push or deployment.
+
+### Approved review follow-up — result actions and public profile links
+
+The user's subsequent browser review requested two additional changes:
+
+- Practice results now put Save Results alone in the first row, preserving its saving, saved, invalid and retry states. Repeat Test and Next Test appear in that order beneath it. DOM and keyboard order match the visual order; the navigation buttons share a row even at 320px.
+- Every podium and table username links to the existing public `/user/:userId` route using the user's Convex document ID. The additive `getLeaderboard` response field is taken from `user._id`, never the username or Clerk ID. Ranking and eligibility are unchanged, and duplicate or renamed usernames retain the correct destination. This explicitly expands the original plan's scope to include profile links.
+
+The backend query change remains local with the frontend change. The deployed Convex query must include `userId` before these links appear against that deployment. Older responses retain readable plain names rather than inventing IDs or generating broken links. No schema migration is needed, and no backend deployment was performed.
+
+Follow-up verification includes a successful fixture-environment build, **36 unit-test files / 320 tests**, and repository lint with the same two unrelated duplicate worker files excluded. The practice `secondary`, `journeys` and `ranked` browser scenarios passed, covering two-row geometry at 320/390/1440px, long retry text at 320px, Save → Repeat → Next keyboard order, and existing test navigation/finalization behavior. Desktop and narrow retry screenshots were visually reviewed.
+
+The full isolated profiles browser suite passed with **26 check groups**, including all 50 profile destinations, keyboard navigation from podium/table names as both signed-out and signed-in visitors, correct profile headings, and withheld owner-only actions. Unit coverage verifies stable destinations after renames, duplicate names with distinct IDs, and compatibility with older responses. Desktop/mobile podium screenshots were visually reviewed after links were added. No live records were changed, and neither local commit was pushed or deployed.

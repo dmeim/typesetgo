@@ -21,6 +21,12 @@ export function useAppAuth() {
 export const useUser = useAppAuth;
 
 const now = Date.now();
+function leaderboardUsername(index: number, range = "all-time") {
+  return scenario === "podium" && index < 3
+    ? ["Maya", "SecondPlaceWithAnExceptionallyLongUnbrokenName", "Leo the typist"][index]
+    : `${range} ExtremelyLongUnbrokenUsernameNumber${index + 1}`;
+}
+
 const recentResults = Array.from({ length: 100 }, (_, index) => ({
   _id: `result-${index}`,
   _creationTime: now - index * 86400000,
@@ -51,6 +57,12 @@ export function useQuery(reference: Parameters<typeof getFunctionName>[0], args:
   if (scenario === "loading") return undefined;
   if (name === "users:getUserById") {
     if (scenario === "missing") return null;
+    const userId = (args as { userId: string }).userId;
+    if (userId !== "profile-owner") {
+      const rank = Number(/^leaderboard-user-(\d+)$/.exec(userId)?.[1]);
+      if (!rank || rank > 50) return null;
+      return { _id: userId, username: leaderboardUsername(rank - 1), avatarUrl: null, createdAt: now - 365 * 86400000 };
+    }
     return {
       _id: "profile-owner",
       username: "A very long profile name that must remain readable at narrow widths",
@@ -63,6 +75,7 @@ export function useQuery(reference: Parameters<typeof getFunctionName>[0], args:
   }
   if (name === "testResults:getUserStatsByUserId") {
     const empty = scenario === "empty";
+    const userId = (args as { userId: string }).userId;
     return {
       totalTests: empty ? 0 : 350,
       bestWpm: empty ? 0 : 180,
@@ -71,7 +84,7 @@ export function useQuery(reference: Parameters<typeof getFunctionName>[0], args:
       totalTimeTyped: empty ? 0 : 10500000,
       totalWordsTyped: empty ? 0 : 12000,
       totalCharactersTyped: empty ? 0 : 60000,
-      allResults: empty ? [] : recentResults,
+      allResults: empty ? [] : userId === "profile-owner" ? recentResults : recentResults.map((result) => ({ ...result, userId })),
     };
   }
   if (name === "achievements:getUserAchievementsByUserId" || name === "achievements:getUserAchievements") {
@@ -84,10 +97,9 @@ export function useQuery(reference: Parameters<typeof getFunctionName>[0], args:
     const range = (args as { timeRange: string }).timeRange;
     const count = scenario === "podium" ? Number(options.get("podiumCount") ?? 50) : 50;
     return scenario === "empty" ? [] : Array.from({ length: count }, (_, index) => ({
+      userId: `leaderboard-user-${index + 1}`,
       rank: index + 1,
-      username: scenario === "podium" && index < 3
-        ? ["Maya", "SecondPlaceWithAnExceptionallyLongUnbrokenName", "Leo the typist"][index]
-        : `${range} ExtremelyLongUnbrokenUsernameNumber${index + 1}`,
+      username: leaderboardUsername(index, range),
       avatarUrl: scenario === "podium" && index < 2 ? ["/assets/Banner-Color.svg", "/fixtures/missing-avatar.png"][index] : null,
       wpm: scenario === "podium" && index === 1 ? 150 : 150 - index,
       createdAt: now - index * 60000,

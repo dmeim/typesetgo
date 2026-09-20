@@ -5,8 +5,11 @@ import { ArrowLeftIcon, MedalIcon, MedalMilitaryIcon, TrophyIcon } from "@phosph
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 
 interface LeaderboardEntry {
+  // Older deployed query responses remain readable until the additive update ships.
+  userId?: Id<"users">;
   rank: number;
   username: string;
   avatarUrl: string | null;
@@ -75,6 +78,18 @@ function Avatar({ entry, podium = false }: { entry: LeaderboardEntry; podium?: b
   );
 }
 
+function LeaderboardName({ entry }: { entry: LeaderboardEntry }) {
+  const className = "block min-w-0 [overflow-wrap:anywhere]";
+  return entry.userId ? (
+    <Link
+      to={`/user/${entry.userId}`}
+      className={`${className} rounded-sm underline decoration-border underline-offset-4 hover:decoration-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`}
+    >
+      {entry.username}
+    </Link>
+  ) : <span className={className}>{entry.username}</span>;
+}
+
 function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
   const Award = entry.rank === 1 ? TrophyIcon : entry.rank === 2 ? MedalIcon : MedalMilitaryIcon;
   const metal = entry.rank === 1 ? "#d6a738" : entry.rank === 2 ? "#98a7be" : "#c58150";
@@ -92,7 +107,7 @@ function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
       <div data-podium-identity className="flex min-w-0 flex-1 flex-col items-center pb-3 @min-[28rem]:pb-4">
         <span className="sr-only">Rank {entry.rank}</span>
         <Avatar entry={entry} podium />
-        <p className="mt-3 w-full flex-1 text-sm font-semibold leading-5 text-card-foreground [overflow-wrap:anywhere]">{entry.username}</p>
+        <p className="mt-3 w-full flex-1 text-sm font-semibold leading-5 text-card-foreground"><LeaderboardName entry={entry} /></p>
         <p className="mt-2 flex flex-wrap items-baseline justify-center gap-x-1 text-2xl font-bold tabular-nums text-card-foreground @min-[28rem]:text-3xl">
           {entry.wpm} <span className="text-xs font-normal text-muted-foreground">WPM</span>
         </p>
@@ -156,7 +171,7 @@ function LeaderboardColumn({
         <>
           {/* Keep rank reading order while CSS gives every entrant a fixed podium slot. */}
           <ol aria-label={`${title} podium`} className="mx-auto grid max-w-[40rem] grid-cols-3 items-stretch gap-2 border-b border-border @min-[28rem]:gap-3">
-            {top3.map((entry) => <PodiumEntry key={`${entry.rank}-${entry.username}`} entry={entry} />)}
+            {top3.map((entry) => <PodiumEntry key={entry.userId ?? `${entry.rank}-${entry.username}`} entry={entry} />)}
           </ol>
           {remaining.length > 0 && (
             <Table className="mt-4 w-full table-fixed text-sm">
@@ -170,12 +185,12 @@ function LeaderboardColumn({
               </TableHeader>
               <TableBody>
                 {remaining.map((entry) => (
-                  <TableRow key={`${entry.rank}-${entry.username}`} className="border-b border-border last:border-b-0">
+                  <TableRow key={entry.userId ?? `${entry.rank}-${entry.username}`} className="border-b border-border last:border-b-0">
                     <TableCell className="py-3 text-muted-foreground">{entry.rank}</TableCell>
                     <TableHead scope="row" className="whitespace-normal px-2 py-3 text-left font-medium">
                       <span className="flex min-w-0 items-center gap-2">
                         <Avatar entry={entry} />
-                        <span className="min-w-0 [overflow-wrap:anywhere]">{entry.username}</span>
+                        <LeaderboardName entry={entry} />
                       </span>
                     </TableHead>
                     <TableCell className="py-3 text-right font-semibold tabular-nums">{entry.wpm}</TableCell>

@@ -375,6 +375,7 @@ export const getLeaderboard = query({
 
     const users = await ctx.db.query("users").collect();
     const leaderboard: Array<{
+      userId: Id<"users">;
       username: string;
       avatarUrl: string | null;
       wpm: number;
@@ -418,6 +419,7 @@ export const getLeaderboard = query({
 
       if (bestWpm > 0) {
         leaderboard.push({
+          userId: user._id,
           username: user.username,
           avatarUrl: user.avatarUrl ?? null,
           wpm: bestWpm,

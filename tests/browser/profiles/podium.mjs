@@ -66,8 +66,9 @@ async function assertPodium(page, title, count, label) {
   for (const winner of winners.slice(0, count)) {
     const item = podium.locator(`[data-podium-rank="${winner.rank}"]`);
     await expect(item.getByText(`Rank ${winner.rank}`, { exact: true })).toHaveCount(1);
-    const name = item.getByText(winner.name, { exact: true });
+    const name = item.getByRole("link", { name: winner.name, exact: true });
     await expect(name).toBeVisible();
+    await expect(name).toHaveAttribute("href", `/user/leaderboard-user-${winner.rank}`);
     await expect(item.getByText(`${winner.wpm} WPM`, { exact: true })).toBeVisible();
     const text = await name.evaluate((element) => ({
       fontSize: parseFloat(getComputedStyle(element).fontSize),
@@ -162,4 +163,29 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
     await expect(region.getByRole("list")).toHaveCount(0);
   }
   checks.push("podium 0/1/2/3 entries: independent empty state, no invented winners, stable sparse slots at 320px and 1440px");
+
+  for (const scenario of ["visitor", "anonymous"]) {
+    for (const rank of [1, 4]) {
+      await open("/leaderboard", { scenario, width: 390 });
+      const region = page.getByRole("region", { name: "All-Time", exact: true });
+      const links = region.getByRole("link");
+      await expect(links).toHaveCount(50);
+      assert.deepEqual(await links.evaluateAll((elements) => elements.map((element) => element.getAttribute("href"))), Array.from({ length: 50 }, (_, index) => `/user/leaderboard-user-${index + 1}`));
+      const username = `all-time ExtremelyLongUnbrokenUsernameNumber${rank}`;
+      const link = region.getByRole("link", { name: username, exact: true });
+      await link.focus();
+      await expect(link).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(new RegExp(`/user/leaderboard-user-${rank}$`));
+      await expect(page.getByRole("heading", { name: username, exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Lifetime statistics", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Refresh achievements", exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: /View details/ }).first().click();
+      await expect(page.getByRole("dialog", { name: "Test details", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Delete test", exact: true })).toHaveCount(0);
+      assert.deepEqual(await page.evaluate(() => window.profileFixtureCalls), []);
+      await noOverflow(`${scenario} linked profile rank ${rank}`);
+    }
+  }
+  checks.push("podium/table profile links use stable IDs and open by keyboard for visitors and anonymous viewers with owner actions withheld");
 }
