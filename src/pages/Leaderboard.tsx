@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
-import { ArrowLeftIcon, TrophyIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, MedalIcon, MedalMilitaryIcon, TrophyIcon } from "@phosphor-icons/react";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCaption } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { api } from "../../convex/_generated/api";
 
 interface LeaderboardEntry {
@@ -48,31 +50,74 @@ function getWeekRangeTitleET(): string {
   return `${format(new Date(year, month, day - 7))} – ${format(new Date(year, month, day))}`;
 }
 
-function Avatar({ entry }: { entry: LeaderboardEntry }) {
-  return entry.avatarUrl ? (
-    <img src={entry.avatarUrl} alt="" className="size-9 shrink-0 rounded-full object-cover" />
-  ) : (
-    <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-medium text-secondary-foreground">
+function Avatar({ entry, podium = false }: { entry: LeaderboardEntry; podium?: boolean }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
+  return (
+    <span
+      aria-hidden="true"
+      data-podium-avatar={podium || undefined}
+      className={cn(
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary text-sm font-medium text-secondary-foreground",
+        podium ? "size-10 ring-2 ring-border ring-offset-2 ring-offset-card @min-[28rem]:size-12" : "size-9",
+      )}
+    >
       {entry.username.charAt(0).toUpperCase()}
+      {entry.avatarUrl && entry.avatarUrl !== failedUrl && (
+        <img
+          src={entry.avatarUrl}
+          alt=""
+          className="absolute inset-0 size-full object-cover"
+          onError={() => setFailedUrl(entry.avatarUrl)}
+        />
+      )}
     </span>
   );
 }
 
-function PodiumCard({ entry }: { entry: LeaderboardEntry }) {
+function PodiumEntry({ entry }: { entry: LeaderboardEntry }) {
+  const Award = entry.rank === 1 ? TrophyIcon : entry.rank === 2 ? MedalIcon : MedalMilitaryIcon;
+  const metal = entry.rank === 1 ? "#d6a738" : entry.rank === 2 ? "#98a7be" : "#c58150";
+
   return (
-    <li className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-background p-3 @min-[26rem]:flex-col @min-[26rem]:text-center">
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <span aria-label={`Rank ${entry.rank}`} className="text-xl">
-          {["🥇", "🥈", "🥉"][entry.rank - 1]}
-        </span>
-        <Avatar entry={entry} />
-      </div>
-      <div className="min-w-0 flex-1 @min-[26rem]:w-full">
-        <p className="text-sm font-semibold text-foreground [overflow-wrap:anywhere]">{entry.username}</p>
-        <p className="mt-1 text-lg font-bold text-foreground">
+    <li
+      data-podium-rank={entry.rank}
+      className={cn(
+        "row-start-1 flex min-w-0 flex-col text-center",
+        // Equal-height columns reserve the tallest identity for everyone. The
+        // top inset mirrors the step difference so long names cannot outrank #1.
+        entry.rank === 1 ? "col-start-2" : entry.rank === 2 ? "col-start-1 pt-8 @min-[28rem]:pt-10" : "col-start-3 pt-16 @min-[28rem]:pt-20",
+      )}
+    >
+      <div data-podium-identity className="flex min-w-0 flex-1 flex-col items-center pb-3 @min-[28rem]:pb-4">
+        <span className="sr-only">Rank {entry.rank}</span>
+        <Avatar entry={entry} podium />
+        <p className="mt-3 w-full flex-1 text-sm font-semibold leading-5 text-card-foreground [overflow-wrap:anywhere]">{entry.username}</p>
+        <p className="mt-2 flex flex-wrap items-baseline justify-center gap-x-1 text-2xl font-bold tabular-nums text-card-foreground @min-[28rem]:text-3xl">
           {entry.wpm} <span className="text-xs font-normal text-muted-foreground">WPM</span>
         </p>
         <p className="mt-1 text-xs text-muted-foreground">{formatDate(entry.createdAt)}</p>
+      </div>
+      <div
+        data-podium-step
+        aria-hidden="true"
+        className={cn(
+          "flex shrink-0 flex-col items-center justify-center gap-1 rounded-t-lg border border-b-0 border-t-[3px] py-2",
+          entry.rank === 1 ? "h-36 @min-[28rem]:h-44" : entry.rank === 2 ? "h-28 @min-[28rem]:h-34" : "h-20 @min-[28rem]:h-24",
+        )}
+        style={{
+          background: `linear-gradient(180deg, color-mix(in srgb, ${metal} 22%, var(--card)), color-mix(in srgb, ${metal} 8%, var(--card)))`,
+          borderColor: `color-mix(in srgb, ${metal} 65%, var(--card))`,
+        }}
+      >
+        <span
+          data-podium-award
+          className="flex size-8 items-center justify-center rounded-full bg-card motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-300 @min-[28rem]:size-10"
+          style={{ color: metal }}
+        >
+          <Award aria-hidden="true" weight="fill" className="size-5 @min-[28rem]:size-6" />
+        </span>
+        <span className="rounded-full bg-card px-2 text-lg font-bold leading-6 text-card-foreground">{entry.rank}</span>
       </div>
     </li>
   );
@@ -95,8 +140,8 @@ function LeaderboardColumn({
   const remaining = leaderboard?.slice(3) ?? [];
 
   return (
-    <section aria-labelledby={`${id}-title`} aria-busy={leaderboard === undefined} className="@container min-w-0 rounded-xl border border-border bg-card p-4 text-card-foreground">
-      <header className="mb-4">
+    <section aria-labelledby={`${id}-title`} aria-busy={leaderboard === undefined} className="@container min-w-0 rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-4">
+      <header className="mb-6 min-h-12">
         <h2 id={`${id}-title`} className="text-lg font-semibold">{title}</h2>
         {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle} · ET</p>}
       </header>
@@ -109,8 +154,9 @@ function LeaderboardColumn({
         </div>
       ) : (
         <>
-          <ol aria-label={`${title} podium`} className="grid grid-cols-1 gap-2 @min-[26rem]:grid-cols-3">
-            {top3.map((entry) => <PodiumCard key={`${entry.rank}-${entry.username}`} entry={entry} />)}
+          {/* Keep rank reading order while CSS gives every entrant a fixed podium slot. */}
+          <ol aria-label={`${title} podium`} className="mx-auto grid max-w-[40rem] grid-cols-3 items-stretch gap-2 border-b border-border @min-[28rem]:gap-3">
+            {top3.map((entry) => <PodiumEntry key={`${entry.rank}-${entry.username}`} entry={entry} />)}
           </ol>
           {remaining.length > 0 && (
             <Table className="mt-4 w-full table-fixed text-sm">
@@ -163,7 +209,7 @@ export default function Leaderboard() {
           Requires 90%+ accuracy and at least 30 seconds or 50 correct words.
           15-second tests do not rank. The WPM cap is 300; 170–200 WPM is allowed.
         </p>
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-4 min-[90rem]:grid-cols-3">
           <LeaderboardColumn id="all-time" title="All-Time" leaderboard={allTimeLeaderboard} emptyMessage="Complete a typing test and save your results to appear on the leaderboard!" />
           <LeaderboardColumn id="today" title="Today" subtitle={getTodayTitleET()} leaderboard={todayLeaderboard} emptyMessage="No one has completed a test today yet. Be the first!" />
           <LeaderboardColumn id="week" title="This Week" subtitle={getWeekRangeTitleET()} leaderboard={weekLeaderboard} emptyMessage="No tests completed this week. Start typing to claim the top spot!" />
