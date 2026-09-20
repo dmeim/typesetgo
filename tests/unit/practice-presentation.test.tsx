@@ -469,7 +469,8 @@ describe("theme browsing", () => {
     vi.mocked(fetchThemeForPreview).mockResolvedValueOnce(null).mockResolvedValue(fixtureTheme("Second"));
     render(<PracticeThemePicker showThemeModal setShowThemeModal={vi.fn()} />);
     const first = await screen.findByRole("button", { name: "Select First", exact: true });
-    fireEvent.mouseEnter(first);
+    fireEvent.mouseMove(first, { movementX: 4, movementY: 0 });
+    expect(screen.getByRole("status")).toHaveTextContent("Loading preview for First");
     fireEvent.mouseLeave(first);
     await act(async () => { await new Promise((done) => setTimeout(done, 160)); });
     expect(fetchThemeForPreview).not.toHaveBeenCalled();

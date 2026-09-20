@@ -1,3 +1,4 @@
+import { useRef, type MouseEvent } from "react";
 import { CaretDownIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 import type { ThemeCatalogEntry, ThemeVariantSummary, ThemeMode } from "@/types/theme";
 
@@ -38,9 +39,25 @@ export default function ThemeCard({
   onLightMouseEnter,
   onDarkMouseEnter,
 }: ThemeCardProps) {
-  const pointerPreview = (preview?: (immediate?: boolean) => void) => {
-    // A scroll caused by keyboard focus must not turn a stationary pointer into a new preview intent.
-    if (!document.activeElement?.matches("[data-theme-card-control]:focus-visible")) preview?.();
+  const pointerTarget = useRef<HTMLButtonElement | null>(null);
+  const pointerPreview = (
+    event: MouseEvent<HTMLButtonElement>,
+    preview?: (immediate?: boolean) => void,
+  ) => {
+    if (pointerTarget.current === event.currentTarget) return;
+    // Layout/focus scrolling can enter a card under a stationary pointer. Only
+    // actual movement establishes a mouse preview, including after keyboard use.
+    if (event.movementX === 0 && event.movementY === 0) return;
+    pointerTarget.current = event.currentTarget;
+    preview?.();
+  };
+  const pointerLeave = (event: MouseEvent<HTMLButtonElement>) => {
+    pointerTarget.current = null;
+    if (document.activeElement !== event.currentTarget) onMouseLeave?.();
+  };
+  const focusPreview = (preview?: (immediate?: boolean) => void) => {
+    pointerTarget.current = null;
+    preview?.(true);
   };
   const name = isMultiVariant || label === themeData.name ? label : `${themeData.name}: ${label}`;
   return (
@@ -55,9 +72,9 @@ export default function ThemeCard({
         aria-expanded={isMultiVariant ? !!isExpanded : undefined}
         aria-controls={isMultiVariant ? `theme-variants-${themeData.id}` : undefined}
         aria-pressed={isMultiVariant ? undefined : isSelected}
-        onMouseEnter={() => pointerPreview(onMouseEnter)}
-        onMouseLeave={(event) => { if (document.activeElement !== event.currentTarget) onMouseLeave?.(); }}
-        onFocus={() => onMouseEnter?.(true)}
+        onMouseMove={(event) => pointerPreview(event, onMouseEnter)}
+        onMouseLeave={pointerLeave}
+        onFocus={() => focusPreview(onMouseEnter)}
         onBlur={onMouseLeave}
         className="min-h-20 min-w-0 flex-1 p-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
@@ -90,9 +107,9 @@ export default function ThemeCard({
             data-theme-card-control
             onClick={onLightClick}
             disabled={!variant.light}
-            onMouseEnter={() => pointerPreview(onLightMouseEnter)}
-            onMouseLeave={(event) => { if (document.activeElement !== event.currentTarget) onMouseLeave?.(); }}
-            onFocus={() => onLightMouseEnter?.(true)}
+            onMouseMove={(event) => pointerPreview(event, onLightMouseEnter)}
+            onMouseLeave={pointerLeave}
+            onFocus={() => focusPreview(onLightMouseEnter)}
             onBlur={onMouseLeave}
             aria-label={`Select ${name}, light mode`}
             aria-pressed={selectedMode ? isSelected && selectedMode === "light" : undefined}
@@ -105,9 +122,9 @@ export default function ThemeCard({
             type="button"
             data-theme-card-control
             onClick={onDarkClick}
-            onMouseEnter={() => pointerPreview(onDarkMouseEnter)}
-            onMouseLeave={(event) => { if (document.activeElement !== event.currentTarget) onMouseLeave?.(); }}
-            onFocus={() => onDarkMouseEnter?.(true)}
+            onMouseMove={(event) => pointerPreview(event, onDarkMouseEnter)}
+            onMouseLeave={pointerLeave}
+            onFocus={() => focusPreview(onDarkMouseEnter)}
             onBlur={onMouseLeave}
             aria-label={`Select ${name}, dark mode`}
             aria-pressed={selectedMode ? isSelected && selectedMode === "dark" : undefined}

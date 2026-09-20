@@ -28,6 +28,17 @@ await withFixtureBrowser(async (browser) => {
   expect(index.themes.reduce((count, theme) => count + theme.variants.length, 0)).toBeGreaterThan(4900);
   expect(requests.filter((url) => !["/themes/catalog.json", "/themes/manifest.json"].includes(url)))
     .toEqual(startupRequests.filter((url) => url !== "/themes/manifest.json"));
+  const lightPreview = dialog.getByRole("button", { name: "Select TypeSetGo, light mode", exact: true });
+  const darkPreview = dialog.getByRole("button", { name: "Select TypeSetGo, dark mode", exact: true });
+  await lightPreview.focus();
+  await page.keyboard.press("Tab");
+  await expect(darkPreview).toBeFocused();
+  expect(await darkPreview.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
+  await expect(dialog.getByRole("img", { name: /TypeSetGo · Default · dark/ })).toBeVisible();
+  // Hovering without clicking must resume pointer previews after real Tab navigation.
+  await lightPreview.hover();
+  await expect(dialog.getByRole("img", { name: /TypeSetGo · Default · light/ })).toBeVisible();
+  await expect(darkPreview).toBeFocused();
   const search = dialog.getByRole("searchbox", { name: "Search themes" });
   await search.fill("Shinra Kusakabe");
   const fireForce = dialog.getByRole("button", { name: "Fire Force variants", exact: true });
