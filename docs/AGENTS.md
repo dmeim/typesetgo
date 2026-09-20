@@ -18,7 +18,7 @@ High-level architecture:
 - **Frontend:** Vite SPA (`src/`) with React 19 + TypeScript.
 - **Backend:** Convex functions + schema (`convex/`).
 - **Auth:** Clerk (enabled when publishable key is present).
-- **Static content pipeline:** Vite plugin auto-generates manifests for themes/words/quotes/sounds.
+- **Static content pipeline:** Vite plugin auto-generates manifests for themes/words/quotes/sounds and a separate theme browsing catalog.
 
 ---
 
@@ -213,17 +213,19 @@ Webfonts are checked in under `public/fonts/` with per-family licenses and sourc
 
 The custom plugin `vite-plugin-auto-manifest.ts` auto-generates manifests for:
 - `public/themes/manifest.json`
+- `public/themes/catalog.json` (compact browsing metadata, separate from the startup manifest)
 - `public/words/manifest.json`
 - `public/quotes/manifest.json`
 - `public/sounds/manifest.json`
 
 Generation runs:
 - on build start,
-- during dev via file watcher add/remove events.
+- during dev via file watcher add/change/remove events; generated outputs are ignored to prevent loops.
 
 Rules:
-- Add/remove source content files; do not manually maintain manifest files.
-- Manifest files are git-ignored and considered generated artifacts.
+- Add/edit/remove source content files; do not manually maintain generated files.
+- Manifests and the theme catalog are git-ignored generated artifacts.
+- The practice picker uses `fetchThemeCatalogIndex()` to browse without loading all palettes. Full palettes load on preview/selection using the existing cache and prioritized queue. `fetchAllThemes()` remains available for the Host caller.
 
 ---
 
@@ -270,6 +272,7 @@ When implementing non-trivial changes:
 - **Generated files:** do not manually edit:
   - `convex/_generated/*`
   - manifest files in `public/*/manifest.json`
+  - theme browsing index `public/themes/catalog.json`
 - **Keep unrelated edits out of scope:** do not opportunistically refactor unrelated modules.
 - **Prefer incremental, reversible changes** over large unscoped rewrites.
 

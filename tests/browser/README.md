@@ -27,7 +27,7 @@ The central runner executes suites sequentially and exits unsuccessfully when a 
 
 Fixtures bind to loopback and replace remote service modules. They require no `.env`, Clerk account, or Convex deployment. The repository's Convex development deployment serves the live app and must not be used for these tests. Browser requests outside the fixture are blocked. This is UI and mocked-contract acceptance, not proof of real authentication or network behavior.
 
-The Practice fixture serves explicit local manifest responses before Vite indexes public files; theme IDs come from the checked-in theme JSON files. It does not generate or rewrite application manifests. Fixture caches are separated from application/other-worktree caches. The central runner selects the repository root so Tailwind scans the intended sources, including when invoked by absolute path.
+The Practice fixture serves explicit local manifest responses and an in-memory theme browsing index before Vite indexes public files; both use the checked-in theme JSON files and the shared catalog metadata builder. It does not rewrite application manifests. `practice/theme-catalog.mjs` checks the full catalog's cold/warm requests, palette isolation, and preview layout; `practice/alignment.mjs` checks justified row geometry and editing. Fixture caches are separated from application/other-worktree caches. The central runner selects the repository root so Tailwind scans the intended sources, including when invoked by absolute path.
 
 ## Browser choice and evidence
 

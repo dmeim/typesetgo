@@ -1,5 +1,14 @@
 # Practice cleanup implementation record
 
+## September 20 charm restoration
+
+The approved [charm restoration plan](charm-restoration-plan.md) supersedes the earlier theme-preview and catalog behavior described in this historical cleanup record.
+
+- The picker loads one generated `public/themes/catalog.json` browsing index on first open. Search and cards use metadata; an intentional preview or selection loads the full palette through the existing bounded cache/queue. Startup still loads its selected theme independently. Successful metadata/palettes are reused; metadata failure and individual preview failure have separate retries.
+- `ThemeSitePreview` renders an isolated decorative miniature homepage with header, mode controls, typing colors, keyboard, and footer. It derives semantic colors from the preview palette without mounting live practice/auth/session state or changing saved preferences.
+- `PracticeText` groups complete justified rows so forced word limits justify correctly; a final partial group remains start-aligned. Actual spaces and global word/character indices remain intact. Feeding tape and non-justify consumers retain their existing rendering.
+- The durable practice suite now includes `theme-catalog.mjs` for real-catalog requests, cold/warm observations and responsive preview isolation, and `alignment.mjs` for row geometry and editing. Measurements and final checks are recorded in the restoration plan.
+
 ## Workspace and ownership
 
 - Base: `main` at audit commit `6c0eacb` (verified ancestor).

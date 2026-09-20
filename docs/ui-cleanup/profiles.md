@@ -1,5 +1,15 @@
 # Profiles UI cleanup
 
+## September 20 charm restoration
+
+The approved [charm restoration plan](charm-restoration-plan.md) changes the earlier matte-only visual direction documented below while preserving its data, ownership, focus and dialog contracts.
+
+- Leaderboard winners occupy second–first–third visual columns with fixed stepped pedestals and full wrapping names. Semantic order remains first–second–third; empty slots never invent winners. Period panels stack until the 90rem viewport breakpoint leaves room for three readable podiums.
+- Active achievement overview, board and detail share tier-derived surfaces, medallions and badges. Unearned achievements retain their tier hue with quieter decoration and readable text. Empty categories do not invent an earned tier. The Collection summary and earned/total meters use existing data.
+- History rows use mode icons/chips, explicit validity, emphasized WPM/accuracy and modest interaction feedback. Detail metrics are prominent; absent measurements remain “Not recorded.” Lifetime cards/charts, query semantics and achievement rules remain unchanged.
+- Motion is bounded to overview/active artwork and short interaction feedback; reduced motion disables spatial animation. There is no delayed reveal of long lists.
+- `profiles/podium.mjs` and `profiles/charm.mjs` extend the existing local fixture checks with stepped geometry, sparse winners, all five earned/unearned tiers, saturated themes and result reflow. `scenario=podium&podiumCount=0|1|2|3|50`, `scenario=charm`, and `palette=synthwave` select the new fixture cases. Final validation is recorded in the restoration plan.
+
 ## Scope and isolation
 
 Manager: `codex/ui-profiles` at `/Users/dimitri/Code/typesetgo-worktrees/profiles`, created from `main` containing audit commit `6c0eacb`. The user checkout remains on `main`; its unrelated untracked files are untouched.
