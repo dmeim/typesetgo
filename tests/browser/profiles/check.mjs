@@ -5,6 +5,8 @@ import path from "node:path";
 import { chromium, expect } from "@playwright/test";
 import { startProfileFixtureServer } from "./server.mjs";
 import { browserOptions } from "../browser-options.mjs";
+import { checkPodium } from "./podium.mjs";
+import { checkProfileCharm } from "./charm.mjs";
 
 // Run with: node tests/browser/profiles/check.mjs
 // Uses installed Chrome by default; PLAYWRIGHT_CHANNEL can select another installed channel.
@@ -25,12 +27,15 @@ try {
     return route.abort();
   });
 
-  async function open(route, { scenario = "owner", theme = "dark", width = 390, height = 844, zoom = 1, reducedMotion = "reduce" } = {}) {
+  async function open(route, { scenario = "owner", theme = "dark", width = 390, height = 844, zoom = 1, reducedMotion = "reduce", podiumCount, palette } = {}) {
     // Browser zoom changes the available CSS viewport; CSS zoom does not correctly
     // emulate viewport units in fixed dialogs. Exercise the equivalent reflow size.
     await page.setViewportSize({ width: Math.floor(width / zoom), height: Math.floor(height / zoom) });
     await page.emulateMedia({ reducedMotion });
-    await page.goto(`${url}${route}?scenario=${scenario}&theme=${theme}`);
+    const query = new URLSearchParams({ scenario, theme });
+    if (podiumCount !== undefined) query.set("podiumCount", String(podiumCount));
+    if (palette) query.set("palette", palette);
+    await page.goto(`${url}${route}?${query}`);
     await page.locator("#root > *").first().waitFor();
     await page.waitForTimeout(200);
   }
@@ -192,6 +197,9 @@ try {
   await page.keyboard.press("Escape");
   await expect(notificationTrigger).toBeFocused();
   checks.push("notification achievement dialog returns focus to surviving Notifications trigger");
+
+  await checkPodium({ page, open, noOverflow, output, checks });
+  await checkProfileCharm({ page, open, noOverflow, dialogWithinViewport, output, checks });
 
   assert.deepEqual(errors, [], "Browser errors");
   assert.deepEqual(blockedRequests, [], "Unexpected external requests (blocked before leaving localhost)");

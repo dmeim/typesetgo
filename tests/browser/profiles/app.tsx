@@ -11,8 +11,9 @@ import { NotificationProvider } from "@/lib/notification-store";
 import { getAchievementsByCategory } from "@/lib/achievement-definitions";
 import "@/index.css";
 
-localStorage.setItem("typesetgo-theme-mode", new URLSearchParams(location.search).get("theme") ?? "dark");
-localStorage.setItem("typesetgo-theme-id", "typesetgo");
+const query = new URLSearchParams(location.search);
+localStorage.setItem("typesetgo-theme-mode", query.get("theme") ?? "dark");
+localStorage.setItem("typesetgo-theme-id", query.get("palette") ?? "typesetgo");
 localStorage.setItem("typesetgo_notifications", JSON.stringify([{
   id: "fixture-achievement",
   type: "achievement",

@@ -25,11 +25,11 @@ const recentResults = Array.from({ length: 100 }, (_, index) => ({
   _id: `result-${index}`,
   _creationTime: now - index * 86400000,
   userId: "profile-owner",
-  wpm: 60 + (index % 30),
-  accuracy: 95 + (index % 5),
+  wpm: scenario === "charm" && index === 0 ? 300 : 60 + (index % 30),
+  accuracy: scenario === "charm" && index === 0 ? 100 : 95 + (index % 5),
   duration: 30000,
   wordCount: 30,
-  mode: "time",
+  mode: scenario === "charm" ? ["time", "words", "quote", "zen", "preset"][index % 5] : "time",
   difficulty: "intermediate",
   punctuation: index % 2 === 0,
   numbers: index % 3 === 0,
@@ -77,16 +77,19 @@ export function useQuery(reference: Parameters<typeof getFunctionName>[0], args:
   if (name === "achievements:getUserAchievementsByUserId" || name === "achievements:getUserAchievements") {
     if (scenario === "achievements-loading") return undefined;
     return scenario === "empty" ? {} : Object.fromEntries(
-      ALL_ACHIEVEMENTS.filter((_, index) => index % 3 === 0).map((a) => [a.id, now]),
+      ALL_ACHIEVEMENTS.filter((achievement, index) => index % 3 === 0 && (scenario !== "charm" || achievement.category !== "special")).map((a) => [a.id, now]),
     );
   }
   if (name === "testResults:getLeaderboard") {
     const range = (args as { timeRange: string }).timeRange;
-    return scenario === "empty" ? [] : Array.from({ length: 50 }, (_, index) => ({
+    const count = scenario === "podium" ? Number(options.get("podiumCount") ?? 50) : 50;
+    return scenario === "empty" ? [] : Array.from({ length: count }, (_, index) => ({
       rank: index + 1,
-      username: `${range} ExtremelyLongUnbrokenUsernameNumber${index + 1}`,
-      avatarUrl: null,
-      wpm: 150 - index,
+      username: scenario === "podium" && index < 3
+        ? ["Maya", "SecondPlaceWithAnExceptionallyLongUnbrokenName", "Leo the typist"][index]
+        : `${range} ExtremelyLongUnbrokenUsernameNumber${index + 1}`,
+      avatarUrl: scenario === "podium" && index < 2 ? ["/assets/Banner-Color.svg", "/fixtures/missing-avatar.png"][index] : null,
+      wpm: scenario === "podium" && index === 1 ? 150 : 150 - index,
       createdAt: now - index * 60000,
     }));
   }

@@ -1,4 +1,4 @@
-import { CircleNotchIcon, TrashIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon, GaugeIcon, TargetIcon, TrashIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,8 @@ import { api } from "../../../convex/_generated/api";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { formatRecordedMetric, getTestTypeLabels, type ProfileTestResult } from "./profile-presentation";
+import { formatRecordedMetric, type ProfileTestResult } from "./profile-presentation";
+import { ResultModeLabels, ResultValidity } from "@/components/stats/ResultLabels";
 
 interface TestDetailDialogProps {
   result: ProfileTestResult;
@@ -61,25 +62,28 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
           <DialogTitle>Test details</DialogTitle>
           <DialogDescription>{new Date(result.createdAt).toLocaleString()}</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-wrap gap-1.5">
-          {getTestTypeLabels(result).map((label) => (
-            <span key={label} className="rounded border border-border bg-muted px-2 py-1 text-xs text-muted-foreground">{label}</span>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ResultModeLabels result={result} />
+          <ResultValidity isValid={result.isValid} />
         </div>
         {result.isValid === false && (
-          <p className="text-sm text-destructive">Invalid test. Excluded from lifetime statistics and charts.{result.invalidReason ? ` ${result.invalidReason}` : ""}</p>
+          <p className="flex items-start gap-2 rounded-lg border border-destructive/30 p-3 text-sm text-destructive"><WarningCircleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span>Invalid test. Excluded from lifetime statistics and charts.{result.invalidReason ? ` ${result.invalidReason}` : ""}</span></p>
         )}
         <dl className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-border p-3">
-            <dt className="text-sm text-muted-foreground">WPM</dt>
-            <dd className="mt-1 text-3xl font-semibold tabular-nums">{result.wpm}</dd>
+          <div className="relative min-w-0 overflow-hidden rounded-xl border border-primary/30 bg-secondary p-3 text-secondary-foreground sm:p-4">
+            <GaugeIcon aria-hidden="true" weight="regular" className="mb-3 size-8 text-primary" />
+            <dt className="text-sm">WPM</dt>
+            <dd className="mt-1 whitespace-nowrap text-2xl font-semibold tabular-nums text-primary min-[24rem]:text-3xl sm:text-4xl">{result.wpm}</dd>
           </div>
-          <div className="rounded-lg border border-border p-3">
-            <dt className="text-sm text-muted-foreground">Accuracy</dt>
-            <dd className="mt-1 text-3xl font-semibold tabular-nums">{Math.round(result.accuracy)}%</dd>
+          <div className="relative min-w-0 overflow-hidden rounded-xl border border-border bg-accent p-3 text-accent-foreground sm:p-4">
+            <TargetIcon aria-hidden="true" weight="regular" className="mb-3 size-8 text-primary" />
+            <dt className="text-sm">Accuracy</dt>
+            <dd className="mt-1 whitespace-nowrap text-2xl font-semibold tabular-nums min-[24rem]:text-3xl sm:text-4xl">{Math.round(result.accuracy)}%</dd>
           </div>
+        </dl>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-5 rounded-xl border border-border p-4">
           {metrics.map(([label, value]) => (
-            <div key={label} className="rounded-lg border border-border p-3">
+            <div key={label} className="min-w-0">
               <dt className="text-sm text-muted-foreground">{label}</dt>
               <dd className={`mt-1 tabular-nums ${value === undefined ? "text-sm text-muted-foreground" : "text-xl font-semibold"}`}>{formatRecordedMetric(value)}</dd>
             </div>

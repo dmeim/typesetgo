@@ -8,7 +8,8 @@ import type { Id } from "../../convex/_generated/dataModel";
 import AchievementsCategoryGrid from "@/components/auth/AchievementsCategoryGrid";
 import UserStatsChartModal, { type StatCardType } from "@/components/stats/UserStatsChartModal";
 import TestDetailDialog from "@/components/stats/TestDetailDialog";
-import { formatDuration, getTestTypeLabels, PROFILE_HISTORY_LIMIT, type ProfileTestResult } from "@/components/stats/profile-presentation";
+import { ResultModeLabels, ResultValidity } from "@/components/stats/ResultLabels";
+import { formatDuration, PROFILE_HISTORY_LIMIT, type ProfileTestResult } from "@/components/stats/profile-presentation";
 
 type SortColumn = "date" | "wpm" | "accuracy";
 type SortDirection = "asc" | "desc";
@@ -140,7 +141,7 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
                 onRefresh={isOwner ? refreshAchievements : undefined}
               />
             </section>
-            <section aria-labelledby="history-heading" className="min-w-0 rounded-lg border border-border bg-card text-card-foreground">
+            <section aria-labelledby="history-heading" className="@container min-w-0 rounded-lg border border-border bg-card text-card-foreground">
               <div className="border-b border-border p-4">
                 <h2 id="history-heading" ref={historyHeading} tabIndex={-1} className="font-semibold">Recent test history</h2>
                 <p className="mt-1 text-xs text-muted-foreground">Showing {sortedResults.length} saved tests (latest {PROFILE_HISTORY_LIMIT} maximum), including invalid tests.</p>
@@ -164,26 +165,28 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
                 </div>
               </div>
               {sortedResults.length ? (
-                <ul className="max-h-[44rem] overflow-y-auto p-1">
+                <ul className="max-h-[44rem] overflow-y-auto p-2">
                   {sortedResults.map((result) => (
                     <li key={result._id} className="border-b border-border last:border-b-0">
                       <button
                         type="button"
                         aria-haspopup="dialog"
-                        className={`flex w-full min-w-0 flex-col gap-2 rounded p-3 text-left hover:bg-accent hover:text-accent-foreground ${focusClass}`}
+                        className={`group flex w-full min-w-0 flex-col gap-3 rounded-lg p-3 text-left hover:bg-accent hover:text-accent-foreground motion-safe:transition-[background-color,transform] motion-safe:duration-150 motion-safe:active:scale-[0.99] ${focusClass}`}
                         onClick={(event) => { dialogTrigger.current = event.currentTarget; setSelectedTest(result); }}
                       >
-                        <span className="flex w-full flex-wrap justify-between gap-x-3 gap-y-1 text-xs">
-                          <time dateTime={new Date(result.createdAt).toISOString()} className="text-muted-foreground">{new Date(result.createdAt).toLocaleDateString()} · {new Date(result.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time>
-                          <span className={result.isValid === false ? "text-destructive" : "text-muted-foreground"}>{result.isValid === false ? "Invalid" : "Valid"}</span>
+                        <span className="grid w-full min-w-0 gap-3 @min-[28rem]:grid-cols-[minmax(0,1fr)_auto] @min-[28rem]:items-center">
+                          <span className="flex min-w-0 flex-col gap-2">
+                            <ResultModeLabels result={result} />
+                            <time dateTime={new Date(result.createdAt).toISOString()} className="text-xs text-muted-foreground">{new Date(result.createdAt).toLocaleDateString()} · {new Date(result.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time>
+                          </span>
+                          <span className="flex flex-wrap items-baseline gap-x-5 gap-y-1 tabular-nums @min-[28rem]:justify-end">
+                            <span className="whitespace-nowrap text-xs text-muted-foreground"><strong className="text-2xl font-semibold text-primary">{result.wpm}</strong> WPM</span>
+                            <span className="whitespace-nowrap text-xs text-muted-foreground"><strong className="text-lg font-semibold text-foreground">{Math.round(result.accuracy)}%</strong> accuracy</span>
+                          </span>
                         </span>
-                        <span className="flex flex-wrap gap-1">
-                          {getTestTypeLabels(result).map((label) => <span key={label} className="rounded border border-border px-1.5 py-0.5 text-xs">{label}</span>)}
-                        </span>
-                        <span className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-sm tabular-nums">
-                          <span><strong>{result.wpm}</strong> WPM</span>
-                          <span><strong>{Math.round(result.accuracy)}%</strong> accuracy</span>
-                          <span className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground"><ArrowRightIcon className="size-3 shrink-0" aria-hidden="true" />View details</span>
+                        <span className="flex w-full flex-wrap items-center justify-between gap-2">
+                          <ResultValidity isValid={result.isValid} />
+                          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground group-hover:text-foreground"><ArrowRightIcon className="size-3 shrink-0 motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5" aria-hidden="true" />View details</span>
                         </span>
                       </button>
                     </li>

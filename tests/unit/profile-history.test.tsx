@@ -192,6 +192,22 @@ describe("profile recent charts", () => {
 });
 
 describe("profile detail dialogs", () => {
+  it.each(["time", "words", "quote", "zen", "preset", "future-mode"])("keeps %s mode and settings readable in history and details", (mode) => {
+    fixture.stats = makeStats([{ ...baseResult, mode, punctuation: true, numbers: true, capitalization: true, isValid: false, invalidReason: "Recorded invalid reason" }]);
+    mount();
+    const row = screen.getByRole("button", { name: /View details/ });
+    const label = mode.charAt(0).toUpperCase() + mode.slice(1);
+    expect(row).toHaveTextContent(label);
+    expect(row).toHaveTextContent("Invalid");
+    fireEvent.click(row);
+    const dialog = screen.getByRole("dialog", { name: "Test details" });
+    expect(within(dialog).getByText(label)).toBeInTheDocument();
+    expect(within(dialog).getByText("caps")).toBeInTheDocument();
+    expect(within(dialog).getByText("punctuation")).toBeInTheDocument();
+    expect(within(dialog).getByText("numbers")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Invalid test. Excluded from lifetime statistics and charts. Recorded invalid reason/)).toBeInTheDocument();
+  });
+
   it("preserves absent metrics while showing recorded zero", () => {
     fixture.stats = makeStats([{ ...baseResult, wordsIncorrect: 0, charsExtra: 0 }]);
     mount();

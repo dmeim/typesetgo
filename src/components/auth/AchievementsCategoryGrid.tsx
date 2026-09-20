@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
-import AchievementIcon from "@/components/auth/AchievementIcon";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowsClockwiseIcon, StackIcon } from "@phosphor-icons/react";
+import { AchievementMedallion, AchievementTierBadge } from "@/components/auth/AchievementMedallion";
+import { achievementStyle, useAchievementPalette } from "@/components/auth/achievement-presentation";
 import {
   getAchievementById,
-  TIER_COLORS,
   filterToHighestAchievements,
   getAchievementsByCategory,
   ACHIEVEMENT_CATEGORIES,
@@ -78,16 +79,20 @@ function CategoryCard({
   earnedIds,
   onClick,
   isOpen,
+  palette,
 }: {
   category: AchievementCategory;
   earnedIds: string[];
   onClick: () => void;
   isOpen: boolean;
+  palette: ReturnType<typeof useAchievementPalette>;
 }) {
   const categoryInfo = ACHIEVEMENT_CATEGORIES[category];
   const categoryAchievements = getAchievementsByCategory(category);
   const earnedCount = categoryAchievements.filter((achievement) => earnedIds.includes(achievement.id)).length;
   const highestAchievement = getHighestInCategory(category, earnedIds);
+  const presentation = highestAchievement ? palette.earned[highestAchievement.tier] : palette.empty;
+  const isCollection = category === "collection";
 
   return (
     <button
@@ -96,27 +101,29 @@ function CategoryCard({
       aria-haspopup="dialog"
       aria-expanded={isOpen}
       aria-label={`${categoryInfo.name}: ${earnedCount} of ${categoryAchievements.length} earned`}
-      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-3 text-left text-card-foreground hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      data-achievement-category={category}
+      data-achievement-tier={highestAchievement?.tier}
+      style={achievementStyle(presentation)}
+      className={`group flex min-w-0 flex-col gap-3 rounded-xl border border-[var(--achievement-border)] bg-[var(--achievement-surface)] p-4 text-left text-[var(--achievement-foreground)] hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-safe:transition-[transform,box-shadow] motion-safe:duration-200 motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.99] ${isCollection ? "col-span-full" : ""}`}
     >
-      <span className="flex w-full flex-wrap items-start gap-x-2 gap-y-1">
-        <AchievementIcon icon={categoryInfo.icon} className="size-5" />
-        <span className="min-w-0 flex-1 text-sm font-semibold [overflow-wrap:anywhere]">{categoryInfo.name}</span>
-        <span className="text-xs text-muted-foreground">{earnedCount}/{categoryAchievements.length}</span>
-      </span>
-      {highestAchievement ? (
-        <span className="flex items-start gap-2 border-t border-border pt-3">
-          <AchievementIcon icon={highestAchievement.icon} className="size-5" />
-          <span className="min-w-0">
-            <span className="block text-sm [overflow-wrap:anywhere]">{highestAchievement.title}</span>
-            <span className="mt-1 flex items-center gap-1.5 text-xs capitalize text-muted-foreground">
-              <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: TIER_COLORS[highestAchievement.tier].bg }} />
-              {highestAchievement.tier}
-            </span>
-          </span>
+      <span className={`flex min-w-0 gap-3 ${isCollection ? "items-center" : "flex-col items-start"}`}>
+        <AchievementMedallion icon={highestAchievement?.icon ?? categoryInfo.icon} earned={!!highestAchievement} size={isCollection ? "medium" : "small"} />
+        <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
+          <span className="text-sm font-semibold [overflow-wrap:anywhere]">{categoryInfo.name}</span>
+          {isCollection && <span className="text-xs text-[var(--achievement-muted)]">{earnedIds.length} achievements in your collection</span>}
+          {highestAchievement && <AchievementTierBadge tier={highestAchievement.tier} />}
         </span>
-      ) : (
-        <span className="text-sm text-muted-foreground">None earned yet</span>
-      )}
+      </span>
+      <span className="text-sm [overflow-wrap:anywhere]">{highestAchievement?.title ?? "None earned yet"}</span>
+      <span className="mt-auto flex flex-col gap-2">
+        <span className="flex flex-wrap justify-between gap-x-2 text-xs text-[var(--achievement-muted)]">
+          <span>{isCollection ? "Collection awards" : "Earned"}</span>
+          <span className="font-semibold tabular-nums">{earnedCount} / {categoryAchievements.length}</span>
+        </span>
+        <span aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-[var(--achievement-track)]">
+          <span className="block h-full rounded-full bg-[var(--achievement-accent)]" style={{ width: `${earnedCount / categoryAchievements.length * 100}%` }} />
+        </span>
+      </span>
     </button>
   );
 }
@@ -126,6 +133,8 @@ export default function AchievementsCategoryGrid({
   isLoading = false,
   onRefresh,
 }: AchievementsCategoryGridProps) {
+  const palette = useAchievementPalette();
+  const reduceMotion = useReducedMotion() !== false;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshPending = useRef(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
@@ -158,7 +167,7 @@ export default function AchievementsCategoryGrid({
       <section aria-label="Achievements" aria-busy={isLoading} className="@container flex flex-col gap-3 text-foreground">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
           <div>
-            <h2 className="text-sm font-semibold">Achievements</h2>
+            <h2 className="flex items-center gap-2 text-sm font-semibold"><StackIcon aria-hidden="true" className="size-5 text-primary" />Achievements</h2>
             {!isLoading && (
               <button
                 type="button"
@@ -189,7 +198,12 @@ export default function AchievementsCategoryGrid({
         {isLoading ? (
           <p role="status" className="py-6 text-sm text-muted-foreground">Loading achievements…</p>
         ) : (
-          <div className="grid grid-cols-1 gap-3 @min-[24rem]:grid-cols-2 @min-[42rem]:grid-cols-3">
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="grid grid-cols-1 gap-3 @min-[20rem]:grid-cols-2 @min-[42rem]:grid-cols-3"
+          >
             {["collection" as const, ...CATEGORIES].map((category) => (
               <CategoryCard
                 key={category}
@@ -197,9 +211,10 @@ export default function AchievementsCategoryGrid({
                 earnedIds={earnedIds}
                 onClick={() => openCategory(category)}
                 isOpen={showAchievementsModal && selectedCategory === category}
+                palette={palette}
               />
             ))}
-          </div>
+          </motion.div>
         )}
       </section>
       {showAchievementsModal && (

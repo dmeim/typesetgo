@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { useReducedMotion } from "framer-motion";
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
-import AchievementIcon from "@/components/auth/AchievementIcon";
+import { motion, useReducedMotion } from "framer-motion";
+import { CaretLeftIcon, CaretRightIcon, CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
+import { AchievementMedallion, AchievementTierBadge } from "@/components/auth/AchievementMedallion";
+import { achievementStyle, useAchievementPalette, type AchievementPresentation } from "@/components/auth/achievement-presentation";
 import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
-import { ACHIEVEMENT_CATEGORIES, TIER_COLORS, type Achievement } from "@/lib/achievement-definitions";
+import { ACHIEVEMENT_CATEGORIES, type Achievement } from "@/lib/achievement-definitions";
 
 interface AchievementDetailModalProps {
   achievements: { achievement: Achievement; earnedAt: number | null }[];
@@ -14,21 +15,38 @@ interface AchievementDetailModalProps {
   onClose: () => void;
 }
 
-function AchievementSlide({ achievement, earnedAt }: { achievement: Achievement; earnedAt: number | null }) {
+function AchievementSlide({ achievement, earnedAt, presentation, active, reduceMotion }: {
+  achievement: Achievement;
+  earnedAt: number | null;
+  presentation: AchievementPresentation;
+  active: boolean;
+  reduceMotion: boolean;
+}) {
   const category = ACHIEVEMENT_CATEGORIES[achievement.category];
+  const medallion = <AchievementMedallion icon={achievement.icon} earned={earnedAt !== null} size="large" />;
   return (
-    <div className="flex min-w-0 flex-col items-center gap-4 px-1 text-center">
-      <div aria-hidden="true" className={`flex size-16 items-center justify-center rounded-full border border-border bg-card text-3xl ${earnedAt === null ? "grayscale" : ""}`}><AchievementIcon icon={achievement.icon} className="size-8" /></div>
+    <div
+      data-achievement-tier={achievement.tier}
+      data-achievement-state={earnedAt === null ? "unearned" : "earned"}
+      style={achievementStyle(presentation)}
+      className="flex min-w-0 flex-col items-center gap-5 px-1 pt-3 text-center"
+    >
+      {active ? (
+        <motion.span initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.22 }}>
+          {medallion}
+        </motion.span>
+      ) : medallion}
       <div>
-        <p className="mb-2 flex items-center justify-center gap-2 text-xs capitalize text-muted-foreground">
-          <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: TIER_COLORS[achievement.tier].bg }} />
-          {achievement.tier}
-        </p>
-        <h3 className="text-xl font-semibold [overflow-wrap:anywhere]">{achievement.title}</h3>
+        <AchievementTierBadge tier={achievement.tier} />
+        <h3 className="mt-3 text-2xl font-semibold [overflow-wrap:anywhere]">{achievement.title}</h3>
         <p className="mt-1 text-sm text-muted-foreground">{category.name}</p>
       </div>
-      <p className="w-full rounded-lg border border-border bg-card p-4 text-sm text-card-foreground">{achievement.description}</p>
-      <p className="text-sm text-muted-foreground">
+      <div className="w-full rounded-xl border border-[var(--achievement-border)] bg-[var(--achievement-surface)] p-4 text-[var(--achievement-foreground)]">
+        <p className="mb-2 text-xs font-semibold text-[var(--achievement-muted)]">How to earn it</p>
+        <p className="text-sm leading-relaxed [overflow-wrap:anywhere]">{achievement.description}</p>
+      </div>
+      <p className="flex items-start justify-center gap-2 text-sm text-muted-foreground">
+        {earnedAt === null ? <CircleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" /> : <CheckCircleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />}
         {earnedAt === null ? "Not yet earned" : `Earned on ${new Date(earnedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}`}
       </p>
     </div>
@@ -36,6 +54,7 @@ function AchievementSlide({ achievement, earnedAt }: { achievement: Achievement;
 }
 
 export default function AchievementDetailModal({ achievements, initialIndex, onClose }: AchievementDetailModalProps) {
+  const palette = useAchievementPalette();
   const [returnFocus] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
   const startIndex = Math.max(0, Math.min(initialIndex, achievements.length - 1));
   const [api, setApi] = useState<CarouselApi>();
@@ -88,7 +107,13 @@ export default function AchievementDetailModal({ achievements, initialIndex, onC
           <CarouselContent>
             {achievements.map(({ achievement, earnedAt }, index) => (
               <CarouselItem key={achievement.id} aria-hidden={index !== currentIndex}>
-                <AchievementSlide achievement={achievement} earnedAt={earnedAt} />
+                <AchievementSlide
+                  achievement={achievement}
+                  earnedAt={earnedAt}
+                  presentation={(earnedAt === null ? palette.unearned : palette.earned)[achievement.tier]}
+                  active={index === currentIndex}
+                  reduceMotion={jump}
+                />
               </CarouselItem>
             ))}
           </CarouselContent>

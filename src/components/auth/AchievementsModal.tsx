@@ -1,5 +1,8 @@
 import { useRef, useState } from "react";
+import { CheckCircleIcon, CircleIcon, TrophyIcon } from "@phosphor-icons/react";
 import AchievementIcon from "@/components/auth/AchievementIcon";
+import { AchievementMedallion, AchievementTierBadge } from "@/components/auth/AchievementMedallion";
+import { achievementStyle, useAchievementPalette } from "@/components/auth/achievement-presentation";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Dialog,
@@ -11,7 +14,6 @@ import {
 import {
   ALL_ACHIEVEMENTS,
   ACHIEVEMENT_CATEGORIES,
-  TIER_COLORS,
   getAchievementsByCategory,
   getAchievementById,
   type Achievement,
@@ -36,6 +38,7 @@ export default function AchievementsModal({
   initialCategory,
   initialAchievementId,
 }: AchievementsModalProps) {
+  const palette = useAchievementPalette();
   const [returnFocus] = useState(() => document.activeElement instanceof HTMLElement ? document.activeElement : null);
   const categoryRefs = useRef(new Map<AchievementCategory, HTMLHeadingElement>());
   const achievementRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -76,7 +79,7 @@ export default function AchievementsModal({
         }}
       >
         <DialogHeader className="shrink-0 border-b border-border p-4 pr-12 text-left sm:p-6 sm:pr-12">
-          <DialogTitle className="text-xl">All Achievements</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-xl"><TrophyIcon aria-hidden="true" className="size-6 text-primary" />All Achievements</DialogTitle>
           <DialogDescription>
             {earnedIds.size} / {ALL_ACHIEVEMENTS.length} earned · {Math.round(earnedIds.size / ALL_ACHIEVEMENTS.length * 100)}% complete
           </DialogDescription>
@@ -109,7 +112,7 @@ export default function AchievementsModal({
                   {info.name}
                   <span className="ml-auto text-xs font-normal text-muted-foreground">{count} / {achievements.length}</span>
                 </h3>
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,9rem),1fr))] gap-3">
                   {achievements.map((achievement, index) => {
                     const isEarned = earnedIds.has(achievement.id);
                     return (
@@ -119,19 +122,22 @@ export default function AchievementsModal({
                         ref={(element) => { if (element) achievementRefs.current.set(achievement.id, element); else achievementRefs.current.delete(achievement.id); }}
                         aria-label={`${info.name}: ${achievement.title}, ${achievement.tier}, ${isEarned ? "earned" : "not yet earned"}`}
                         aria-haspopup="dialog"
+                        data-achievement-tier={achievement.tier}
+                        data-achievement-state={isEarned ? "earned" : "unearned"}
+                        style={achievementStyle((isEarned ? palette.earned : palette.unearned)[achievement.tier])}
                         onClick={() => setSelectedCarousel({
                           achievements: achievements.map((item) => ({ achievement: item, earnedAt: earnedAchievements[item.id] ?? null })),
                           initialIndex: index,
                         })}
-                        className={`flex min-w-0 flex-col items-center gap-2 rounded-lg border bg-card p-3 text-card-foreground hover:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${initialAchievementId === achievement.id ? "border-ring" : "border-border"}`}
+                        className={`flex min-w-0 flex-col items-center gap-3 rounded-xl border border-[var(--achievement-border)] bg-[var(--achievement-surface)] p-4 text-[var(--achievement-foreground)] hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-safe:transition-[transform,box-shadow] motion-safe:duration-150 motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] ${initialAchievementId === achievement.id ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""}`}
                       >
-                        <span className="flex items-center gap-1.5 text-xs capitalize text-muted-foreground">
-                          <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: isEarned ? TIER_COLORS[achievement.tier].bg : "currentColor" }} />
-                          {achievement.tier}
+                        <AchievementTierBadge tier={achievement.tier} />
+                        <AchievementMedallion icon={achievement.icon} earned={isEarned} />
+                        <span className="text-sm font-semibold [overflow-wrap:anywhere]">{achievement.title}</span>
+                        <span className="mt-auto flex items-center gap-1.5 text-xs text-[var(--achievement-muted)]">
+                          {isEarned ? <CheckCircleIcon aria-hidden="true" className="size-3.5 shrink-0" /> : <CircleIcon aria-hidden="true" className="size-3.5 shrink-0" />}
+                          {isEarned ? "Earned" : "Not yet earned"}
                         </span>
-                        <AchievementIcon icon={achievement.icon} className={`size-6 ${isEarned ? "" : "text-muted-foreground"}`} />
-                        <span className="text-sm font-medium [overflow-wrap:anywhere]">{achievement.title}</span>
-                        <span className="text-xs text-muted-foreground">{isEarned ? "Earned" : "Not yet earned"}</span>
                       </button>
                     );
                   })}

@@ -3,11 +3,19 @@ import { useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AchievementsCategoryGrid from "@/components/auth/AchievementsCategoryGrid";
 import AchievementsModal from "@/components/auth/AchievementsModal";
-import { getAchievementsByCategory } from "@/lib/achievement-definitions";
+import { ALL_ACHIEVEMENTS, getAchievementsByCategory, TIER_COLORS, type AchievementTier } from "@/lib/achievement-definitions";
 
 const motion = vi.hoisted(() => ({ reduced: true }));
 const carouselCalls = vi.hoisted(() => ({ next: vi.fn(), previous: vi.fn(), to: vi.fn() }));
-vi.mock("framer-motion", () => ({ useReducedMotion: () => motion.reduced }));
+vi.mock("framer-motion", async (importOriginal) => ({
+  ...await importOriginal<typeof import("framer-motion")>(),
+  useReducedMotion: () => motion.reduced,
+}));
+vi.mock("@/hooks/useTheme", async () => {
+  const { getDefaultTheme } = await import("@/lib/themes");
+  const colors = getDefaultTheme().dark;
+  return { useTheme: () => ({ colors }) };
+});
 vi.mock("embla-carousel-react", async () => {
   const { useMemo } = await import("react");
   return {
@@ -50,6 +58,7 @@ describe("achievement refresh ownership", () => {
     render(<AchievementsCategoryGrid earnedAchievements={{}} />);
     expect(screen.queryByRole("button", { name: /Refresh achievements/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /View all achievements: 0 of/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /Speed Demons: 0 of/ })).not.toHaveAttribute("data-achievement-tier");
   });
 
   it("distinguishes loading from an empty earned collection", () => {
@@ -87,6 +96,26 @@ describe("achievement refresh ownership", () => {
 });
 
 describe("achievement dialogs", () => {
+  it("keeps every unearned tier inspectable and reports actual earned counts", () => {
+    const tiers = Object.keys(TIER_COLORS) as AchievementTier[];
+    const earned = tiers.map((tier) => ALL_ACHIEVEMENTS.find((achievement) => achievement.tier === tier)!);
+    render(<AchievementsModal earnedAchievements={Object.fromEntries(earned.map((achievement) => [achievement.id, 0]))} onClose={vi.fn()} />);
+    const board = screen.getByRole("dialog", { name: "All Achievements" });
+    for (const tier of tiers) {
+      const earnedTile = within(board).getAllByRole("button", { name: new RegExp(`, ${tier}, earned$`) })[0];
+      const unearnedTile = within(board).getAllByRole("button", { name: new RegExp(`, ${tier}, not yet earned$`) })[0];
+      expect(earnedTile).toBeEnabled();
+      expect(unearnedTile).toBeEnabled();
+      expect(earnedTile).toHaveTextContent("Earned");
+      expect(unearnedTile).toHaveTextContent("Not yet earned");
+    }
+    expect(within(board).getByText(new RegExp(`5 / ${ALL_ACHIEVEMENTS.length} earned`))).toBeInTheDocument();
+    const unearnedTile = within(board).getAllByRole("button", { name: /, emerald, not yet earned$/ })[0];
+    fireEvent.click(unearnedTile);
+    const detail = screen.getByRole("dialog", { name: "Achievement details" });
+    expect(within(detail).getByText("How to earn it", { selector: '[aria-hidden="false"] *' })).toBeInTheDocument();
+  });
+
   it("restores a caller-supplied persistent control when its menu opener unmounts", async () => {
     function MenuHarness() {
       const [menuOpen, setMenuOpen] = useState(false);
