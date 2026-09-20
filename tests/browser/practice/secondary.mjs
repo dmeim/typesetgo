@@ -76,6 +76,28 @@ await withFixtureBrowser(async browser => {
     name: "Save Results",
     exact: true
   });
+  const repeat = p.getByRole("button", { name: "Repeat Test", exact: true });
+  const next = p.getByRole("button", { name: "Next Test", exact: true });
+  async function checkActionRows(saveButton) {
+    const [saveBounds, repeatBounds, nextBounds] = await Promise.all([
+      saveButton.boundingBox(), repeat.boundingBox(), next.boundingBox(),
+    ]);
+    expect(saveBounds.y + saveBounds.height).toBeLessThan(repeatBounds.y);
+    expect(Math.abs(repeatBounds.y - nextBounds.y)).toBeLessThan(1);
+    expect(repeatBounds.x + repeatBounds.width).toBeLessThan(nextBounds.x);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  for (const width of [320, 390, 1440]) {
+    await p.setViewportSize({ width, height: 1000 });
+    await checkActionRows(save);
+  }
+  await save.focus();
+  await p.keyboard.press("Tab");
+  await expect(repeat).toBeFocused();
+  await p.keyboard.press("Tab");
+  await expect(next).toBeFocused();
+  await p.screenshot({ path: artifactPath("practice-result-actions-desktop.png") });
+  await p.setViewportSize({ width: 390, height: 844 });
   const colors = await save.evaluate(e => ({
     bg: getComputedStyle(e).backgroundColor,
     fg: getComputedStyle(e).color
@@ -111,9 +133,14 @@ await withFixtureBrowser(async browser => {
   await expect(p.getByText("Sign-in is unavailable. Your result is kept here; try saving again when sign-in is available.", {
     exact: true
   })).toBeVisible();
-  await expect(p.getByRole("button", {
+  const retrySave = p.getByRole("button", {
     name: "Error - Try Again",
     exact: true
-  })).toBeEnabled();
+  });
+  await expect(retrySave).toBeEnabled();
+  await p.setViewportSize({ width: 320, height: 844 });
+  await checkActionRows(retrySave);
+  await p.screenshot({ path: artifactPath("practice-result-actions-retry-320.png") });
+  console.log("Save action above Repeat/Next, matching keyboard order and narrow retry layout PASS");
   console.log("auth-disabled save visible explanation + retry PASS");
 });

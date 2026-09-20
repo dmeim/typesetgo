@@ -428,7 +428,7 @@ export default function PracticeResults({
 
         {/* Actions */}
         <motion.div
-          className="flex flex-wrap gap-3 justify-center"
+          className="flex flex-col items-center gap-3"
           initial={reducedMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -443,7 +443,7 @@ export default function PracticeResults({
               type="button"
               onClick={() => saveResults()}
               disabled={saveState === "saving" || saveState === "saved" || lastResultIsValid === false}
-              className="group relative inline-flex items-center justify-center gap-2 px-8 py-3 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed"
+              className="group relative inline-flex max-w-full items-center justify-center gap-2 px-6 py-3 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed sm:px-8"
               style={{
                 backgroundColor:
                   lastResultIsValid === false || saveState === "error"
@@ -464,28 +464,30 @@ export default function PracticeResults({
             </button>
           )}
           {!connectMode && (
-            <button
-              type="button"
-              onClick={() => generateTest()}
-              className="group relative inline-flex items-center justify-center gap-2 px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2"
-              style={{
-                backgroundColor: tv.bg.surface,
-                color: tv.ui.foreground,
-              }}
-            >
-              <ArrowFatRightIcon className="size-[18px] shrink-0" aria-hidden="true" />
-              Next Test
-            </button>
-          )}
-          {!connectMode && repeatTest && (
-            <button
-              type="button"
-              onClick={repeatTest}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-6 py-3 font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <ArrowClockwiseIcon className="size-[18px] shrink-0" aria-hidden="true" />
-              Repeat Test
-            </button>
+            <div className={`grid w-full max-w-md gap-3 ${repeatTest ? "grid-cols-2" : "grid-cols-1"} sm:flex sm:w-auto sm:max-w-none sm:justify-center`}>
+              {repeatTest && (
+                <button
+                  type="button"
+                  onClick={repeatTest}
+                  className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-3 font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-6"
+                >
+                  <ArrowClockwiseIcon className="size-[18px] shrink-0" aria-hidden="true" />
+                  <span>Repeat Test</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => generateTest()}
+                className="group relative inline-flex min-w-0 items-center justify-center gap-2 px-3 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 sm:px-8"
+                style={{
+                  backgroundColor: tv.bg.surface,
+                  color: tv.ui.foreground,
+                }}
+              >
+                <ArrowFatRightIcon className="size-[18px] shrink-0" aria-hidden="true" />
+                <span>Next Test</span>
+              </button>
+            </div>
           )}
           {connectMode && onLeave && (
             <button
