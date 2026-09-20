@@ -9,18 +9,20 @@ import {
 } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import {
-  fetchThemeCatalog,
-  retryThemeCatalog,
+  fetchThemeCatalogIndex,
+  fetchThemeForPreview,
+  getThemeFromCache,
   groupThemesByCategory,
   CATEGORY_CONFIG,
   type ThemeDefinition,
   type ThemeCategory,
 } from "@/lib/themes";
-import type { ThemeCatalogResult, ThemeMode } from "@/types/theme";
+import type { ThemeCatalogIndex, ThemeCatalogEntry, ThemeMode } from "@/types/theme";
 import { useTheme } from "@/hooks/useTheme";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ThemeCard from "./ThemeCard";
 import VariantDrawer from "./VariantDrawer";
+import ThemeSitePreview from "./ThemeSitePreview";
 
 const normalize = (value: string) =>
   value
@@ -31,7 +33,15 @@ const normalize = (value: string) =>
 const matches = (value: string, query: string) => normalize(value).includes(query);
 const defaultCollapsed = () =>
   new Set<ThemeCategory>((Object.keys(CATEGORY_CONFIG) as ThemeCategory[]).filter((id) => id !== "default"));
-const EMPTY_THEMES: ThemeDefinition[] = [];
+const EMPTY_THEMES: ThemeCatalogEntry[] = [];
+const PREVIEW_INTENT_MS = 120;
+type Preview = {
+  entry: ThemeCatalogEntry;
+  variantId: string;
+  mode: ThemeMode;
+  status: "loading" | "ready" | "error";
+  theme: ThemeDefinition | null;
+};
 
 interface PracticeThemePickerProps {
   showThemeModal: boolean;
@@ -49,14 +59,15 @@ export default function PracticeThemePicker({
     themeName,
     themeId,
     variantId,
+    variant: currentVariant,
     mode,
     setTheme,
     setThemeSelection,
     selectionError: themeSelectionError,
     isLoading: selectingTheme,
   } = useTheme();
-  const [catalog, setCatalog] = useState<ThemeCatalogResult | null>(null);
-  const catalogRef = useRef<ThemeCatalogResult | null>(null);
+  const [catalog, setCatalog] = useState<ThemeCatalogIndex | null>(null);
+  const catalogRef = useRef<ThemeCatalogIndex | null>(null);
   const loadingRef = useRef(false);
   const themes = catalog?.themes ?? EMPTY_THEMES;
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
@@ -64,23 +75,26 @@ export default function PracticeThemePicker({
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [expandedThemeId, setExpandedThemeId] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{
-    theme: ThemeDefinition;
-    mode?: ThemeMode;
-    variantId?: string;
-  } | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [wasOpen, setWasOpen] = useState(showThemeModal);
+  if (wasOpen !== showThemeModal) {
+    setWasOpen(showThemeModal);
+    if (!showThemeModal) setPreview(null);
+  }
+  const previewRevision = useRef(0);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectionRevision = useRef(0);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  // Both the first request and retries use the shared bounded, deduplicated loader.
-  const loadCatalog = useCallback(async (retry = false) => {
+  // Browsing does not wait for any full palettes. Only successful metadata is cached.
+  const loadCatalog = useCallback(async () => {
     if (loadingRef.current) return;
     loadingRef.current = true;
     setLoadState("loading");
     try {
-      const result =
-        retry && catalogRef.current ? await retryThemeCatalog(catalogRef.current) : await fetchThemeCatalog();
+      const result = await fetchThemeCatalogIndex();
       catalogRef.current = result;
       setCatalog(result);
-      setLoadState(result.complete ? "loaded" : "error");
+      setLoadState(result ? "loaded" : "error");
     } catch {
       setLoadState("error");
     } finally {
@@ -113,19 +127,51 @@ export default function PracticeThemePicker({
     [themes, normalizedQuery],
   );
 
-  const previewVariant =
-    preview?.theme.variants.find((item) => item.id === (preview.variantId ?? preview.theme.defaultVariantId)) ??
-    preview?.theme.variants[0];
-  const previewMode = preview?.mode ?? mode;
-  const previewColors = previewVariant
-    ? previewMode === "light" && previewVariant.light
-      ? previewVariant.light
-      : previewVariant.dark
-    : colors;
-  const previewEnter = useCallback((theme: ThemeDefinition, previewMode?: ThemeMode, previewVariantId?: string) => {
-    setPreview({ theme, mode: previewMode, variantId: previewVariantId });
+  const cancelPreviewRequest = useCallback(() => {
+    previewRevision.current++;
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = null;
   }, []);
+  const clearPreview = useCallback(() => {
+    cancelPreviewRequest();
+    setPreview(null);
+  }, [cancelPreviewRequest]);
+  const previewLeave = useCallback(() => {
+    // Cancel passing hovers, but keep an intentional preview available for its retry control.
+    if (previewTimer.current) clearPreview();
+  }, [clearPreview]);
+  useEffect(() => cancelPreviewRequest, [showThemeModal, cancelPreviewRequest]);
+
+  const previewEnter = useCallback((entry: ThemeCatalogEntry, requestedMode?: ThemeMode, requestedVariantId?: string, immediate = false) => {
+    const revision = ++previewRevision.current;
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = null;
+    const summary = entry.variants.find((variant) => variant.id === (requestedVariantId ?? entry.defaultVariantId)) ?? entry.variants[0];
+    const nextMode = (requestedMode ?? mode) === "light" && summary.light ? "light" : "dark";
+    const cached = getThemeFromCache(entry.id);
+    const next: Preview = { entry, variantId: summary.id, mode: nextMode, status: cached ? "ready" : "loading", theme: cached };
+    setPreview(next);
+    if (cached) return;
+    const load = async () => {
+      previewTimer.current = null;
+      const theme = await fetchThemeForPreview(entry.id);
+      if (revision !== previewRevision.current) return;
+      setPreview({ ...next, theme, status: theme ? "ready" : "error" });
+    };
+    if (immediate) void load();
+    else previewTimer.current = setTimeout(() => { void load(); }, PREVIEW_INTENT_MS);
+  }, [mode]);
+  const previewVariant = preview?.theme?.variants.find((variant) => variant.id === preview.variantId)
+    ?? preview?.theme?.variants.find((variant) => variant.id === preview.theme?.defaultVariantId);
+  const previewMode = preview?.mode === "light" && previewVariant && !previewVariant.light ? "dark" : preview?.mode;
+  const previewColors = previewVariant
+    ? previewMode === "light" && previewVariant.light ? previewVariant.light : previewVariant.dark
+    : colors;
+  const previewLabel = preview
+    ? `${preview.entry.name} · ${previewVariant?.label ?? preview.entry.variants.find((variant) => variant.id === preview.variantId)?.label ?? "Default"} · ${previewMode}`
+    : `${themeName} · ${currentVariant?.label ?? "Default"} · ${mode}`;
   const select = async (selectedThemeId: string, selectedVariantId?: string, selectedMode?: ThemeMode) => {
+    const revision = ++selectionRevision.current;
     onUserSelection?.();
     setSelectionError(null);
     try {
@@ -135,13 +181,13 @@ export default function PracticeThemePicker({
         mode: selectedMode,
       });
     } catch {
-      setSelectionError("This theme could not be selected. Try again.");
+      if (revision === selectionRevision.current) setSelectionError("This theme could not be selected. Try again.");
     }
   };
   const close = (open: boolean) => {
     setShowThemeModal(open);
     if (!open) {
-      setPreview(null);
+      clearPreview();
       setQuery("");
       setExpandedThemeId(null);
       setCollapsed(defaultCollapsed());
@@ -158,28 +204,28 @@ export default function PracticeThemePicker({
             Choose a theme or explore its variants. Focus a card to preview it.
           </DialogDescription>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-          <aside className="shrink-0 rounded-md border border-border lg:w-1/3" aria-label="Theme preview">
-            <div className="px-3 py-2 text-sm font-medium text-foreground">{preview?.theme.name ?? themeName}</div>
-            <div
-              className="flex min-h-20 items-center rounded-b-md p-4 font-mono text-lg leading-relaxed lg:h-[calc(100%-2.25rem)] lg:text-2xl"
-              style={{ backgroundColor: previewColors.bg.base }}
-            >
-              <p className="break-words">
-                <span style={{ color: previewColors.typing.correct }}>the quick brown fox </span>
-                <span style={{ color: previewColors.typing.incorrect }}>jum</span>
-                <span
-                  style={{
-                    borderLeft: `2px solid ${previewColors.typing.cursor}`,
-                    color: previewColors.typing.default,
-                  }}
-                >
-                  ps over the lazy dog
-                </span>
-              </p>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto sm:flex-row sm:overflow-visible">
+          <aside className="min-w-0 shrink-0 sm:w-2/5" aria-label="Theme preview">
+            <div className="mb-2 flex h-12 min-w-0 flex-col gap-1">
+              <span className="truncate text-sm font-medium text-foreground" title={preview?.entry.name ?? themeName}>{preview?.entry.name ?? themeName}</span>
+              <span className="truncate text-xs text-muted-foreground" title={previewLabel}>{previewLabel.split(" · ").slice(1).join(" · ")}</span>
             </div>
+            <div className="mx-auto aspect-[4/3] w-full max-w-[min(100%,40dvh)] rounded-md border border-border sm:max-w-none">
+              {preview && preview.status !== "ready" ? (
+                <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-md bg-muted p-3 text-center text-sm text-muted-foreground">
+                  {preview.status === "loading" ? <p role="status">Loading preview for {preview.entry.name}…</p> : <>
+                    <p role="alert">Preview for {preview.entry.name} could not be loaded.</p>
+                    <button type="button" className="inline-flex items-center gap-2 rounded border border-input bg-background px-3 py-2 text-foreground"
+                      onClick={() => previewEnter(preview.entry, preview.mode, preview.variantId, true)}>
+                      <ArrowsClockwiseIcon className="size-4" aria-hidden="true" />Retry preview
+                    </button>
+                  </>}
+                </div>
+              ) : <ThemeSitePreview colors={previewColors} label={previewLabel} />}
+            </div>
+            <p className="mt-2 hidden text-xs text-muted-foreground sm:block">Preview only. Select a theme to apply it.</p>
           </aside>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-48 min-w-0 flex-1 flex-col gap-3 sm:min-h-0">
             <div className="flex flex-wrap items-center gap-2">
               <Input
                 aria-label="Search themes"
@@ -234,14 +280,12 @@ export default function PracticeThemePicker({
             )}
             {loadState === "error" && (
               <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-foreground">
-                {catalog?.themes.length
-                  ? `${catalog.failedThemeIds.length} themes could not be loaded. Available themes are shown below.`
-                  : "Themes could not be loaded."}
+                Themes could not be loaded.
                 <button
                   type="button"
                   className="inline-flex items-center justify-center gap-2 rounded border px-3 py-1"
                   onClick={() => {
-                    void loadCatalog(true);
+                    void loadCatalog();
                   }}
                 >
                   <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -325,10 +369,10 @@ export default function PracticeThemePicker({
                                 }
                                 onLightClick={() => void select(theme.id, variant.id, "light")}
                                 onDarkClick={() => void select(theme.id, variant.id, "dark")}
-                                onMouseEnter={() => previewEnter(theme)}
-                                onMouseLeave={() => setPreview(null)}
-                                onLightMouseEnter={() => previewEnter(theme, "light", variant.id)}
-                                onDarkMouseEnter={() => previewEnter(theme, "dark", variant.id)}
+                                onMouseEnter={(immediate) => previewEnter(theme, undefined, undefined, immediate)}
+                                onMouseLeave={previewLeave}
+                                onLightMouseEnter={(immediate) => previewEnter(theme, "light", variant.id, immediate)}
+                                onDarkMouseEnter={(immediate) => previewEnter(theme, "dark", variant.id, immediate)}
                               />
                               {multi && (
                                 <VariantDrawer
@@ -348,7 +392,7 @@ export default function PracticeThemePicker({
                                   }}
                                   onVariantSelect={select}
                                   onPreviewEnter={previewEnter}
-                                  onPreviewLeave={() => setPreview(null)}
+                                  onPreviewLeave={previewLeave}
                                 />
                               )}
                             </Fragment>

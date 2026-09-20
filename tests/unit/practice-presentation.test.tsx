@@ -9,8 +9,8 @@ import PracticeThemePicker from "@/components/typing/PracticeThemePicker";
 import PracticePresetDialog from "@/components/typing/PracticePresetDialog";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
 import { contrastRatio, deriveThemeUI } from "@/lib/colors";
-import { fetchThemeCatalog, retryThemeCatalog } from "@/lib/themes";
-import type { ThemeCatalogResult, ThemeDefinition } from "@/types/theme";
+import { fetchThemeCatalogIndex, fetchThemeForPreview, getThemeFromCache } from "@/lib/themes";
+import type { ThemeCatalogIndex, ThemeDefinition } from "@/types/theme";
 import PracticeResults from "@/components/typing/PracticeResults";
 import { MAX_DURATION_SECONDS, normalizePracticeSettings, type SettingsState } from "@/lib/typing-constants";
 import theme from "../../public/themes/typesetgo.json";
@@ -31,8 +31,9 @@ vi.mock("@/hooks/useTheme", () => ({
 }));
 vi.mock("@/lib/themes", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/themes")>()),
-  fetchThemeCatalog: vi.fn(),
-  retryThemeCatalog: vi.fn(),
+  fetchThemeCatalogIndex: vi.fn(),
+  fetchThemeForPreview: vi.fn(),
+  getThemeFromCache: vi.fn(),
 }));
 vi.mock("@/hooks/useAnimatedCounter", () => ({
   useAnimatedCounter: (value: number) => value,
@@ -46,6 +47,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   themeActions.setTheme.mockResolvedValue(undefined);
   themeActions.setThemeSelection.mockResolvedValue(undefined);
+  vi.mocked(getThemeFromCache).mockReturnValue(null);
+  vi.mocked(fetchThemeForPreview).mockImplementation(async (id) => fixtureTheme(id));
   Object.defineProperty(HTMLElement.prototype, "clientWidth", {
     configurable: true,
     get: () => availableWidth,
@@ -399,44 +402,90 @@ function fixtureTheme(id: string, category: ThemeDefinition["category"] = "defau
     defaultVariantId: "default",
   };
 }
-function catalog(themes: ThemeDefinition[], failedThemeIds: string[] = []): ThemeCatalogResult {
+function catalog(themes: ThemeDefinition[]): ThemeCatalogIndex {
   return {
-    themes,
-    requestedThemeIds: [...themes.map((item) => item.id), ...failedThemeIds],
-    failedThemeIds,
-    manifestError: false,
-    complete: failedThemeIds.length === 0,
+    version: 1,
+    themes: themes.map((theme) => ({
+      id: theme.id, name: theme.name, category: theme.category, defaultVariantId: theme.defaultVariantId,
+      variants: theme.variants.map((variant) => ({
+        id: variant.id, label: variant.label, light: !!variant.light,
+        swatches: [variant.dark.bg.base, variant.dark.typing.cursor, variant.dark.interactive.secondary.DEFAULT, variant.dark.typing.correct],
+      })),
+    })),
   };
 }
 
 describe("theme browsing", () => {
-  it("loads only on open, shows a recoverable partial catalog, and retries failures explicitly", async () => {
-    let resolve!: (value: ThemeCatalogResult) => void;
-    vi.mocked(fetchThemeCatalog).mockReturnValue(
-      new Promise((done) => {
-        resolve = done;
-      }),
-    );
-    const partial = catalog([fixtureTheme("First")], ["second"]);
-    vi.mocked(retryThemeCatalog).mockResolvedValue(catalog([fixtureTheme("First"), fixtureTheme("Second")]));
+  it("loads metadata only on open, keeps the selected preview available, and retries index failure", async () => {
+    let resolve!: (value: ThemeCatalogIndex | null) => void;
+    vi.mocked(fetchThemeCatalogIndex).mockReturnValueOnce(new Promise((done) => { resolve = done; }))
+      .mockResolvedValue(catalog([fixtureTheme("First"), fixtureTheme("Second")]));
     const props = { showThemeModal: false, setShowThemeModal: vi.fn() };
     const { rerender } = render(<PracticeThemePicker {...props} />);
-    expect(fetchThemeCatalog).not.toHaveBeenCalled();
+    expect(fetchThemeCatalogIndex).not.toHaveBeenCalled();
     rerender(<PracticeThemePicker {...props} showThemeModal />);
     expect(screen.getByRole("status")).toHaveTextContent("Loading themes");
-    await act(async () => {
-      resolve(partial);
-    });
-    expect(screen.getByRole("alert")).toHaveTextContent("1 themes could not be loaded");
-    expect(screen.getByRole("button", { name: "Select First", exact: true })).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(screen.getByRole("img", { name: /TypeSetGo.*miniature typing homepage/ })).toBeVisible();
+    await act(async () => { resolve(null); });
+    expect(screen.getByRole("alert")).toHaveTextContent("Themes could not be loaded");
+    fireEvent.click(screen.getByRole("button", { name: "Retry", exact: true }));
     await screen.findByRole("button", { name: "Select Second", exact: true });
-    expect(retryThemeCatalog).toHaveBeenCalledWith(partial);
+    expect(fetchThemeForPreview).not.toHaveBeenCalled();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    rerender(<PracticeThemePicker {...props} />);
+    rerender(<PracticeThemePicker {...props} showThemeModal />);
+    expect(fetchThemeCatalogIndex).toHaveBeenCalledTimes(2);
+  });
+
+  it("searches variant metadata without loading palettes and ignores stale preview results", async () => {
+    vi.mocked(fetchThemeCatalogIndex).mockResolvedValue(catalog([fixtureTheme("First", "nature", true), fixtureTheme("Second")]));
+    let resolveFirst!: (value: ThemeDefinition) => void;
+    let resolveSecond!: (value: ThemeDefinition) => void;
+    vi.mocked(fetchThemeForPreview).mockImplementation((id) => new Promise((done) => {
+      if (id === "First") resolveFirst = done;
+      else resolveSecond = done;
+    }));
+    render(<PracticeThemePicker showThemeModal setShowThemeModal={vi.fn()} />);
+    await screen.findByRole("button", { name: "Select Second", exact: true });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Soft" } });
+    const first = screen.getByRole("button", { name: "First variants" });
+    expect(fetchThemeForPreview).not.toHaveBeenCalled();
+    fireEvent.focus(first);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading preview for First");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    await waitFor(() => expect(fetchThemeForPreview).toHaveBeenCalledWith("First"));
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Second" } });
+    fireEvent.focus(screen.getByRole("button", { name: "Select Second", exact: true }));
+    await waitFor(() => expect(fetchThemeForPreview).toHaveBeenCalledWith("Second"));
+    await act(async () => { resolveSecond(fixtureTheme("Second")); });
+    expect(screen.getByRole("img", { name: /Second.*miniature typing homepage/ })).toBeVisible();
+    await act(async () => { resolveFirst(fixtureTheme("First")); });
+    expect(screen.getByRole("img", { name: /Second.*miniature typing homepage/ })).toBeVisible();
+    expect(themeActions.setThemeSelection).not.toHaveBeenCalled();
+  });
+
+  it("cancels passing hovers and recovers a failed palette locally without hiding the catalog", async () => {
+    vi.mocked(fetchThemeCatalogIndex).mockResolvedValue(catalog([fixtureTheme("First"), fixtureTheme("Second")]));
+    vi.mocked(fetchThemeForPreview).mockResolvedValueOnce(null).mockResolvedValue(fixtureTheme("Second"));
+    render(<PracticeThemePicker showThemeModal setShowThemeModal={vi.fn()} />);
+    const first = await screen.findByRole("button", { name: "Select First", exact: true });
+    fireEvent.mouseEnter(first);
+    fireEvent.mouseLeave(first);
+    await act(async () => { await new Promise((done) => setTimeout(done, 160)); });
+    expect(fetchThemeForPreview).not.toHaveBeenCalled();
+    const second = screen.getByRole("button", { name: "Select Second", exact: true });
+    fireEvent.focus(second);
+    await screen.findByRole("button", { name: "Retry preview" });
+    fireEvent.blur(second);
+    expect(first).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Retry preview" }));
+    await screen.findByRole("img", { name: /Second.*miniature typing homepage/ });
+    expect(fetchThemeForPreview).toHaveBeenCalledTimes(2);
+    expect(themeActions.setThemeSelection).not.toHaveBeenCalled();
   });
 
   it("unmounts collapsed category controls, makes focus preview work, and records only user selections", async () => {
-    vi.mocked(fetchThemeCatalog).mockResolvedValue(
+    vi.mocked(fetchThemeCatalogIndex).mockResolvedValue(
       catalog([fixtureTheme("Featured"), fixtureTheme("Forest", "nature", true)]),
     );
     const onUserSelection = vi.fn();
@@ -470,7 +519,7 @@ describe("theme browsing", () => {
   });
 
   it("keeps closing variant content out of keyboard interaction during exit", async () => {
-    vi.mocked(fetchThemeCatalog).mockResolvedValue(catalog([fixtureTheme("Featured", "default", true)]));
+    vi.mocked(fetchThemeCatalogIndex).mockResolvedValue(catalog([fixtureTheme("Featured", "default", true)]));
     render(<PracticeThemePicker showThemeModal setShowThemeModal={vi.fn()} />);
     const trigger = await screen.findByRole("button", {
       name: "Featured variants",

@@ -1,9 +1,9 @@
 import { CaretDownIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
-import type { ThemeDefinition, ThemeVariantDefinition, ThemeMode } from "@/types/theme";
+import type { ThemeCatalogEntry, ThemeVariantSummary, ThemeMode } from "@/types/theme";
 
 interface ThemeCardProps {
-  themeData: ThemeDefinition;
-  variant: ThemeVariantDefinition;
+  themeData: ThemeCatalogEntry;
+  variant: ThemeVariantSummary;
   label: string;
   isSelected: boolean;
   selectedMode?: ThemeMode;
@@ -14,10 +14,10 @@ interface ThemeCardProps {
   onCardClick: () => void;
   onLightClick?: () => void;
   onDarkClick?: () => void;
-  onMouseEnter?: () => void;
+  onMouseEnter?: (immediate?: boolean) => void;
   onMouseLeave?: () => void;
-  onLightMouseEnter?: () => void;
-  onDarkMouseEnter?: () => void;
+  onLightMouseEnter?: (immediate?: boolean) => void;
+  onDarkMouseEnter?: (immediate?: boolean) => void;
 }
 
 export default function ThemeCard({
@@ -38,6 +38,10 @@ export default function ThemeCard({
   onLightMouseEnter,
   onDarkMouseEnter,
 }: ThemeCardProps) {
+  const pointerPreview = (preview?: (immediate?: boolean) => void) => {
+    // A scroll caused by keyboard focus must not turn a stationary pointer into a new preview intent.
+    if (!document.activeElement?.matches("[data-theme-card-control]:focus-visible")) preview?.();
+  };
   const name = isMultiVariant || label === themeData.name ? label : `${themeData.name}: ${label}`;
   return (
     <div
@@ -45,23 +49,24 @@ export default function ThemeCard({
     >
       <button
         type="button"
+        data-theme-card-control
         onClick={onCardClick}
         aria-label={isMultiVariant ? `${name} variants` : `Select ${name}`}
         aria-expanded={isMultiVariant ? !!isExpanded : undefined}
         aria-controls={isMultiVariant ? `theme-variants-${themeData.id}` : undefined}
         aria-pressed={isMultiVariant ? undefined : isSelected}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        onFocus={onMouseEnter}
+        onMouseEnter={() => pointerPreview(onMouseEnter)}
+        onMouseLeave={(event) => { if (document.activeElement !== event.currentTarget) onMouseLeave?.(); }}
+        onFocus={() => onMouseEnter?.(true)}
         onBlur={onMouseLeave}
         className="min-h-20 min-w-0 flex-1 p-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
         <span
           className="mb-2 flex items-center gap-2 rounded p-2"
-          style={{ backgroundColor: variant.dark.bg.base }}
+          style={{ backgroundColor: variant.swatches[0] }}
           aria-hidden="true"
         >
-          {[variant.dark.typing.cursor, variant.dark.interactive.secondary.DEFAULT, variant.dark.typing.correct].map(
+          {variant.swatches.slice(1).map(
             (color, index) => (
               <span key={index} className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
             ),
@@ -82,11 +87,12 @@ export default function ThemeCard({
         <div className="flex w-11 shrink-0 flex-col border-l border-border">
           <button
             type="button"
+            data-theme-card-control
             onClick={onLightClick}
             disabled={!variant.light}
-            onMouseEnter={onLightMouseEnter}
-            onMouseLeave={onMouseLeave}
-            onFocus={onLightMouseEnter}
+            onMouseEnter={() => pointerPreview(onLightMouseEnter)}
+            onMouseLeave={(event) => { if (document.activeElement !== event.currentTarget) onMouseLeave?.(); }}
+            onFocus={() => onLightMouseEnter?.(true)}
             onBlur={onMouseLeave}
             aria-label={`Select ${name}, light mode`}
             aria-pressed={selectedMode ? isSelected && selectedMode === "light" : undefined}
@@ -97,10 +103,11 @@ export default function ThemeCard({
           </button>
           <button
             type="button"
+            data-theme-card-control
             onClick={onDarkClick}
-            onMouseEnter={onDarkMouseEnter}
-            onMouseLeave={onMouseLeave}
-            onFocus={onDarkMouseEnter}
+            onMouseEnter={() => pointerPreview(onDarkMouseEnter)}
+            onMouseLeave={(event) => { if (document.activeElement !== event.currentTarget) onMouseLeave?.(); }}
+            onFocus={() => onDarkMouseEnter?.(true)}
             onBlur={onMouseLeave}
             aria-label={`Select ${name}, dark mode`}
             aria-pressed={selectedMode ? isSelected && selectedMode === "dark" : undefined}

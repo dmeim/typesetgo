@@ -1,19 +1,19 @@
 import type { ReactNode } from "react";
 import { motion, AnimatePresence, useReducedMotion, useIsPresent } from "framer-motion";
 import { XIcon } from "@phosphor-icons/react";
-import type { ThemeDefinition, ThemeVariantDefinition, ThemeMode } from "@/types/theme";
+import type { ThemeCatalogEntry, ThemeVariantSummary, ThemeMode } from "@/types/theme";
 import ThemeCard from "./ThemeCard";
 
 interface VariantDrawerProps {
-  themeData: ThemeDefinition;
-  variants: ThemeVariantDefinition[];
+  themeData: ThemeCatalogEntry;
+  variants: ThemeVariantSummary[];
   selectedThemeId: string | null;
   selectedVariantId: string | null;
   selectedMode?: ThemeMode;
   isOpen: boolean;
   onClose: () => void;
   onVariantSelect: (themeId: string, variantId?: string, mode?: ThemeMode) => void;
-  onPreviewEnter: (theme: ThemeDefinition, mode?: ThemeMode, variantId?: string) => void;
+  onPreviewEnter: (theme: ThemeCatalogEntry, mode?: ThemeMode, variantId?: string, immediate?: boolean) => void;
   onPreviewLeave: () => void;
 }
 
@@ -83,10 +83,10 @@ export default function VariantDrawer({
                   onCardClick={() => onVariantSelect(themeData.id, variant.id)}
                   onLightClick={() => variant.light && onVariantSelect(themeData.id, variant.id, "light")}
                   onDarkClick={() => onVariantSelect(themeData.id, variant.id, "dark")}
-                  onMouseEnter={() => onPreviewEnter(themeData, undefined, variant.id)}
+                  onMouseEnter={(immediate) => onPreviewEnter(themeData, undefined, variant.id, immediate)}
                   onMouseLeave={onPreviewLeave}
-                  onLightMouseEnter={() => variant.light && onPreviewEnter(themeData, "light", variant.id)}
-                  onDarkMouseEnter={() => onPreviewEnter(themeData, "dark", variant.id)}
+                  onLightMouseEnter={(immediate) => variant.light && onPreviewEnter(themeData, "light", variant.id, immediate)}
+                  onDarkMouseEnter={(immediate) => onPreviewEnter(themeData, "dark", variant.id, immediate)}
                 />
               ))}
             </div>

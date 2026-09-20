@@ -3,11 +3,12 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { createThemeCatalogEntry } from "../../../src/lib/theme-catalog.ts";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 const themes = readdirSync(path.join(root, "public/themes"))
-  .filter((name) => name.endsWith(".json") && name !== "manifest.json")
+  .filter((name) => name.endsWith(".json") && name !== "manifest.json" && name !== "catalog.json")
   .map((name) => name.slice(0, -5));
 
 // These responses exist before Vite indexes public files. Generating missing
@@ -22,6 +23,10 @@ const manifests: Record<string, unknown> = {
     default: "medium",
   },
   "/themes/manifest.json": { themes, default: "typesetgo" },
+  "/themes/catalog.json": {
+    version: 1,
+    themes: themes.map((id) => createThemeCatalogEntry(id, JSON.parse(readFileSync(path.join(root, `public/themes/${id}.json`), "utf8")))),
+  },
   "/sounds/manifest.json": { typing: {}, warning: {}, error: {} },
 };
 

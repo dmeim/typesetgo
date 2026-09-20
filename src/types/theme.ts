@@ -196,3 +196,25 @@ export type ThemeCatalogResult = {
   manifestError: boolean;
   complete: boolean;
 };
+
+/** Browsing metadata only. Full palettes are loaded when previewing or selecting. */
+export type ThemeVariantSummary = {
+  id: string;
+  label: string;
+  light: boolean;
+  /** Dark background, cursor, secondary accent, and correct text. */
+  swatches: [string, string, string, string];
+};
+
+export type ThemeCatalogEntry = {
+  id: string;
+  name: string;
+  category: ThemeCategory;
+  defaultVariantId: string;
+  variants: ThemeVariantSummary[];
+};
+
+export type ThemeCatalogIndex = {
+  version: 1;
+  themes: ThemeCatalogEntry[];
+};

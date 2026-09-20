@@ -9,6 +9,7 @@ await withFixtureBrowser(async browser => {
     reducedMotion: "reduce"
   });
   let fail1984 = true;
+  let failIndex = true;
   let themeFetches = 0;
   await p.addInitScript(() => localStorage.setItem("typesetgo_settings", JSON.stringify({
     mode: "words",
@@ -29,6 +30,11 @@ await withFixtureBrowser(async browser => {
         default: "typesetgo"
       }
     });
+    if (u.pathname === "/themes/catalog.json") {
+      await new Promise((done) => setTimeout(done, 250));
+      if (failIndex) return r.fulfill({ status: 503, body: "Fixture index failure" });
+      return r.fallback();
+    }
     if (u.pathname.startsWith("/themes/") && !u.pathname.endsWith("/manifest.json")) {
       themeFetches++;
       if (u.pathname.endsWith("/1984.json") && fail1984) return r.fulfill({
@@ -94,8 +100,8 @@ await withFixtureBrowser(async browser => {
   await expect(p.getByText("Loading themes\u2026", {
     exact: true
   })).toBeVisible();
-  await expect(dialog.getByRole("alert")).toContainText("1 themes could not be loaded");
-  fail1984 = false;
+  await expect(dialog.getByRole("alert")).toContainText("Themes could not be loaded");
+  failIndex = false;
   await dialog.getByRole("button", {
     name: "Retry",
     exact: true
@@ -109,6 +115,15 @@ await withFixtureBrowser(async browser => {
   expect(b.x + b.width).toBeLessThanOrEqual(390);
   expect(b.height).toBeLessThanOrEqual(844);
   console.log("narrow dialog + catalog loading/error/retry PASS", b);
+  expect(themeFetches).toBeLessThanOrEqual(1);
+  await dialog.getByRole("searchbox", { name: "Search themes" }).fill("1984");
+  await dialog.getByRole("button", { name: "Select 1984", exact: true }).focus();
+  await expect(dialog.getByRole("alert")).toContainText("Preview for 1984 could not be loaded");
+  expect(await dialog.getByRole("button", { name: "Select 1984", exact: true }).count()).toBe(1);
+  fail1984 = false;
+  await dialog.getByRole("button", { name: "Retry preview" }).click();
+  await expect(dialog.getByRole("img", { name: /1984.*miniature typing homepage/ })).toBeVisible();
+  await dialog.getByRole("searchbox", { name: "Search themes" }).fill("");
   await dialog.getByRole("button", {
     name: "Collapse all",
     exact: true

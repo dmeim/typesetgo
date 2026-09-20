@@ -1,6 +1,7 @@
 import type { Plugin } from "vite";
 import fs from "fs";
 import path from "path";
+import { createThemeCatalogEntry } from "./src/lib/theme-catalog.ts";
 
 /**
  * Vite plugin that auto-generates manifest.json files for data directories.
@@ -21,7 +22,7 @@ export function autoManifestPlugin(): Plugin {
 
     const files = fs.readdirSync(themesDir);
     const themes = files
-      .filter((f) => f.endsWith(".json") && f !== "manifest.json")
+      .filter((f) => f.endsWith(".json") && f !== "manifest.json" && f !== "catalog.json")
       .map((f) => f.replace(".json", ""));
 
     // Sort with typesetgo first
@@ -40,6 +41,11 @@ export function autoManifestPlugin(): Plugin {
       path.join(themesDir, "manifest.json"),
       JSON.stringify(manifest, null, 2) + "\n"
     );
+    const catalog = {
+      version: 1,
+      themes: themes.map((id) => createThemeCatalogEntry(id, JSON.parse(fs.readFileSync(path.join(themesDir, `${id}.json`), "utf8")))),
+    };
+    fs.writeFileSync(path.join(themesDir, "catalog.json"), JSON.stringify(catalog) + "\n");
     console.log(`[auto-manifest] Generated themes manifest: ${themes.length} themes`);
   }
 
@@ -187,7 +193,8 @@ export function autoManifestPlugin(): Plugin {
         }
       }
 
-      server.watcher.on("add", (file) => {
+      const regenerate = (file: string) => {
+        if (["manifest.json", "catalog.json"].includes(path.basename(file))) return;
         if (file.includes("/public/themes/") && file.endsWith(".json")) {
           generateThemesManifest();
         } else if (file.includes("/public/words/") && file.endsWith(".json")) {
@@ -197,19 +204,10 @@ export function autoManifestPlugin(): Plugin {
         } else if (file.includes("/public/sounds/") && file.endsWith(".wav")) {
           generateSoundsManifest();
         }
-      });
-
-      server.watcher.on("unlink", (file) => {
-        if (file.includes("/public/themes/") && file.endsWith(".json")) {
-          generateThemesManifest();
-        } else if (file.includes("/public/words/") && file.endsWith(".json")) {
-          generateWordsManifest();
-        } else if (file.includes("/public/quotes/") && file.endsWith(".json")) {
-          generateQuotesManifest();
-        } else if (file.includes("/public/sounds/") && file.endsWith(".wav")) {
-          generateSoundsManifest();
-        }
-      });
+      };
+      server.watcher.on("add", regenerate);
+      server.watcher.on("unlink", regenerate);
+      server.watcher.on("change", regenerate);
     },
   };
 }
