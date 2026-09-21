@@ -6,7 +6,6 @@ import type { FunctionReference } from "convex/server";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,7 +86,6 @@ function normalizeReviewList(payload: AdminReviewItem[] | { results: AdminReview
 }
 
 export default function Admin() {
-  const { colors } = useTheme();
   const convex = useConvex();
   const [token, setToken] = useState(readStoredToken);
   const [password, setPassword] = useState("");
@@ -181,8 +179,8 @@ export default function Admin() {
     <div
       className="min-h-[100dvh] font-mono px-4 py-12 transition-colors duration-300"
       style={{
-        backgroundColor: tv.bg.base,
-        color: tv.typing.correct,
+        backgroundColor: tv.ui.background,
+        color: tv.ui.foreground,
       }}
     >
       <div className="w-full max-w-5xl mx-auto animate-fade-in">
@@ -190,7 +188,7 @@ export default function Admin() {
           <Link
             to="/"
             className="inline-flex items-center gap-2 transition text-sm hover:opacity-100"
-            style={{ color: tv.typing.default, opacity: 0.7 }}
+            style={{ color: tv.ui.mutedForeground }}
           >
             <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
             Back to Homepage
@@ -200,7 +198,7 @@ export default function Admin() {
               type="button"
               onClick={handleSignOut}
               className="inline-flex items-center justify-center gap-2 text-sm transition hover:opacity-100"
-              style={{ color: tv.text.secondary, opacity: 0.8 }}
+              style={{ color: tv.ui.mutedForeground, opacity: 0.8 }}
             >
               <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />
               Sign out
@@ -211,11 +209,11 @@ export default function Admin() {
         <div className="text-center mb-10">
           <h1
             className="text-4xl font-bold mb-2"
-            style={{ color: tv.typing.cursor }}
+            style={{ color: tv.ui.primary }}
           >
             Admin Review
           </h1>
-          <p style={{ color: tv.text.secondary }}>
+          <p style={{ color: tv.ui.mutedForeground }}>
             Invalid results and high WPM scores for manual review
           </p>
         </div>
@@ -224,10 +222,10 @@ export default function Admin() {
           <form
             onSubmit={handleLogin}
             className="max-w-sm mx-auto space-y-4 p-6 rounded-lg"
-            style={{ backgroundColor: `${colors.typing.default}08` }}
+            style={{ backgroundColor: tv.ui.secondary }}
           >
             <div className="space-y-2">
-              <Label htmlFor="admin-password" style={{ color: tv.text.primary }}>
+              <Label htmlFor="admin-password" style={{ color: tv.ui.foreground }}>
                 Password
               </Label>
               <Input
@@ -239,14 +237,14 @@ export default function Admin() {
                 required
                 className="font-mono"
                 style={{
-                  backgroundColor: tv.bg.surface,
-                  color: tv.text.primary,
+                  backgroundColor: tv.ui.card,
+                  color: tv.ui.foreground,
                   borderColor: tv.border.subtle,
                 }}
               />
             </div>
             {loginError && (
-              <p className="text-sm" style={{ color: tv.status.error.DEFAULT }}>
+              <p className="text-sm" style={{ color: tv.ui.destructive }}>
                 {loginError}
               </p>
             )}
@@ -255,8 +253,8 @@ export default function Admin() {
               disabled={isLoggingIn || !password}
               className="w-full"
               style={{
-                backgroundColor: tv.interactive.secondary.DEFAULT,
-                color: tv.text.inverse,
+                backgroundColor: tv.ui.primary,
+                color: tv.ui.primaryForeground,
               }}
             >
               {isLoggingIn ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <SignInIcon className="size-4 shrink-0" aria-hidden="true" />}
@@ -266,28 +264,28 @@ export default function Admin() {
         ) : (
           <div className="space-y-4">
             {listError && (
-              <p className="text-sm" style={{ color: tv.status.error.DEFAULT }}>
+              <p className="text-sm" style={{ color: tv.ui.destructive }}>
                 {listError}
               </p>
             )}
             {isLoadingList && (
-              <p className="text-sm" style={{ color: tv.text.secondary }}>
+              <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
                 Loading review queue...
               </p>
             )}
             {!isLoadingList && sortedRows.length === 0 && !listError && (
-              <p className="text-sm text-center" style={{ color: tv.text.secondary }}>
+              <p className="text-sm text-center" style={{ color: tv.ui.mutedForeground }}>
                 No results in the review queue.
               </p>
             )}
             {sortedRows.length > 0 && (
               <div
                 className="overflow-x-auto rounded-lg border"
-                style={{ borderColor: tv.border.subtle, backgroundColor: tv.bg.surface }}
+                style={{ borderColor: tv.border.subtle, backgroundColor: tv.ui.card }}
               >
                 <Table className="w-full text-sm">
                   <TableHeader>
-                    <TableRow style={{ color: tv.text.secondary, borderBottom: `1px solid ${tv.border.subtle}` }}>
+                    <TableRow style={{ color: tv.ui.mutedForeground, borderBottom: `1px solid ${tv.border.subtle}` }}>
                       <TableHead className="text-left font-medium px-3 py-2">User</TableHead>
                       <TableHead className="text-right font-medium px-3 py-2">WPM</TableHead>
                       <TableHead className="text-right font-medium px-3 py-2">Acc</TableHead>
@@ -305,33 +303,33 @@ export default function Admin() {
                         key={row.resultId}
                         style={{ borderBottom: `1px solid ${tv.border.subtle}` }}
                       >
-                        <TableCell className="px-3 py-2" style={{ color: tv.text.primary }}>
+                        <TableCell className="px-3 py-2" style={{ color: tv.ui.foreground }}>
                           {row.username || "Unknown"}
                         </TableCell>
-                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.primary }}>
+                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.ui.foreground }}>
                           {Math.round(row.wpm)}
                         </TableCell>
-                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.primary }}>
+                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.ui.foreground }}>
                           {Math.round(row.accuracy)}%
                         </TableCell>
-                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.text.secondary }}>
+                        <TableCell className="px-3 py-2 text-right tabular-nums" style={{ color: tv.ui.mutedForeground }}>
                           {formatDuration(row.duration)}
                         </TableCell>
-                        <TableCell className="px-3 py-2" style={{ color: tv.text.secondary }}>
+                        <TableCell className="px-3 py-2" style={{ color: tv.ui.mutedForeground }}>
                           {row.mode ?? "—"}
                         </TableCell>
                         <TableCell
                           className="px-3 py-2"
                           style={{
-                            color: row.isValid === false ? tv.status.error.DEFAULT : tv.status.success.DEFAULT,
+                            color: row.isValid === false ? tv.ui.destructive : tv.ui.success,
                           }}
                         >
                           {row.isValid === false ? "Invalid" : "Valid"}
                         </TableCell>
-                        <TableCell className="px-3 py-2 max-w-[16rem] truncate" style={{ color: tv.text.secondary }} title={row.invalidReason ?? undefined}>
+                        <TableCell className="px-3 py-2 max-w-[16rem] truncate" style={{ color: tv.ui.mutedForeground }} title={row.invalidReason ?? undefined}>
                           {row.invalidReason || "—"}
                         </TableCell>
-                        <TableCell className="px-3 py-2 whitespace-nowrap" style={{ color: tv.text.secondary }}>
+                        <TableCell className="px-3 py-2 whitespace-nowrap" style={{ color: tv.ui.mutedForeground }}>
                           {formatDateTime(row.createdAt)}
                         </TableCell>
                         <TableCell className="px-3 py-2">
@@ -342,8 +340,8 @@ export default function Admin() {
                               disabled={pendingId === row.resultId}
                               onClick={() => void handleSetValidity(row.resultId, true)}
                               style={{
-                                backgroundColor: colors.status.success.muted,
-                                color: tv.status.success.DEFAULT,
+                                backgroundColor: tv.ui.successSurface,
+                                color: tv.ui.success,
                               }}
                             >
                               Valid
@@ -354,8 +352,8 @@ export default function Admin() {
                               disabled={pendingId === row.resultId}
                               onClick={() => void handleSetValidity(row.resultId, false)}
                               style={{
-                                backgroundColor: colors.status.error.muted,
-                                color: tv.status.error.DEFAULT,
+                                backgroundColor: tv.ui.destructiveSurface,
+                                color: tv.ui.destructive,
                               }}
                             >
                               Invalid

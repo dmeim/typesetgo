@@ -67,8 +67,8 @@ export default function PracticeControls({
               onClick={() => setShowQuickSettings(true)}
               className="rounded-lg px-4 py-2 text-sm transition hover:text-foreground"
               style={{
-                backgroundColor: tv.bg.surface,
-                color: tv.interactive.primary.DEFAULT,
+                backgroundColor: tv.ui.card,
+                color: tv.ui.primary,
               }}
               title="Quick Settings"
             >
@@ -84,7 +84,7 @@ export default function PracticeControls({
               <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
                 Mode
               </span>
-              <ToggleGroup type="single" value={isKidMode ? "kid" : settings.mode} aria-label="Mode" spacing={1} className="flex flex-wrap justify-center rounded-lg p-1" style={{ backgroundColor: tv.bg.surface }}>
+              <ToggleGroup type="single" value={isKidMode ? "kid" : settings.mode} aria-label="Mode" spacing={1} className="flex flex-wrap justify-center rounded-lg p-1" style={{ backgroundColor: tv.ui.card }}>
                 {MODE_SELECTOR_OPTIONS.map((m) => {
                   const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
                   return (
@@ -112,7 +112,7 @@ export default function PracticeControls({
                   <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
                     Modifiers
                   </span>
-                  <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: tv.bg.surface }}>
+                  <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: tv.ui.card }}>
                     <Toggle
                       type="button"
                       pressed={settings.capitalization}
@@ -172,7 +172,7 @@ export default function PracticeControls({
                   </span>
                   <ToggleGroup type="single" value={String(settings.duration)} aria-label="Duration" spacing={1}
                     className="flex flex-wrap justify-center rounded-lg p-1"
-                    style={{ backgroundColor: tv.bg.surface }}
+                    style={{ backgroundColor: tv.ui.card }}
                   >
                     {TIME_PRESETS.map((d) => (
                       <ToggleGroupItem
@@ -215,7 +215,7 @@ export default function PracticeControls({
                   </span>
                   <ToggleGroup type="single" value={String(settings.wordTarget)} aria-label="Word Count" spacing={1}
                     className="flex flex-wrap justify-center rounded-lg p-1"
-                    style={{ backgroundColor: tv.bg.surface }}
+                    style={{ backgroundColor: tv.ui.card }}
                   >
                     {WORD_PRESETS.map((w) => (
                       <ToggleGroupItem
@@ -258,7 +258,7 @@ export default function PracticeControls({
                   </span>
                   <ToggleGroup type="single" value={settings.quoteLength} aria-label="Quote Length" spacing={1}
                     className="flex flex-wrap justify-center rounded-lg p-1"
-                    style={{ backgroundColor: tv.bg.surface }}
+                    style={{ backgroundColor: tv.ui.card }}
                   >
                     {["all", ...quotesManifest.lengths].map((l) => (
                       <ToggleGroupItem
@@ -290,7 +290,7 @@ export default function PracticeControls({
                   <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
                     Duration
                   </span>
-                  <div className="flex rounded-lg px-4 py-1.5" style={{ backgroundColor: tv.bg.surface }}>
+                  <div className="flex rounded-lg px-4 py-1.5" style={{ backgroundColor: tv.ui.card }}>
                     <InfinityIcon className="size-5" style={{ color: tv.ui.primary }} aria-label="Unlimited" role="img" />
                   </div>
                 </>
@@ -305,7 +305,7 @@ export default function PracticeControls({
                   </span>
                   <ToggleGroup type="single" value={settings.difficulty} aria-label="Difficulty" spacing={1}
                     className="flex flex-wrap justify-center rounded-lg p-1"
-                    style={{ backgroundColor: tv.bg.surface }}
+                    style={{ backgroundColor: tv.ui.card }}
                   >
                     {wordsManifest.difficulties.map((d) => (
                       <ToggleGroupItem

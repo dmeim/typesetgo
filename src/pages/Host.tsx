@@ -529,7 +529,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             </p>
           )}
           {!readyToStart && (
-            <p className="text-sm" style={{ color: tv.status.warning.DEFAULT }}>
+            <p className="text-sm" style={{ color: tv.ui.warning }}>
               Add custom text or select a valid plan step before starting.
             </p>
           )}

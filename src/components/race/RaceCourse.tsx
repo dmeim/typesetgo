@@ -93,8 +93,8 @@ export default function RaceCourse({
                     style={{
                       width: `${progress}%`,
                       backgroundColor: racer.isFinished
-                        ? tv.status.success.muted
-                        : tv.interactive.accent.subtle,
+                        ? tv.ui.successSurface
+                        : tv.ui.accent,
                     }}
                   />
                 </div>
@@ -119,7 +119,7 @@ export default function RaceCourse({
                       left: `${progress}%`,
                       backgroundColor: tv.ui.card,
                       borderColor: racer.isFinished
-                        ? tv.status.success.DEFAULT
+                        ? tv.ui.success
                         : racer.isCurrentUser
                           ? tv.ui.primary
                           : tv.ui.border,

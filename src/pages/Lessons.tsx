@@ -10,7 +10,7 @@ export default function Lessons() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ backgroundColor: tv.bg.base }}
+      style={{ backgroundColor: tv.ui.background }}
     >
       <Header />
 
@@ -18,28 +18,28 @@ export default function Lessons() {
       <main className="flex flex-1 flex-col items-center justify-center px-4 pt-20 pb-8">
         <div
           className="text-center p-8 rounded-2xl max-w-md"
-          style={{ backgroundColor: tv.bg.surface }}
+          style={{ backgroundColor: tv.ui.card }}
         >
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
-            style={{ backgroundColor: tv.interactive.accent.muted }}
+            style={{ backgroundColor: tv.ui.accent }}
           >
             <GraduationCapIcon aria-hidden="true"
               className="w-8 h-8"
-              style={{ color: tv.interactive.accent.DEFAULT }}
+              style={{ color: tv.ui.accentEmphasis }}
             />
           </div>
 
           <h1
             className="text-2xl font-bold mb-3"
-            style={{ color: tv.text.primary }}
+            style={{ color: tv.ui.foreground }}
           >
             Lessons Coming Soon
           </h1>
 
           <p
             className="mb-6"
-            style={{ color: tv.text.secondary }}
+            style={{ color: tv.ui.mutedForeground }}
           >
             Structured typing lessons to help you improve your skills step by step.
             From beginner fundamentals to advanced techniques.
@@ -49,8 +49,8 @@ export default function Lessons() {
             to="/"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors"
             style={{
-              backgroundColor: tv.interactive.accent.DEFAULT,
-              color: tv.text.inverse,
+              backgroundColor: tv.ui.primary,
+              color: tv.ui.primaryForeground,
             }}
           >
             <KeyboardIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -64,21 +64,21 @@ export default function Lessons() {
         <Link
           to="/about"
           className="text-sm transition-colors hover:opacity-80"
-          style={{ color: tv.text.secondary }}
+          style={{ color: tv.ui.mutedForeground }}
         >
           About
         </Link>
         <Link
           to="/privacy"
           className="text-sm transition-colors hover:opacity-80"
-          style={{ color: tv.text.secondary }}
+          style={{ color: tv.ui.mutedForeground }}
         >
           Privacy
         </Link>
         <Link
           to="/tos"
           className="text-sm transition-colors hover:opacity-80"
-          style={{ color: tv.text.secondary }}
+          style={{ color: tv.ui.mutedForeground }}
         >
           Terms
         </Link>

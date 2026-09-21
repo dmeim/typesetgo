@@ -123,7 +123,7 @@ export default function UserHostCard({
             style={{
               width: `${progress}%`,
               backgroundColor: finished
-                ? tv.status.success.DEFAULT
+                ? tv.ui.success
                 : tv.ui.primary,
             }}
           />

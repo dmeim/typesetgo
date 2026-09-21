@@ -131,8 +131,8 @@ function TestTypeChips({
           key={idx}
           className="px-2 py-0.5 rounded text-xs font-medium"
           style={{
-            backgroundColor: tv.interactive.secondary.DEFAULT,
-            color: tv.bg.base,
+            backgroundColor: tv.ui.secondaryEmphasis,
+            color: tv.ui.background,
           }}
         >
           {chip.label}
@@ -158,9 +158,9 @@ function ValidIcon({
       title={!isValid && result.invalidReason ? `Invalid: ${result.invalidReason}` : undefined}
     >
       {isValid ? (
-        <CheckCircleIcon className="size-4" style={{ color: tv.status.success.DEFAULT }} aria-hidden="true" />
+        <CheckCircleIcon className="size-4" style={{ color: tv.ui.success }} aria-hidden="true" />
       ) : (
-        <XCircleIcon className="size-4" style={{ color: tv.status.error.DEFAULT }} aria-hidden="true" />
+        <XCircleIcon className="size-4" style={{ color: tv.ui.destructive }} aria-hidden="true" />
       )}
     </div>
   );
@@ -191,7 +191,7 @@ function SortableHeader({
       className={`flex items-center gap-1 hover:opacity-80 transition-opacity ${
         align === "right" ? "justify-end ml-auto" : ""
       }`}
-      style={{ color: isActive ? tv.interactive.secondary.DEFAULT : tv.text.secondary }}
+      style={{ color: isActive ? tv.ui.secondaryEmphasis : tv.ui.mutedForeground }}
     >
       <SortIcon className="size-3 shrink-0" aria-hidden="true" />
       <span>{label}</span>
@@ -216,10 +216,10 @@ function DeleteConfirmModal({
     >
       <div
         className="w-full max-w-sm rounded-lg p-6 shadow-xl mx-4"
-        style={{ backgroundColor: tv.bg.surface }}
+        style={{ backgroundColor: tv.ui.card }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-xl font-semibold text-center mb-6" style={{ color: tv.text.primary }}>
+        <h3 className="text-xl font-semibold text-center mb-6" style={{ color: tv.ui.foreground }}>
           Are You Sure?
         </h3>
         <div className="flex gap-3">
@@ -228,8 +228,8 @@ function DeleteConfirmModal({
             disabled={isDeleting}
             className="inline-flex items-center justify-center gap-2 flex-1 py-3 px-4 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
             style={{
-              backgroundColor: tv.interactive.secondary.DEFAULT,
-              color: tv.bg.base,
+              backgroundColor: tv.ui.secondaryEmphasis,
+              color: tv.ui.background,
             }}
           >
             <XIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -240,8 +240,8 @@ function DeleteConfirmModal({
             disabled={isDeleting}
             className="inline-flex items-center justify-center gap-2 flex-1 py-3 px-4 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
             style={{
-              backgroundColor: tv.status.error.DEFAULT,
-              color: tv.bg.base,
+              backgroundColor: tv.ui.destructive,
+              color: tv.ui.background,
             }}
           >
             {isDeleting ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <TrashIcon className="size-4 shrink-0" aria-hidden="true" />}
@@ -294,19 +294,19 @@ function TestDetailModal({
       >
         <div
           className="w-full max-w-lg rounded-lg p-8 shadow-xl mx-4"
-          style={{ backgroundColor: tv.bg.surface }}
+          style={{ backgroundColor: tv.ui.card }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-lg font-semibold" style={{ color: tv.text.primary }}>
+            <h3 className="text-lg font-semibold" style={{ color: tv.ui.foreground }}>
               Test Details
             </h3>
             <button
               onClick={onClose}
               aria-label="Close test details"
               className="p-1.5 rounded-lg transition hover:opacity-80"
-              style={{ color: tv.text.muted }}
+              style={{ color: tv.ui.mutedForeground }}
             >
               <XIcon className="size-[18px]" aria-hidden="true" />
             </button>
@@ -314,7 +314,7 @@ function TestDetailModal({
 
           {/* Date & Test Type Chips */}
           <div className="mb-5 text-center">
-            <div className="text-sm mb-2" style={{ color: tv.text.secondary }}>
+            <div className="text-sm mb-2" style={{ color: tv.ui.mutedForeground }}>
               {formatDateTime(result.createdAt)}
             </div>
             <div className="flex flex-wrap gap-1.5 justify-center">
@@ -323,8 +323,8 @@ function TestDetailModal({
                   key={idx}
                   className="px-3 py-1 rounded-full text-sm font-medium"
                   style={{
-                    backgroundColor: tv.interactive.secondary.DEFAULT,
-                    color: tv.bg.base,
+                    backgroundColor: tv.ui.secondaryEmphasis,
+                    color: tv.ui.background,
                   }}
                 >
                   {chip.label}
@@ -339,10 +339,10 @@ function TestDetailModal({
               className="p-5 rounded-xl text-center"
               style={{ backgroundColor: `${colors.bg.base}80` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: tv.text.secondary }}>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: tv.ui.mutedForeground }}>
                 WPM
               </div>
-              <div className="text-5xl font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
+              <div className="text-5xl font-bold" style={{ color: tv.ui.secondaryEmphasis }}>
                 {result.wpm}
               </div>
             </div>
@@ -350,10 +350,10 @@ function TestDetailModal({
               className="p-5 rounded-xl text-center"
               style={{ backgroundColor: `${colors.bg.base}80` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: tv.text.secondary }}>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: tv.ui.mutedForeground }}>
                 Accuracy
               </div>
-              <div className="text-5xl font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
+              <div className="text-5xl font-bold" style={{ color: tv.ui.secondaryEmphasis }}>
                 {Math.round(result.accuracy)}%
               </div>
             </div>
@@ -366,21 +366,21 @@ function TestDetailModal({
               className="p-4 rounded-xl"
               style={{ backgroundColor: `${colors.bg.base}80` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-wide mb-3 text-center" style={{ color: tv.text.secondary }}>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-3 text-center" style={{ color: tv.ui.mutedForeground }}>
                 Words
               </div>
               <div className="flex justify-around">
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: tv.status.success.DEFAULT }}>
+                  <div className="text-2xl font-bold" style={{ color: tv.ui.success }}>
                     {result.wordsCorrect ?? 0}
                   </div>
-                  <div className="text-xs mt-1" style={{ color: tv.text.secondary }}>Correct</div>
+                  <div className="text-xs mt-1" style={{ color: tv.ui.mutedForeground }}>Correct</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: tv.status.error.DEFAULT }}>
+                  <div className="text-2xl font-bold" style={{ color: tv.ui.destructive }}>
                     {result.wordsIncorrect ?? 0}
                   </div>
-                  <div className="text-xs mt-1" style={{ color: tv.text.secondary }}>Incorrect</div>
+                  <div className="text-xs mt-1" style={{ color: tv.ui.mutedForeground }}>Incorrect</div>
                 </div>
               </div>
             </div>
@@ -390,21 +390,21 @@ function TestDetailModal({
               className="p-4 rounded-xl"
               style={{ backgroundColor: `${colors.bg.base}80` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-wide mb-3 text-center" style={{ color: tv.text.secondary }}>
+              <div className="text-xs font-semibold uppercase tracking-wide mb-3 text-center" style={{ color: tv.ui.mutedForeground }}>
                 Characters
               </div>
               <div className="flex justify-around">
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: tv.text.primary }}>
+                  <div className="text-2xl font-bold" style={{ color: tv.ui.foreground }}>
                     {result.charsMissed ?? 0}
                   </div>
-                  <div className="text-xs mt-1" style={{ color: tv.text.secondary }}>Missed</div>
+                  <div className="text-xs mt-1" style={{ color: tv.ui.mutedForeground }}>Missed</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: tv.text.primary }}>
+                  <div className="text-2xl font-bold" style={{ color: tv.ui.foreground }}>
                     {result.charsExtra ?? 0}
                   </div>
-                  <div className="text-xs mt-1" style={{ color: tv.text.secondary }}>Extra</div>
+                  <div className="text-xs mt-1" style={{ color: tv.ui.mutedForeground }}>Extra</div>
                 </div>
               </div>
             </div>
@@ -415,8 +415,8 @@ function TestDetailModal({
             onClick={() => setShowDeleteConfirm(true)}
             className="inline-flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-medium transition-opacity hover:opacity-80"
             style={{
-              backgroundColor: tv.status.error.muted,
-              color: tv.status.error.DEFAULT,
+              backgroundColor: tv.ui.destructiveSurface,
+              color: tv.ui.destructive,
             }}
           >
             <TrashIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -515,7 +515,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
       <div
         className="w-full rounded-lg shadow-xl mx-4 max-h-[90vh] flex flex-col"
         style={{
-          backgroundColor: tv.bg.surface,
+          backgroundColor: tv.ui.card,
           maxWidth: "clamp(320px, 85vw, 896px)",
           padding: "clamp(1rem, 2vw, 1.5rem)",
         }}
@@ -532,10 +532,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
               />
             )}
             <div>
-              <h2 className="text-xl font-semibold" style={{ color: tv.text.primary }}>
+              <h2 className="text-xl font-semibold" style={{ color: tv.ui.foreground }}>
                 Your Stats
               </h2>
-              <p className="text-sm" style={{ color: tv.text.secondary }}>
+              <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
                 {user?.username ?? user?.firstName ?? "User"}
               </p>
             </div>
@@ -544,7 +544,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
             onClick={onClose}
             aria-label="Close stats"
             className="p-2 rounded-lg transition hover:opacity-80"
-            style={{ color: tv.text.muted }}
+            style={{ color: tv.ui.mutedForeground }}
           >
             <XIcon className="size-5" aria-hidden="true" />
           </button>
@@ -553,7 +553,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
         {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center py-12">
-            <CircleNotchIcon className="size-8 motion-safe:animate-spin" style={{ color: tv.interactive.secondary.DEFAULT }} aria-hidden="true" />
+            <CircleNotchIcon className="size-8 motion-safe:animate-spin" style={{ color: tv.ui.secondaryEmphasis }} aria-hidden="true" />
           </div>
         )}
 
@@ -566,10 +566,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                 className="p-4 rounded-xl flex-1 flex flex-col justify-center"
                 style={{ backgroundColor: `${colors.bg.base}80` }}
               >
-                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
+                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.ui.mutedForeground }}>
                   Typing Time
                 </div>
-                <div className="text-2xl font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                <div className="text-2xl font-bold" style={{ color: tv.ui.secondaryEmphasis }}>
                   {formatDuration(stats.totalTimeTyped)}
                 </div>
               </div>
@@ -578,10 +578,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                 className="p-4 rounded-xl flex-1 flex flex-col justify-center"
                 style={{ backgroundColor: `${colors.bg.base}80` }}
               >
-                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
+                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.ui.mutedForeground }}>
                   Best WPM
                 </div>
-                <div className="text-2xl font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                <div className="text-2xl font-bold" style={{ color: tv.ui.secondaryEmphasis }}>
                   {stats.bestWpm}
                 </div>
               </div>
@@ -590,10 +590,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                 className="p-4 rounded-xl flex-1 flex flex-col justify-center"
                 style={{ backgroundColor: `${colors.bg.base}80` }}
               >
-                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
+                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.ui.mutedForeground }}>
                   Avg WPM
                 </div>
-                <div className="text-2xl font-bold" style={{ color: tv.text.primary }}>
+                <div className="text-2xl font-bold" style={{ color: tv.ui.foreground }}>
                   {stats.averageWpm}
                 </div>
               </div>
@@ -602,10 +602,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                 className="p-4 rounded-xl flex-1 flex flex-col justify-center"
                 style={{ backgroundColor: `${colors.bg.base}80` }}
               >
-                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
+                <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.ui.mutedForeground }}>
                   Avg Accuracy
                 </div>
-                <div className="text-2xl font-bold" style={{ color: tv.text.primary }}>
+                <div className="text-2xl font-bold" style={{ color: tv.ui.foreground }}>
                   {stats.averageAccuracy}%
                 </div>
               </div>
@@ -620,10 +620,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                   className="p-3 rounded-xl"
                   style={{ backgroundColor: `${colors.bg.base}80` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.ui.mutedForeground }}>
                     Day Streak
                   </div>
-                  <div className="text-lg font-bold flex items-center gap-1" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                  <div className="text-lg font-bold flex items-center gap-1" style={{ color: tv.ui.secondaryEmphasis }}>
                     <span
                       className="text-lg"
                       style={{
@@ -641,10 +641,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                   className="p-3 rounded-xl"
                   style={{ backgroundColor: `${colors.bg.base}80` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.ui.mutedForeground }}>
                     Saved Tests
                   </div>
-                  <div className="text-lg font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                  <div className="text-lg font-bold" style={{ color: tv.ui.secondaryEmphasis }}>
                     {stats.totalTests}
                   </div>
                 </div>
@@ -653,10 +653,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                   className="p-3 rounded-xl"
                   style={{ backgroundColor: `${colors.bg.base}80` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.ui.mutedForeground }}>
                     Words Typed
                   </div>
-                  <div className="text-lg font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                  <div className="text-lg font-bold" style={{ color: tv.ui.secondaryEmphasis }}>
                     {stats.totalWordsTyped.toLocaleString()}
                   </div>
                 </div>
@@ -665,10 +665,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                   className="p-3 rounded-xl"
                   style={{ backgroundColor: `${colors.bg.base}80` }}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.text.secondary }}>
+                  <div className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: tv.ui.mutedForeground }}>
                     Characters Typed
                   </div>
-                  <div className="text-lg font-bold" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                  <div className="text-lg font-bold" style={{ color: tv.ui.secondaryEmphasis }}>
                     {stats.totalCharactersTyped.toLocaleString()}
                   </div>
                 </div>
@@ -683,7 +683,7 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                 <div
                   className="grid gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wide border-b"
                   style={{
-                    color: tv.text.secondary,
+                    color: tv.ui.mutedForeground,
                     borderColor: tv.border.subtle,
                     gridTemplateColumns: "80px 1fr 40px 50px 55px",
                   }}
@@ -734,24 +734,24 @@ export default function StatsModal({ onClose }: StatsModalProps) {
                         }}
                         onClick={() => setSelectedTest(result as TestResult)}
                       >
-                        <div className="text-sm" style={{ color: tv.text.primary }}>
+                        <div className="text-sm" style={{ color: tv.ui.foreground }}>
                           {formatDate(result.createdAt)}
                         </div>
                         <div className="pl-2">
                           <TestTypeChips result={result as TestResult} />
                         </div>
                         <ValidIcon result={result as TestResult} />
-                        <div className="text-sm text-right font-medium" style={{ color: tv.text.primary }}>
+                        <div className="text-sm text-right font-medium" style={{ color: tv.ui.foreground }}>
                           {result.wpm}
                         </div>
-                        <div className="text-sm text-right font-medium" style={{ color: tv.interactive.secondary.DEFAULT }}>
+                        <div className="text-sm text-right font-medium" style={{ color: tv.ui.secondaryEmphasis }}>
                           {Math.round(result.accuracy)}%
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="flex items-center justify-center py-8">
-                      <p className="text-sm" style={{ color: tv.text.secondary }}>
+                      <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
                         No tests saved yet
                       </p>
                     </div>
@@ -786,10 +786,10 @@ export default function StatsModal({ onClose }: StatsModalProps) {
         {!isLoading && stats && stats.totalTests === 0 && (
           <div className="text-center py-8">
             <ChartBarIcon className="mx-auto mb-3 size-9" aria-hidden="true" />
-            <p className="text-lg font-medium" style={{ color: tv.text.primary }}>
+            <p className="text-lg font-medium" style={{ color: tv.ui.foreground }}>
               No tests saved yet
             </p>
-            <p className="text-sm" style={{ color: tv.text.secondary }}>
+            <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
               Complete a typing test and click "Save Results" to track your progress!
             </p>
           </div>

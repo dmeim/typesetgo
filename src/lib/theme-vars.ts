@@ -18,8 +18,16 @@ export const tv = {
     destructiveForeground: "var(--destructive-foreground)",
     border: "var(--border)",
     input: "var(--input)",
+    secondaryEmphasis: "var(--secondary-emphasis)",
+    accentEmphasis: "var(--accent-emphasis)",
+    success: "var(--success)",
+    successSurface: "var(--success-surface)",
+    warning: "var(--warning)",
+    warningSurface: "var(--warning-surface)",
+    destructiveSurface: "var(--destructive-surface)",
     ring: "var(--ring)",
   },
+  // Raw palette accessors for artwork only. Use ui above for labels and controls.
   bg: {
     base: "var(--theme-bg-base)",
     surface: "var(--theme-bg-surface)",
@@ -71,6 +79,7 @@ export const tv = {
     subtle: "var(--theme-border-subtle)",
     focus: "var(--theme-border-focus)",
   },
+  // Contrast-adjusted exercise roles supplied by deriveThemeTyping.
   typing: {
     cursor: "var(--theme-typing-cursor)",
     cursorGhost: "var(--theme-typing-cursor-ghost)",

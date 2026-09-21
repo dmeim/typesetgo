@@ -5,7 +5,7 @@ import { ThemeProvider, type ThemeContextValue } from "@/context/ThemeContext";
 import { useTheme } from "@/hooks/useTheme";
 import { Toaster } from "@/components/ui/toast";
 import { fetchTheme, fetchThemeManifest, getDefaultTheme } from "@/lib/themes";
-import { deriveThemeUI } from "@/lib/colors";
+import { deriveThemeTyping, deriveThemeUI } from "@/lib/colors";
 import type { ThemeDefinition } from "@/types/theme";
 
 vi.mock("@/lib/themes", async (importOriginal) => ({
@@ -54,7 +54,7 @@ function expectCommitted(theme: ThemeDefinition, mode: "dark" | "light", variant
   expect(document.documentElement.classList.contains("dark")).toBe(mode === "dark");
   expect(document.documentElement.style.colorScheme).toBe(mode);
   expect(document.documentElement.style.getPropertyValue("--background")).toBe(deriveThemeUI(colors).background);
-  expect(document.documentElement.style.getPropertyValue("--theme-typing-upcoming")).toBe(colors.typing.upcoming);
+  expect(document.documentElement.style.getPropertyValue("--theme-typing-upcoming")).toBe(deriveThemeTyping(colors).upcoming);
   expect(localStorage.getItem("typesetgo-theme-id")).toBe(theme.id);
   expect(localStorage.getItem("typesetgo-theme-variant-id")).toBe(variantId);
   expect(localStorage.getItem("typesetgo-theme-mode")).toBe(mode);

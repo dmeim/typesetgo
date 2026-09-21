@@ -131,7 +131,7 @@ export default function PracticeSettingsDialog({
             <section
               className="rounded-xl border p-5"
               style={{
-                backgroundColor: tv.bg.base,
+                backgroundColor: tv.ui.background,
                 borderColor: tv.border.subtle,
               }}
             >
@@ -143,7 +143,7 @@ export default function PracticeSettingsDialog({
                   className="rounded-full px-2.5 py-1 text-xs font-medium"
                   style={{
                     color: tv.ui.mutedForeground,
-                    backgroundColor: tv.bg.surface,
+                    backgroundColor: tv.ui.card,
                   }}
                 >
                   Display
@@ -167,7 +167,7 @@ export default function PracticeSettingsDialog({
                       id="typing-font"
                       className="w-full"
                       style={{
-                        backgroundColor: tv.bg.surface,
+                        backgroundColor: tv.ui.card,
                         borderColor: tv.border.subtle,
                         color: tv.ui.foreground,
                         fontFamily: getTypingFontFamily(settings.typingFontFamily),
@@ -177,7 +177,7 @@ export default function PracticeSettingsDialog({
                     </SelectTrigger>
                     <SelectContent
                       style={{
-                        backgroundColor: tv.bg.surface,
+                        backgroundColor: tv.ui.card,
                         borderColor: tv.border.subtle,
                       }}
                     >
@@ -219,7 +219,7 @@ export default function PracticeSettingsDialog({
                     className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
                     style={{
                       ["--slider-range" as string]: tv.ui.primary,
-                      ["--slider-track" as string]: tv.bg.surface,
+                      ["--slider-track" as string]: tv.ui.card,
                     }}
                   />
                   <p className="mt-1 text-xs" style={{ color: tv.ui.mutedForeground }}>
@@ -251,7 +251,7 @@ export default function PracticeSettingsDialog({
                         className="rounded-md px-3 py-2 text-sm capitalize transition-colors"
                         style={{
                           color: isActive ? tv.ui.foreground : tv.ui.mutedForeground,
-                          backgroundColor: isActive ? tv.bg.elevated : tv.bg.surface,
+                          backgroundColor: isActive ? tv.ui.popover : tv.ui.card,
                           boxShadow: isActive ? `inset 0 0 0 1px ${tv.ui.primary}` : "none",
                         }}
                       >
@@ -266,7 +266,7 @@ export default function PracticeSettingsDialog({
             <section
               className="rounded-xl border p-5"
               style={{
-                backgroundColor: tv.bg.base,
+                backgroundColor: tv.ui.background,
                 borderColor: tv.border.subtle,
               }}
             >
@@ -301,7 +301,7 @@ export default function PracticeSettingsDialog({
                         id="typing-sound"
                         className="w-full"
                         style={{
-                          backgroundColor: tv.bg.surface,
+                          backgroundColor: tv.ui.card,
                           borderColor: tv.border.subtle,
                           color: tv.ui.foreground,
                         }}
@@ -312,7 +312,7 @@ export default function PracticeSettingsDialog({
                       </SelectTrigger>
                       <SelectContent
                         style={{
-                          backgroundColor: tv.bg.surface,
+                          backgroundColor: tv.ui.card,
                           borderColor: tv.border.subtle,
                         }}
                       >
@@ -331,7 +331,7 @@ export default function PracticeSettingsDialog({
                     className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
                     style={{
                       color: tv.ui.foreground,
-                      backgroundColor: tv.bg.surface,
+                      backgroundColor: tv.ui.card,
                       borderColor: tv.border.subtle,
                     }}
                     disabled={!settings.soundEnabled || !selectedTypingSound || typingSoundOptions.length === 0}
@@ -359,7 +359,7 @@ export default function PracticeSettingsDialog({
                         id="warning-sound"
                         className="w-full"
                         style={{
-                          backgroundColor: tv.bg.surface,
+                          backgroundColor: tv.ui.card,
                           borderColor: tv.border.subtle,
                           color: tv.ui.foreground,
                         }}
@@ -370,7 +370,7 @@ export default function PracticeSettingsDialog({
                       </SelectTrigger>
                       <SelectContent
                         style={{
-                          backgroundColor: tv.bg.surface,
+                          backgroundColor: tv.ui.card,
                           borderColor: tv.border.subtle,
                         }}
                       >
@@ -389,7 +389,7 @@ export default function PracticeSettingsDialog({
                     className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
                     style={{
                       color: tv.ui.foreground,
-                      backgroundColor: tv.bg.surface,
+                      backgroundColor: tv.ui.card,
                       borderColor: tv.border.subtle,
                     }}
                     disabled={!settings.soundEnabled || !selectedWarningSound || warningSoundOptions.length === 0}
@@ -422,7 +422,7 @@ export default function PracticeSettingsDialog({
                           id="error-sound"
                           className="w-full"
                           style={{
-                            backgroundColor: tv.bg.surface,
+                            backgroundColor: tv.ui.card,
                             borderColor: tv.border.subtle,
                             color: tv.ui.foreground,
                           }}
@@ -431,7 +431,7 @@ export default function PracticeSettingsDialog({
                         </SelectTrigger>
                         <SelectContent
                           style={{
-                            backgroundColor: tv.bg.surface,
+                            backgroundColor: tv.ui.card,
                             borderColor: tv.border.subtle,
                           }}
                         >
@@ -453,7 +453,7 @@ export default function PracticeSettingsDialog({
                       className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
                       style={{
                         color: tv.ui.foreground,
-                        backgroundColor: tv.bg.surface,
+                        backgroundColor: tv.ui.card,
                         borderColor: tv.border.subtle,
                       }}
                       disabled={!settings.soundEnabled || !selectedErrorSound || errorSoundOptions.length === 0}
@@ -469,7 +469,7 @@ export default function PracticeSettingsDialog({
             <section
               className="rounded-xl border p-5"
               style={{
-                backgroundColor: tv.bg.base,
+                backgroundColor: tv.ui.background,
                 borderColor: tv.border.subtle,
               }}
             >
@@ -509,7 +509,7 @@ export default function PracticeSettingsDialog({
                   className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
                   style={{
                     ["--slider-range" as string]: tv.ui.primary,
-                    ["--slider-track" as string]: tv.bg.surface,
+                    ["--slider-track" as string]: tv.ui.card,
                   }}
                 />
               </div>
@@ -518,7 +518,7 @@ export default function PracticeSettingsDialog({
             <section
               className="rounded-xl border p-5"
               style={{
-                backgroundColor: tv.bg.base,
+                backgroundColor: tv.ui.background,
                 borderColor: tv.border.subtle,
               }}
             >
@@ -549,7 +549,7 @@ export default function PracticeSettingsDialog({
                       className="rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
                       style={{
                         color: settings.keyboardLayout === layout ? tv.ui.foreground : tv.ui.mutedForeground,
-                        backgroundColor: settings.keyboardLayout === layout ? tv.bg.elevated : tv.bg.surface,
+                        backgroundColor: settings.keyboardLayout === layout ? tv.ui.popover : tv.ui.card,
                         borderColor: settings.keyboardLayout === layout ? tv.ui.primary : tv.border.subtle,
                       }}
                     >
@@ -565,7 +565,7 @@ export default function PracticeSettingsDialog({
             <section
               className="rounded-xl border p-5"
               style={{
-                backgroundColor: tv.bg.base,
+                backgroundColor: tv.ui.background,
                 borderColor: tv.border.subtle,
               }}
             >
@@ -596,7 +596,7 @@ export default function PracticeSettingsDialog({
                     className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
                     style={{
                       ["--slider-range" as string]: tv.ui.primary,
-                      ["--slider-track" as string]: tv.bg.surface,
+                      ["--slider-track" as string]: tv.ui.card,
                     }}
                   />
                 </div>
@@ -620,7 +620,7 @@ export default function PracticeSettingsDialog({
                     className="w-full [&_[data-slot=slider-range]]:bg-[var(--slider-range)] [&_[data-slot=slider-thumb]]:border-[var(--slider-range)] [&_[data-slot=slider-track]]:bg-[var(--slider-track)]"
                     style={{
                       ["--slider-range" as string]: tv.ui.primary,
-                      ["--slider-track" as string]: tv.bg.surface,
+                      ["--slider-track" as string]: tv.ui.card,
                     }}
                   />
                 </div>

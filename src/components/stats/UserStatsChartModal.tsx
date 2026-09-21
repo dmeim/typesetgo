@@ -22,7 +22,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
 import { PROFILE_HISTORY_LIMIT } from "./profile-presentation";
 
@@ -164,7 +163,6 @@ export default function UserStatsChartModal({
   allResults,
   onCloseAutoFocus,
 }: UserStatsChartModalProps) {
-  const { colors } = useTheme();
   const [showBest, setShowBest] = useState(true);
   const [showLowest, setShowLowest] = useState(true);
 
@@ -222,21 +220,21 @@ export default function UserStatsChartModal({
     const config: ChartConfig = {
       value: {
         label: meta.yLabel,
-        color: colors.interactive.secondary.DEFAULT,
+        color: tv.ui.secondaryEmphasis,
       },
     };
     if (meta.hasHighlights) {
       config.best = {
         label: "Highest in sample",
-        color: colors.status.success.DEFAULT,
+        color: tv.ui.success,
       };
       config.lowest = {
         label: "Lowest in sample",
-        color: colors.status.error.DEFAULT,
+        color: tv.ui.destructive,
       };
     }
     return config;
-  }, [meta.yLabel, meta.hasHighlights, colors]);
+  }, [meta.yLabel, meta.hasHighlights]);
 
   // Compute dynamic Y-axis domain with buffer
   const yDomain = useMemo((): [number, number] | undefined => {
@@ -307,13 +305,13 @@ export default function UserStatsChartModal({
             <ToggleChip
               label="Highest in sample"
               active={showBest}
-              color={colors.status.success.DEFAULT}
+              color={tv.ui.success}
               onClick={() => setShowBest(!showBest)}
             />
             <ToggleChip
               label="Lowest in sample"
               active={showLowest}
-              color={colors.status.error.DEFAULT}
+              color={tv.ui.destructive}
               onClick={() => setShowLowest(!showLowest)}
             />
           </div>
@@ -332,7 +330,7 @@ export default function UserStatsChartModal({
             >
               <CartesianGrid
                 vertical={false}
-                stroke={colors.border.subtle}
+                stroke={tv.ui.border}
               />
               <XAxis
                 dataKey="time"
@@ -377,7 +375,7 @@ export default function UserStatsChartModal({
                 width={56}
               />
               <ChartTooltip
-                cursor={{ stroke: colors.border.default }}
+                cursor={{ stroke: tv.ui.input }}
                 content={
                   <ChartTooltipContent
                     className="bg-popover text-popover-foreground shadow-none"
@@ -397,7 +395,7 @@ export default function UserStatsChartModal({
                 dataKey="value"
                 isAnimationActive={false}
                 type="linear"
-                stroke={colors.interactive.secondary.DEFAULT}
+                stroke={tv.ui.secondaryEmphasis}
                 strokeWidth={2}
                 dot={({ cx, cy, payload: dotPayload }) => {
                   const dp = dotPayload as {
@@ -413,8 +411,8 @@ export default function UserStatsChartModal({
                         cx={cx}
                         cy={cy}
                         r={6}
-                        fill={colors.status.success.DEFAULT}
-                        stroke={colors.status.success.DEFAULT}
+                        fill={tv.ui.success}
+                        stroke={tv.ui.success}
                       />
                     );
                   }
@@ -425,8 +423,8 @@ export default function UserStatsChartModal({
                         cx={cx}
                         cy={cy}
                         r={6}
-                        fill={colors.status.error.DEFAULT}
-                        stroke={colors.status.error.DEFAULT}
+                        fill={tv.ui.destructive}
+                        stroke={tv.ui.destructive}
                       />
                     );
                   }
@@ -437,15 +435,15 @@ export default function UserStatsChartModal({
                       cx={cx}
                       cy={cy}
                       r={3}
-                      fill={colors.interactive.secondary.DEFAULT}
-                      stroke={colors.interactive.secondary.DEFAULT}
+                      fill={tv.ui.secondaryEmphasis}
+                      stroke={tv.ui.secondaryEmphasis}
                     />
                   );
                 }}
                 activeDot={{
                   r: 5,
-                  fill: colors.interactive.secondary.DEFAULT,
-                  stroke: colors.bg.surface,
+                  fill: tv.ui.secondaryEmphasis,
+                  stroke: tv.ui.card,
                   strokeWidth: 2,
                 }}
               />
@@ -472,7 +470,7 @@ export default function UserStatsChartModal({
             <div className="flex items-center gap-1.5">
               <div
                 className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: colors.interactive.secondary.DEFAULT }}
+                style={{ backgroundColor: tv.ui.secondaryEmphasis }}
               />
               <span>Valid tests in sample</span>
             </div>
@@ -480,7 +478,7 @@ export default function UserStatsChartModal({
               <div className="flex items-center gap-1.5">
                 <div
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: colors.status.success.DEFAULT }}
+                  style={{ backgroundColor: tv.ui.success }}
                 />
                 <span>Highest in sample</span>
               </div>
@@ -489,7 +487,7 @@ export default function UserStatsChartModal({
               <div className="flex items-center gap-1.5">
                 <div
                   className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: colors.status.error.DEFAULT }}
+                  style={{ backgroundColor: tv.ui.destructive }}
                 />
                 <span>Lowest in sample</span>
               </div>

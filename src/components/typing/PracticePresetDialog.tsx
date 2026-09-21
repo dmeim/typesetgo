@@ -29,8 +29,8 @@ export default function PracticePresetDialog({
           className="w-full h-48 rounded px-3 py-2 focus:outline-none focus:ring-2"
           style={
             {
-              backgroundColor: tv.bg.base,
-              color: tv.text.primary,
+              backgroundColor: tv.ui.background,
+              color: tv.ui.foreground,
               "--tw-ring-color": tv.ui.primary,
             } as React.CSSProperties
           }
@@ -41,7 +41,7 @@ export default function PracticePresetDialog({
             type="button" variant="ghost"
             onClick={() => setShowPresetInput(false)}
             className="px-4 py-2 hover:opacity-80 transition-opacity"
-            style={{ color: tv.text.secondary }}
+            style={{ color: tv.ui.mutedForeground }}
           >
             <XIcon className="size-4 shrink-0" aria-hidden="true" />
             Cancel

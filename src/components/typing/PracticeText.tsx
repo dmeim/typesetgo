@@ -29,7 +29,7 @@ export default function PracticeText({ targetText, typedText, caretRef, maxWords
       data-typing-caret={ghost ? undefined : "true"}
       data-ghost-caret={ghost ? "true" : undefined}
       aria-hidden="true"
-      className={`absolute left-0 top-1/2 h-[1em] w-0.5 -translate-y-1/2 ${ghost ? "opacity-70" : "motion-safe:animate-pulse"}`}
+      className={`absolute left-0 top-1/2 h-[1em] w-0.5 -translate-y-1/2 ${ghost ? "" : "motion-safe:animate-pulse"}`}
       style={{ backgroundColor: ghost ? tv.typing.cursorGhost : tv.typing.cursor }}
     />
   );

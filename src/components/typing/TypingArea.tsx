@@ -327,13 +327,13 @@ export default function TypingArea({
       {showStats && isRunning && (
         <div
           className="flex items-center justify-center gap-6 mb-4 text-sm font-medium"
-          style={{ color: tv.text.secondary }}
+          style={{ color: tv.ui.mutedForeground }}
         >
           <span>
-            <span style={{ color: tv.text.primary }}>{Math.round(wpm)}</span> WPM
+            <span style={{ color: tv.ui.foreground }}>{Math.round(wpm)}</span> WPM
           </span>
           <span>
-            <span style={{ color: tv.text.primary }}>{Math.round(accuracy)}%</span> ACC
+            <span style={{ color: tv.ui.foreground }}>{Math.round(accuracy)}%</span> ACC
           </span>
         </div>
       )}
@@ -365,13 +365,13 @@ export default function TypingArea({
           <div
             className="absolute inset-y-0 left-0 w-24 pointer-events-none z-10"
             style={{
-              background: `linear-gradient(to right, ${colors.bg.surface}, transparent)`,
+              background: `linear-gradient(to right, ${tv.ui.card}, transparent)`,
             }}
           />
           <div
             className="absolute inset-y-0 right-0 w-24 pointer-events-none z-10"
             style={{
-              background: `linear-gradient(to left, ${colors.bg.surface}, transparent)`,
+              background: `linear-gradient(to left, ${tv.ui.card}, transparent)`,
             }}
           />
           {/* Center line indicator (the fixed cursor position) */}
@@ -412,7 +412,7 @@ export default function TypingArea({
             >
               <p
                 className="text-lg font-medium"
-                style={{ color: tv.text.secondary }}
+                style={{ color: tv.ui.mutedForeground }}
               >
                 Click to focus
               </p>
@@ -424,7 +424,7 @@ export default function TypingArea({
       {capsLockOn && !showOnScreenKeyboard && (
         <div
           className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
-          style={{ color: tv.status.warning.DEFAULT }}
+          style={{ color: tv.ui.warning }}
         >
           <ArrowFatLineUpIcon className="size-5 shrink-0" aria-hidden="true" />
           <span>CAPS Lock is ON</span>
@@ -445,13 +445,13 @@ export default function TypingArea({
       {mode === "race" && (
         <div
           className="mt-4 h-2 rounded-full overflow-hidden"
-          style={{ backgroundColor: tv.bg.surface }}
+          style={{ backgroundColor: tv.ui.card }}
         >
           <div
             className="h-full transition-all duration-100 rounded-full"
             style={{
               width: `${progress}%`,
-              backgroundColor: tv.interactive.accent.DEFAULT,
+              backgroundColor: tv.ui.accentEmphasis,
             }}
           />
         </div>

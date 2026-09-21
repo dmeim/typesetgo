@@ -178,10 +178,17 @@ export type ThemeUIColors = {
   primaryForeground: string;
   secondary: string;
   secondaryForeground: string;
+  secondaryEmphasis: string;
   muted: string;
   mutedForeground: string;
   accent: string;
   accentForeground: string;
+  accentEmphasis: string;
+  success: string;
+  successSurface: string;
+  warning: string;
+  warningSurface: string;
+  destructiveSurface: string;
   destructive: string;
   destructiveForeground: string;
   border: string;

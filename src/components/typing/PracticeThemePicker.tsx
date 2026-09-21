@@ -18,6 +18,7 @@ import {
   type ThemeCategory,
 } from "@/lib/themes";
 import type { ThemeCatalogIndex, ThemeCatalogEntry, ThemeMode } from "@/types/theme";
+import { deriveThemeTyping, deriveThemeUI } from "@/lib/colors";
 import { useTheme } from "@/hooks/useTheme";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import ThemeCard from "./ThemeCard";
@@ -106,6 +107,9 @@ export default function PracticeThemePicker({
   }, [showThemeModal, loadCatalog]);
 
   const normalizedQuery = normalize(query);
+  const appliedUI = useMemo(() => deriveThemeUI(colors), [colors]);
+  const appliedTyping = useMemo(() => deriveThemeTyping(colors, appliedUI), [colors, appliedUI]);
+
   const groups = useMemo(
     () =>
       groupThemesByCategory(themes)
@@ -425,13 +429,13 @@ export default function PracticeThemePicker({
                     <p>Current colors (read-only)</p>
                     <dl className="grid gap-2 sm:grid-cols-2">
                       {[
-                        ["Background", colors.bg.base],
-                        ["Surface", colors.bg.surface],
-                        ["Cursor", colors.typing.cursor],
-                        ["Ghost cursor", colors.typing.cursorGhost],
-                        ["Untyped text", colors.typing.default],
-                        ["Correct text", colors.typing.correct],
-                        ["Incorrect text", colors.typing.incorrect],
+                        ["Background", appliedUI.background],
+                        ["Surface", appliedUI.card],
+                        ["Cursor", appliedTyping.cursor],
+                        ["Ghost cursor", appliedTyping.cursorGhost],
+                        ["Untyped text", appliedTyping.default],
+                        ["Correct text", appliedTyping.correct],
+                        ["Incorrect text", appliedTyping.incorrect],
                       ].map(([label, color]) => (
                         <div key={label} className="flex min-w-0 items-center justify-between gap-2">
                           <dt>{label}</dt>

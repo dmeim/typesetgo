@@ -10,8 +10,8 @@ export default function Privacy() {
     <div
       className="min-h-[100dvh] font-mono px-4 py-12 transition-colors duration-300"
       style={{
-        backgroundColor: tv.bg.base,
-        color: tv.typing.correct,
+        backgroundColor: tv.ui.background,
+        color: tv.ui.foreground,
       }}
     >
       <div className="w-full max-w-3xl mx-auto animate-fade-in">
@@ -19,7 +19,7 @@ export default function Privacy() {
           <Link
             to="/"
             className="inline-flex items-center gap-2 transition text-sm hover:opacity-100"
-            style={{ color: tv.typing.default, opacity: 0.7 }}
+            style={{ color: tv.ui.mutedForeground }}
           >
             <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
             Back to Homepage
@@ -29,23 +29,23 @@ export default function Privacy() {
         <div className="text-center mb-12">
           <h1
             className="text-4xl font-bold mb-2"
-            style={{ color: tv.typing.cursor }}
+            style={{ color: tv.ui.primary }}
           >
             Privacy Policy
           </h1>
-          <p style={{ color: tv.text.secondary }}>
+          <p style={{ color: tv.ui.mutedForeground }}>
             Last updated: January 15, 2026
           </p>
         </div>
 
         <div
           className="space-y-8 text-sm leading-relaxed"
-          style={{ color: tv.text.secondary }}
+          style={{ color: tv.ui.mutedForeground }}
         >
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: tv.text.primary }}
+              style={{ color: tv.ui.foreground }}
             >
               1. Information We Collect
             </h2>
@@ -72,7 +72,7 @@ export default function Privacy() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: tv.text.primary }}
+              style={{ color: tv.ui.foreground }}
             >
               2. How We Use Your Information
             </h2>
@@ -88,7 +88,7 @@ export default function Privacy() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: tv.text.primary }}
+              style={{ color: tv.ui.foreground }}
             >
               3. Data Storage
             </h2>
@@ -104,7 +104,7 @@ export default function Privacy() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: tv.text.primary }}
+              style={{ color: tv.ui.foreground }}
             >
               4. Data Sharing
             </h2>
@@ -118,7 +118,7 @@ export default function Privacy() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: tv.text.primary }}
+              style={{ color: tv.ui.foreground }}
             >
               5. Cookies and Tracking
             </h2>
@@ -132,7 +132,7 @@ export default function Privacy() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: tv.text.primary }}
+              style={{ color: tv.ui.foreground }}
             >
               6. Your Rights
             </h2>
@@ -149,7 +149,7 @@ export default function Privacy() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: tv.text.primary }}
+              style={{ color: tv.ui.foreground }}
             >
               7. Changes to This Policy
             </h2>
@@ -163,7 +163,7 @@ export default function Privacy() {
           <section>
             <h2
               className="text-xl font-semibold mb-4"
-              style={{ color: tv.text.primary }}
+              style={{ color: tv.ui.foreground }}
             >
               8. Contact Us
             </h2>

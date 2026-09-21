@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { compositeThemeColor, contrastRatio, deriveThemeUI, parseThemeColor } from "@/lib/colors";
+import { compositeThemeColor, contrastRatio, deriveThemeUI, deriveThemeTyping, parseThemeColor } from "@/lib/colors";
 import { getDefaultTheme } from "@/lib/themes";
 import type { ThemeColors } from "@/types/theme";
 
@@ -33,6 +33,19 @@ describe("semantic theme colors", () => {
     expect(ui.primaryForeground).not.toBe(colors.text.inverse);
   });
 
+  it("makes Celestia live stats and invisible sports-theme carets readable", () => {
+    const celestia = JSON.parse(readFileSync(resolve("public/themes/danganronpa.json"), "utf8"))
+      .variants["celestia-ludenberg"].dark as ThemeColors;
+    expect(contrastRatio(celestia.interactive.secondary.DEFAULT, celestia.bg.base)).toBeLessThan(1.1);
+    const ui = deriveThemeUI(celestia);
+    expect(contrast(ui.secondaryEmphasis, ui.card)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(ui.mutedForeground, ui.card)).toBeGreaterThanOrEqual(4.5);
+    const houston = JSON.parse(readFileSync(resolve("public/themes/houston-dynamo-fc.json"), "utf8"))
+      .variants["2006-away-white-orange"].dark as ThemeColors;
+    expect(houston.typing.cursor).toBe(houston.bg.base);
+    expect(contrast(deriveThemeTyping(houston).cursor, houston.bg.base)).toBeGreaterThanOrEqual(3);
+  });
+
   it("composites alpha colors and rejects invalid palette values", () => {
     expect(compositeThemeColor("rgba(255, 0, 0, 0.5)", "#000000")).toBe("#800000");
     expect(compositeThemeColor("#fff8", "#000000")).toBe("#888888");
@@ -45,7 +58,7 @@ describe("semantic theme colors", () => {
     const directory = resolve("public/themes");
     const failures: string[] = [];
     let count = 0;
-    for (const name of readdirSync(directory).filter((name) => name.endsWith(".json") && name !== "manifest.json")) {
+    for (const name of readdirSync(directory).filter((name) => name.endsWith(".json") && !["manifest.json", "catalog.json"].includes(name))) {
       const data = JSON.parse(readFileSync(resolve(directory, name), "utf8"));
       const variants = (data.variants ?? { default: data }) as Record<string, { dark: ThemeColors; light?: ThemeColors | null }>;
       for (const [variant, modes] of Object.entries(variants)) {
@@ -56,7 +69,7 @@ describe("semantic theme colors", () => {
           const identity = JSON.stringify(colors);
           try {
             const ui = deriveThemeUI(colors);
-            const surfaces = [ui.background, ui.card, ui.popover, ui.muted, ui.secondary, ui.accent];
+            const surfaces = [ui.background, ui.card, ui.popover, ui.muted, ui.secondary, ui.accent, ui.successSurface, ui.warningSurface, ui.destructiveSurface];
             const pairs: Array<[string, string, number]> = [
               [ui.cardForeground, ui.card, 4.5], [ui.popoverForeground, ui.popover, 4.5],
               [ui.primaryForeground, ui.primary, 4.5], [ui.secondaryForeground, ui.secondary, 4.5],
@@ -64,9 +77,17 @@ describe("semantic theme colors", () => {
               ...surfaces.flatMap((surface): Array<[string, string, number]> => [
                 [ui.foreground, surface, 4.5], [ui.mutedForeground, surface, 4.5],
                 [ui.primary, surface, 4.5], [ui.destructive, surface, 4.5],
+                [ui.secondaryEmphasis, surface, 4.5], [ui.accentEmphasis, surface, 4.5],
+                [ui.success, surface, 4.5], [ui.warning, surface, 4.5],
                 [ui.input, surface, 3], [ui.ring, surface, 3],
               ]),
             ];
+            const typing = deriveThemeTyping(colors, ui);
+            for (const [role, value] of Object.entries(typing)) {
+              for (const surface of [ui.background, ui.card, ui.popover]) {
+                pairs.push([value, surface, role === "correct" || role === "incorrect" ? 4.5 : 3]);
+              }
+            }
             if (pairs.some(([fg, bg, minimum]) => contrast(fg, bg) < minimum)) failures.push(`${name}/${variant}/${mode}: contrast`);
             if (Object.values(ui).some((color) => !/^#[\da-f]{6}$/.test(color))) failures.push(`${name}/${variant}/${mode}: opacity`);
             if (JSON.stringify(colors) !== identity) failures.push(`${name}/${variant}/${mode}: mutation`);
@@ -79,5 +100,5 @@ describe("semantic theme colors", () => {
     }
     expect(count).toBeGreaterThan(9_000);
     expect(failures).toEqual([]);
-  }, 30_000);
+  }, 120_000);
 });

@@ -27,8 +27,8 @@ export default function GhostWriterController({
         className="flex h-[1.5em] w-[1.5em] items-center justify-center rounded transition hover:opacity-75 hover:text-white"
         style={{
           color: ghostWriterEnabled
-            ? tv.interactive.secondary.DEFAULT
-            : tv.interactive.primary.DEFAULT,
+            ? tv.ui.secondaryEmphasis
+            : tv.ui.primary,
         }}
         aria-label="Ghost writer settings"
         aria-haspopup="dialog"

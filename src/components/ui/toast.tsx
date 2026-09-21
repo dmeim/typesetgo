@@ -69,7 +69,7 @@ function ToastIcon({ item }: { item: ToastPrimitive.Root.ToastObject<ToastData> 
   const Icon = achievement ? TrophyIcon : item.data?.notificationType === "maintenance" ? WrenchIcon
     : type === "success" ? CheckCircleIcon : type === "warning" ? WarningIcon
       : type === "error" ? XCircleIcon : type === "loading" ? CircleNotchIcon : InfoIcon;
-  const color = type === "success" ? tv.status.success.DEFAULT : type === "warning" ? tv.status.warning.DEFAULT
+  const color = type === "success" ? tv.ui.success : type === "warning" ? tv.ui.warning
     : type === "error" ? tv.ui.destructive : tv.ui.primary;
   return <Icon aria-hidden="true" className={cn("size-4 shrink-0", type === "loading" && "motion-safe:animate-spin")} style={{ color }} />;
 }

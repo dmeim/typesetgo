@@ -118,11 +118,11 @@ html {
 
   /* Typing */
   --theme-typing-cursor: #3cb5ee;
-  --theme-typing-cursor-ghost: #a855f7;
+  --theme-typing-cursor-ghost: #a957f7;
   --theme-typing-correct: #d1d5db;
-  --theme-typing-incorrect: #ef4444;
-  --theme-typing-upcoming: #4b5563;
-  --theme-typing-default: #4b5563;
+  --theme-typing-incorrect: #f47d7d;
+  --theme-typing-upcoming: #7a828c;
+  --theme-typing-default: #7a828c;
 
   /* Full-color semantic UI values; ThemeProvider derives these per palette. */
   --background: #323437;
@@ -136,14 +136,21 @@ html {
   --secondary: #28393e;
   --secondary-foreground: #d1d5db;
   --muted: #2c2e31;
-  --muted-foreground: #9ba1a9;
+  --muted-foreground: #9ea4ab;
   --accent: #383245;
   --accent-foreground: #d1d5db;
-  --destructive: #f47d7d;
-  --destructive-foreground: #383838;
+  --destructive: #f48181;
+  --destructive-foreground: #393939;
   --border: #353a40;
-  --input: #7f8185;
+  --input: #818387;
   --ring: #3cb5ee;
+  --secondary-emphasis: #3fb1c5;
+  --accent-emphasis: #c38af9;
+  --success: #22c55e;
+  --success-surface: #2b3d36;
+  --warning: #f59e0b;
+  --warning-surface: #40392d;
+  --destructive-surface: #403033;
   --radius: 0.5rem;
 }
 

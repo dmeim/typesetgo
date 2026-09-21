@@ -13,6 +13,7 @@ import { toast } from "@/lib/toast-manager";
 import { normalizePracticeSettings, type Quote, type SettingsState, type Theme } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { useTheme } from "@/hooks/useTheme";
+import { deriveThemeUI, deriveThemeTyping } from "@/lib/colors";
 import { tv } from "@/lib/theme-vars";
 import { fetchWordsManifest, type WordsManifest } from "@/lib/words";
 import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
@@ -213,18 +214,22 @@ export default function TypingPractice({
   const [linePreview, setLinePreview] = useState(() => loadLayoutSettings()?.linePreview ?? 3);
   const [maxWordsPerLine, setMaxWordsPerLine] = useState(() => loadLayoutSettings()?.maxWordsPerLine ?? 7);
   // Font option is now stored in settings.typingFontFamily
-  const planTheme: Theme = useMemo(() => ({
-    cursor: colors.typing.cursor,
-    defaultText: colors.typing.default,
-    upcomingText: colors.typing.upcoming,
-    correctText: colors.typing.correct,
-    incorrectText: colors.typing.incorrect,
-    buttonUnselected: colors.interactive.primary.DEFAULT,
-    buttonSelected: colors.interactive.secondary.DEFAULT,
-    backgroundColor: colors.bg.base,
-    surfaceColor: colors.bg.surface,
-    ghostCursor: colors.typing.cursorGhost,
-  }), [colors]);
+  const planTheme: Theme = useMemo(() => {
+    const ui = deriveThemeUI(colors);
+    const typing = deriveThemeTyping(colors, ui);
+    return {
+      cursor: typing.cursor,
+      defaultText: ui.mutedForeground,
+      upcomingText: typing.upcoming,
+      correctText: ui.foreground,
+      incorrectText: ui.destructive,
+      buttonUnselected: ui.primary,
+      buttonSelected: ui.secondaryEmphasis,
+      backgroundColor: ui.background,
+      surfaceColor: ui.card,
+      ghostCursor: typing.cursorGhost,
+    };
+  }, [colors]);
   const [soundManifest, setSoundManifest] = useState<SoundManifest | null>(null);
   const [wordsManifest, setWordsManifest] = useState<WordsManifest | null>(null);
   const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
@@ -1437,7 +1442,7 @@ export default function TypingPractice({
   return (
     <div
       className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300`}
-      style={{ backgroundColor: tv.bg.base }}
+      style={{ backgroundColor: tv.ui.background }}
     >
       <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
       <div className="h-4 shrink-0" />
@@ -1470,23 +1475,23 @@ export default function TypingPractice({
               {/* WPM Pill */}
               <div
                 className={pillCls}
-                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className={numCls} style={{ color: tv.interactive.secondary.DEFAULT }}>
+                <span className={numCls} style={{ color: tv.ui.secondaryEmphasis }}>
                   {Math.round(wpm)}
                 </span>
-                <span className={labelCls} style={{ color: tv.text.secondary }}>wpm</span>
+                <span className={labelCls} style={{ color: tv.ui.mutedForeground }}>wpm</span>
               </div>
 
               {/* Time Mode: Countdown Timer */}
               {isTimedPractice(settings) && (
                 <div
                   className={pillCls}
-                  style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                  style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
                 >
                   <span
                     className={numCls}
-                    style={{ color: timeRemaining < 10 ? tv.status.error.DEFAULT : tv.text.primary }}
+                    style={{ color: timeRemaining < 10 ? tv.ui.destructive : tv.ui.foreground }}
                   >
                     {formatTime(timeRemaining)}
                   </span>
@@ -1497,15 +1502,15 @@ export default function TypingPractice({
               {settings.mode === "words" && (
                 <div
                   className={pillCls}
-                  style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                  style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
                 >
-                  <span className={numCls} style={{ color: tv.text.primary }}>
+                  <span className={numCls} style={{ color: tv.ui.foreground }}>
                     {Math.min(typedWordCount, settings.wordTarget === 0 ? Infinity : settings.wordTarget)}
                   </span>
                   {settings.wordTarget > 0 && (
                     <>
-                      <span className={dividerCls} style={{ color: tv.text.secondary }}>/</span>
-                      <span className={subNumCls} style={{ color: tv.text.secondary }}>
+                      <span className={dividerCls} style={{ color: tv.ui.mutedForeground }}>/</span>
+                      <span className={subNumCls} style={{ color: tv.ui.mutedForeground }}>
                         {settings.wordTarget}
                       </span>
                     </>
@@ -1518,22 +1523,22 @@ export default function TypingPractice({
                 <>
                   <div
                     className={pillCls}
-                    style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                    style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
                   >
-                    <span className={numCls} style={{ color: tv.text.primary }}>
+                    <span className={numCls} style={{ color: tv.ui.foreground }}>
                       {formatTime(Math.floor(elapsedMs / 1000))}
                     </span>
                   </div>
 
                   <div
                     className={pillCls}
-                    style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                    style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
                   >
-                    <span className={numCls} style={{ color: tv.text.primary }}>
+                    <span className={numCls} style={{ color: tv.ui.foreground }}>
                       {typedWordCount}
                     </span>
-                    <span className={dividerCls} style={{ color: tv.text.secondary }}>/</span>
-                    <span className={subNumCls} style={{ color: tv.text.secondary }}>
+                    <span className={dividerCls} style={{ color: tv.ui.mutedForeground }}>/</span>
+                    <span className={subNumCls} style={{ color: tv.ui.mutedForeground }}>
                       {"\u221E"}
                     </span>
                   </div>
@@ -1543,12 +1548,12 @@ export default function TypingPractice({
               {/* Accuracy Pill */}
               <div
                 className={pillCls}
-                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className={numCls} style={{ color: tv.interactive.secondary.DEFAULT }}>
+                <span className={numCls} style={{ color: tv.ui.secondaryEmphasis }}>
                   {Math.round(accuracy)}%
                 </span>
-                <span className={labelCls} style={{ color: tv.text.secondary }}>acc</span>
+                <span className={labelCls} style={{ color: tv.ui.mutedForeground }}>acc</span>
               </div>
             </div>
           )}
@@ -1558,7 +1563,7 @@ export default function TypingPractice({
             <div className={`flex ${kb ? "gap-1.5" : "gap-2 md:gap-3"} items-center`}>
               <div
                 className={kb ? "w-48 px-2.5 py-1.5 backdrop-blur-md rounded-full shadow-lg" : "w-56 md:w-80 px-3 py-2.5 md:px-4 md:py-4 backdrop-blur-md rounded-full shadow-lg"}
-                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
               >
                 {settings.mode === "zen" ? (
                   <div
@@ -1594,8 +1599,8 @@ export default function TypingPractice({
                     style={{ backgroundColor: tv.border.subtle }}
                     indicatorStyle={{
                       backgroundColor: isTimedPractice(settings) && timeRemaining < 10
-                        ? tv.status.error.DEFAULT
-                        : tv.status.success.DEFAULT,
+                        ? tv.ui.destructive
+                        : tv.ui.success,
                     }}
                   />
                 )}
@@ -1608,22 +1613,22 @@ export default function TypingPractice({
             <div className={`flex ${kb ? "gap-1.5" : "gap-2 md:gap-3"}`}>
               <div
                 className={pillCls}
-                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className={numCls} style={{ color: tv.text.primary }}>
+                <span className={numCls} style={{ color: tv.ui.foreground }}>
                   {formatTime(Math.floor(elapsedMs / 1000))}
                 </span>
               </div>
 
               <div
                 className={pillCls}
-                style={{ backgroundColor: `${colors.bg.surface}E6`, borderWidth: 1, borderColor: tv.border.subtle }}
+                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
               >
-                <span className={numCls} style={{ color: tv.text.primary }}>
+                <span className={numCls} style={{ color: tv.ui.foreground }}>
                   {typedWordCount}
                 </span>
-                <span className={dividerCls} style={{ color: tv.text.secondary }}>/</span>
-                <span className={subNumCls} style={{ color: tv.text.secondary }}>
+                <span className={dividerCls} style={{ color: tv.ui.mutedForeground }}>/</span>
+                <span className={subNumCls} style={{ color: tv.ui.mutedForeground }}>
                   {"\u221E"}
                 </span>
               </div>
@@ -1647,11 +1652,11 @@ export default function TypingPractice({
             className="mb-4 flex flex-col items-center text-center transition-opacity motion-reduce:transition-none duration-300"
             style={{ opacity: uiOpacity }}
           >
-            <div className="text-xl font-medium" style={{ color: tv.interactive.secondary.DEFAULT }}>
+            <div className="text-xl font-medium" style={{ color: tv.ui.secondaryEmphasis }}>
               {currentQuote.author}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm" style={{ color: tv.text.secondary }}>
+              <span className="text-sm" style={{ color: tv.ui.mutedForeground }}>
                 {currentQuote.source}, {currentQuote.date}
               </span>
             </div>
@@ -1719,7 +1724,7 @@ export default function TypingPractice({
               </div>
             </div>
 
-            {!promptReady && <div role="status" className="py-8 text-center" style={{ color: tv.text.secondary }}>
+            {!promptReady && <div role="status" className="py-8 text-center" style={{ color: tv.ui.mutedForeground }}>
               {dataset.status === "error" ? <>Could not load this prompt. <button type="button" onClick={() => { if (settings.mode === "quote") void fetchQuotesManifest().then(setQuotesManifest); dataset.retry(); }} className="inline-flex items-center justify-center gap-2">
                 <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
                 Retry
@@ -1733,14 +1738,14 @@ export default function TypingPractice({
                 className="absolute inset-0 flex items-center justify-center cursor-pointer"
                 onClick={() => inputRef.current?.focus()}
               >
-                <span className="text-gray-500 text-lg">Click here to start typing</span>
+                <span className="text-muted-foreground text-lg">Click here to start typing</span>
               </div>
             )}
 
             {capsLockOn && !settings.showOnScreenKeyboard && (
               <div
                 className="mt-3 flex items-center justify-center gap-2 text-lg font-medium"
-                style={{ color: tv.status.warning.DEFAULT }}
+                style={{ color: tv.ui.warning }}
               >
                 <ArrowFatLineUpIcon className="size-5 shrink-0" aria-hidden="true" />
                 <span>CAPS Lock is ON</span>
@@ -1782,10 +1787,10 @@ export default function TypingPractice({
         {/* Instructions */}
         {!isRunning && !isFinished && (
           <div
-            className="text-center text-gray-600 transition-opacity duration-300"
+            className="text-center text-muted-foreground transition-opacity duration-300"
             style={{ fontSize: `${settings.helpFontSize}rem`, opacity: uiOpacity }}
           >
-            {isRepeated && <div className="mb-2 text-red-500 font-medium">REPEATED</div>}
+            {isRepeated && <div className="mb-2 text-destructive font-medium">REPEATED</div>}
             <div>
               Press <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to repeat · <kbd>Tab</kbd> to move focus
             </div>
@@ -1849,12 +1854,12 @@ export default function TypingPractice({
 
       {/* Plan Splash Screen */}
       {isPlanActive && isPlanSplash && plan[planIndex] && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: tv.bg.base }}>
+        <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: tv.ui.background }}>
           <div className="absolute top-4 right-4">
             <button
               onClick={exitPlanMode}
               className="inline-flex items-center justify-center gap-2 px-4 py-2 transition-colors hover:opacity-80"
-              style={{ color: tv.text.secondary }}
+              style={{ color: tv.ui.mutedForeground }}
             >
               <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />
               Exit Plan
@@ -1890,7 +1895,7 @@ export default function TypingPractice({
             <button
               onClick={handlePlanPrev}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors hover:opacity-90"
-              style={{ backgroundColor: tv.bg.surface, color: tv.text.primary }}
+              style={{ backgroundColor: tv.ui.card, color: tv.ui.foreground }}
             >
               <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
               Previous
@@ -1899,7 +1904,7 @@ export default function TypingPractice({
           <button
             onClick={handlePlanNext}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 text-white rounded-lg font-medium transition-colors hover:opacity-90"
-            style={{ backgroundColor: tv.interactive.secondary.DEFAULT }}
+            style={{ backgroundColor: tv.ui.secondaryEmphasis, color: tv.ui.background }}
           >
             {planIndex < plan.length - 1
               ? <ArrowFatRightIcon className="size-4 shrink-0" aria-hidden="true" />

@@ -103,13 +103,13 @@ export default function AchievementsGrid({
         <TrophyIcon className="mb-2 size-8 text-muted-foreground" aria-hidden="true" />
         <div
           className="text-sm text-center"
-          style={{ color: tv.text.secondary }}
+          style={{ color: tv.ui.mutedForeground }}
         >
           No achievements yet
         </div>
         <div
           className="text-xs text-center mt-1 opacity-70"
-          style={{ color: tv.text.secondary }}
+          style={{ color: tv.ui.mutedForeground }}
         >
           Complete tests to earn achievements!
         </div>
@@ -127,7 +127,7 @@ export default function AchievementsGrid({
         <div className="flex items-center justify-between mb-2 px-1">
           <div
             className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: tv.text.secondary }}
+            style={{ color: tv.ui.mutedForeground }}
           >
             Achievements
           </div>
@@ -136,7 +136,7 @@ export default function AchievementsGrid({
               onClick={handleRefresh}
               disabled={isRefreshing || !user}
               className="p-1 rounded transition-all hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ color: tv.text.secondary }}
+              style={{ color: tv.ui.mutedForeground }}
               aria-label="Refresh achievements"
               title="Refresh achievements"
             >
@@ -145,7 +145,7 @@ export default function AchievementsGrid({
             <button
               onClick={() => setShowAchievementsModal(true)}
               className="text-xs font-medium hover:underline transition-all cursor-pointer"
-              style={{ color: tv.interactive.secondary.DEFAULT }}
+              style={{ color: tv.ui.secondaryEmphasis }}
             >
               {earnedIds.length} / {ALL_ACHIEVEMENTS.length}
             </button>
@@ -189,7 +189,7 @@ export default function AchievementsGrid({
                   {/* Title (bottom) */}
                   <div
                     className="text-[10px] font-medium text-center leading-tight line-clamp-2"
-                    style={{ color: tv.text.primary }}
+                    style={{ color: tv.ui.foreground }}
                   >
                     {achievement.title}
                   </div>

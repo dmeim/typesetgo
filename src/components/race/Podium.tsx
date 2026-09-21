@@ -48,7 +48,7 @@ export default function Podium({
                       : MedalMilitaryIcon;
                 const color =
                   racer.position === 1
-                    ? tv.status.warning.DEFAULT
+                    ? tv.ui.warning
                     : racer.position === 2
                       ? tv.ui.mutedForeground
                       : tv.ui.primary;
@@ -154,7 +154,7 @@ export default function Podium({
                   style={{
                     backgroundColor:
                       racer.sessionId === currentSessionId
-                        ? tv.interactive.accent.subtle
+                        ? tv.ui.accent
                         : undefined,
                     color: tv.ui.foreground,
                     borderTop: `1px solid ${tv.ui.border}`,

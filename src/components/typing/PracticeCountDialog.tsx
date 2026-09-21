@@ -95,7 +95,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
         type="button"
         onClick={() => adjustValue(-1)}
         className="rounded-full p-1 transition-opacity hover:opacity-80"
-        style={{ color: tv.ui.mutedForeground, backgroundColor: tv.bg.base }}
+        style={{ color: tv.ui.mutedForeground, backgroundColor: tv.ui.background }}
         aria-label={`${label} up`}
       >
         <CaretUpIcon aria-hidden="true" className="h-4 w-4" />
@@ -106,7 +106,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
         style={{
           height: `${DIAL_VIEWPORT_HEIGHT}px`,
           borderColor: tv.border.subtle,
-          backgroundColor: tv.bg.base,
+          backgroundColor: tv.ui.background,
         }}
       >
         <div
@@ -173,7 +173,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
           style={{
             height: `${DIAL_ROW_HEIGHT}px`,
             borderColor: tv.ui.primary,
-            backgroundColor: tv.bg.elevated,
+            backgroundColor: tv.ui.popover,
             opacity: 0.75,
           }}
         />
@@ -182,7 +182,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
           className="pointer-events-none absolute inset-x-0 top-0"
           style={{
             height: `${DIAL_SPACER_HEIGHT}px`,
-            background: `linear-gradient(to bottom, ${tv.bg.base}, transparent)`,
+            background: `linear-gradient(to bottom, ${tv.ui.background}, transparent)`,
           }}
         />
 
@@ -190,7 +190,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
           className="pointer-events-none absolute inset-x-0 bottom-0"
           style={{
             height: `${DIAL_SPACER_HEIGHT}px`,
-            background: `linear-gradient(to top, ${tv.bg.base}, transparent)`,
+            background: `linear-gradient(to top, ${tv.ui.background}, transparent)`,
           }}
         />
       </div>
@@ -199,7 +199,7 @@ function NumberDial({ label, min, max, value, onChange }: NumberDialProps) {
         type="button"
         onClick={() => adjustValue(1)}
         className="rounded-full p-1 transition-opacity hover:opacity-80"
-        style={{ color: tv.ui.mutedForeground, backgroundColor: tv.bg.base }}
+        style={{ color: tv.ui.mutedForeground, backgroundColor: tv.ui.background }}
         aria-label={`${label} down`}
       >
         <CaretDownIcon aria-hidden="true" className="h-4 w-4" />
@@ -386,7 +386,7 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
             className="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
             style={{
               color: tv.ui.mutedForeground,
-              backgroundColor: tv.bg.base,
+              backgroundColor: tv.ui.background,
             }}
           >
             <XIcon className="size-4 shrink-0" aria-hidden="true" />

@@ -13,7 +13,6 @@ import {
 } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
-import { useTheme } from "@/hooks/useTheme";
 import type { Quote, SettingsState } from "@/lib/typing-constants";
 import { tv } from "@/lib/theme-vars";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -80,7 +79,6 @@ export default function PracticeResults({
   rankingStatus,
   isRepeated,
 }: PracticeResultsProps) {
-  const { colors } = useTheme();
   const reducedMotion = useReducedMotion();
   const resultsRef = useRef<HTMLDivElement>(null);
   const SaveIcon = lastResultIsValid === false || saveState === "error" ? WarningCircleIcon
@@ -138,7 +136,7 @@ export default function PracticeResults({
           <motion.div
             className="relative overflow-hidden rounded-2xl p-6 md:p-10 flex flex-col items-center justify-center group transition-colors"
             style={{
-              backgroundColor: tv.bg.surface,
+              backgroundColor: tv.ui.card,
               borderWidth: 1,
               borderColor: tv.border.subtle,
             }}
@@ -162,7 +160,7 @@ export default function PracticeResults({
           <motion.div
             className="relative overflow-hidden rounded-2xl p-6 md:p-10 flex flex-col items-center justify-center group transition-colors"
             style={{
-              backgroundColor: tv.bg.surface,
+              backgroundColor: tv.ui.card,
               borderWidth: 1,
               borderColor: tv.border.subtle,
             }}
@@ -202,7 +200,7 @@ export default function PracticeResults({
           <div
             className="flex-1 rounded-xl p-4"
             style={{
-              backgroundColor: `${colors.bg.surface}80`,
+              backgroundColor: tv.ui.card,
               borderWidth: 1,
               borderColor: tv.border.subtle,
             }}
@@ -221,7 +219,7 @@ export default function PracticeResults({
                     type="button"
                     className="flex flex-col items-center rounded p-1 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
                   >
-                    <div className="text-3xl font-bold mb-1" style={{ color: tv.status.success.DEFAULT }}>
+                    <div className="text-3xl font-bold mb-1" style={{ color: tv.ui.success }}>
                       {wordResults.correctWords.length}
                     </div>
                     <div
@@ -235,7 +233,7 @@ export default function PracticeResults({
                 <PopoverContent
                   className="w-56 p-0"
                   style={{
-                    backgroundColor: tv.bg.surface,
+                    backgroundColor: tv.ui.card,
                     borderColor: tv.border.subtle,
                   }}
                 >
@@ -261,7 +259,7 @@ export default function PracticeResults({
                             key={idx}
                             className="max-w-full break-all px-2 py-0.5 text-xs rounded-md font-mono"
                             style={{
-                              backgroundColor: `${colors.interactive.secondary.DEFAULT}30`,
+                              backgroundColor: tv.ui.secondary,
                               color: tv.ui.primary,
                             }}
                           >
@@ -285,7 +283,7 @@ export default function PracticeResults({
                     type="button"
                     className="flex flex-col items-center rounded p-1 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
                   >
-                    <div className="text-3xl font-bold mb-1" style={{ color: tv.status.error.DEFAULT }}>
+                    <div className="text-3xl font-bold mb-1" style={{ color: tv.ui.destructive }}>
                       {wordResults.incorrectWords.length}
                     </div>
                     <div
@@ -299,7 +297,7 @@ export default function PracticeResults({
                 <PopoverContent
                   className="w-64 p-0"
                   style={{
-                    backgroundColor: tv.bg.surface,
+                    backgroundColor: tv.ui.card,
                     borderColor: tv.border.subtle,
                   }}
                 >
@@ -324,9 +322,9 @@ export default function PracticeResults({
                           <div
                             key={idx}
                             className="flex flex-wrap items-center gap-2 break-all px-2 py-1 rounded text-xs font-mono"
-                            style={{ backgroundColor: tv.bg.surface }}
+                            style={{ backgroundColor: tv.ui.card }}
                           >
-                            <span style={{ color: tv.status.error.DEFAULT }}>{item.typed}</span>
+                            <span style={{ color: tv.ui.destructive }}>{item.typed}</span>
                             <ArrowRightIcon className="size-3 shrink-0" style={{ color: tv.ui.mutedForeground }} aria-hidden="true" />
                             <span
                               style={{
@@ -353,7 +351,7 @@ export default function PracticeResults({
           <div
             className="flex-1 rounded-xl p-4"
             style={{
-              backgroundColor: `${colors.bg.surface}80`,
+              backgroundColor: tv.ui.card,
               borderWidth: 1,
               borderColor: tv.border.subtle,
             }}
@@ -398,14 +396,14 @@ export default function PracticeResults({
           <div
             className="w-full mb-6 p-4 rounded-lg border"
             style={{
-              backgroundColor: colors.status.error.muted,
-              borderColor: tv.status.error.DEFAULT,
+              backgroundColor: tv.ui.destructiveSurface,
+              borderColor: tv.ui.destructive,
             }}
           >
             <div className="flex items-center gap-3">
-              <WarningCircleIcon className="size-5 shrink-0" style={{ color: tv.status.error.DEFAULT }} aria-hidden="true" />
+              <WarningCircleIcon className="size-5 shrink-0" style={{ color: tv.ui.destructive }} aria-hidden="true" />
               <div className="flex-1">
-                <span className="font-medium" style={{ color: tv.status.error.DEFAULT }}>
+                <span className="font-medium" style={{ color: tv.ui.destructive }}>
                   Unverified
                 </span>
                 <span className="text-sm ml-2" style={{ color: tv.ui.mutedForeground }}>
@@ -480,7 +478,7 @@ export default function PracticeResults({
                 onClick={() => generateTest()}
                 className="group relative inline-flex min-w-0 items-center justify-center gap-2 px-3 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 sm:px-8"
                 style={{
-                  backgroundColor: tv.bg.surface,
+                  backgroundColor: tv.ui.card,
                   color: tv.ui.foreground,
                 }}
               >
@@ -495,10 +493,10 @@ export default function PracticeResults({
               onClick={onLeave}
               className="inline-flex items-center justify-center gap-2 px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{
-                color: tv.status.error.DEFAULT,
-                backgroundColor: colors.status.error.muted,
+                color: tv.ui.destructive,
+                backgroundColor: tv.ui.destructiveSurface,
                 borderWidth: 1,
-                borderColor: tv.status.error.DEFAULT,
+                borderColor: tv.ui.destructive,
               }}
             >
               <SignOutIcon className="size-[18px] shrink-0" aria-hidden="true" />

@@ -131,7 +131,7 @@ export default function EmojiPicker({
               style={{
                 backgroundColor:
                   emoji === selectedEmoji
-                    ? tv.interactive.accent.muted
+                    ? tv.ui.accent
                     : tv.ui.secondary,
               }}
             >

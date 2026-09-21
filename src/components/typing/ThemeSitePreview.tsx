@@ -8,11 +8,12 @@ import {
   TrophyIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
-import { deriveThemeUI } from "@/lib/colors";
+import { deriveThemeTyping, deriveThemeUI } from "@/lib/colors";
 import type { ThemeColors } from "@/types/theme";
 
 /** A decorative homepage scene. It shares UI color derivation, never app state. */
 export default function ThemeSitePreview({ colors, label }: { colors: ThemeColors; label: string }) {
+  const typing = useMemo(() => deriveThemeTyping(colors), [colors]);
   const style = useMemo(() => {
     const ui = deriveThemeUI(colors);
     return {
@@ -44,9 +45,9 @@ export default function ThemeSitePreview({ colors, label }: { colors: ThemeColor
         <div className="flex flex-1 flex-col justify-center gap-[2cqw]">
           <span className="font-mono [font-size:3cqw] text-primary">30</span>
           <p className="font-mono [font-size:4.8cqw] leading-relaxed">
-            <span style={{ color: colors.typing.correct }}>the quick brown </span>
-            <span style={{ color: colors.typing.incorrect }}>fox </span>
-            <span style={{ color: colors.typing.default, borderLeft: `2px solid ${colors.typing.cursor}` }}>jumps over the lazy dog</span>
+            <span style={{ color: typing.correct }}>the quick brown </span>
+            <span style={{ color: typing.incorrect }}>fox </span>
+            <span style={{ color: typing.default, borderLeft: `2px solid ${typing.cursor}` }}>jumps over the lazy dog</span>
           </p>
           <ArrowClockwiseIcon className="mx-auto size-[3.6cqw] text-muted-foreground" />
         </div>

@@ -130,9 +130,9 @@ export function getNotificationColor(type: NotificationType): string {
     case "achievement":
       return tv.ui.primary; // Achievement tiers override this fallback.
     case "maintenance":
-      return tv.status.warning.DEFAULT;
+      return tv.ui.warning;
     case "warning":
-      return tv.status.warning.DEFAULT;
+      return tv.ui.warning;
     case "error":
       return tv.ui.destructive;
     case "info":

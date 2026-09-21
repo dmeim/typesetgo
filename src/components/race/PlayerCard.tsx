@@ -51,7 +51,7 @@ export default function PlayerCard({
       className="min-w-0 rounded-xl p-4 flex flex-col items-center gap-3"
       style={{
         backgroundColor: tv.ui.secondary,
-        border: `1px solid ${isReady ? tv.status.success.DEFAULT : tv.ui.border}`,
+        border: `1px solid ${isReady ? tv.ui.success : tv.ui.border}`,
         color: tv.ui.foreground,
       }}
     >

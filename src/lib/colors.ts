@@ -107,7 +107,12 @@ export function deriveThemeUI(colors: ThemeColors): ThemeUIColors {
   const muted = card;
   const secondary = ensureContrast(compositeThemeColor(colors.interactive.secondary.subtle, card), [ink]);
   const accent = ensureContrast(compositeThemeColor(colors.interactive.accent.subtle, card), [ink]);
-  const surfaces = [background, card, popover, muted, secondary, accent];
+  const statusSurface = (color: string) => ensureContrast(compositeThemeColor(color, card), [ink]);
+  const successSurface = statusSurface(colors.status.success.subtle);
+  const warningSurface = statusSurface(colors.status.warning.subtle);
+  const destructiveSurface = statusSurface(colors.status.error.subtle);
+  const surfaces = [background, card, popover, muted, secondary, accent,
+    successSurface, warningSurface, destructiveSurface];
   const primary = ensureContrast(colors.interactive.primary.DEFAULT, surfaces);
   const destructive = ensureContrast(colors.status.error.DEFAULT, surfaces);
 
@@ -122,14 +127,37 @@ export function deriveThemeUI(colors: ThemeColors): ThemeUIColors {
     primaryForeground: ensureContrast(colors.text.inverse, [primary]),
     secondary,
     secondaryForeground: ensureContrast(colors.text.primary, [secondary]),
+    secondaryEmphasis: ensureContrast(colors.interactive.secondary.DEFAULT, surfaces),
     muted,
     mutedForeground: ensureContrast(colors.text.secondary, surfaces),
     accent,
     accentForeground: ensureContrast(colors.text.primary, [accent]),
+    accentEmphasis: ensureContrast(colors.interactive.accent.DEFAULT, surfaces),
+    success: ensureContrast(colors.status.success.DEFAULT, surfaces),
+    successSurface,
+    warning: ensureContrast(colors.status.warning.DEFAULT, surfaces),
+    warningSurface,
+    destructiveSurface,
     destructive,
     destructiveForeground: ensureContrast(colors.text.inverse, [destructive]),
     border: compositeThemeColor(colors.border.default, card),
     input: ensureContrast(colors.border.default, surfaces, 3),
     ring: ensureContrast(colors.border.focus, surfaces, 3),
+  };
+}
+
+/** Keep exercise text subdued, but never indistinguishable from its surface.
+ * Correct/error text uses 4.5:1; large untyped text and carets use a 3:1 floor.
+ * Shared PracticeText appears on page, card and popover surfaces.
+ */
+export function deriveThemeTyping(colors: ThemeColors, ui = deriveThemeUI(colors)): ThemeColors["typing"] {
+  const surfaces = [ui.background, ui.card, ui.popover];
+  return {
+    cursor: ensureContrast(colors.typing.cursor, surfaces, 3),
+    cursorGhost: ensureContrast(colors.typing.cursorGhost, surfaces, 3),
+    correct: ensureContrast(colors.typing.correct, surfaces),
+    incorrect: ensureContrast(colors.typing.incorrect, surfaces),
+    upcoming: ensureContrast(colors.typing.upcoming, surfaces, 3),
+    default: ensureContrast(colors.typing.default, surfaces, 3),
   };
 }

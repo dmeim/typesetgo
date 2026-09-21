@@ -59,7 +59,7 @@ export default function PracticeQuickSettingsDialog({
                     className={`rounded px-4 py-2 text-sm capitalize transition ${isModeActive ? "font-medium" : "hover:opacity-80"}`}
                     style={{
                       color: isModeActive ? tv.ui.primary : tv.ui.mutedForeground,
-                      backgroundColor: isModeActive ? tv.bg.elevated : tv.bg.base,
+                      backgroundColor: isModeActive ? tv.ui.popover : tv.ui.background,
                     }}
                   >
                     {m}
@@ -87,7 +87,7 @@ export default function PracticeQuickSettingsDialog({
                     className={`rounded px-4 py-2 text-sm transition ${settings.duration === d ? "font-medium" : "hover:opacity-80"}`}
                     style={{
                       color: settings.duration === d ? tv.ui.primary : tv.ui.mutedForeground,
-                      backgroundColor: settings.duration === d ? tv.bg.elevated : tv.bg.base,
+                      backgroundColor: settings.duration === d ? tv.ui.popover : tv.ui.background,
                     }}
                   >
                     {d}s
@@ -101,7 +101,7 @@ export default function PracticeQuickSettingsDialog({
                   className={`rounded px-4 py-2 text-sm transition ${isCustomDurationSelected ? "font-medium" : "hover:opacity-80"}`}
                   style={{
                     color: isCustomDurationSelected ? tv.ui.primary : tv.ui.mutedForeground,
-                    backgroundColor: isCustomDurationSelected ? tv.bg.elevated : tv.bg.base,
+                    backgroundColor: isCustomDurationSelected ? tv.ui.popover : tv.ui.background,
                   }}
                 >
                   <SlidersHorizontalIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -128,7 +128,7 @@ export default function PracticeQuickSettingsDialog({
                     className={`rounded px-4 py-2 text-sm transition ${settings.wordTarget === w ? "font-medium" : "hover:opacity-80"}`}
                     style={{
                       color: settings.wordTarget === w ? tv.ui.primary : tv.ui.mutedForeground,
-                      backgroundColor: settings.wordTarget === w ? tv.bg.elevated : tv.bg.base,
+                      backgroundColor: settings.wordTarget === w ? tv.ui.popover : tv.ui.background,
                     }}
                   >
                     {w}
@@ -142,7 +142,7 @@ export default function PracticeQuickSettingsDialog({
                   className={`rounded px-4 py-2 text-sm transition ${isCustomWordTargetSelected ? "font-medium" : "hover:opacity-80"}`}
                   style={{
                     color: isCustomWordTargetSelected ? tv.ui.primary : tv.ui.mutedForeground,
-                    backgroundColor: isCustomWordTargetSelected ? tv.bg.elevated : tv.bg.base,
+                    backgroundColor: isCustomWordTargetSelected ? tv.ui.popover : tv.ui.background,
                   }}
                 >
                   <SlidersHorizontalIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -172,7 +172,7 @@ export default function PracticeQuickSettingsDialog({
                     className={`rounded px-4 py-2 text-sm transition ${settings.quoteLength === l ? "font-medium" : "hover:opacity-80"}`}
                     style={{
                       color: settings.quoteLength === l ? tv.ui.primary : tv.ui.mutedForeground,
-                      backgroundColor: settings.quoteLength === l ? tv.bg.elevated : tv.bg.base,
+                      backgroundColor: settings.quoteLength === l ? tv.ui.popover : tv.ui.background,
                     }}
                   >
                     {l}
@@ -203,7 +203,7 @@ export default function PracticeQuickSettingsDialog({
                     className={`rounded px-4 py-2 text-sm capitalize transition ${settings.difficulty === d ? "font-medium" : "hover:opacity-80"}`}
                     style={{
                       color: settings.difficulty === d ? tv.ui.primary : tv.ui.mutedForeground,
-                      backgroundColor: settings.difficulty === d ? tv.bg.elevated : tv.bg.base,
+                      backgroundColor: settings.difficulty === d ? tv.ui.popover : tv.ui.background,
                     }}
                   >
                     {d}
@@ -226,7 +226,7 @@ export default function PracticeQuickSettingsDialog({
                 className={`rounded px-4 py-2 text-sm transition ${settings.capitalization ? "font-medium" : "hover:opacity-80"}`}
                 style={{
                   color: settings.capitalization ? tv.ui.primary : tv.ui.mutedForeground,
-                  backgroundColor: settings.capitalization ? tv.bg.elevated : tv.bg.base,
+                  backgroundColor: settings.capitalization ? tv.ui.popover : tv.ui.background,
                   opacity: settings.mode === "quote" ? 0.5 : 1,
                 }}
               >
@@ -239,7 +239,7 @@ export default function PracticeQuickSettingsDialog({
                 className={`rounded px-4 py-2 text-sm transition ${settings.punctuation ? "font-medium" : "hover:opacity-80"}`}
                 style={{
                   color: settings.punctuation ? tv.ui.primary : tv.ui.mutedForeground,
-                  backgroundColor: settings.punctuation ? tv.bg.elevated : tv.bg.base,
+                  backgroundColor: settings.punctuation ? tv.ui.popover : tv.ui.background,
                   opacity: settings.mode === "quote" ? 0.5 : 1,
                 }}
               >
@@ -252,7 +252,7 @@ export default function PracticeQuickSettingsDialog({
                 className={`rounded px-4 py-2 text-sm transition ${settings.numbers ? "font-medium" : "hover:opacity-80"}`}
                 style={{
                   color: settings.numbers ? tv.ui.primary : tv.ui.mutedForeground,
-                  backgroundColor: settings.numbers ? tv.bg.elevated : tv.bg.base,
+                  backgroundColor: settings.numbers ? tv.ui.popover : tv.ui.background,
                   opacity: settings.mode === "quote" ? 0.5 : 1,
                 }}
               >
@@ -275,7 +275,7 @@ export default function PracticeQuickSettingsDialog({
                   className={`rounded px-3 py-2 text-sm transition ${linePreview === num ? "font-medium" : "hover:opacity-80"}`}
                   style={{
                     color: linePreview === num ? tv.ui.primary : tv.ui.mutedForeground,
-                    backgroundColor: linePreview === num ? tv.bg.elevated : tv.bg.base,
+                    backgroundColor: linePreview === num ? tv.ui.popover : tv.ui.background,
                   }}
                 >
                   {num}
@@ -298,7 +298,7 @@ export default function PracticeQuickSettingsDialog({
                   className={`rounded px-3 py-2 text-sm transition ${maxWordsPerLine === num ? "font-medium" : "hover:opacity-80"}`}
                   style={{
                     color: maxWordsPerLine === num ? tv.ui.primary : tv.ui.mutedForeground,
-                    backgroundColor: maxWordsPerLine === num ? tv.bg.elevated : tv.bg.base,
+                    backgroundColor: maxWordsPerLine === num ? tv.ui.popover : tv.ui.background,
                   }}
                 >
                   {num}
@@ -331,8 +331,8 @@ export default function PracticeQuickSettingsDialog({
                 className="w-28 rounded px-3 py-2 text-center focus:outline-none focus:ring-2"
                 style={
                   {
-                    backgroundColor: tv.bg.base,
-                    color: tv.text.primary,
+                    backgroundColor: tv.ui.background,
+                    color: tv.ui.foreground,
                     "--tw-ring-color": tv.ui.primary,
                   } as React.CSSProperties
                 }
@@ -351,7 +351,7 @@ export default function PracticeQuickSettingsDialog({
                     className={`rounded px-3 py-2 text-sm capitalize transition ${settings.textAlign === align ? "font-medium" : "hover:opacity-80"}`}
                     style={{
                       color: settings.textAlign === align ? tv.ui.primary : tv.ui.mutedForeground,
-                      backgroundColor: settings.textAlign === align ? tv.bg.elevated : tv.bg.base,
+                      backgroundColor: settings.textAlign === align ? tv.ui.popover : tv.ui.background,
                     }}
                   >
                     {align}

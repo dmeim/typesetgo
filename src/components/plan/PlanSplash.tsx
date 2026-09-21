@@ -87,7 +87,7 @@ export default function PlanSplash({
           <button
             onClick={onStart}
             className="inline-flex items-center justify-center gap-2 w-full py-4 text-white rounded-lg font-bold text-lg shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] hover:opacity-90"
-            style={{ backgroundColor: theme.buttonSelected, boxShadow: `0 10px 15px -3px ${theme.buttonSelected}30` }}
+            style={{ backgroundColor: theme.buttonSelected, color: theme.backgroundColor, boxShadow: `0 10px 15px -3px ${theme.buttonSelected}30` }}
           >
             <PlayIcon className="size-4 shrink-0" aria-hidden="true" />
             Begin Step
