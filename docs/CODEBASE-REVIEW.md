@@ -559,3 +559,9 @@ All 35 resolutions are implemented locally. Independent source review found and 
 Tests use local fixtures and `convex-test`; live Clerk configuration, production transport, cloud deployment settings, and production performance were not exercised. No historical data backfill or backend release was performed. Maximum-size prompt mounting and the initial bundle-size warning remain measurable limitations, not claimed solved by this cleanup.
 
 The implementation is on `codex/codebase-remediation` in `/Users/dimitri/.codex/worktrees/codebase-remediation/typesetgo`. The original server still runs the original checkout. Before any later publication, coordinate the new Convex functions/credential arguments with the frontend release; see [release sequencing](development.md#releasing-this-branch-after-review).
+
+### Local handoff
+
+Implementation commit: `aebfd1f` on `codex/codebase-remediation`. A subsequent documentation-only commit records this reference. Independent verification accepted the 35 resolutions; the staged gate found no blockers. The 373-test unit run preceded only final whitespace/documentation edits; build, lint and targeted ranked/preference/toast browser checks passed against the final staged source.
+
+An isolated practice fixture is available at `http://127.0.0.1:4317` while the local preview process runs. It uses mock data and cannot establish production saving/auth behavior. The original checkout and its live Convex watcher still run the old application code. Stop that watcher before copying or merging backend changes into the original checkout unless a coordinated live backend release has been explicitly authorized.

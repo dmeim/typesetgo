@@ -128,10 +128,10 @@ Zen: relaxed validation only (no duration/word-target fail). Short tests: valid 
 
 | Lane | Issues | Owner | Owned paths | Status / checkpoint | Commit |
 | --- | --- | --- | --- | --- | --- |
-| backend | 01, 02, 05, 06, 07, 08 backend, 22, 23, 24, 31 backend | `/root/remediate_backend` | Convex except multiplayer files; schema/crons owner; targeted backend tests; shared activity-calendar helper | complete; integrated checks passed | — |
-| multiplayer | 03, 09, 10, 11, 13, 14, 21 | `/root/remediate_multiplayer` | Connect/Race pages/components/hooks; multiplayer Convex files; associated fixtures/tests | implementation and scoped browser checks complete | — |
-| practice | 04, 08 client, 12, 18, 19, 25, 28, 30 | `/root/backend_audit` (reused Astra High) | TypingPractice/TypingArea and practice UI/hooks/settings/lib; associated tests | implementation and scoped checks complete; frozen | — |
-| integration | 15, 16, 17, 20, 26, 27, 29, 31 integration, 32, 33, 34, 35 | parent | All remaining assigned files, tooling/docs and final verification | complete; final commit pending | — |
+| backend | 01, 02, 05, 06, 07, 08 backend, 22, 23, 24, 31 backend | `/root/remediate_backend` | Convex except multiplayer files; schema/crons owner; targeted backend tests; shared activity-calendar helper | complete; integrated checks passed | `aebfd1f` |
+| multiplayer | 03, 09, 10, 11, 13, 14, 21 | `/root/remediate_multiplayer` | Connect/Race pages/components/hooks; multiplayer Convex files; associated fixtures/tests | implementation and scoped browser checks complete | `aebfd1f` |
+| practice | 04, 08 client, 12, 18, 19, 25, 28, 30 | `/root/backend_audit` (reused Astra High) | TypingPractice/TypingArea and practice UI/hooks/settings/lib; associated tests | implementation and scoped checks complete; frozen | `aebfd1f` |
+| integration | 15, 16, 17, 20, 26, 27, 29, 31 integration, 32, 33, 34, 35 | parent | All remaining assigned files, tooling/docs and final verification | complete; ready for owner review | `aebfd1f` |
 
 Checks and issue completion are recorded in the review as work is verified. Historical tracker checkboxes above are not completion evidence for this run.
 
@@ -142,3 +142,11 @@ All three implementation lanes are complete and frozen. Independent source revie
 ### Final verification
 
 Fixture build, lint, Convex native typecheck, 373 unit tests (one opt-in benchmark skipped), separate rendering benchmark, and the full Practice/Fonts/Profiles/Connect/Connect-session/Race browser coordinator pass. Independent source review passed after fixes. Browser tests and backend contracts use local fixtures; no live deploy, data migration, backfill or push. Existing maximum-prompt mount cost and bundle warning are documented. A later release must coordinate backend and frontend; a main push alone may publish only the Worker.
+
+### Final local handoff
+
+- Status: complete, awaiting owner review. Implementation commit `aebfd1f`; final documentation reference recorded separately.
+- Independent verifier accepted all35 resolutions. Exact staged tree `57f40f0203a34b200c6e1a7df4cf7101352c140b` had no commit-gate blockers. Unit suite preceded trailing-whitespace-only cleanup; final build/lint and targeted ranked/preferences/toasts browser checks passed on the staged source.
+- Local review preview: `http://127.0.0.1:4317`, isolated Home/practice fixture, started by parent (terminal session57695); no real account/database. Stop this owned fixture before rerunning the browser coordinator on that port.
+- Original checkout remains on main with its existing servers. Its app/backend code was not replaced. Do not merge/copy new backend files into that watched checkout until the Convex watcher is stopped or a coordinated live backend release is explicitly authorized.
+- No push, merge to main, deployment, data backfill, or remote configuration change. Original user notes/generated changes preserved; duplicate backups archived with SHA256 manifest as documented in issue34.
