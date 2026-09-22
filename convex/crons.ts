@@ -16,12 +16,10 @@ crons.interval(
   internal.sessionCleanup.cleanupExpiredAdminSessions
 );
 
-// Prune stale leaderboard cache entries daily at 5:00 AM ET
-// This cleans up "today" and "week" entries that have aged out
-crons.daily(
-  "pruneStaleLeaderboardEntries",
-  { hourUTC: 10, minuteUTC: 0 }, // 10:00 UTC = 5:00 AM ET (accounting for DST varies)
-  internal.statsCache.pruneStaleLeaderboardEntries
+crons.interval(
+  "cleanupMultiplayerPresence",
+  { seconds: 30 },
+  internal.multiplayerPresence.cleanup
 );
 
 export default crons;

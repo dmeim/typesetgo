@@ -156,7 +156,7 @@ export const setValidity = mutation({
     await ctx.runMutation(internal.statsCache.rebuildUserStatsCacheForUser, {
       userId: result.userId,
     });
-    await ctx.runMutation(internal.statsCache.rebuildLeaderboardCacheForUser, {
+    await ctx.runMutation(internal.achievements.recheckAchievementsAfterDeletion, {
       userId: result.userId,
     });
 

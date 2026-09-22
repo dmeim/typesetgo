@@ -1,5 +1,7 @@
 # Theme Variants Plan
 
+> Historical audit or plan. Current setup and the active remediation checklist are indexed in [docs/README.md](README.md). Recheck source before acting on an old item.
+
 ## Overview
 
 TypeSetGo themes follow a 3-level hierarchy:

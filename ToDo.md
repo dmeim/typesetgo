@@ -1,5 +1,7 @@
 # Anti-cheat / leaderboard integrity tracker
 
+> The earlier checklist below is a historical work log. The current cleanup follows [CODEBASE-REVIEW.md](docs/CODEBASE-REVIEW.md); see Handoff state below for this run.
+
 This file tracks solo-home anti-cheat and leaderboard integrity. It is separate from `docs/TODO.md` (platform master TODO). Check a box when the work ships. Reply in chat with next steps.
 
 ## Local Convex (`bun run convex:dev`)
@@ -113,3 +115,30 @@ Zen: relaxed validation only (no duration/word-target fail). Short tests: valid 
 - Putting `ADMIN_PASSWORD` (or any real secret) in git, `VITE_` env, or this file
 - Adding `/admin` to Header nav
 - Rewriting `docs/TODO.md` or implementing product code from this tracker until the owner picks a next step
+
+
+## Handoff state
+
+- Run: `codebase-remediation-2026-09-22`; main checklist: `docs/CODEBASE-REVIEW.md` (issues 01–35). The owner's current request supersedes the historical scope exclusions above.
+- Worktree: `/Users/dimitri/.codex/worktrees/codebase-remediation/typesetgo`; branch: `codex/codebase-remediation`; base: `eca47f4ba90bab8119fe0e870580471e3bcc3c94`.
+- Authority: implement the review, validate, and commit locally. No push, live deployment, live data mutation, or historical backfill.
+- Original checkout has a live Convex watcher; its app/backend files remain untouched. Its pre-existing generated API edit, cleanup notes and review are excluded from staging. The four duplicate backup files were later archived outside that checkout (issue34). This worktree began clean and contains a copied approved review.
+- Requested/resolved agent model: `GPT-6 Astra High` / `gpt-6-astra`, effort `high`; no service-mode override. Launch metadata does not expose an independently observed effective model.
+- Parent owns integration, shared shell/account readiness/notifications/admin/privacy, dead-source/dependencies, tooling, documentation, generated code, and commits. Children do not commit or spawn.
+
+| Lane | Issues | Owner | Owned paths | Status / checkpoint | Commit |
+| --- | --- | --- | --- | --- | --- |
+| backend | 01, 02, 05, 06, 07, 08 backend, 22, 23, 24, 31 backend | `/root/remediate_backend` | Convex except multiplayer files; schema/crons owner; targeted backend tests; shared activity-calendar helper | complete; integrated checks passed | — |
+| multiplayer | 03, 09, 10, 11, 13, 14, 21 | `/root/remediate_multiplayer` | Connect/Race pages/components/hooks; multiplayer Convex files; associated fixtures/tests | implementation and scoped browser checks complete | — |
+| practice | 04, 08 client, 12, 18, 19, 25, 28, 30 | `/root/backend_audit` (reused Astra High) | TypingPractice/TypingArea and practice UI/hooks/settings/lib; associated tests | implementation and scoped checks complete; frozen | — |
+| integration | 15, 16, 17, 20, 26, 27, 29, 31 integration, 32, 33, 34, 35 | parent | All remaining assigned files, tooling/docs and final verification | complete; final commit pending | — |
+
+Checks and issue completion are recorded in the review as work is verified. Historical tracker checkboxes above are not completion evidence for this run.
+
+### Implementation checkpoint
+
+All three implementation lanes are complete and frozen. Independent source review passed after correcting notification query readiness and preserving Connect attempts across Clerk sign-out/account changes. Backend replay tests now cover append without restart plus deletion/admin invalidation with queued pages. Parent completed final integrated build/unit/lint/browser checks; local commits follow. All issue resolutions are recorded in `docs/CODEBASE-REVIEW.md`. Four original untracked duplicate files were compared and archived with verified hashes outside the checkout; canonical app/backend files and the original watcher remain untouched. No push/deploy/backfill.
+
+### Final verification
+
+Fixture build, lint, Convex native typecheck, 373 unit tests (one opt-in benchmark skipped), separate rendering benchmark, and the full Practice/Fonts/Profiles/Connect/Connect-session/Race browser coordinator pass. Independent source review passed after fixes. Browser tests and backend contracts use local fixtures; no live deploy, data migration, backfill or push. Existing maximum-prompt mount cost and bundle warning are documented. A later release must coordinate backend and frontend; a main push alone may publish only the Worker.

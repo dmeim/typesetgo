@@ -2,7 +2,9 @@
 
 TypeSetGo's frontend runs on Workers Static Assets. React/Vite, Clerk authentication, and the Convex backend remain unchanged. Deploying the Worker does not deploy Convex functions or migrate data.
 
-## Current target
+Current code configuration is in `wrangler.jsonc`. The remote observations below are historical migration records, not fresh September 2026 checks. The owner reported a Workers Builds connection; no successful automatic build is recorded here. Treat pushes to `main` as potentially publishing. See [development targets](../development.md) before starting any Convex watcher.
+
+## Current configured target
 
 - Worker: `typesetgo`, default Wrangler environment.
 - Account: **Dimitri Meimaridis** (owner-confirmed for this project).
@@ -55,7 +57,7 @@ These initial preview checks did **not** establish authenticated save behavior, 
 - Browser testing exposed theme-request failures (`ERR_INSUFFICIENT_RESOURCES`, and connection closures during the first check). Theme loading needs follow-up; these checks are not a clean bill of health for every theme. The external font remained blocked, and the analytics beacon reported a certificate error in the test browser.
 - The owner confirmed signing in with the existing school Google account and seeing all existing data. Saving a new result and multiplayer have not been explicitly verified after cutover.
 - Keep the existing development Convex deployment; do not migrate to Convex production as part of this cutover.
-- Final repository-cleanup checks: build and all 55 tests pass. `bun run lint` cannot start because the installed `typescript-eslint` rejects TypeScript 7.0. This existing tooling incompatibility is deferred; the proposed Workers Builds command runs build/tests, not lint.
+- Historical cutover checks ran 55 tests. The TypeScript lint incompatibility was later fixed with the deliberate TypeScript 6 parser / TypeScript 7 build split; see [tooling](../ui-cleanup/tooling.md). Current remediation results belong in [the codebase review](../CODEBASE-REVIEW.md).
 
 The initial domain attachment failed with error 100117 despite a conflict-free preflight. The owner removed the old apex VPS A record and deployment then succeeded. Clerk, email, and unrelated DNS records were not changed by the agent.
 

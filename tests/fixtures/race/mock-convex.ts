@@ -136,6 +136,8 @@ export function useMutation(ref: Parameters<typeof getFunctionName>[0]) {
       if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
       if (failures.has(name)) throw new Error("Fixture mutation rejected");
       switch (name) {
+        case "multiplayerPresence:heartbeat":
+          return null;
         case "participants:disconnect":
           updateParticipant({ isConnected: false });
           break;

@@ -50,7 +50,6 @@ export type SettingsState = {
   soundEnabled: boolean;
   typingSound: string;
   warningSound: string;
-  errorSound: string;
   presetText: string;
   presetModeType: "time" | "finish";
   showOnScreenKeyboard: boolean;
@@ -76,7 +75,14 @@ export const DEFAULT_THEME: Theme = {
 export function normalizePracticeSettings(settings: SettingsState): SettingsState {
   const clamp = (value: number, min: number, max: number, fallback: number) =>
     Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+  const oneOf = <T extends string>(value: T, options: readonly T[], fallback: T): T => options.includes(value) ? value : fallback;
   return { ...settings,
+    mode: oneOf(settings.mode, ["time", "words", "quote", "zen", "preset", "plan"], "zen"),
+    difficulty: oneOf(settings.difficulty, ["beginner", "easy", "medium", "hard", "expert"], "beginner"),
+    quoteLength: oneOf(settings.quoteLength, ["all", "short", "medium", "long", "xl"], "all"),
+    textAlign: oneOf(settings.textAlign, ["left", "center", "right", "justify"], "center"),
+    keyboardLayout: oneOf(settings.keyboardLayout, ["qwerty", "dvorak", "colemak"], "qwerty"),
+    presetModeType: oneOf(settings.presetModeType, ["time", "finish"], "finish"),
     typingFontSize: clamp(settings.typingFontSize, TEXT_SIZE_MIN, TEXT_SIZE_MAX, 3.25),
     duration: Math.round(clamp(settings.duration, 1, MAX_DURATION_SECONDS, 30)),
     wordTarget: Math.round(clamp(settings.wordTarget, 1, MAX_WORD_TARGET, 25)),

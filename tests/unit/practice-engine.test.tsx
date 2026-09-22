@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   auth: { status: "signed-out" as "signed-out" | "loading" | "unavailable", isSignedIn: false,
     user: null as null | { id: string }, openSignIn: vi.fn(async () => true) },
   toastError: vi.fn(),
+  accountStatus: "ready",
+  queryArgs: undefined as unknown,
   preferences: undefined as unknown,
   userSelectionRevision: 0,
   setTheme: vi.fn(async () => {}), setThemeSelection: vi.fn(async () => {}),
@@ -16,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   quotes: vi.fn(async () => [{ quote: "cat dog", author: "Author", source: "Book", date: "2000", context: "" }]),
   mutations: {} as Record<string, ReturnType<typeof vi.fn>>,
 }));
+vi.mock("@/components/layout/useAccount", () => ({ useAccount: () => ({ status: mocks.accountStatus, userId: "users:test", ensureAccount: mocks.mutations["users:getOrCreateUser"] }) }));
 vi.mock("@/components/layout/useAppAuth", () => ({ useAppAuth: () => mocks.auth }));
 vi.mock("@/lib/toast-manager", () => ({ toast: { add: mocks.toastError } }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({ colors: theme.variants.default.dark,
@@ -30,7 +33,7 @@ vi.mock("@/lib/sounds", () => ({ fetchSoundManifest: async () => ({ typing: {}, 
 vi.mock("@/lib/themes", async (original) => ({ ...(await original<object>()), fetchAllThemes: async () => [] }));
 vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
-  return { useQuery: () => mocks.preferences, useMutation: (reference: Parameters<typeof getFunctionName>[0]) => mocks.mutations[getFunctionName(reference)] };
+  return { useQuery: (_reference: unknown, args: unknown) => { mocks.queryArgs = args; return args === "skip" ? undefined : mocks.preferences; }, useMutation: (reference: Parameters<typeof getFunctionName>[0]) => mocks.mutations[getFunctionName(reference)] };
 });
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -46,12 +49,13 @@ function promptWords(container: HTMLElement) {
 function accountPreferences(updates: Record<string, unknown> = {}) {
   return { defaultMode: "words", defaultDuration: 30, defaultWordTarget: 50, defaultDifficulty: "beginner",
     defaultQuoteLength: "all", defaultPunctuation: false, defaultNumbers: false, defaultCapitalization: false,
-    defaultPresetModeType: "finish", soundEnabled: false, typingSound: "", warningSound: "", errorSound: "",
+    defaultPresetModeType: "finish", soundEnabled: false, typingSound: "", warningSound: "",
     ghostWriterEnabled: false, ghostWriterSpeed: 40, typingFontSize: 5, typingFontFamily: "monospace",
     iconFontSize: 1, helpFontSize: 1, textAlign: "center", ...updates };
 }
 beforeEach(() => {
   localStorage.clear();
+  mocks.accountStatus = "ready"; mocks.queryArgs = undefined;
   mocks.auth.isSignedIn = false; mocks.auth.user = null; mocks.preferences = undefined; mocks.userSelectionRevision = 0;
   mocks.auth.status = "signed-out"; mocks.auth.openSignIn.mockReset().mockResolvedValue(true); mocks.toastError.mockClear();
   mocks.setThemeSelection.mockClear();
@@ -410,4 +414,105 @@ describe("preference hydration and Connect boundaries", () => {
     expect(mocks.mutations["testResults:saveResult"]).not.toHaveBeenCalled();
     expect(mocks.mutations["preferences:savePreferences"]).not.toHaveBeenCalled();
   });
+});
+
+describe("Connect account independence", () => {
+  it.each([null, { id: "second-account" }])("keeps participant progress when the Clerk account changes to %j", async (nextUser) => {
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "first-account" };
+    const onStatsUpdate = vi.fn();
+    const props = { connectMode: true, lockedSettings: { mode: "preset" as const, presetText: "cat dog" }, onStatsUpdate };
+    const { container, rerender } = render(<TypingPractice {...props} />);
+    await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat " } });
+    const reportsBeforeChange = onStatsUpdate.mock.calls.length;
+    mocks.auth.user = nextUser; mocks.auth.isSignedIn = nextUser !== null;
+    rerender(<TypingPractice {...props} />);
+    expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("cat ");
+    expect(onStatsUpdate.mock.calls.slice(reportsBeforeChange).every((call) => call[1] === "cat ")).toBe(true);
+    expect(mocks.mutations["typingSessions:startSession"]).not.toHaveBeenCalled();
+    expect(mocks.mutations["testResults:saveResult"]).not.toHaveBeenCalled();
+  });
+});
+
+describe("attempt boundaries during deferred saving", () => {
+  it.each(["next", "repeat"])("discards guest A's save intent when %s starts B before sign-in", async (transition) => {
+    setLocal({ mode: "quote", quoteLength: "short" });
+    const { container, rerender } = render(<TypingPractice />);
+    await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat dog" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Results" }));
+    await waitFor(() => expect(mocks.auth.openSignIn).toHaveBeenCalled());
+    if (transition === "next") fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+    else fireEvent.click(screen.getByRole("button", { name: /Repeat/ }));
+    mocks.mutations["typingSessions:startSession"].mockResolvedValue({ sessionId: "session-b", targetText: "cat dog" });
+    mocks.auth.user = { id: "signed-in" }; mocks.auth.isSignedIn = true; mocks.preferences = null;
+    rerender(<TypingPractice />);
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue(""));
+    expect(mocks.mutations["testResults:saveResult"]).not.toHaveBeenCalled();
+    expect(mocks.mutations["typingSessions:finalizeSession"]).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat dog" } });
+    await waitFor(() => expect(mocks.mutations[transition === "repeat" ? "testResults:saveResult" : "typingSessions:finalizeSession"]).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps an in-flight save for A from marking B saved", async () => {
+    setLocal({ mode: "quote", quoteLength: "short" });
+    const { container, rerender } = render(<TypingPractice />);
+    await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat dog" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Results" }));
+    const saving = deferred<{ newAchievements: string[] }>();
+    mocks.mutations["testResults:saveResult"].mockImplementation(() => saving.promise);
+    mocks.auth.user = { id: "signed-in" }; mocks.auth.isSignedIn = true; mocks.preferences = null;
+    rerender(<TypingPractice />);
+    await waitFor(() => expect(mocks.mutations["testResults:saveResult"]).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+    await act(async () => saving.resolve({ newAchievements: [] }));
+    expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("");
+    expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+  });
+
+  it("reports an all-wrong Connect attempt as zero accuracy", async () => {
+    const onStatsUpdate = vi.fn();
+    const { container } = render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat" }} onStatsUpdate={onStatsUpdate} />);
+    await waitFor(() => expect(promptWords(container)).toBe("cat"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "xxx" } });
+    await waitFor(() => expect(onStatsUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ accuracy: 0, isFinished: true }), "xxx", "cat"));
+  });
+});
+
+
+it("renews a prepared session after a day idle before accepting more input", async () => {
+  setLocal({ mode: "quote", quoteLength: "short" });
+  mocks.auth.user = { id: "signed-in" }; mocks.auth.isSignedIn = true; mocks.preferences = null;
+  mocks.mutations["typingSessions:startSession"]
+    .mockResolvedValueOnce({ sessionId: "prepared-a", targetText: "cat dog" })
+    .mockResolvedValueOnce({ sessionId: "prepared-b", targetText: "cat dog" });
+  const { container } = render(<TypingPractice />);
+  await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+  await waitFor(() => expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenCalledTimes(1));
+  const now = Date.now();
+  const clock = vi.spyOn(Date, "now").mockReturnValue(now + 24 * 60 * 60 * 1000 + 1000);
+  try {
+    fireEvent.focus(window);
+    await waitFor(() => expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenCalledTimes(2));
+    expect(mocks.mutations["typingSessions:cancelSession"]).toHaveBeenCalledWith({ sessionId: "prepared-a" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat dog" } });
+    await waitFor(() => expect(mocks.mutations["typingSessions:finalizeSession"]).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "prepared-b" })));
+  } finally { clock.mockRestore(); }
+});
+
+
+it("waits for account readiness without losing edits made during authentication", async () => {
+  setLocal();
+  mocks.auth.user = { id: "signed-in" }; mocks.auth.isSignedIn = true;
+  mocks.accountStatus = "loading"; mocks.preferences = accountPreferences({ defaultWordTarget: 50 });
+  const { container, rerender } = render(<TypingPractice />);
+  await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
+  expect(mocks.queryArgs).toBe("skip");
+  expect(mocks.mutations["typingSessions:startSession"]).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("radio", { name: "10", exact: true }));
+  mocks.accountStatus = "ready";
+  rerender(<TypingPractice />);
+  await waitFor(() => expect(mocks.queryArgs).toEqual({ clerkId: "signed-in" }));
+  await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(10));
 });

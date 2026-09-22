@@ -1,92 +1,25 @@
-# Core Typing Engine
+# Core typing engine
 
-## Overview
+`src/components/typing/TypingPractice.tsx` owns solo practice and the Host-controlled Connect typing attempt. Supported solo modes are Time, Words, Quote, Zen, and Preset. Connect additionally executes the Host's shared plan through its own room settings. The old unreachable solo plan state and dialogs have been removed.
 
-The Core Typing Engine is the heart of TypeSetGo, encapsulated primarily within the `TypingPractice.tsx` component. It handles user input, text generation, validation, statistics calculation (WPM, Accuracy), and renders the visual typing interface.
+## Attempt lifecycle
 
-It is designed to be flexible, supporting standalone practice modes as well as being driven remotely for the "Connect" multiplayer mode.
+A session epoch identifies the current prompt/attempt. Reset, explicit prompt changes, and departure invalidate work for the previous epoch. Results awaiting first sign-in contain their originating attempt identity; starting another attempt discards that pending intent. Stale server replies cannot mark a new attempt as saved.
 
-## Component Structure
+`usePracticeClock` owns elapsed time; `PracticeText` renders the prompt and memoizes stable words so timer-only rerenders do not rebuild every character. Input handling preserves composition/IME and strict-versus-forgiving completion behavior. `TypingArea` is the strict Race executor and shares small metric definitions rather than the full solo lifecycle.
 
-**File:** `components/TypingPractice.tsx`
+Signed-in ranked attempts use server-created prompts and Convex typing sessions. The browser waits for the shared `AccountProvider` to establish authenticated account readiness. Prepared sessions older than 24 hours are recreated before input; backend cleanup expires active sessions based on recent activity. See [solo validation](Solo_Anti_Cheat.md).
 
-### Props (`TypingPracticeProps`)
+## Preferences and content
 
-The component accepts props to allow external control, primarily used by the Connect mode:
+`usePracticePreferences` owns account hydration, local edit precedence, queued prompt changes, and debounced persistence. `src/lib/practice-preferences.ts` maps between typed settings and backend preferences. Settings arriving during a running or finished attempt apply at the next prompt boundary; explicit edits retain precedence.
 
--   `connectMode` (boolean): If true, enables multiplayer specific behaviors (disables local settings UI, emits stats).
--   `lockedSettings` (Partial<SettingsState>): Enforces specific settings (used when a Host controls the room).
--   `isTestActive` (boolean): Controls whether the input is unlocked and the test can proceed (for synchronized starts).
--   `onStatsUpdate` (function): Callback to emit real-time statistics to a parent component (or socket).
--   `onLeave` (function): Callback for the "Leave Room" action.
--   `sessionId` (string | number): Used to force a reset of the internal state when the session changes.
+Word lists and quotes come from `public/words` and `public/quotes`. Difficulty runs from Beginner through Expert. Preset mode accepts custom text. `ThemeContext` owns theme/variant/mode selection; palette and font files load on demand. Sound settings share `useSoundPreview`, which stops previous playback and cleans up on close. Unsupported error-sound selection is no longer exposed.
 
-## Modes
+## Metrics
 
-The engine supports five distinct typing modes:
+Raw/gross speed is total typed characters divided by five and elapsed minutes; correct-character speed excludes mistakes. Ranked WPM remains computed by the backend using server elapsed time. Empty input may display 100% accuracy; nonempty all-wrong input reports 0%, including through Connect callbacks. Preserve this distinction when changing presentation.
 
-1.  **Time**: Type infinite random words for a fixed duration (15s, 30s, 60s, etc.).
-2.  **Words**: Type a fixed number of random words (10, 25, 50, etc.).
-3.  **Quote**: Type a specific quote selected from the database. Supports filtering by length (Short, Medium, Long, XL).
-4.  **Zen**: Infinite typing with no goals or timers. The UI fades away for immersion.
-5.  **Preset**: Type custom text provided by the user or a Host.
+## Performance evidence
 
-## Key Features
-
-### Statistics Calculation
-
-Statistics are calculated in real-time using the `computeStats` helper function.
-
--   **WPM (Words Per Minute)**: Calculated as `(Characters Typed / 5) / Time Elapsed in Minutes`.
--   **Accuracy**: Calculated as `(Correct Characters / Total Characters Typed) * 100`.
--   **Raw vs Net**:
-    -   *Raw*: Gross WPM including errors.
-    -   *Net*: WPM adjusted for accuracy (currently the primary display matches standard typing test conventions).
-
-### Word Generation
-
--   **Random Words**: Loads word lists from `public/words/[difficulty].json`. Supports multiple difficulties (Beginner to Extreme) which determine the complexity of words.
--   **Quotes**: Loads quotes from `public/quotes/[length].json`.
--   **Filters**: Supports adding Punctuation and Numbers to random word generation.
-
-### Ghost Writer
-
-The "Ghost Writer" feature simulates a cursor moving at a specific WPM to pace the user.
--   Implemented using `requestAnimationFrame` for smooth visual updates.
--   Calculates the target character index based on the elapsed time and target speed.
-
-### Theming
-
-The engine supports a robust theming system allowing dynamic color changes for:
--   Background
--   Text (Default, Correct, Incorrect, Upcoming)
--   Cursor & Ghost Cursor
--   UI Elements (Buttons, Highlights)
-
-Themes are defined by the `Theme` type and stored in the `settings` state.
-
-## Code Walkthrough
-
-### 1. State Management
-The component uses standard React `useState` for local state:
--   `settings`: Stores the current configuration (mode, duration, difficulty, etc.).
--   `typedText`: The current string typed by the user.
--   `words`: The target text string (generated words or quote).
--   `status` (derived): `isRunning`, `isFinished`.
-
-### 2. Input Handling (`handleInput`)
--   Captures input from a hidden `<input>` element.
--   Updates `typedText`.
--   Checks for completion conditions (e.g., end of quote, word count reached).
--   Generates new words dynamically for infinite modes ("Time", "Zen").
-
-### 3. Rendering Logic
--   **Visual Cursor**: A custom cursor implementation (not the browser's default) to allow styling and "smooth" movement logic if desired in the future.
--   **Character Rendering**: Iterates through the `words` string and compares against `typedText` index-by-index to assign colors (Correct/Incorrect/Upcoming).
-
-### 4. Multiplayer Integration
-When `connectMode` is active:
--   Settings are hydrated from `lockedSettings` prop.
--   Local settings UI is hidden.
--   Stats are emitted periodically via `onStatsUpdate` to be sent over the socket.
--   The test start/stop is gated by `isTestActive`.
+The opt-in `practice-rendering-benchmark.test.tsx` uses React Profiler in jsdom for 200, 9,999, and 2,000-word prompts. It measures component render work, not browser paint, caret layout, or end-to-end input latency. Run with `TYPESETGO_RENDER_BENCHMARK=1 bun run test:run tests/unit/practice-rendering-benchmark.test.tsx --disableConsoleIntercept`. Large prompt mounting remains costly; use browser measurements before adopting virtualization.

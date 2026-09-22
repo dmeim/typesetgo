@@ -93,7 +93,6 @@ const settings: SettingsState = {
   soundEnabled: true,
   typingSound: "creamy",
   warningSound: "clock",
-  errorSound: "",
   presetText: "",
   presetModeType: "finish",
   showOnScreenKeyboard: false,

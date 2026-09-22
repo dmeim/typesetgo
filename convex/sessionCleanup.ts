@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { SOLO_PREPARED_SESSION_TTL_MS } from "../src/lib/practice-limits";
 import { internalMutation } from "./_generated/server";
 import { SESSION_TTL_MS } from "./lib/antiCheatConstants";
 import { consumeRateLimit } from "./lib/consumeRateLimit";
@@ -14,14 +15,17 @@ export const cleanupExpiredSessions = internalMutation({
     const now = Date.now();
     const cutoff = now - SESSION_TTL_MS;
 
-    // Query sessions older than TTL
     const expiredSessions = await ctx.db
       .query("typingSessions")
-      .withIndex("by_created_at")
-      .filter((q) => q.lt(q.field("createdAt"), cutoff))
-      .collect();
+      .withIndex("by_last_event", (q) => q.lt("lastEventAt", cutoff))
+      .filter((q) => q.or(
+        q.and(q.eq(q.field("startedAt"), undefined), q.lt(q.field("createdAt"), now - SOLO_PREPARED_SESSION_TTL_MS)),
+        q.and(q.neq(q.field("startedAt"), undefined),
+          q.or(q.neq(q.field("settings.mode"), "time"),
+            q.lt(q.add(q.field("startedAt"), q.mul(q.field("settings.duration"), 1000)), cutoff)))
+      ))
+      .take(100);
 
-    // Delete expired sessions in batches
     let deleted = 0;
     for (const session of expiredSessions) {
       await ctx.db.delete(session._id);

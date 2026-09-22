@@ -1,3 +1,5 @@
+import { useMultiplayerPresence } from "@/hooks/useMultiplayerPresence";
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import {
   ArrowClockwiseIcon,
   ArrowDownIcon,
@@ -6,6 +8,7 @@ import {
   ArrowUpIcon,
   ArrowsClockwiseIcon,
   CopyIcon,
+  CheckCircleIcon,
   CornersInIcon,
   CornersOutIcon,
   GearSixIcon,
@@ -20,7 +23,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import {
   DndContext,
@@ -46,7 +49,8 @@ import {
   type Theme,
 } from "@/lib/typing-constants";
 import { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_GHOST_SPEED } from "@/lib/practice-limits";
-import { fetchAllThemes, type ThemeDefinition } from "@/lib/themes";
+import { fetchThemeCatalogIndex, fetchTheme } from "@/lib/themes";
+import type { ThemeCatalogEntry } from "@/types/theme";
 import { fetchSoundManifest, type SoundManifest } from "@/lib/sounds";
 import { tv } from "@/lib/theme-vars";
 import { useTheme } from "@/hooks/useTheme";
@@ -79,15 +83,18 @@ const initialSettings: Partial<SettingsState> = {
   soundEnabled: false,
   typingSound: "creamy",
   warningSound: "clock",
-  errorSound: "",
   typingFontSize: 3.5,
   textAlign: "left",
 };
 type SortBy = "join" | "wpm" | "accuracy" | "progress" | "name" | "custom";
 
-function ActiveHostSession({ hostName }: { hostName: string }) {
+function ActiveHostSession({ hostName, resumeId }: { hostName: string; resumeId?: string }) {
+  const navigate = useNavigate();
   const sessionId = useSessionId();
+  const credential = useMultiplayerCredential();
   const { mode: colorMode } = useTheme();
+  const resumeRoom = useMutation(api.rooms.resume);
+  const deleteRoom = useMutation(api.rooms.deleteRoom);
   const createRoom = useMutation(api.rooms.create);
   const updateRoomSettings = useMutation(api.rooms.updateSettings);
   const setRoomStatus = useMutation(api.rooms.setStatus);
@@ -96,8 +103,8 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   const resetParticipant = useMutation(api.participants.resetStats);
   const request = useCallback(
     () =>
-      createRoom({ hostName, hostSessionId: sessionId, gameMode: "practice" }),
-    [hostName, sessionId, createRoom],
+      resumeId ? resumeRoom({ roomId: resumeId, credential }) : createRoom({ credential, hostName, hostSessionId: sessionId, gameMode: "practice" }),
+    [credential, hostName, sessionId, createRoom, resumeId, resumeRoom],
   );
   const attempt = useRoomAttempt(Boolean(sessionId), request);
   const roomCode = attempt.value?.code;
@@ -105,12 +112,23 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
     api.rooms.getByCode,
     roomCode ? { code: roomCode } : "skip",
   );
+  useMultiplayerPresence(room?._id);
+  useEffect(() => {
+    if (attempt.value && !resumeId) navigate(`/connect/host/${attempt.value.roomId}`, { replace: true });
+  }, [attempt.value, resumeId, navigate]);
   const participants = useQuery(
     api.participants.listByRoom,
     room ? { roomId: room._id } : "skip",
   );
   const [settings, setSettings] = useState(initialSettings);
+  const [restoredRoom, setRestoredRoom] = useState("");
+  if (room && restoredRoom !== room._id) {
+    setRestoredRoom(room._id);
+    setSettings(room.settings as Partial<SettingsState>);
+  }
   const settingsRef = useRef(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  const [dirty, setDirty] = useState(false);
   const [pendingSettings, setPendingSettings] = useState(0);
   const settingsRevision = useRef(0);
   const [settingsError, setSettingsError] = useState("");
@@ -124,9 +142,16 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
     id: string;
     name: string;
   } | null>(null);
-  const [themes, setThemes] = useState<ThemeDefinition[] | null>(null);
+  const [themes, setThemes] = useState<ThemeCatalogEntry[] | null>(null);
+  const [themeLoading, setThemeLoading] = useState(false);
+  const themeRequest = useRef(0);
   const [themeError, setThemeError] = useState("");
   const [themeName, setThemeName] = useState("Default");
+  const [themeRoom, setThemeRoom] = useState("");
+  if (room && themeRoom !== room._id) {
+    setThemeRoom(room._id);
+    setThemeName(room.settings.theme ? "Custom" : "Default");
+  }
   const [soundManifest, setSoundManifest] = useState<SoundManifest | null>(
     null,
   );
@@ -139,7 +164,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   const [copyMessage, setCopyMessage] = useState("");
   const cards = useRef<HTMLDivElement>(null);
   const active = room?.status === "active";
-  const locked = active || busy;
+  const locked = active || busy || pendingSettings > 0 || themeLoading;
   const currentStep = getPlanStep(settings);
   const stepIndex = settings.planIndex ?? 0;
   const concrete = resolveRoomSettings(settings);
@@ -158,8 +183,11 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   }, []);
   const loadThemes = () => {
     setThemeError("");
-    void fetchAllThemes()
-      .then(setThemes)
+    void fetchThemeCatalogIndex()
+      .then((catalog) => {
+        if (!catalog) throw new Error("Theme catalog unavailable");
+        setThemes(catalog.themes);
+      })
       .catch(() => setThemeError("Unable to load themes. Try again."));
   };
   const openThemes = () => {
@@ -172,12 +200,12 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
     const revision = ++settingsRevision.current;
     setPendingSettings((count) => count + 1);
     try {
-      await updateRoomSettings({
+      await updateRoomSettings({ credential,
         roomId: room._id,
         hostSessionId: sessionId,
         settings: updated,
       });
-      if (revision === settingsRevision.current) setSettingsError("");
+      if (revision === settingsRevision.current) { setSettingsError(""); setDirty(false); }
     } catch (error) {
       if (revision === settingsRevision.current)
         setSettingsError(
@@ -194,7 +222,34 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
     const updated = { ...settingsRef.current, ...updates };
     settingsRef.current = updated;
     setSettings(updated);
-    void saveSettings(updated);
+    setDirty(true);
+  };
+  const selectTheme = async (id: string) => {
+    const request = ++themeRequest.current;
+    setThemeName(id);
+    setThemeError("");
+    if (id === "Default") { updateSettings({ theme: DEFAULT_THEME }); return; }
+    setThemeLoading(true);
+    try {
+      const selected = await fetchTheme(id);
+      if (request !== themeRequest.current) return;
+      if (!selected) throw new Error("Unable to load this palette. Retry or choose another theme.");
+      const colors = colorMode === "light" && selected.light ? selected.light : selected.dark;
+      const updated = { ...settingsRef.current, theme: {
+        cursor: colors.typing.cursor, defaultText: colors.typing.default,
+        upcomingText: colors.typing.upcoming, correctText: colors.typing.correct,
+        incorrectText: colors.typing.incorrect, buttonUnselected: colors.interactive.primary.DEFAULT,
+        buttonSelected: colors.interactive.secondary.DEFAULT, backgroundColor: colors.bg.base,
+        surfaceColor: colors.bg.surface, ghostCursor: colors.typing.cursorGhost,
+      } };
+      settingsRef.current = updated;
+      setSettings(updated);
+      setDirty(true);
+    } catch (error) {
+      if (request === themeRequest.current) setThemeError(error instanceof Error ? error.message : "Unable to load this palette.");
+    } finally {
+      if (request === themeRequest.current) setThemeLoading(false);
+    }
   };
   const perform = async (action: () => Promise<unknown>) => {
     if (busy) return;
@@ -215,14 +270,16 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
     }
   };
   const start = () => {
-    if (room && readyToStart && !pendingSettings && !settingsError)
+    if (room && readyToStart && !pendingSettings && !themeLoading)
       void perform(async () => {
-        await updateRoomSettings({
+        await updateRoomSettings({ credential,
           roomId: room._id,
           hostSessionId: sessionId,
           settings: settingsRef.current,
         });
-        const args = {
+        setDirty(false);
+        setSettingsError("");
+        const args = { credential,
           roomId: room._id,
           hostSessionId: sessionId,
           status: "active" as const,
@@ -233,7 +290,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   const stop = () => {
     if (room)
       void perform(() => {
-        const args = {
+        const args = { credential,
           roomId: room._id,
           hostSessionId: sessionId,
           status: "waiting" as const,
@@ -244,7 +301,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
   const reset = () => {
     if (room)
       void perform(() =>
-        resetRoom({ roomId: room._id, hostSessionId: sessionId }),
+        resetRoom({ credential, roomId: room._id, hostSessionId: sessionId }),
       );
   };
   const users = useMemo(() => {
@@ -317,7 +374,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
     setConfirmation(action);
   };
 
-  if (!roomCode)
+  if (!roomCode || !resumeId)
     return (
       <RoomPage>
         <div className="mx-auto max-w-md space-y-5 py-12 text-center">
@@ -370,7 +427,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
               className="break-words text-sm"
               style={{ color: tv.ui.mutedForeground }}
             >
-              Hosted by {hostName}
+              Hosted by {room.hostName}
             </p>
           </div>
           <RoomButton
@@ -383,6 +440,12 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             <span className="block text-xs">Room code</span>
             <span className="text-2xl tracking-widest">{roomCode}</span>
           </RoomButton>
+          <div className="flex gap-2">
+            <Link to="/connect/host" className="inline-flex items-center gap-2">New room</Link>
+            <RoomButton disabled={busy} onClick={() => void perform(async () => { await deleteRoom({ roomId: room._id, credential }); navigate("/connect"); })}>
+              <XIcon className="size-4" aria-hidden="true" />End room
+            </RoomButton>
+          </div>
         </header>
         <section
           className="space-y-4 rounded-xl border p-4 sm:p-6"
@@ -404,6 +467,9 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <RoomButton disabled={locked || !dirty} onClick={() => void saveSettings(settingsRef.current)}>
+                <CheckCircleIcon className="size-4" aria-hidden="true" />Apply settings
+              </RoomButton>
               <RoomButton onClick={reset} disabled={busy}>
                 <ArrowClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
                 Reset room
@@ -414,8 +480,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 disabled={
                   busy ||
                   (!active &&
-                    (pendingSettings > 0 ||
-                      Boolean(settingsError) ||
+                    (pendingSettings > 0 || themeLoading ||
                       !readyToStart))
                 }
               >
@@ -523,6 +588,7 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
               </span>
             </div>
           </fieldset>
+          {dirty && <p className="text-sm">Unsaved changes. Apply settings or Start test to save.</p>}
           {pendingSettings > 0 && (
             <p role="status" className="text-sm">
               Saving settings…
@@ -829,53 +895,28 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
             {themeError && (
               <p role="alert">
                 {themeError}
-                <RoomButton onClick={loadThemes}>
+                <RoomButton onClick={() => themes ? void selectTheme(themeName) : loadThemes()}>
                   <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
                   Retry
                 </RoomButton>
               </p>
             )}
+            {themeLoading && <p role="status">Loading selected theme…</p>}
             <label className="block space-y-2 text-sm">
               Theme preset
               <select
                 className={fieldClass}
                 style={fieldStyle}
                 value={themeName}
-                onChange={(event) => {
-                  const selected = themes?.find(
-                    (entry) => entry.name === event.target.value,
-                  );
-                  setThemeName(event.target.value);
-                  if (!selected) {
-                    updateSettings({ theme: DEFAULT_THEME });
-                    return;
-                  }
-                  const colors =
-                    colorMode === "light" && selected.light
-                      ? selected.light
-                      : selected.dark;
-                  updateSettings({
-                    theme: {
-                      cursor: colors.typing.cursor,
-                      defaultText: colors.typing.default,
-                      upcomingText: colors.typing.upcoming,
-                      correctText: colors.typing.correct,
-                      incorrectText: colors.typing.incorrect,
-                      buttonUnselected: colors.interactive.primary.DEFAULT,
-                      buttonSelected: colors.interactive.secondary.DEFAULT,
-                      backgroundColor: colors.bg.base,
-                      surfaceColor: colors.bg.surface,
-                      ghostCursor: colors.typing.cursorGhost,
-                    },
-                  });
-                }}
+                disabled={locked}
+                onChange={(event) => void selectTheme(event.target.value)}
               >
                 <option value="Default">Default</option>
                 {themeName === "Custom" && (
                   <option value="Custom">Custom</option>
                 )}
                 {themes?.map((entry) => (
-                  <option key={entry.id} value={entry.name}>
+                  <option key={entry.id} value={entry.id}>
                     {entry.name}
                   </option>
                 ))}
@@ -946,10 +987,10 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
                 if (!confirmation) return;
                 const result = await perform(() =>
                   confirmation.kind === "remove"
-                    ? kickParticipant({
+                    ? kickParticipant({ credential,
                         participantId: confirmation.id as Id<"participants">,
                       })
-                    : resetParticipant({
+                    : resetParticipant({ credential,
                         participantId: confirmation.id as Id<"participants">,
                       }),
                 );
@@ -970,8 +1011,9 @@ function ActiveHostSession({ hostName }: { hostName: string }) {
 
 export default function Host() {
   const [params] = useSearchParams();
+  const { roomId } = useParams<{ roomId: string }>();
   const hostName = params.get("name")?.trim();
-  if (!hostName)
+  if (!hostName && !roomId)
     return (
       <RoomPage>
         <div className="mx-auto max-w-md space-y-6 py-6">
@@ -983,5 +1025,5 @@ export default function Host() {
         </div>
       </RoomPage>
     );
-  return <ActiveHostSession key={hostName} hostName={hostName} />;
+  return <ActiveHostSession key={roomId ?? hostName} hostName={hostName ?? ""} resumeId={roomId} />;
 }

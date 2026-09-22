@@ -1,8 +1,8 @@
 import { useLayoutEffect, useRef, type ComponentProps, type RefObject } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useQuery } from "convex/react";
 import {
   ChartBarIcon,
+  ArrowsClockwiseIcon,
   FlagCheckeredIcon,
   GearSixIcon,
   GraduationCapIcon,
@@ -12,11 +12,12 @@ import {
   SunIcon,
   TrophyIcon,
 } from "@phosphor-icons/react";
-import { api } from "../../../convex/_generated/api";
 import { useTheme } from "@/hooks/useTheme";
 import UserButton from "@/components/auth/UserButton";
 import NotificationCenter from "@/components/layout/NotificationCenter";
 import { useAppAuth } from "@/components/layout/useAppAuth";
+import { useAccount } from "@/components/layout/useAccount";
+import { toast } from "@/lib/toast-manager";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -47,7 +48,8 @@ function HeaderAction({ label, hint = label, ...props }: ComponentProps<typeof B
 }
 
 export default function Header({ hidden = false, focusTargetRef, onOpenThemeModal, onOpenSettings }: HeaderProps) {
-  const { user, isSignedIn, isLoaded, available } = useAppAuth();
+  const { isSignedIn, isLoaded, available } = useAppAuth();
+  const account = useAccount();
   const { mode, toggleMode, supportsLightMode } = useTheme();
   const location = useLocation();
   const headerRef = useRef<HTMLElement>(null);
@@ -55,11 +57,7 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
   const chromeFocusRef = useRef<HTMLElement | null>(null);
   const chromeTriggerRef = useRef<HTMLElement | null>(null);
   const accountFeaturesEnabled = available && isLoaded && isSignedIn;
-  const convexUser = useQuery(
-    api.users.getUser,
-    accountFeaturesEnabled && user ? { clerkId: user.id } : "skip"
-  );
-  const statsUrl = convexUser?._id ? `/user/${convexUser._id}` : null;
+  const statsUrl = account.userId ? `/user/${account.userId}` : null;
 
   useLayoutEffect(() => {
     const trackOutsideFocus = (event: FocusEvent) => {
@@ -156,6 +154,11 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
               <HeaderAction asChild label="Your stats"><Link to={statsUrl}>
                 <ChartBarIcon className="size-5" aria-hidden="true" />
               </Link></HeaderAction>
+            ) : accountFeaturesEnabled && account.status === "error" ? (
+              <HeaderAction type="button" label="Retry account connection" hint={account.error ?? "Try connecting again"}
+                onClick={() => void account.ensureAccount().catch(() => toast.add({ type: "error", title: "Your account could not connect. Try again." }))}>
+                <ArrowsClockwiseIcon className="size-5" aria-hidden="true" />
+              </HeaderAction>
             ) : (
               <HeaderAction type="button" disabled label={accountFeaturesEnabled ? "Loading your stats" : "Sign in to view your stats"}>
                 <ChartBarIcon className="size-5" aria-hidden="true" />

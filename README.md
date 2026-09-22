@@ -22,12 +22,12 @@ A modern, open-source typing practice platform with a clean, distraction-free in
 
 ## Highlights
 
-- **Multiple modes** — Time, Words, Quotes (Short–XL), Zen, Preset, and Custom Text
+- **Multiple modes** — Time, Words, Quotes (Short–XL), Zen, and Preset text
 - **1300+ themes** — Light, dark, and seasonal themes with live preview
 - **Ghost Writer** — Race a ghost cursor set to your target WPM
 - **Deep statistics** — Real-time WPM, accuracy, raw vs. net speed, consistency charts
 - **Sound packs** — Mechanical keyboard sounds (typewriter, creamy, robo, and more)
-- **Adaptive difficulty** — Word lists from Beginner to Extreme
+- **Adaptive difficulty** — Word lists from Beginner to Expert
 - **User accounts** — Track history, streaks, achievements, and leaderboard rankings
 - **Cloudflare-hosted** — frontend served by Workers Static Assets, with Clerk and Convex
 
@@ -37,7 +37,7 @@ A modern, open-source typing practice platform with a clean, distraction-free in
   <tr>
     <td width="40%" valign="top">
       <h3>Home</h3>
-      <p>The main typing screen with test mode selection (Kid, Zen, Time, Words, Quote), modifier toggles for caps, punctuation, and numbers, adjustable duration or word count, and five difficulty levels from Beginner to Expert.</p>
+      <p>The main typing screen with test mode selection (Zen, Time, Words, Quote, Preset), modifier toggles for caps, punctuation, and numbers, adjustable duration or word count, and five difficulty levels from Beginner to Expert.</p>
     </td>
     <td width="60%">
       <img src="public/assets/showcase-homepage.png" alt="TypeSetGo homepage" />
@@ -87,7 +87,7 @@ A modern, open-source typing practice platform with a clean, distraction-free in
 
 Live app: **https://typesetgo.app**. Cloudflare Workers Static Assets serves the frontend; production Clerk handles sign-in, and the existing Convex **development deployment** holds the app's data.
 
-Cloudflare Workers Builds is connected to GitHub `main`. Pushing to `main` triggers a build, runs tests, and deploys the Worker if those steps succeed—no GitHub Actions or container build is needed. The first automated deployment is pending verification.
+The deployment record reports an owner-configured Workers Builds connection to GitHub `main`; its first successful automated deployment is not recorded. Remote settings were not rechecked during the September 2026 cleanup. Treat a push to `main` as potentially publishing the frontend. Manual deployment remains available.
 
 For a manual deployment, first verify your Cloudflare account and ignored local build settings:
 
@@ -109,12 +109,13 @@ cd typesetgo
 bun install
 ```
 
-Run two terminals:
+Start the isolated UI fixture without credentials or a backend:
 
 ```bash
-bunx convex dev          # Terminal 1 — backend
-bun run dev              # Terminal 2 — frontend (port 3000)
+bun run dev:fixture      # http://127.0.0.1:4317
 ```
+
+This uses real UI with local fixture data. For real backend development, follow [development targets](docs/development.md). The existing cloud **development** deployment holds live data; ordinary `convex dev` writes to its selected deployment. `bun run convex:dev` now requires an explicit env file and expected target.
 
 | Command | Description |
 |---------|-------------|
@@ -123,7 +124,8 @@ bun run dev              # Terminal 2 — frontend (port 3000)
 | `bun run test:run` | Run tests |
 | `bun run lint` | Run ESLint with the supported parser API |
 | `bun run test:e2e` | Run isolated browser acceptance, using installed Chrome |
-| `bunx convex dev` | Start Convex backend |
+| `bun run dev:fixture` | Start isolated UI with local fixture data |
+| `bun run convex:dev --env-file PATH --expect local:NAME` | Watch an explicitly selected local backend |
 
 ### Browser acceptance without live services
 
@@ -142,8 +144,10 @@ Builds retain native TypeScript 7 while lint uses the compatible TypeScript 6 AP
 
 ## Documentation
 
+[Documentation index](docs/README.md) identifies current guides and historical plans. [Codebase review](docs/CODEBASE-REVIEW.md) is the current remediation checklist.
+
 - **[Tech Stack](docs/TECH-STACK.md)** — full technology inventory with versions and roles
-- **[Cloudflare Deployment](docs/deployment/CLOUDFLARE_GUIDE.md)** — live hosting, automatic/manual deployment, and migration history
+- **[Cloudflare Deployment](docs/deployment/CLOUDFLARE_GUIDE.md)** — configured hosting and recorded deployment history
 - **[Core Typing Engine](docs/features/Core_Typing_Engine.md)** — modes, statistics, and architecture
 - **[Content Management](docs/features/Content_Management.md)** — word lists, quotes, and adding content
 - **[Release Notes](docs/release-notes/)** — changelog and version history

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { requireIdentity, requireAuthedUser } from "./lib/identity";
 
 // Get or create a user when they sign in with Clerk
 export const getOrCreateUser = mutation({
@@ -11,10 +11,11 @@ export const getOrCreateUser = mutation({
     avatarUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx, args.clerkId);
     // Check if user already exists
     const existingUser = await ctx.db
       .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
 
     if (existingUser) {
@@ -34,20 +35,12 @@ export const getOrCreateUser = mutation({
         });
       }
 
-      if (usernameChanged || avatarChanged) {
-        await ctx.runMutation(internal.statsCache.syncLeaderboardIdentity, {
-          userId: existingUser._id,
-          username: args.username,
-          avatarUrl: args.avatarUrl,
-        });
-      }
-
       return existingUser._id;
     }
 
     // Create new user
     const userId = await ctx.db.insert("users", {
-      clerkId: args.clerkId,
+      clerkId: identity.subject,
       email: args.email,
       username: args.username,
       avatarUrl: args.avatarUrl,
@@ -65,6 +58,7 @@ export const getUser = query({
     clerkId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireIdentity(ctx, args.clerkId);
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
@@ -80,7 +74,8 @@ export const getUserById = query({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.userId);
+    const user = await ctx.db.get(args.userId);
+    return user ? { _id: user._id, username: user.username, avatarUrl: user.avatarUrl, createdAt: user.createdAt } : null;
   },
 });
 
@@ -92,23 +87,11 @@ export const updateProfile = mutation({
     avatarUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
+    const user = await requireAuthedUser(ctx, args.clerkId);
 
     const updates: { username?: string; avatarUrl?: string; updatedAt: number } = {
       updatedAt: Date.now(),
     };
-
-    const nextUsername = args.username ?? user.username;
-    const nextAvatarUrl = args.avatarUrl ?? user.avatarUrl;
-    const usernameChanged = nextUsername !== user.username;
-    const avatarChanged = nextAvatarUrl !== user.avatarUrl;
 
     if (args.username !== undefined) {
       updates.username = args.username;
@@ -119,14 +102,6 @@ export const updateProfile = mutation({
     }
 
     await ctx.db.patch(user._id, updates);
-
-    if (usernameChanged || avatarChanged) {
-      await ctx.runMutation(internal.statsCache.syncLeaderboardIdentity, {
-        userId: user._id,
-        username: nextUsername,
-        avatarUrl: nextAvatarUrl,
-      });
-    }
 
     return user._id;
   },

@@ -1,3 +1,4 @@
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -22,6 +23,7 @@ export function useRaceProgress(
   resetVersion: number,
   active: boolean,
 ) {
+  const credential = useMultiplayerCredential();
   const updateProgress = useMutation(api.participants.updateProgress);
   const queued = useRef<TypingStats | null>(null);
   const lastSignature = useRef("");
@@ -53,7 +55,7 @@ export function useRaceProgress(
     const signature = JSON.stringify(stats);
     if (signature === lastSignature.current) return;
     lastSent.current = Date.now();
-    const write = updateProgress({
+    const write = updateProgress({ credential,
       participantId,
       raceStartTime,
       resetVersion,
@@ -74,7 +76,7 @@ export function useRaceProgress(
     inFlight.current = write;
     await write;
     inFlight.current = null;
-  }, [participantId, raceStartTime, resetVersion, updateProgress]);
+  }, [credential, participantId, raceStartTime, resetVersion, updateProgress]);
 
   const report = useCallback(
     (stats: TypingStats) => {

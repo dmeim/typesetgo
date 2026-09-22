@@ -1,7 +1,7 @@
 // convex/participants.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { acceptsAttempt, resetParticipantAttempt, validateParticipantStats } from "./lib/multiplayer";
+import { acceptsAttempt, checkParticipant, checkRoomHost, credentialHash, disconnectMember, publicParticipant, publicRoom, requireLiveRoom, resetParticipantAttempt, validateParticipantStats } from "./lib/multiplayer";
 
 const statsValidator = v.object({
   wpm: v.number(), accuracy: v.number(), progress: v.number(),
@@ -21,6 +21,7 @@ export const join = mutation({
   args: {
     roomCode: v.string(),
     sessionId: v.string(),
+    credential: v.string(),
     name: v.string(),
     emoji: v.optional(v.string()),
     gameMode: v.optional(v.union(v.literal("practice"), v.literal("race"), v.literal("lesson"))),
@@ -31,10 +32,14 @@ export const join = mutation({
       .withIndex("by_code", (q) => q.eq("code", args.roomCode.trim().toUpperCase()))
       .first();
 
-    if (!room) throw new Error("Room not found");
+    requireLiveRoom(room);
 
     if (args.gameMode && (room.gameMode ?? "practice") !== args.gameMode) {
       throw new Error("This room uses a different game mode");
+    }
+    const hash = await credentialHash(args.credential);
+    if (args.sessionId === room.hostId && room.hostCredentialHash !== hash) {
+      throw new Error("Only the room host can claim this player identity");
     }
     const name = args.name.trim();
     if (!name) throw new Error("Enter a name to join");
@@ -48,6 +53,7 @@ export const join = mutation({
     const existing = members.find((p) => p.sessionId === args.sessionId);
 
     if (existing && existing.roomId === room._id) {
+      await checkParticipant(ctx, existing, args.credential);
       const now = Date.now();
       // Check if within rejoin window (30 seconds)
       const rejoinWindow = 30 * 1000;
@@ -66,7 +72,7 @@ export const join = mutation({
       return {
         participantId: existing._id,
         isReconnect: true,
-        room,
+        room: publicRoom(room),
         canRejoin,
         typedProgress: existing.typedProgress,
       };
@@ -78,9 +84,11 @@ export const join = mutation({
       throw new Error("This race has already started. Join the next race.");
     }
 
+    if (members.length >= 64) throw new Error("This room is full");
     const participantId = await ctx.db.insert("participants", {
       roomId: room._id,
       sessionId: args.sessionId,
+      credentialHash: hash,
       name,
       isConnected: true,
       resetVersion: 0,
@@ -100,13 +108,14 @@ export const join = mutation({
       lastSeen: now,
     });
 
-    return { participantId, isReconnect: false, room };
+    return { participantId, isReconnect: false, room: publicRoom(room) };
   },
 });
 
 export const updateStats = mutation({
   args: {
     participantId: v.id("participants"),
+    credential: v.string(),
     stats: statsValidator,
     runVersion: v.optional(v.number()),
     resetVersion: v.optional(v.number()),
@@ -115,6 +124,7 @@ export const updateStats = mutation({
   },
   handler: async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
+    await checkParticipant(ctx, participant, args.credential);
     if (!participant) return;
     const room = await ctx.db.get(participant.roomId);
     if (room?.gameMode === "race" || !acceptsAttempt(room, participant, args)) return;
@@ -131,24 +141,31 @@ export const updateStats = mutation({
 export const listByRoom = query({
   args: { roomId: v.id("rooms") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    return (await ctx.db
       .query("participants")
       .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect();
+      .collect()).map(publicParticipant);
   },
 });
 
 export const kick = mutation({
-  args: { participantId: v.id("participants") },
+  args: { participantId: v.id("participants"), credential: v.string() },
   handler: async (ctx, args) => {
+    const participant = await ctx.db.get(args.participantId);
+    if (!participant) throw new Error("Participant not found");
+    const room = await ctx.db.get(participant.roomId);
+    requireLiveRoom(room);
+    await checkRoomHost(room, args.credential);
+    await disconnectMember(ctx, participant);
     await ctx.db.delete(args.participantId);
   },
 });
 
 export const resetStats = mutation({
-  args: { participantId: v.id("participants") },
+  args: { participantId: v.id("participants"), credential: v.string() },
   handler: async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
+    await checkParticipant(ctx, participant, args.credential, true);
     if (!participant) throw new Error("Participant not found");
     const room = await ctx.db.get(participant.roomId);
     if (!room) throw new Error("Room not found");
@@ -160,39 +177,20 @@ export const resetStats = mutation({
 });
 
 export const disconnect = mutation({
-  args: { participantId: v.id("participants") },
+  args: { participantId: v.id("participants"), credential: v.string() },
   handler: async (ctx, args) => {
-    const now = Date.now();
     const participant = await ctx.db.get(args.participantId);
-    if (!participant || !participant.isConnected) return;
-
-    await ctx.db.patch(args.participantId, {
-      isConnected: false,
-      isReady: false,
-      lastSeen: now,
-      disconnectedAt: now,
-    });
-
-    const room = await ctx.db.get(participant.roomId);
-    if (!room) return;
-    const members = await ctx.db.query("participants")
-      .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
-    const successor = members
-      .filter((p) => p._id !== participant._id && p.isConnected)
-      .sort((a, b) => a.joinedAt - b.joinedAt || a._id.localeCompare(b._id))[0];
-    const transferHost = room.gameMode === "race" && room.hostId === participant.sessionId && successor;
-    await ctx.db.patch(room._id, {
-      readyParticipants: (room.readyParticipants ?? []).filter((id) => id !== participant.sessionId),
-      ...(transferHost ? { hostId: successor.sessionId, hostName: successor.name } : {}),
-    });
+    await checkParticipant(ctx, participant, args.credential);
+    if (participant) await disconnectMember(ctx, participant);
   },
 });
 
 // Set participant as ready
 export const setReady = mutation({
-  args: { participantId: v.id("participants") },
+  args: { participantId: v.id("participants"), credential: v.string() },
   handler: async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
+    await checkParticipant(ctx, participant, args.credential);
     if (!participant) throw new Error("Participant not found");
 
     if (!participant.isConnected) throw new Error("Rejoin the room before getting ready");
@@ -214,9 +212,10 @@ export const setReady = mutation({
 
 // Set participant as not ready
 export const setNotReady = mutation({
-  args: { participantId: v.id("participants") },
+  args: { participantId: v.id("participants"), credential: v.string() },
   handler: async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
+    await checkParticipant(ctx, participant, args.credential);
     if (!participant) throw new Error("Participant not found");
 
     const room = await ctx.db.get(participant.roomId);
@@ -239,9 +238,11 @@ export const setNotReady = mutation({
 export const setEmoji = mutation({
   args: {
     participantId: v.id("participants"),
+    credential: v.string(),
     emoji: v.string(),
   },
   handler: async (ctx, args) => {
+    await checkParticipant(ctx, await ctx.db.get(args.participantId), args.credential);
     await ctx.db.patch(args.participantId, { emoji: args.emoji });
   },
 });
@@ -250,11 +251,13 @@ export const setEmoji = mutation({
 export const setName = mutation({
   args: {
     participantId: v.id("participants"),
+    credential: v.string(),
     name: v.string(),
   },
   handler: async (ctx, args) => {
     const name = args.name.trim();
     if (!name || name.length > 40) throw new Error("Enter a name between 1 and 40 characters");
+    await checkParticipant(ctx, await ctx.db.get(args.participantId), args.credential);
     await ctx.db.patch(args.participantId, { name });
   },
 });
@@ -263,6 +266,7 @@ export const setName = mutation({
 export const recordFinish = mutation({
   args: {
     participantId: v.id("participants"),
+    credential: v.string(),
     finishTime: v.number(),
     typedProgress: v.optional(v.number()),
     typedText: v.optional(v.string()),
@@ -272,6 +276,7 @@ export const recordFinish = mutation({
   },
   handler: async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
+    await checkParticipant(ctx, participant, args.credential);
     if (!participant) throw new Error("Participant not found");
     const room = await ctx.db.get(participant.roomId);
     if (room?.gameMode !== "race" || !acceptsAttempt(room, participant, args)) return;
@@ -297,6 +302,7 @@ export const recordFinish = mutation({
 export const updateProgress = mutation({
   args: {
     participantId: v.id("participants"),
+    credential: v.string(),
     typedProgress: v.number(),
     typedText: v.optional(v.string()),
     stats: statsValidator,
@@ -305,6 +311,7 @@ export const updateProgress = mutation({
   },
   handler: async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
+    await checkParticipant(ctx, participant, args.credential);
     if (!participant) return;
     const room = await ctx.db.get(participant.roomId);
     if (room?.gameMode !== "race" || !acceptsAttempt(room, participant, args)) return;
@@ -332,6 +339,7 @@ export const getBySession = query({
       .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
       .collect();
 
-    return participants.find((p) => p.sessionId === args.sessionId) || null;
+    const participant = participants.find((p) => p.sessionId === args.sessionId);
+    return participant ? publicParticipant(participant) : null;
   },
 });

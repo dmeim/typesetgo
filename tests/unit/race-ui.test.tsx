@@ -475,10 +475,10 @@ describe("Race exact resume and progress", () => {
       await vi.advanceTimersByTimeAsync(3000);
     });
     expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledTimes(1);
-    expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledWith({
+    expect(mocks.mutations["rooms:endRace"]).toHaveBeenCalledWith(expect.objectContaining({
       roomId: fixture.room._id,
       raceStartTime: 90_000,
-    });
+    }));
   });
 
   it("finalizes once automatically and clears an end failure only for an explicit retry", async () => {

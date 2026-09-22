@@ -20,7 +20,6 @@ export interface NotificationMetadata {
   achievementTier?: string; // copper, silver, gold, diamond, emerald
   actionUrl?: string; // For notifications with custom links
   severity?: string; // For maintenance/warning notifications
-  [key: string]: unknown; // Future extensibility
 }
 
 export interface Notification {
@@ -49,55 +48,50 @@ export interface NotificationStore {
 // Storage
 // =============================================================================
 
-const STORAGE_KEY = "typesetgo_notifications";
 export const MAX_NOTIFICATIONS = 50; // Limit stored notifications
 
-function isLocalStorageAvailable(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const testKey = "__storage_test__";
-    window.localStorage.setItem(testKey, testKey);
-    window.localStorage.removeItem(testKey);
-    return true;
-  } catch {
-    return false;
-  }
+export function notificationStorageKey(ownerId: string | null = null): string {
+  return `typesetgo_notifications:${ownerId ? `user:${ownerId}` : "guest"}`;
 }
 
-export function saveNotifications(notifications: Notification[]): void {
-  if (!isLocalStorageAvailable()) return;
-
+export function saveNotifications(notifications: Notification[], ownerId: string | null = null): void {
   try {
-    // Only keep the most recent notifications
     const toStore = notifications.slice(0, MAX_NOTIFICATIONS);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
-  } catch (error) {
-    console.warn("Failed to save notifications to localStorage:", error);
+    window.localStorage.setItem(notificationStorageKey(ownerId), JSON.stringify(toStore));
+  } catch {
+    // This tab's history remains usable when browser storage is unavailable.
   }
 }
 
-export function loadNotifications(): Notification[] {
-  if (!isLocalStorageAvailable()) return [];
+function decodeNotification(value: unknown): Notification | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.id !== "string" || typeof record.title !== "string"
+    || typeof record.description !== "string" || typeof record.read !== "boolean"
+    || typeof record.timestamp !== "number" || !Number.isFinite(record.timestamp) || record.timestamp < 0
+    || typeof record.type !== "string"
+    || !["achievement", "maintenance", "info", "warning", "error"].includes(record.type)) return null;
+  const metadata: NotificationMetadata = {};
+  if (record.metadata && typeof record.metadata === "object") {
+    const source = record.metadata as Record<string, unknown>;
+    for (const key of ["achievementId", "achievementTier", "actionUrl", "severity"] as const) {
+      if (typeof source[key] === "string") metadata[key] = source[key];
+    }
+  }
+  return { id: record.id, title: record.title, description: record.description,
+    type: record.type as NotificationType, read: record.read, timestamp: record.timestamp, ...(Object.keys(metadata).length ? { metadata } : {}) };
+}
 
+export function loadNotifications(ownerId: string | null = null): Notification[] {
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const stored = window.localStorage.getItem(notificationStorageKey(ownerId));
     if (!stored) return [];
 
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed)) return [];
 
-    // Validate each notification has required fields
-    return parsed.filter(
-      (n: unknown): n is Notification =>
-        typeof n === "object" &&
-        n !== null &&
-        typeof (n as Notification).id === "string" &&
-        typeof (n as Notification).type === "string" &&
-        typeof (n as Notification).title === "string" &&
-        typeof (n as Notification).timestamp === "number"
-    );
-  } catch (error) {
-    console.warn("Failed to load notifications from localStorage:", error);
+    return parsed.map(decodeNotification).filter((item): item is Notification => item !== null).slice(0, MAX_NOTIFICATIONS);
+  } catch {
     return [];
   }
 }

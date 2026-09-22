@@ -47,7 +47,6 @@ await withFixtureBrowser(async browser => {
     soundEnabled: false,
     typingSound: "",
     warningSound: "",
-    errorSound: "",
     ghostWriterEnabled: false,
     ghostWriterSpeed: 40,
     typingFontSize: 5,

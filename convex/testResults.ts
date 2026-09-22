@@ -1,3 +1,4 @@
+import { activityCalendar, utcDate } from "./lib/activityCalendar";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -7,13 +8,13 @@ import {
   isLeaderboardEligible,
   validityForUnrankedSave,
 } from "./lib/leaderboardEligibility";
-import { requireAuthedUser } from "./lib/identity";
+import { requireAuthedUser, requireIdentity } from "./lib/identity";
 import { consumeRateLimit } from "./lib/consumeRateLimit";
 import { RESULT_WRITE_RATE_LIMIT } from "./lib/rateLimit";
 
 // Save a test result (history / PBs / exempt achievements only — not ranked).
 // Ranked path is typingSessions.finalizeSession. Guests must sign in.
-// clerkId is ignored when present; identity comes from ctx.auth.
+// Identity comes from ctx.auth; a compatibility clerkId must match that identity.
 export const saveResult = mutation({
   args: {
     clerkId: v.optional(v.string()),
@@ -38,7 +39,7 @@ export const saveResult = mutation({
     day: v.number(),
   },
   handler: async (ctx, args): Promise<{ resultId: Id<"testResults">; newAchievements: string[] }> => {
-    const user = await requireAuthedUser(ctx);
+    const user = await requireAuthedUser(ctx, args.clerkId);
 
     await consumeRateLimit(ctx, `saveResult:${user._id}`, RESULT_WRITE_RATE_LIMIT);
 
@@ -63,6 +64,7 @@ export const saveResult = mutation({
       isValid: validity.isValid,
       invalidReason: validity.invalidReason,
       rankedEligible: false,
+      localCalendar: activityCalendar(args, createdAt),
       createdAt,
     });
 
@@ -72,7 +74,7 @@ export const saveResult = mutation({
 
     await ctx.runMutation(internal.streaks.updateStreak, {
       userId: user._id,
-      localDate: args.localDate,
+      localDate: utcDate(createdAt),
       duration: args.duration,
       wordsCorrect: args.wordsCorrect,
     });
@@ -81,27 +83,7 @@ export const saveResult = mutation({
       internal.achievements.checkAndAwardAchievements,
       {
         userId: user._id,
-        testResult: {
-          wpm: args.wpm,
-          accuracy: args.accuracy,
-          mode: args.mode,
-          duration: args.duration,
-          wordCount: args.wordCount,
-          difficulty: args.difficulty,
-          punctuation: args.punctuation,
-          numbers: args.numbers,
-          capitalization: args.capitalization,
-          wordsCorrect: args.wordsCorrect,
-          wordsIncorrect: args.wordsIncorrect,
-          createdAt,
-        },
-        localHour: args.localHour,
-        isWeekend: args.isWeekend,
-        dayOfWeek: args.dayOfWeek,
-        month: args.month,
-        day: args.day,
-        isValid: true,
-        rankedEligible: false,
+        resultId,
       }
     );
 
@@ -121,7 +103,6 @@ export const saveResult = mutation({
   },
 });
 
-
 // Delete a test result
 export const deleteResult = mutation({
   args: {
@@ -129,15 +110,7 @@ export const deleteResult = mutation({
     clerkId: v.string(),
   },
   handler: async (ctx, args): Promise<{ success: boolean; removedAchievements: string[] }> => {
-    // Find the user by Clerk ID
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found. Please sign in first.");
-    }
+    const user = await requireAuthedUser(ctx, args.clerkId);
 
     // Get the test result
     const result = await ctx.db.get(args.resultId);
@@ -178,18 +151,6 @@ export const deleteResult = mutation({
       wasBestWpm,
     });
 
-    // Update leaderboard cache if the deleted result was eligible
-    await ctx.runMutation(internal.statsCache.updateLeaderboardCacheAfterDeletion, {
-      userId: user._id,
-      deletedWpm: result.wpm,
-      deletedAccuracy: result.accuracy,
-      deletedDuration: result.duration,
-      deletedWordsCorrect: result.wordsCorrect,
-      deletedIsValid: result.isValid,
-      deletedRankedEligible: result.rankedEligible,
-      deletedCreatedAt: result.createdAt,
-    });
-
     return { success: true, removedAchievements };
   },
 });
@@ -201,6 +162,7 @@ export const getUserResults = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireIdentity(ctx, args.clerkId);
     // Find the user by Clerk ID
     const user = await ctx.db
       .query("users")
@@ -233,6 +195,7 @@ export const getUserStats = query({
     clerkId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireIdentity(ctx, args.clerkId);
     // Find the user by Clerk ID
     const user = await ctx.db
       .query("users")
@@ -352,7 +315,7 @@ export const getUserStatsByUserId = query({
 });
 
 // Get leaderboard data for top WPM scores
-// Computes directly from testResults using per-user index reads.
+// Computes directly from the descending result score index.
 // Convex reactively caches this — reads only re-run when data changes.
 export const getLeaderboard = query({
   args: {
@@ -364,7 +327,7 @@ export const getLeaderboard = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit ?? 20;
+    const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 20), 100));
 
     let timeCutoff = 0;
     if (args.timeRange === "today") {
@@ -373,62 +336,22 @@ export const getLeaderboard = query({
       timeCutoff = getStartOfDayUTC(7);
     }
 
-    const users = await ctx.db.query("users").collect();
     const leaderboard: Array<{
-      userId: Id<"users">;
-      username: string;
-      avatarUrl: string | null;
-      wpm: number;
-      createdAt: number;
+      userId: Id<"users">; username: string; avatarUrl: string | null;
+      wpm: number; createdAt: number;
     }> = [];
-
-    for (const user of users) {
-      // For week/today, use date index to skip old results
-      const results =
-        args.timeRange !== "all-time"
-          ? await ctx.db
-              .query("testResults")
-              .withIndex("by_user_and_date", (q) =>
-                q.eq("userId", user._id).gte("createdAt", timeCutoff)
-              )
-              .collect()
-          : await ctx.db
-              .query("testResults")
-              .withIndex("by_user", (q) => q.eq("userId", user._id))
-              .collect();
-
-      // Find best eligible result (valid, 90%+, WPM cap, 30s or 50 wordsCorrect)
-      let bestWpm = 0;
-      let bestCreatedAt = 0;
-      for (const r of results) {
-        if (
-          isLeaderboardEligible({
-            isValid: r.isValid,
-            rankedEligible: r.rankedEligible,
-            accuracy: r.accuracy,
-            wpm: r.wpm,
-            duration: r.duration,
-            wordsCorrect: r.wordsCorrect,
-          }) &&
-          r.wpm > bestWpm
-        ) {
-          bestWpm = r.wpm;
-          bestCreatedAt = r.createdAt;
-        }
-      }
-
-      if (bestWpm > 0) {
-        leaderboard.push({
-          userId: user._id,
-          username: user.username,
-          avatarUrl: user.avatarUrl ?? null,
-          wpm: bestWpm,
-          createdAt: bestCreatedAt,
-        });
-      }
+    const seen = new Set<string>();
+    // Descending score index lets us stop once enough distinct users qualify.
+    // No cache writers, full user scan, or per-user history collections.
+    const results = ctx.db.query("testResults").withIndex("by_wpm").order("desc");
+    for await (const result of results) {
+      if (result.createdAt < timeCutoff || result.wpm <= 0 || seen.has(result.userId) || !isLeaderboardEligible(result)) continue;
+      const user = await ctx.db.get(result.userId);
+      if (!user) continue;
+      seen.add(user._id);
+      leaderboard.push({ userId: user._id, username: user.username, avatarUrl: user.avatarUrl ?? null, wpm: result.wpm, createdAt: result.createdAt });
+      if (leaderboard.length >= limit) break;
     }
-
-    leaderboard.sort((a, b) => b.wpm - a.wpm);
 
     return leaderboard.slice(0, limit).map((entry, index) => ({
       rank: index + 1,

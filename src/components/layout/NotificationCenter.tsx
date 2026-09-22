@@ -12,6 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { useAccount } from "@/components/layout/useAccount";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useNotifications, getRelativeTime, getNotificationColor, type Notification } from "@/lib/notification-store";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -35,9 +36,17 @@ function NotificationIcon({ notification }: { notification: Notification }) {
 
 export default function NotificationCenter({ disabled = false }: { disabled?: boolean }) {
   const { user, isSignedIn, available } = useAppAuth();
+  const account = useAccount();
+  const ownerId = isSignedIn ? user?.id ?? null : null;
+  const [observedOwner, setObservedOwner] = useState(ownerId);
   const { notifications, markAsRead, markAllAsRead, clearAll, removeNotification, getUnreadCount } = useNotifications();
   const [open, setOpen] = useState(false);
   const [selectedAchievementId, setSelectedAchievementId] = useState<string | null>(null);
+  if (observedOwner !== ownerId) {
+    setObservedOwner(ownerId);
+    setOpen(false);
+    setSelectedAchievementId(null);
+  }
   if (disabled && (open || selectedAchievementId)) {
     setOpen(false);
     setSelectedAchievementId(null);
@@ -47,7 +56,7 @@ export default function NotificationCenter({ disabled = false }: { disabled?: bo
   const triggerRef = useRef<HTMLButtonElement>(null);
   const earnedAchievements = useQuery(
     api.achievements.getUserAchievements,
-    isSignedIn && user && selectedAchievementId ? { clerkId: user.id } : "skip"
+    account.status === "ready" && observedOwner === ownerId && isSignedIn && user && selectedAchievementId ? { clerkId: user.id } : "skip"
   ) ?? {};
   const unreadCount = disabled ? 0 : getUnreadCount();
 
@@ -57,9 +66,13 @@ export default function NotificationCenter({ disabled = false }: { disabled?: bo
       setSelectedAchievementId(notification.metadata.achievementId);
       setOpen(false);
     } else if (notification.metadata?.actionUrl) {
-      const url = new URL(notification.metadata.actionUrl, window.location.href);
-      if (url.protocol === "https:" || url.protocol === "http:") {
-        window.open(url.href, "_blank", "noopener,noreferrer");
+      try {
+        const url = new URL(notification.metadata.actionUrl, window.location.href);
+        if (url.protocol === "https:" || url.protocol === "http:") {
+          window.open(url.href, "_blank", "noopener,noreferrer");
+        }
+      } catch {
+        // A stale stored link must not prevent marking or dismissing the notification.
       }
       setOpen(false);
     }

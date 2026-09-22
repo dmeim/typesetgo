@@ -1,3 +1,4 @@
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation } from "convex/react";
@@ -26,6 +27,7 @@ function RaceEntryCard({ host }: { host: boolean }) {
   } | null>(null);
   const navigate = useNavigate();
   const sessionId = useSessionId();
+  const credential = useMultiplayerCredential();
   const createRoom = useMutation(api.rooms.create);
   const joinRoom = useMutation(api.participants.join);
   const name =
@@ -67,14 +69,14 @@ function RaceEntryCard({ host }: { host: boolean }) {
           let roomToJoin = createdRoom;
           try {
             if (host && !roomToJoin) {
-              roomToJoin = await createRoom({
+              roomToJoin = await createRoom({ credential,
                 hostName: name.trim(),
                 hostSessionId: sessionId,
                 gameMode: "race",
               });
               setCreatedRoom(roomToJoin);
             }
-            const joined = await joinRoom({
+            const joined = await joinRoom({ credential,
               roomCode: host ? roomToJoin!.code : code.trim().toUpperCase(),
               sessionId,
               name: name.trim(),

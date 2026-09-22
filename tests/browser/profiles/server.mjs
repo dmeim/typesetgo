@@ -13,6 +13,7 @@ export async function startProfileFixtureServer() {
     cacheDir: await mkdtemp(path.join(os.tmpdir(), "typesetgo-profiles-vite-")),
     configFile: false,
     envDir: false,
+    optimizeDeps: { entries: ["tests/browser/profiles/app.tsx"] },
     plugins: [react(), {
       name: "isolated-profile-fixtures",
       configureServer(vite) {
@@ -29,6 +30,7 @@ export async function startProfileFixtureServer() {
         { find: "convex/react", replacement: fixture },
         { find: "@clerk/clerk-react", replacement: fixture },
         { find: "@/components/layout/useAppAuth", replacement: fixture },
+        { find: "@/components/layout/useAccount", replacement: fixture },
         { find: "@", replacement: path.join(root, "src") },
       ],
     },

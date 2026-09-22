@@ -14,7 +14,7 @@ import "@/index.css";
 const query = new URLSearchParams(location.search);
 localStorage.setItem("typesetgo-theme-mode", query.get("theme") ?? "dark");
 localStorage.setItem("typesetgo-theme-id", query.get("palette") ?? "typesetgo");
-localStorage.setItem("typesetgo_notifications", JSON.stringify([{
+localStorage.setItem("typesetgo_notifications:" + (query.get("scenario") === "anonymous" ? "guest" : "user:clerk-owner"), JSON.stringify([{
   id: "fixture-achievement",
   type: "achievement",
   title: "Fixture achievement unlocked",

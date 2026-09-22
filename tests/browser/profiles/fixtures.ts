@@ -19,6 +19,9 @@ export function useAppAuth() {
 }
 
 export const useUser = useAppAuth;
+export function useAccount() {
+  return { status: scenario === "anonymous" ? "unavailable" : "ready", userId: scenario === "visitor" ? "profile-visitor" : "profile-owner" };
+}
 
 const now = Date.now();
 function leaderboardUsername(index: number, range = "all-time") {
@@ -113,6 +116,6 @@ export function useMutation(reference: Parameters<typeof getFunctionName>[0]) {
   return async (args: unknown) => {
     calls.push({ name, args });
     if (scenario === "error") throw new Error("Fixture request failed. Please try again.");
-    return null;
+    return { pending: false };
   };
 }

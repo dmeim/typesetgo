@@ -51,21 +51,9 @@ Each file is a JSON array of Quote objects:
 ]
 ```
 
-## Utilities
+## Validation
 
-### `analyze_quotes.js`
-
-A utility script is provided in the root directory to analyze the quote database.
-
-**Usage:**
-```bash
-node analyze_quotes.js
-```
-
-**Functions:**
--   Counts total unique quotes across all files.
--   Checks for duplicates.
--   Generates a histogram of quote lengths to help categorize them correctly (e.g., ensuring `short.json` doesn't contain long quotes).
+There is no checked-in `analyze_quotes.js` script. Validate JSON syntax and content before saving; `bun run build` regenerates manifests from current source files. Do not edit generated manifests directly.
 
 ## Adding Content
 
@@ -73,4 +61,4 @@ To add new words or quotes:
 1.  Open the relevant JSON file in `public/`.
 2.  Append the new entry following the existing format.
 3.  Ensure valid JSON syntax (commas between items).
-4.  (Optional) Run `node analyze_quotes.js` to verify integrity if you modified quotes.
+4.  Run `bun run build` to regenerate manifests and check the application. Review duplicate text and the selected length category when adding quotes.

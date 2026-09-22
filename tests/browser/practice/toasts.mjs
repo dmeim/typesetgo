@@ -90,7 +90,7 @@ await withFixtureBrowser(async (browser) => {
     await expect(viewport).not.toHaveAttribute("data-expanded");
     await page.getByRole("button", { name: "Dismiss toasts" }).click();
     await expect(toasts).toHaveCount(0);
-    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("typesetgo_notifications")));
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("typesetgo_notifications:user:fixture-user")));
     expect(saved).toHaveLength(11);
 
     await page.getByRole("button", { name: "Promise toast" }).click();

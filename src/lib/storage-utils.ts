@@ -1,3 +1,4 @@
+import { persistablePracticeSettings } from "./practice-preferences";
 import type { SettingsState, Theme } from "@/lib/typing-constants";
 import { DEFAULT_THEME, normalizePracticeSettings } from "@/lib/typing-constants";
 import { DEFAULT_TYPING_FONT } from "@/lib/typing-fonts";
@@ -44,60 +45,19 @@ export const DEFAULT_SETTINGS: Omit<
   soundEnabled: true,
   typingSound: "creamy",
   warningSound: "clock",
-  errorSound: "",
   presetModeType: "finish",
   showOnScreenKeyboard: true,
   keyboardLayout: "qwerty" as KeyboardLayoutId,
 };
 
 /**
- * Check if localStorage is available (handles SSR and private browsing)
- */
-function isLocalStorageAvailable(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const testKey = "__storage_test__";
-    window.localStorage.setItem(testKey, testKey);
-    window.localStorage.removeItem(testKey);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Save settings to localStorage
  * Excludes session-only data like presetText, plan, planIndex
  */
 export function saveSettings(settings: SettingsState): void {
-  if (!isLocalStorageAvailable()) return;
 
   try {
-    // Create a copy without session-only fields
-    const persistableSettings: Partial<SettingsState> = {
-      mode: settings.mode,
-      duration: settings.duration,
-      wordTarget: settings.wordTarget,
-      quoteLength: settings.quoteLength,
-      punctuation: settings.punctuation,
-      numbers: settings.numbers,
-      capitalization: settings.capitalization,
-      typingFontSize: settings.typingFontSize,
-      typingFontFamily: settings.typingFontFamily,
-      iconFontSize: settings.iconFontSize,
-      helpFontSize: settings.helpFontSize,
-      difficulty: settings.difficulty,
-      textAlign: settings.textAlign,
-      ghostWriterSpeed: settings.ghostWriterSpeed,
-      ghostWriterEnabled: settings.ghostWriterEnabled,
-      soundEnabled: settings.soundEnabled,
-      typingSound: settings.typingSound,
-      warningSound: settings.warningSound,
-      errorSound: settings.errorSound,
-      presetModeType: settings.presetModeType,
-      showOnScreenKeyboard: settings.showOnScreenKeyboard,
-      keyboardLayout: settings.keyboardLayout,
-    };
+    const persistableSettings = persistablePracticeSettings(settings);
 
     window.localStorage.setItem(
       STORAGE_KEYS.SETTINGS,
@@ -114,7 +74,6 @@ export function saveSettings(settings: SettingsState): void {
  * Returns null if nothing is stored or parsing fails
  */
 export function loadSettings(): Partial<SettingsState> | null {
-  if (!isLocalStorageAvailable()) return null;
 
   try {
     const stored = window.localStorage.getItem(STORAGE_KEYS.SETTINGS);
@@ -131,7 +90,7 @@ export function loadSettings(): Partial<SettingsState> | null {
     return normalizePracticeSettings({
       ...DEFAULT_SETTINGS,
       presetText: "",
-      ...parsed,
+      ...persistablePracticeSettings(parsed),
     });
   } catch (error) {
     console.warn("Failed to load settings from localStorage:", error);
@@ -143,7 +102,6 @@ export function loadSettings(): Partial<SettingsState> | null {
  * Save theme colors to localStorage
  */
 export function saveTheme(theme: Theme): void {
-  if (!isLocalStorageAvailable()) return;
 
   try {
     window.localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(theme));
@@ -157,7 +115,6 @@ export function saveTheme(theme: Theme): void {
  * Returns null if nothing stored or parsing fails
  */
 export function loadTheme(): Theme | null {
-  if (!isLocalStorageAvailable()) return null;
 
   try {
     const stored = window.localStorage.getItem(STORAGE_KEYS.THEME);
@@ -185,7 +142,6 @@ export function loadTheme(): Theme | null {
  * Save selected theme name to localStorage
  */
 export function saveThemeName(themeName: string): void {
-  if (!isLocalStorageAvailable()) return;
 
   try {
     window.localStorage.setItem(STORAGE_KEYS.THEME_NAME, themeName);
@@ -199,7 +155,6 @@ export function saveThemeName(themeName: string): void {
  * Returns null if nothing stored
  */
 export function loadThemeName(): string | null {
-  if (!isLocalStorageAvailable()) return null;
 
   try {
     return window.localStorage.getItem(STORAGE_KEYS.THEME_NAME);
@@ -210,7 +165,6 @@ export function loadThemeName(): string | null {
 }
 
 export function saveLayoutSettings(layout: LayoutSettings): void {
-  if (!isLocalStorageAvailable()) return;
   try {
     window.localStorage.setItem(STORAGE_KEYS.LAYOUT, JSON.stringify(layout));
   } catch {
@@ -219,7 +173,6 @@ export function saveLayoutSettings(layout: LayoutSettings): void {
 }
 
 export function loadLayoutSettings(): LayoutSettings | null {
-  if (!isLocalStorageAvailable()) return null;
   try {
     const stored = window.localStorage.getItem(STORAGE_KEYS.LAYOUT);
     if (!stored) return null;
@@ -238,7 +191,6 @@ export function loadLayoutSettings(): LayoutSettings | null {
  * Clear all typesetgo settings from localStorage
  */
 export function clearAllSettings(): void {
-  if (!isLocalStorageAvailable()) return;
 
   try {
     window.localStorage.removeItem(STORAGE_KEYS.SETTINGS);

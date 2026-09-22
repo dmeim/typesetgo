@@ -31,10 +31,10 @@ High-level architecture:
 - **Auth/UI identity:** `@clerk/clerk-react` (optional at runtime)
 - **Styling:** Tailwind CSS v4 + Radix primitives + Shadcn/UI patterns
 - **Animation:** `framer-motion`
-- **Forms/validation:** `react-hook-form` + `zod`
+- **Forms/validation:** React state, typed preference adapters, Convex validators
 - **Testing:** Vitest + Testing Library (`jsdom`), isolated Playwright/browser acceptance
 - **Linting:** ESLint 10 + TypeScript ESLint using the pinned TypeScript 6 JavaScript API; builds retain native TypeScript 7. React Hooks/Refresh rules remain enabled. See [`ui-cleanup/tooling.md`](ui-cleanup/tooling.md).
-- **Hosting:** Cloudflare Workers Static Assets at `typesetgo.app`; manual Wrangler deployment, no container workflow
+- **Hosting:** Cloudflare Workers Static Assets at `typesetgo.app`; manual Wrangler deployment; owner-reported Workers Builds connection (unverified), no container workflow
 
 Key alias:
 - `@/` -> `src/` (configured in Vite + TS configs)
@@ -53,9 +53,7 @@ Key alias:
 The live Worker intentionally uses production Clerk with the existing Convex **development** deployment. Convex trusts `https://clerk.typesetgo.app` via `CLERK_JWT_ISSUER_DOMAIN`. Do not migrate data to Convex production as a hosting maintenance task. Local Convex development commands may target the live app's database; inspect the selected deployment before writes.
 
 ### Local startup model
-Typical dev flow uses two processes:
-1. Convex backend dev process (`bun run convex:dev`)
-2. Vite frontend dev server (`bun run dev`, port 3000)
+Start with `bun run dev:fixture` (isolated UI on port 4317). For a real backend use an isolated checkout and explicit env file/expected target with `bun run convex:dev`; see [development targets](development.md). Never use the live cloud development deployment for tests.
 
 ---
 
@@ -68,7 +66,7 @@ Typical dev flow uses two processes:
 - **Unit tests (watch):** `bun run test`
 - **Unit tests (single run):** `bun run test:run`
 - **E2E test command:** `bun run test:e2e` (all isolated browser suites), or append `practice`, `fonts`, `profiles`, `connect`, `connect-session`, or `race`. Build first for `fonts` (included in the default run); see the browser guide for fixture environment values.
-- **Convex dev:** `bun run convex:dev`
+- **Convex dev:** `bun run convex:dev --env-file PATH --expect local:NAME` (explicit target required)
 - **Convex deploy:** `bun run convex:deploy`
 - **Preview production build:** `bun run preview`
 - **Local Worker:** `bun run cf:dev` (build `dist/` first)
@@ -97,7 +95,7 @@ These catch type errors, bundling issues, and unit regressions.
 - Include pattern: `tests/unit/**/*.test.{ts,tsx}`
 
 Current repo state:
-- Unit tests cover shared theme/auth/overlay contracts, practice input/session/preferences, profile capabilities, and multiplayer handlers against in-memory fixtures.
+- Unit tests cover shared theme/auth/overlay contracts, practice input/session/preferences, profile capabilities, and multiplayer handlers against in-memory fixtures. Registered backend contract tests additionally use `convex-test` with real validators/schema/indexes and identity contexts; they do not verify deployed infrastructure.
 - If you modify utility behavior, validation logic, or deterministic transforms, add/adjust unit tests in `tests/unit/`.
 
 ### D. E2E posture
@@ -124,7 +122,7 @@ typesetgo/
 │   ├── components/           # Feature and shared components
 │   │   └── ui/               # Shadcn/Radix-style UI primitives
 │   ├── hooks/                # Custom React hooks
-│   ├── lib/                  # Utilities, schemas, constants, stores
+│   ├── lib/                  # Utilities, adapters, constants, stores
 │   ├── context/              # React context providers (theme, etc.)
 │   ├── types/                # TypeScript domain types
 │   ├── App.tsx               # Theme, motion, router and toast composition
@@ -153,10 +151,11 @@ typesetgo/
 
 ### Bootstrap/provider stack (`src/main.tsx`)
 Provider order is:
-1. `StrictMode` and `NotificationProvider`.
+1. `StrictMode`.
 2. When configured, `ClerkProvider` and `ConvexClerkProvider`; otherwise anonymous `ConvexProvider`.
 3. `AppAuthProvider`, exposing safe `useAppAuth` availability and guarded account actions.
-4. `App`: `ThemeProvider` → `IconProvider` → `MotionConfig reducedMotion="user"` → `RouterProvider` and themed `Toaster`.
+4. `AccountProvider`, owning authenticated account synchronization and readiness, then account-scoped `NotificationProvider`.
+5. `App`: `ThemeProvider` → `IconProvider` → `MotionConfig reducedMotion="user"` → `RouterProvider` and themed `Toaster`.
 
 Important behavior:
 - Missing Clerk configuration continues with a supported anonymous experience. Loading and failed auth remain distinct states.
@@ -167,7 +166,7 @@ Important behavior:
 
 - `src/components/ui/toast.tsx` adapts shadcn's Base UI Toast with TypeSetGo theme tokens, top-center stacking, seven visible toasts, and a four-second default timeout. Achievement toasts use five seconds and tier styling. The expanded stack scrolls on short viewports.
 - Import `toast` from `@/lib/toast-manager` for temporary feedback (`add`, `update`, `close`, or `promise`). Use `useNotify` from `@/hooks/useNotify` to deliver a new notification to both the toast and bell history; `{ persist: false }` opts out of history.
-- `NotificationProvider` retains the latest 50 entries under localStorage key `typesetgo_notifications`, including read state. Storage remains browser-wide, without account scoping or device synchronization. Convex stores earned achievements, not this inbox.
+- `NotificationProvider` retains the latest 50 entries under localStorage keys `typesetgo_notifications:user:<Clerk ID>` or `typesetgo_notifications:guest`, including read state. Account changes switch the visible history without remounting practice. The old unscoped key is not imported because its owner cannot be determined; histories do not sync across devices. Convex stores earned achievements, not this inbox.
 - Dismissing a toast does not mark its history entry read. Restoring history never emits toasts; call notification delivery from new event handlers rather than effects watching the stored list.
 - Dialogs ignore outside interactions targeting the toast viewport, so closing a toast does not dismiss the underlying form. Toasts use polite announcements and do not automatically focus; F6 reaches the viewport outside modal focus traps.
 - `tests/unit/foundations-toasts.test.tsx` covers delivery/history behavior; the practice browser suite includes `tests/browser/practice/toasts.mjs` for themes, keyboard focus, modal feedback, scrolling, and timer behavior.
@@ -191,13 +190,14 @@ Primary schema tables in `convex/schema.ts` include:
 - `userAchievements`
 - `userStreaks`
 - `userStatsCache`
-- `leaderboardCache`
+- `leaderboardCache` (legacy rows retained for schema compatibility; no runtime reader/writer)
+- `achievementProgress`
 - `raceResults`
 
 Patterns in this codebase:
 - timestamp-based lifecycle fields (`createdAt`, `updatedAt`, etc.)
 - explicit indexes for common lookups
-- cached aggregate tables for performance (stats/leaderboard)
+- bounded achievement progress and profile stats cache; leaderboard queries read indexed results directly
 - anti-cheat/session tracking in typing session records
 
 Convex guidance:
@@ -225,7 +225,7 @@ Generation runs:
 Rules:
 - Add/edit/remove source content files; do not manually maintain generated files.
 - Manifests and the theme catalog are git-ignored generated artifacts.
-- The practice picker uses `fetchThemeCatalogIndex()` to browse without loading all palettes. Full palettes load on preview/selection using the existing cache and prioritized queue. `fetchAllThemes()` remains available for the Host caller.
+- The practice picker uses `fetchThemeCatalogIndex()` to browse without loading all palettes. Full palettes load on preview/selection using the existing cache and prioritized queue. `fetchAllThemes()` remains available for older callers; Host now uses catalog metadata and selected-palette loading.
 
 ---
 
@@ -282,7 +282,7 @@ When implementing non-trivial changes:
 
 - App entry/providers: `src/main.tsx`
 - Routes: `src/components/layout/app-routes.ts`
-- Shared validation schemas: `src/lib/schemas.ts`
+- Typed preference adapters: `src/lib/practice-preferences.ts`; backend validators: `convex/schema.ts` and function arguments
 - Theme/sound/content helpers: `src/lib/*`
 - Convex schema: `convex/schema.ts`
 - Convex features: files like `convex/rooms.ts`, `convex/participants.ts`, `convex/raceResults.ts`

@@ -164,7 +164,6 @@ export default function PlanBuilderModal({
         numbers: false,
       },
       metadata: { title: `Step ${items.length + 1}`, subtitle: "" },
-      syncSettings: { waitForAll: false, zenWaiting: false },
     };
     setItems((current) => [...current, item]);
     setSelectedId(item.id);
@@ -205,12 +204,7 @@ export default function PlanBuilderModal({
       setError("Add custom text to each preset step before saving.");
       return;
     }
-    onSave(
-      items.map((item) => ({
-        ...item,
-        syncSettings: { waitForAll: false, zenWaiting: false },
-      })),
-    );
+    onSave(items);
     onClose();
   };
   return (

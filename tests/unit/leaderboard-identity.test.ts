@@ -1,46 +1,54 @@
-import { describe, expect, it, vi } from "vitest";
-import { getLeaderboard } from "../../convex/testResults";
-import { getUserById } from "../../convex/users";
-import type { Id } from "../../convex/_generated/dataModel";
-import { multiplayerDb } from "./fixtures/multiplayer-db";
+// @vitest-environment node
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { api } from "../../convex/_generated/api";
+import { backendContract, resultRow, userRow } from "./fixtures/backend-contract";
 
-const firstId = "users:first" as Id<"users">;
-const secondId = "users:second" as Id<"users">;
+afterEach(() => vi.useRealTimers());
 
-function fixture() {
-  return multiplayerDb({
-    users: [
-      { _id: firstId, clerkId: "clerk-first", username: "Same username", avatarUrl: "/first.png" },
-      { _id: secondId, clerkId: "clerk-second", username: "Same username" },
-    ],
-    testResults: [
-      { _id: "testResults:first", userId: firstId, wpm: 140, accuracy: 99, duration: 30000, isValid: true, rankedEligible: true, createdAt: 100 },
-      { _id: "testResults:second", userId: secondId, wpm: 160, accuracy: 99, duration: 30000, isValid: true, rankedEligible: true, createdAt: 200 },
-      { _id: "testResults:invalid", userId: firstId, wpm: 190, accuracy: 50, duration: 30000, isValid: false, rankedEligible: true, createdAt: 300 },
-    ],
+async function fixture() {
+  const t = backendContract();
+  const ids = await t.run(async (ctx) => {
+    const first = await ctx.db.insert("users", { ...userRow("first"), avatarUrl: "/first.png" });
+    const second = await ctx.db.insert("users", userRow("second"));
+    await ctx.db.insert("testResults", resultRow(first, { wpm: 140, createdAt: 100 }));
+    await ctx.db.insert("testResults", resultRow(second, { wpm: 160, createdAt: 200 }));
+    await ctx.db.insert("testResults", resultRow(first, { wpm: 190, isValid: false, createdAt: 300 }));
+    return { first, second };
   });
+  return { t, ...ids };
 }
 
-describe("public leaderboard identity (isolated handlers)", () => {
-  it("returns the matching Convex user ID for each ranked score despite duplicate usernames", async () => {
-    const db = fixture();
-    expect(await getLeaderboard._handler(db.ctx, { timeRange: "all-time", limit: 50 })).toEqual([
-      { rank: 1, userId: secondId, username: "Same username", avatarUrl: null, wpm: 160, createdAt: 200 },
-      { rank: 2, userId: firstId, username: "Same username", avatarUrl: "/first.png", wpm: 140, createdAt: 100 },
+describe("public leaderboard contract", () => {
+  it("ranks distinct account IDs with duplicate usernames and rejects invalid scores", async () => {
+    const { t, first, second } = await fixture();
+    expect(await t.query(api.testResults.getLeaderboard, { timeRange: "all-time", limit: 50 })).toEqual([
+      { rank: 1, userId: second, username: "Same username", avatarUrl: null, wpm: 160, createdAt: 200 },
+      { rank: 2, userId: first, username: "Same username", avatarUrl: "/first.png", wpm: 140, createdAt: 100 },
     ]);
   });
 
-  it("keeps the public destination stable through a username rename and needs no viewer identity", async () => {
-    const db = fixture();
-    const ctx = { ...db.ctx, auth: { getUserIdentity: vi.fn(async () => null) } };
-    const [before] = await getLeaderboard._handler(ctx, { timeRange: "all-time", limit: 1 });
-    await db.ctx.db.patch(secondId, { username: "Renamed typist" });
-    const [after] = await getLeaderboard._handler(ctx, { timeRange: "all-time", limit: 1 });
-    expect(after).toEqual({ ...before, username: "Renamed typist" });
-    expect(await getUserById._handler(ctx, { userId: after.userId })).toMatchObject({
-      _id: secondId, clerkId: "clerk-second", username: "Renamed typist",
+  it("immediately reflects identity changes and returns only public profile fields", async () => {
+    const { t, second } = await fixture();
+    await t.withIdentity({ subject: "second" }).mutation(api.users.updateProfile, { clerkId: "second", username: "Renamed" });
+    const [entry] = await t.query(api.testResults.getLeaderboard, { timeRange: "all-time", limit: 1 });
+    expect(entry.userId).toBe(second);
+    expect(entry.username).toBe("Renamed");
+    expect(await t.query(api.users.getUserById, { userId: second })).toEqual({ _id: second, username: "Renamed", createdAt: 1 });
+    expect(await t.run((ctx) => ctx.db.query("leaderboardCache").collect())).toEqual([]);
+  });
+
+  it("finds a lower replacement after UTC rollover and deletion; never ranks unranked saves", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-22T00:01:00Z"));
+    const { t, first } = await fixture();
+    const currentId = await t.run(async (ctx) => {
+      await ctx.db.insert("testResults", resultRow(first, { wpm: 180, createdAt: Date.parse("2026-09-21T23:59:00Z") }));
+      await ctx.db.insert("testResults", resultRow(first, { wpm: 250, rankedEligible: false }));
+      return ctx.db.insert("testResults", resultRow(first, { wpm: 130 }));
     });
-    expect(after.userId).not.toBe("clerk-second");
-    expect(ctx.auth.getUserIdentity).not.toHaveBeenCalled();
+    expect((await t.query(api.testResults.getLeaderboard, { timeRange: "today" }))[0].wpm).toBe(130);
+    await t.withIdentity({ subject: "first" }).mutation(api.testResults.deleteResult, { clerkId: "first", resultId: currentId });
+    expect(await t.query(api.testResults.getLeaderboard, { timeRange: "today" })).toEqual([]);
+    expect((await t.query(api.testResults.getLeaderboard, { timeRange: "week" }))[0].wpm).toBe(180);
   });
 });

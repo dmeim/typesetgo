@@ -2,12 +2,16 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
+import { createThemeCatalogEntry } from "../../../src/lib/theme-catalog.ts";
 import { createHash } from "node:crypto";
 const root = path.resolve(import.meta.dirname, "../../..");
 export default defineConfig({
   cacheDir: path.join(tmpdir(), "typesetgo-connect-" + createHash("sha256").update(root).digest("hex").slice(0, 12)),
   root,
   envDir: false,
+  // Scan the served fixture, rather than the unrelated production index.html.
+  optimizeDeps: { entries: ["tests/fixtures/connect-browser/index.html"] },
   envPrefix: "TYPESETGO_FIXTURE_",
   plugins: [
     react(),
@@ -32,6 +36,10 @@ export default defineConfig({
               },
               warning: { clock: ["clock.wav"] },
               error: {},
+            },
+            "/themes/catalog.json": {
+              version: 1,
+              themes: ["typesetgo", "github"].map((id) => createThemeCatalogEntry(id, JSON.parse(readFileSync(path.join(root, `public/themes/${id}.json`), "utf8")))),
             },
             "/themes/manifest.json": {
               themes: ["typesetgo", "github"],

@@ -8,22 +8,9 @@ export type PlanItem = {
     title: string;
     subtitle: string;
   };
-  syncSettings: {
-    waitForAll: boolean;
-    zenWaiting: boolean; // Only relevant if waitForAll is true
-  };
 };
 
 export type Plan = PlanItem[];
-
-export type UserPlanProgress = {
-  userId: string;
-  currentStepIndex: number;
-  // Map step ID to result stats.
-  // We use the same stats structure as TypingPractice: { wpm, accuracy, ... }
-  stepResults: Record<string, PlanStepResult>;
-  status: "typing" | "waiting" | "zen_waiting";
-};
 
 export type PlanStepResult = {
   wpm: number;

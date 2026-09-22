@@ -21,12 +21,16 @@ export async function getAuthedUser(
     .first();
 }
 
-export async function requireAuthedUser(ctx: AuthCtx): Promise<Doc<"users">> {
+export async function requireAuthedUser(ctx: AuthCtx, clerkId?: string): Promise<Doc<"users">> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
     throw new Error(
       "Not authenticated. Frontend must wrap Convex with ConvexProviderWithClerk."
     );
+  }
+
+  if (clerkId !== undefined && identity.subject !== clerkId) {
+    throw new Error("Account does not belong to the signed-in user.");
   }
 
   const user = await ctx.db
@@ -39,4 +43,13 @@ export async function requireAuthedUser(ctx: AuthCtx): Promise<Doc<"users">> {
   }
 
   return user;
+}
+
+export async function requireIdentity(ctx: AuthCtx, clerkId: string) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Not authenticated.");
+  if (identity.subject !== clerkId) {
+    throw new Error("Account does not belong to the signed-in user.");
+  }
+  return identity;
 }

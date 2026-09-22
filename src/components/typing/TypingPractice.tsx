@@ -1,44 +1,36 @@
 import {
   ArrowFatLineUpIcon,
-  ArrowFatRightIcon,
-  ArrowLeftIcon,
   ArrowsClockwiseIcon,
-  ChartBarIcon,
-  SignOutIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { SOLO_PREPARED_SESSION_TTL_MS } from "@/lib/practice-limits";
 import { toast } from "@/lib/toast-manager";
-import { normalizePracticeSettings, type Quote, type SettingsState, type Theme } from "@/lib/typing-constants";
+import { normalizePracticeSettings, type Quote, type SettingsState } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { useTheme } from "@/hooks/useTheme";
-import { deriveThemeUI, deriveThemeTyping } from "@/lib/colors";
 import { tv } from "@/lib/theme-vars";
 import { fetchWordsManifest, type WordsManifest } from "@/lib/words";
 import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
-  saveSettings,
-  loadLayoutSettings,
-  saveLayoutSettings,
 } from "@/lib/storage-utils";
-import { DEFAULT_TYPING_FONT, getTypingFontFamily } from "@/lib/typing-fonts";
+import { getTypingFontFamily } from "@/lib/typing-fonts";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
-import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
-import type { Plan, PlanItem, PlanStepResult } from "@/types/plan";
-import PlanBuilderModal from "@/components/plan/PlanBuilderModal";
-import PlanSplash from "@/components/plan/PlanSplash";
-import PlanResultsModal from "@/components/plan/PlanResultsModal";
 import { Progress } from "@/components/ui/progress";
 import { useAppAuth } from "@/components/layout/useAppAuth";
+import { useAccount } from "@/components/layout/useAccount";
+import { getLocalCalendarFields } from "@/lib/activity-calendar";
+import { calculateAccuracy, calculateWpm } from "@/lib/typing-metrics";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useNotify } from "@/hooks/useNotify";
 import { getAchievementById } from "@/lib/achievement-definitions";
 import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey,
   hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
+import { usePracticePreferences } from "./usePracticePreferences";
 import { usePracticeClock } from "./usePracticeClock";
 import { usePracticeDataset } from "./usePracticeDataset";
 import { useTypingScroll } from "./useTypingScroll";
@@ -141,19 +133,6 @@ interface TypingPracticeProps {
   onTypingStateChange?: (isTyping: boolean) => void;
 }
 
-function getLocalCalendarFields() {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  return {
-    localDate: now.toISOString().split("T")[0],
-    localHour: now.getHours(),
-    isWeekend: dayOfWeek === 0 || dayOfWeek === 6,
-    dayOfWeek,
-    month: now.getMonth(),
-    day: now.getDate(),
-  };
-}
-
 export default function TypingPractice({
   connectMode = false,
   fitToParentHeight = false,
@@ -169,38 +148,18 @@ export default function TypingPractice({
   onTypingStateChange,
 }: TypingPracticeProps) {
   const { isSignedIn, user, openSignIn, status: authStatus } = useAppAuth();
-  // Theme context (replaces props and internal state)
-  const {
-    colors,
-    themeId: selectedThemeId,
-    variantId: selectedVariantId,
-    mode: selectedMode,
-    userSelectionRevision,
-    setThemeSelection,
-  } = useTheme();
+  const { ensureAccount, status: accountStatus } = useAccount();
+  const { colors } = useTheme();
   // --- State ---
-  const [localSettings, setSettings] = useState<SettingsState>(() => normalizePracticeSettings({
-    ...DEFAULT_SETTINGS, ...loadSettings(), presetText: "", ...(connectMode ? lockedSettings : {}),
-  }));
+  const [localSettings, setSettings] = useState<SettingsState>(() => {
+    const restored = normalizePracticeSettings({ ...DEFAULT_SETTINGS, ...loadSettings(), presetText: "",
+      ...(connectMode ? lockedSettings : {}) });
+    // Solo plans were never exposed; old preferences resume ordinary practice.
+    return !connectMode && restored.mode === "plan" ? { ...restored, mode: "zen" } : restored;
+  });
   const settings = useMemo(() => connectMode && lockedSettings
     ? normalizePracticeSettings({ ...localSettings, ...lockedSettings }) : localSettings,
   [connectMode, lockedSettings, localSettings]);
-  // Account defaults arriving during an attempt belong to the next prompt, including while results are open.
-  const [queuedPromptPreferences, setQueuedPromptPreferences] = useState<{
-    accountId: string; settings: Partial<SettingsState>;
-  } | null>(null);
-  const pendingPromptPreferences = queuedPromptPreferences && queuedPromptPreferences.accountId === user?.id ? queuedPromptPreferences.settings : null;
-  const preferredSettings = useMemo(() => pendingPromptPreferences
-    ? { ...settings, ...pendingPromptPreferences } : settings, [settings, pendingPromptPreferences]);
-  const preferenceEditsRef = useRef(new Set<string>());
-  const themeEditedRef = useRef(false);
-  const themeRevisionBaselineRef = useRef(userSelectionRevision);
-  const themeRevisionRef = useRef(userSelectionRevision);
-  useLayoutEffect(() => {
-    themeRevisionRef.current = userSelectionRevision;
-    if (userSelectionRevision !== themeRevisionBaselineRef.current) themeEditedRef.current = true;
-  }, [userSelectionRevision]);
-
   // Use external state if provided, otherwise use internal state
   const [internalShowSettings, setInternalShowSettings] = useState(false);
   const [internalShowThemeModal, setInternalShowThemeModal] = useState(false);
@@ -211,25 +170,6 @@ export default function TypingPractice({
   const showThemeModal = externalShowThemeModal ?? internalShowThemeModal;
   const setShowThemeModal = externalSetShowThemeModal ?? setInternalShowThemeModal;
 
-  const [linePreview, setLinePreview] = useState(() => loadLayoutSettings()?.linePreview ?? 3);
-  const [maxWordsPerLine, setMaxWordsPerLine] = useState(() => loadLayoutSettings()?.maxWordsPerLine ?? 7);
-  // Font option is now stored in settings.typingFontFamily
-  const planTheme: Theme = useMemo(() => {
-    const ui = deriveThemeUI(colors);
-    const typing = deriveThemeTyping(colors, ui);
-    return {
-      cursor: typing.cursor,
-      defaultText: ui.mutedForeground,
-      upcomingText: typing.upcoming,
-      correctText: ui.foreground,
-      incorrectText: ui.destructive,
-      buttonUnselected: ui.primary,
-      buttonSelected: ui.secondaryEmphasis,
-      backgroundColor: ui.background,
-      surfaceColor: ui.card,
-      ghostCursor: typing.cursorGhost,
-    };
-  }, [colors]);
   const [soundManifest, setSoundManifest] = useState<SoundManifest | null>(null);
   const [wordsManifest, setWordsManifest] = useState<WordsManifest | null>(null);
   const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
@@ -296,24 +236,18 @@ export default function TypingPractice({
     showOnScreenKeyboard: boolean;
   } | null>(null);
 
-  // Plan Mode State
-  const [plan, setPlan] = useState<Plan>([]);
-  const [planIndex, setPlanIndex] = useState(0);
-  const [isPlanActive, setIsPlanActive] = useState(false);
-  const [isPlanSplash, setIsPlanSplash] = useState(false);
-  const [showPlanBuilder, setShowPlanBuilder] = useState(false);
-  const [planResults, setPlanResults] = useState<Record<string, PlanStepResult>>({});
-  const [showPlanResultsModal, setShowPlanResultsModal] = useState(false);
   const overlayOpenRef = useRef(false);
   useLayoutEffect(() => {
-    overlayOpenRef.current = showSettings || showThemeModal || showQuickSettings || showCustomCountModal || showPresetInput || showPlanBuilder || showPlanResultsModal;
-  }, [showSettings, showThemeModal, showQuickSettings, showCustomCountModal, showPresetInput, showPlanBuilder, showPlanResultsModal]);
+    overlayOpenRef.current = showSettings || showThemeModal || showQuickSettings || showCustomCountModal || showPresetInput;
+  }, [showSettings, showThemeModal, showQuickSettings, showCustomCountModal, showPresetInput]);
 
   // Save Results State
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastResultIsValid, setLastResultIsValid] = useState<boolean | null>(null);
   const [lastResultInvalidReason, setLastResultInvalidReason] = useState<string | undefined>(undefined);
   const pendingResultRef = useRef<{
+    attemptEpoch: number;
+    completedAt: number;
     wpm: number;
     accuracy: number;
     mode: string;
@@ -343,15 +277,15 @@ export default function TypingPractice({
 
   // Clerk auth hooks
   const saveResultMutation = useMutation(api.testResults.saveResult);
-  const getOrCreateUser = useMutation(api.users.getOrCreateUser);
   const startSessionMutation = useMutation(api.typingSessions.startSession);
   const recordProgressMutation = useMutation(api.typingSessions.recordProgress);
   const finalizeSessionMutation = useMutation(api.typingSessions.finalizeSession);
   const cancelSessionMutation = useMutation(api.typingSessions.cancelSession);
 
+  const sessionPreparedAtRef = useRef(0);
+  const completedAtRef = useRef<number | null>(null);
   const sessionIdRef = useRef<Id<"typingSessions"> | null>(null);
   const startingSessionRef = useRef(false);
-  const pendingTypedLengthRef = useRef(0);
   const finalizedRef = useRef(false);
   const savingRef = useRef(false);
   const autoSaveAttemptedEpochRef = useRef(-1);
@@ -372,17 +306,6 @@ export default function TypingPractice({
   // New achievement events go to the toast and browser notification history.
   const notify = useNotify();
 
-  // Preferences sync
-  const dbPreferences = useQuery(
-    api.preferences.getPreferences,
-    user ? { clerkId: user.id } : "skip"
-  );
-  const savePreferencesMutation = useMutation(api.preferences.savePreferences);
-  const [observedAccountId, setObservedAccountId] = useState(user?.id ?? null);
-  const [hydratedAccountId, setHydratedAccountId] = useState<string | null>(null);
-  const hasResolvedDbPrefs = !user || dbPreferences === null || hydratedAccountId === user.id;
-  const prefsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const inputRef = useRef<HTMLInputElement | null>(null);
   const focusRequestedRef = useRef(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -390,32 +313,58 @@ export default function TypingPractice({
   const contentRef = useRef<HTMLDivElement | null>(null);
   const composingRef = useRef(false);
   const [compositionDraft, setCompositionDraft] = useState<string | null>(null);
+  const { pendingPromptPreferences, setQueuedPromptPreferences, markEdited, markThemeEdited,
+    linePreview, maxWordsPerLine, updateLinePreview, updateMaxWordsPerLine } = usePracticePreferences({
+    userId: user?.id, connectMode, settings, settingsRef, setSettings, isRunningRef, isFinishedRef, composingRef,
+  });
   const scrollOffset = useTypingScroll({ viewportRef: containerRef, contentRef, caretRef,
     layoutKey: JSON.stringify([typedText, compositionDraft, words, settings.typingFontSize, settings.typingFontFamily, settings.textAlign, maxWordsPerLine, isFinished]),
     visibleLines: linePreview });
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const topLayoutRef = useRef<HTMLDivElement | null>(null);
   const bottomLayoutRef = useRef<HTMLDivElement | null>(null);
   const [typingCenterOffset, setTypingCenterOffset] = useState(0);
 
   const promptReady = dataset.status === "ready" && matchesPromptRequest && words.length > 0;
 
-  useLayoutEffect(() => {
-    if (sessionEpochRef.current === sessionEpoch) return;
+  // Prompt replacement and explicit restart share the same runtime cleanup.
+  const resetAttemptRuntime = useCallback((epoch: number, isRepeat: boolean) => {
     const previousSessionId = sessionIdRef.current;
-    sessionEpochRef.current = sessionEpoch;
+    sessionEpochRef.current = epoch;
     sessionIdRef.current = null;
-    pendingTypedLengthRef.current = 0;
+    sessionPreparedAtRef.current = 0;
+    completedAtRef.current = null;
+    pendingResultRef.current = null;
     finalizedRef.current = false;
     savingRef.current = false;
-    repeatRef.current = false;
+    repeatRef.current = isRepeat;
     startingSessionRef.current = false;
     composingRef.current = false;
     warningPlayedRef.current = false;
+    isFinishedRef.current = false;
+    isRunningRef.current = false;
+    typedTextRef.current = "";
+    elapsedMsRef.current = 0;
     focusRequestedRef.current = !overlayOpenRef.current;
     resetClock();
     if (previousSessionId) void cancelSessionMutation({ sessionId: previousSessionId }).catch(() => {});
-  }, [sessionEpoch, resetClock, cancelSessionMutation]);
+  }, [resetClock, cancelSessionMutation]);
+
+  const resetAttemptView = useCallback((isRepeat: boolean, ranked: boolean) => {
+    setTypedText("");
+    setCompositionDraft(null);
+    setIsRunning(false);
+    setIsFinished(false);
+    setIsRepeated(isRepeat);
+    setIsFocused(false);
+    setRankingStatus(ranked ? "pending" : "unranked");
+    setSaveState("idle");
+    setLastResultIsValid(null);
+    setLastResultInvalidReason(undefined);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (sessionEpochRef.current !== sessionEpoch) resetAttemptRuntime(sessionEpoch, false);
+  }, [sessionEpoch, resetAttemptRuntime]);
 
   useLayoutEffect(() => {
     if (promptReady && focusRequestedRef.current && !overlayOpenRef.current && !isFinished && (!connectMode || isTestActive)) {
@@ -434,9 +383,8 @@ export default function TypingPractice({
     const typedWords = trimmed.split(/\s+/).length;
     return typedText.endsWith(" ") ? typedWords : Math.max(typedWords - 1, 0);
   }, [typedText]);
-  const accuracy = typedText.length > 0 ? (stats.correct / typedText.length) * 100 : 100;
-  const elapsedMinutes = elapsedMs / 60000 || 0.01;
-  const wpm = (typedText.length / 5) / elapsedMinutes;
+  const accuracy = calculateAccuracy(stats.correct, typedText.length);
+  const wpm = calculateWpm(typedText.length, elapsedMs);
   const zenProgressGradient = useMemo(
     () => `linear-gradient(120deg, ${colors.interactive.secondary.DEFAULT} 0%, ${colors.interactive.accent.DEFAULT} 25%, ${colors.interactive.primary.DEFAULT} 50%, ${colors.interactive.accent.DEFAULT} 75%, ${colors.interactive.secondary.DEFAULT} 100%)`,
     [colors]
@@ -444,27 +392,6 @@ export default function TypingPractice({
 
   const timeRemaining =
     isTimedPractice(settings) ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
-
-  // --- Save Settings ---
-  useEffect(() => {
-    if (connectMode) return;
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = setTimeout(() => {
-      saveSettings(preferredSettings);
-      saveLayoutSettings({ linePreview, maxWordsPerLine });
-    }, 500);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [preferredSettings, linePreview, maxWordsPerLine, connectMode]);
-
-  // Theme saving is now handled by ThemeContext
 
   // --- Compact Mode Detection (for zoomed/narrow viewports) ---
   useEffect(() => {
@@ -484,207 +411,6 @@ export default function TypingPractice({
     return () => window.removeEventListener("resize", checkCompactMode);
   }, []);
 
-  // --- Preferences snapshot for dirty tracking ---
-  const lastSavedPrefsRef = useRef<string | null>(null);
-  const needsSnapshotStamp = useRef(false);
-
-  const buildPrefsSnapshot = useCallback(() => JSON.stringify({
-    themeId: selectedThemeId,
-    themeVariantId: selectedVariantId,
-    themeMode: selectedMode,
-    soundEnabled: preferredSettings.soundEnabled,
-    typingSound: preferredSettings.typingSound,
-    warningSound: preferredSettings.warningSound,
-    errorSound: preferredSettings.errorSound,
-    ghostWriterEnabled: preferredSettings.ghostWriterEnabled,
-    ghostWriterSpeed: preferredSettings.ghostWriterSpeed,
-    typingFontSize: preferredSettings.typingFontSize,
-    typingFontFamily: preferredSettings.typingFontFamily,
-    iconFontSize: preferredSettings.iconFontSize,
-    helpFontSize: preferredSettings.helpFontSize,
-    textAlign: preferredSettings.textAlign,
-    defaultMode: preferredSettings.mode,
-    defaultDuration: preferredSettings.duration,
-    defaultWordTarget: preferredSettings.wordTarget,
-    defaultDifficulty: preferredSettings.difficulty,
-    defaultQuoteLength: preferredSettings.quoteLength,
-    defaultPunctuation: preferredSettings.punctuation,
-    defaultNumbers: preferredSettings.numbers,
-    defaultCapitalization: preferredSettings.capitalization,
-    defaultPresetModeType: preferredSettings.presetModeType,
-    linePreview: Math.max(1, Math.min(6, linePreview)),
-    maxWordsPerLine: Math.max(1, Math.min(10, maxWordsPerLine)),
-    showOnScreenKeyboard: preferredSettings.showOnScreenKeyboard,
-    keyboardLayout: preferredSettings.keyboardLayout,
-  }), [
-    selectedThemeId, selectedVariantId, selectedMode,
-    preferredSettings.soundEnabled, preferredSettings.typingSound, preferredSettings.warningSound, preferredSettings.errorSound,
-    preferredSettings.ghostWriterEnabled, preferredSettings.ghostWriterSpeed,
-    preferredSettings.typingFontSize, preferredSettings.typingFontFamily,
-    preferredSettings.iconFontSize, preferredSettings.helpFontSize, preferredSettings.textAlign,
-    preferredSettings.mode, preferredSettings.duration, preferredSettings.wordTarget, preferredSettings.difficulty,
-    preferredSettings.quoteLength, preferredSettings.punctuation, preferredSettings.numbers, preferredSettings.capitalization,
-    preferredSettings.presetModeType, preferredSettings.showOnScreenKeyboard, preferredSettings.keyboardLayout,
-    linePreview, maxWordsPerLine,
-  ]);
-
-  // Anonymous edits follow the first sign-in. Edits from a previous account do not follow another account.
-  const preferencesAccountRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (preferencesAccountRef.current && preferencesAccountRef.current !== user?.id) {
-      preferenceEditsRef.current.clear();
-      themeEditedRef.current = false;
-      themeRevisionBaselineRef.current = themeRevisionRef.current;
-      lastSavedPrefsRef.current = null;
-    }
-    preferencesAccountRef.current = user?.id ?? null;
-  }, [user?.id]);
-
-  // --- Load Preferences from DB (for logged-in users) ---
-  useEffect(() => {
-    if (connectMode || !user?.id || hasResolvedDbPrefs || dbPreferences === undefined) return;
-
-    // Local hydration is complete before the first render. Only event callbacks mark user edits.
-    if (!dbPreferences) return;
-
-    let isCancelled = false;
-
-    // Use requestAnimationFrame to defer state updates and avoid cascading renders
-    const hydrationFrame = requestAnimationFrame(() => {
-      if (isCancelled) return;
-      void (async () => {
-        if (isCancelled) return;
-        try {
-          // Apply theme from DB using the context
-          const dbThemeId = (dbPreferences as Record<string, unknown>).themeId as string | undefined;
-          const dbVariantId = (dbPreferences as Record<string, unknown>).themeVariantId as string | undefined;
-          const dbThemeMode = (dbPreferences as Record<string, unknown>).themeMode as string | undefined;
-          if (dbThemeId && !themeEditedRef.current) {
-            try {
-              await setThemeSelection({
-                themeId: dbThemeId,
-                variantId: dbVariantId || undefined,
-                mode: (dbThemeMode as "light" | "dark") || undefined,
-              }, { source: "preferences", expectedUserSelectionRevision: themeRevisionBaselineRef.current });
-            } catch (error) {
-              console.warn("Failed to apply theme from DB preferences:", error);
-            }
-          } else if (!themeEditedRef.current && dbPreferences.themeName && !dbPreferences.customTheme) {
-            try {
-              await setThemeSelection({ themeId: dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-") },
-                { source: "preferences", expectedUserSelectionRevision: themeRevisionBaselineRef.current });
-            } catch (error) {
-              console.warn("Failed to apply theme from DB preferences:", error);
-            }
-          }
-          if (isCancelled) return;
-
-          // Note: Custom themes are not currently supported in the new theme system
-          // They would need to be stored as theme JSON files
-
-          // Apply settings from DB
-          {
-            const prev = settingsRef.current;
-            const restored = normalizePracticeSettings({
-            ...prev,
-            mode: dbPreferences.defaultMode as typeof prev.mode,
-            duration: dbPreferences.defaultDuration,
-            wordTarget: dbPreferences.defaultWordTarget,
-            difficulty: dbPreferences.defaultDifficulty as typeof prev.difficulty,
-            quoteLength: dbPreferences.defaultQuoteLength as typeof prev.quoteLength,
-            punctuation: dbPreferences.defaultPunctuation,
-            numbers: dbPreferences.defaultNumbers,
-            capitalization: dbPreferences.defaultCapitalization ?? false,
-            presetModeType: (dbPreferences.defaultPresetModeType as typeof prev.presetModeType) ?? prev.presetModeType,
-            soundEnabled: dbPreferences.soundEnabled,
-            typingSound: dbPreferences.typingSound,
-            warningSound: dbPreferences.warningSound,
-            errorSound: dbPreferences.errorSound,
-            ghostWriterEnabled: dbPreferences.ghostWriterEnabled,
-            ghostWriterSpeed: dbPreferences.ghostWriterSpeed,
-            typingFontSize: dbPreferences.typingFontSize,
-            typingFontFamily: ((dbPreferences as Record<string, unknown>).typingFontFamily as string) ?? DEFAULT_TYPING_FONT,
-            iconFontSize: dbPreferences.iconFontSize,
-            helpFontSize: dbPreferences.helpFontSize,
-            textAlign: dbPreferences.textAlign as typeof prev.textAlign,
-            showOnScreenKeyboard: (dbPreferences as Record<string, unknown>).showOnScreenKeyboard as boolean ?? prev.showOnScreenKeyboard,
-            keyboardLayout: ((dbPreferences as Record<string, unknown>).keyboardLayout as KeyboardLayoutId) ?? prev.keyboardLayout,
-            });
-            for (const key of preferenceEditsRef.current) {
-              if (key in prev) Object.assign(restored, { [key]: prev[key as keyof SettingsState] });
-            }
-            if (isRunningRef.current || isFinishedRef.current || composingRef.current) {
-              const pending: Partial<SettingsState> = {};
-              for (const key of PROMPT_SETTING_KEYS) {
-                if (restored[key] !== prev[key]) Object.assign(pending, { [key]: restored[key] });
-                Object.assign(restored, { [key]: prev[key] });
-              }
-              setQueuedPromptPreferences(Object.keys(pending).length ? { accountId: user.id, settings: pending } : null);
-            }
-            setSettings(restored);
-          }
-
-          if (!preferenceEditsRef.current.has("linePreview") && typeof dbPreferences.linePreview === "number") {
-            setLinePreview(Math.max(1, Math.min(6, Math.round(dbPreferences.linePreview))));
-          }
-
-          if (!preferenceEditsRef.current.has("maxWordsPerLine") && typeof dbPreferences.maxWordsPerLine === "number") {
-            setMaxWordsPerLine(Math.max(1, Math.min(10, Math.round(dbPreferences.maxWordsPerLine))));
-          }
-        } finally {
-          if (!isCancelled) {
-            needsSnapshotStamp.current = preferenceEditsRef.current.size === 0 && !themeEditedRef.current;
-            setHydratedAccountId(user.id);
-          }
-        }
-      })();
-    });
-
-    return () => {
-      isCancelled = true;
-      cancelAnimationFrame(hydrationFrame);
-    };
-  }, [dbPreferences, hasResolvedDbPrefs, setThemeSelection, user?.id, connectMode]);
-
-  // --- Save Preferences to DB (debounced, dirty-checked, for logged-in users) ---
-  useEffect(() => {
-    if (connectMode || !user || !hasResolvedDbPrefs) return;
-
-    const currentSnapshot = buildPrefsSnapshot();
-
-    // After loading from DB, stamp the snapshot so we don't re-save what was just loaded
-    if (needsSnapshotStamp.current || (dbPreferences === null && lastSavedPrefsRef.current === null
-      && preferenceEditsRef.current.size === 0 && !themeEditedRef.current)) {
-      needsSnapshotStamp.current = false;
-      lastSavedPrefsRef.current = currentSnapshot;
-      return;
-    }
-
-    if (currentSnapshot === lastSavedPrefsRef.current) return;
-
-    if (prefsDebounceRef.current) {
-      clearTimeout(prefsDebounceRef.current);
-    }
-
-    prefsDebounceRef.current = setTimeout(async () => {
-      try {
-        await savePreferencesMutation({
-          clerkId: user.id,
-          preferences: JSON.parse(currentSnapshot),
-        });
-        lastSavedPrefsRef.current = currentSnapshot;
-      } catch (error) {
-        console.warn("Failed to save preferences to DB:", error);
-      }
-    }, 1000);
-
-    return () => {
-      if (prefsDebounceRef.current) {
-        clearTimeout(prefsDebounceRef.current);
-      }
-    };
-  }, [user, hasResolvedDbPrefs, dbPreferences, buildPrefsSnapshot, savePreferencesMutation, connectMode]);
-
   // --- Load sound manifest ---
   useEffect(() => {
     fetchSoundManifest().then(setSoundManifest);
@@ -702,7 +428,7 @@ export default function TypingPractice({
 
   // --- Callbacks ---
   const updateSettings = useCallback((updates: Partial<SettingsState>) => {
-    Object.keys(updates).forEach((key) => preferenceEditsRef.current.add(key));
+    markEdited(Object.keys(updates));
     // Explicit prompt edits start a new attempt, so apply queued account defaults at that boundary too.
     const startsPrompt = PROMPT_SETTING_KEYS.some((key) => key in updates);
     if (startsPrompt) {
@@ -710,108 +436,35 @@ export default function TypingPractice({
       setPromptSeed({ value: Math.floor(Math.random() * 4294967296) });
     }
     setSettings((prev) => normalizePracticeSettings({ ...prev, ...(startsPrompt ? pendingPromptPreferences : {}), ...updates }));
-  }, [pendingPromptPreferences]);
-
-  const updateLinePreview = useCallback((value: number) => {
-    preferenceEditsRef.current.add("linePreview");
-    setLinePreview(value);
-  }, []);
-
-  const updateMaxWordsPerLine = useCallback((value: number) => {
-    preferenceEditsRef.current.add("maxWordsPerLine");
-    setMaxWordsPerLine(value);
-  }, []);
+  }, [pendingPromptPreferences, markEdited, setQueuedPromptPreferences]);
 
   const openCustomCountModal = useCallback(() => {
     if (settings.mode === "time" || settings.mode === "words") setShowCustomCountModal(true);
   }, [settings.mode]);
 
   const resetSession = useCallback((isRepeat = false) => {
-    const existingSessionId = sessionIdRef.current;
-    sessionIdRef.current = null;
-    pendingTypedLengthRef.current = 0;
-    finalizedRef.current = false;
-    savingRef.current = false;
-    isFinishedRef.current = false;
-    if (existingSessionId) {
-      void cancelSessionMutation({ sessionId: existingSessionId }).catch(() => {});
-    }
-    sessionEpochRef.current += 1;
-    setSessionEpoch(sessionEpochRef.current);
+    const epoch = sessionEpochRef.current + 1;
+    resetAttemptRuntime(epoch, isRepeat);
+    setSessionEpoch(epoch);
+    resetAttemptView(isRepeat, !isRepeat && isSignedInRef.current && settingsRef.current.mode !== "zen");
+  }, [resetAttemptRuntime, resetAttemptView]);
 
-    typedTextRef.current = "";
-    isRunningRef.current = false;
-    elapsedMsRef.current = 0;
-    repeatRef.current = isRepeat;
-    startingSessionRef.current = false;
-    setRankingStatus(isRepeat || !isSignedInRef.current || settingsRef.current.mode === "zen" ? "unranked" : "pending");
-    composingRef.current = false;
-    setCompositionDraft(null);
-    setTypedText("");
-    setIsRunning(false);
-    setIsFinished(false);
-    resetClock();
-    setIsRepeated(isRepeat);
-    focusRequestedRef.current = !overlayOpenRef.current;
-    setIsFocused(document.activeElement === inputRef.current);
-    warningPlayedRef.current = false;
-    setSaveState("idle");
-    setLastResultIsValid(null);
-    setLastResultInvalidReason(undefined);
-  }, [cancelSessionMutation, resetClock]);
-
-  // Ref to store pending plan result
-  const pendingPlanResultRef = useRef<{
-    itemId: string;
-    result: PlanStepResult;
-  } | null>(null);
+  const attemptAccountRef = useRef(user?.id ?? null);
+  useLayoutEffect(() => {
+    const next = user?.id ?? null;
+    // Guest completion may survive its first sign-in; authenticated attempts never cross accounts.
+    if (!connectMode && attemptAccountRef.current !== null && attemptAccountRef.current !== next) resetSession();
+    attemptAccountRef.current = next;
+  }, [user?.id, resetSession, connectMode]);
 
   const finishSession = useCallback(() => {
     if (isFinishedRef.current) return;
     isFinishedRef.current = true;
-
-    const currentTypedText = typedTextRef.current;
-    const currentWords = wordsRef.current;
-    const currentElapsedMs = readElapsed();
-    elapsedMsRef.current = currentElapsedMs;
-
-    // If in plan mode, prepare the result to be recorded
-    if (isPlanActive && !isPlanSplash) {
-      const currentItem = plan[planIndex];
-      if (currentItem && !planResults[currentItem.id]) {
-        const currentWpm = (currentTypedText.length / 5) / (currentElapsedMs / 60000 || 0.01);
-        const currentStats = computeStats(currentTypedText, currentWords);
-        const currentAccuracy = currentTypedText.length > 0 ? (currentStats.correct / currentTypedText.length) * 100 : 100;
-
-        pendingPlanResultRef.current = {
-          itemId: currentItem.id,
-          result: {
-            wpm: Math.round(currentWpm) || 0,
-            accuracy: currentAccuracy || 100,
-            raw: Math.round(currentWpm) || 0,
-            consistency: 0,
-            time: currentElapsedMs,
-            date: Date.now(),
-            mode: currentItem.mode,
-            metadata: currentItem.metadata,
-          },
-        };
-      }
-    }
-
+    completedAtRef.current = Date.now();
+    elapsedMsRef.current = readElapsed();
     setIsFinished(true);
     setIsRunning(false);
-
-    // Record plan result synchronously after state updates
-    if (pendingPlanResultRef.current) {
-      const { itemId, result } = pendingPlanResultRef.current;
-      setPlanResults((prev) => ({
-        ...prev,
-        [itemId]: result,
-      }));
-      pendingPlanResultRef.current = null;
-    }
-  }, [isPlanActive, isPlanSplash, plan, planIndex, planResults, readElapsed]);
+  }, [readElapsed]);
 
   const finishSessionRef = useRef(finishSession);
   useEffect(() => { finishSessionRef.current = finishSession; }, [finishSession]);
@@ -846,7 +499,10 @@ export default function TypingPractice({
   const saveResults = useCallback(async (resultData?: typeof pendingResultRef.current) => {
     if (connectMode) return;
 
+    if (resultData && resultData.attemptEpoch !== sessionEpochRef.current) return;
     const dataToSave = resultData || {
+      attemptEpoch: sessionEpochRef.current,
+      completedAt: completedAtRef.current ?? Date.now(),
       wpm: Math.round(wpm),
       accuracy: Math.round(accuracy * 10) / 10,
       mode: settings.mode,
@@ -885,10 +541,11 @@ export default function TypingPractice({
     }
 
     const epoch = sessionEpochRef.current;
+    const isCurrentAttempt = () => sessionEpochRef.current === epoch && userRef.current?.id === user.id;
     const finalTypedText = typedTextRef.current;
     const finalElapsedMs = readElapsed();
-    const sessionId = sessionIdRef.current;
-    if (!sessionId && startingSessionRef.current) {
+    const sessionId = resultData ? null : sessionIdRef.current;
+    if (!resultData && !sessionId && startingSessionRef.current) {
       setSaveState("saving");
       return;
     }
@@ -896,15 +553,12 @@ export default function TypingPractice({
     savingRef.current = true;
     setSaveState("saving");
     try {
-      await getOrCreateUser({
-        clerkId: user.id,
-        email: user.primaryEmailAddress?.emailAddress ?? "",
-        username: user.username ?? user.firstName ?? "User",
-        avatarUrl: user.imageUrl,
-      });
+      await ensureAccount();
 
-      if (sessionEpochRef.current !== epoch) return;
-      const calendar = getLocalCalendarFields();
+      if (!isCurrentAttempt()) return;
+      const { attemptEpoch, completedAt, ...snapshot } = dataToSave;
+      if (attemptEpoch !== epoch) return;
+      const calendar = getLocalCalendarFields(completedAt);
 
       const showAchievementToasts = (achievementIds: string[]) => {
         for (const achievementId of new Set(achievementIds)) {
@@ -933,6 +587,7 @@ export default function TypingPractice({
           // Still finalize; progress is best-effort.
         }
 
+        if (!isCurrentAttempt()) return;
         const result = await finalizeSessionMutation({
           sessionId,
           typedText: finalTypedText,
@@ -944,7 +599,7 @@ export default function TypingPractice({
           day: calendar.day,
         });
 
-        if (sessionEpochRef.current !== epoch) return;
+        if (!isCurrentAttempt()) return;
         finalizedRef.current = true;
         sessionIdRef.current = null;
         setLastResultIsValid(result.isValid);
@@ -959,34 +614,27 @@ export default function TypingPractice({
       }
 
       // No matching server-owned prompt: history only; this server endpoint always sets rankedEligible:false.
-      if (!sessionId) {
-        const result = await saveResultMutation({
-          clerkId: user.id,
-          ...dataToSave,
-          ...calendar,
-        });
-        if (sessionEpochRef.current !== epoch) return;
-        finalizedRef.current = true;
-        setLastResultIsValid(null);
-        setSaveState("saved");
-        pendingResultRef.current = null;
+      const result = await saveResultMutation({
+        clerkId: user.id,
+        ...snapshot,
+        ...calendar,
+      });
+      if (!isCurrentAttempt()) return;
+      finalizedRef.current = true;
+      setLastResultIsValid(null);
+      setSaveState("saved");
+      pendingResultRef.current = null;
 
-        if (result.newAchievements && result.newAchievements.length > 0) {
-          showAchievementToasts(result.newAchievements);
-        }
-        return;
+      if (result.newAchievements && result.newAchievements.length > 0) {
+        showAchievementToasts(result.newAchievements);
       }
-
-      setLastResultIsValid(false);
-      setLastResultInvalidReason("Session was not established");
-      setSaveState("error");
     } catch (error) {
       console.error("Failed to save result:", error);
-      if (sessionEpochRef.current === epoch) setSaveState("error");
+      if (isCurrentAttempt()) setSaveState("error");
     } finally {
-      if (sessionEpochRef.current === epoch) savingRef.current = false;
+      if (isCurrentAttempt()) savingRef.current = false;
     }
-  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, authStatus, getOrCreateUser, saveResultMutation, finalizeSessionMutation, recordProgressMutation, notify, saveState, readElapsed]);
+  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, authStatus, ensureAccount, saveResultMutation, finalizeSessionMutation, recordProgressMutation, notify, saveState, readElapsed]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {
@@ -1003,7 +651,12 @@ export default function TypingPractice({
   const ensureSoloSessionStarted = useCallback((targetText?: string) => {
     if (connectModeRef.current || composingRef.current || repeatRef.current || isRunningRef.current || typedTextRef.current || isFinishedRef.current) return;
     const currentUser = userRef.current;
-    if (!currentUser || !isSignedInRef.current) return;
+    if (!currentUser || !isSignedInRef.current || accountStatus !== "ready") return;
+    if (sessionIdRef.current && Date.now() - sessionPreparedAtRef.current >= SOLO_PREPARED_SESSION_TTL_MS) {
+      void cancelSessionMutation({ sessionId: sessionIdRef.current }).catch(() => {});
+      sessionIdRef.current = null;
+      attemptedSessionEpochRef.current = -1;
+    }
     if (sessionIdRef.current || startingSessionRef.current || finalizedRef.current) return;
 
     const s = settingsRef.current;
@@ -1017,12 +670,8 @@ export default function TypingPractice({
     setRankingStatus("pending");
     const epoch = sessionEpochRef.current;
 
-    void getOrCreateUser({
-      clerkId: currentUser.id,
-      email: currentUser.primaryEmailAddress?.emailAddress ?? "",
-      username: currentUser.username ?? currentUser.firstName ?? "User",
-      avatarUrl: currentUser.imageUrl,
-    })
+    const preparedAt = Date.now();
+    void ensureAccount()
       .then(() => {
         if (sessionEpochRef.current !== epoch || composingRef.current || isRunningRef.current || typedTextRef.current || userRef.current?.id !== currentUser.id) return null;
         return startSessionMutation({
@@ -1055,22 +704,9 @@ export default function TypingPractice({
         // Commit both identities before input can start; no client text is attached to a different server prompt.
         wordsRef.current = res.targetText;
         sessionIdRef.current = res.sessionId;
+        sessionPreparedAtRef.current = preparedAt;
         setWords(res.targetText);
         setRankingStatus("ranked");
-        const len = Math.max(
-          typedTextRef.current.length,
-          pendingTypedLengthRef.current
-        );
-        if (len > 0) {
-          pendingTypedLengthRef.current = 0;
-          void recordProgressMutation({
-            sessionId: res.sessionId,
-            typedLength: len,
-          });
-        }
-        if (isFinishedRef.current && !finalizedRef.current) {
-          void saveResultsRef.current();
-        }
       })
       .catch((error) => {
         console.warn("Failed to start typing session:", error);
@@ -1083,21 +719,23 @@ export default function TypingPractice({
           void saveResultsRef.current();
         }
       });
-  }, [getOrCreateUser, startSessionMutation, cancelSessionMutation, recordProgressMutation]);
+  }, [accountStatus, ensureAccount, startSessionMutation, cancelSessionMutation]);
 
   const reportSoloProgress = useCallback((typedLength: number) => {
     if (connectModeRef.current) return;
-    pendingTypedLengthRef.current = typedLength;
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
-    pendingTypedLengthRef.current = 0;
     void recordProgressMutation({ sessionId, typedLength }).catch(() => {});
   }, [recordProgressMutation]);
 
   useEffect(() => {
     if (connectMode || !isSignedIn || !user || !promptReady) return;
     ensureSoloSessionStarted(words);
-  }, [sessionEpoch, connectMode, isSignedIn, user, words, ensureSoloSessionStarted, promptReady]);
+    const renew = () => ensureSoloSessionStarted(wordsRef.current);
+    const interval = setInterval(renew, 60_000);
+    window.addEventListener("focus", renew);
+    return () => { clearInterval(interval); window.removeEventListener("focus", renew); };
+  }, [sessionEpoch, connectMode, isSignedIn, user, words, ensureSoloSessionStarted, promptReady, accountStatus]);
 
   useEffect(() => {
     if (!isFinished || connectMode || !isSignedIn) return;
@@ -1114,7 +752,7 @@ export default function TypingPractice({
       setQueuedPromptPreferences(null);
       return; // The resolved configuration/dataset effect generates the next prompt.
     }
-  }, [pendingPromptPreferences]);
+  }, [pendingPromptPreferences, setQueuedPromptPreferences]);
 
   const applyCustomCount = useCallback((value: number) => {
     if (settings.mode === "time") {
@@ -1221,7 +859,7 @@ export default function TypingPractice({
       onStatsUpdateRef.current(
         {
           wpm: Math.round(wpm) || 0,
-          accuracy: accuracy || 100,
+          accuracy,
           progress: words.length > 0 ? getInputPosition(typedText, words).referencePosition / words.length * 100 : 0,
           wordsTyped: Math.floor(typedText.length / 5),
           timeElapsed: elapsedMs,
@@ -1236,6 +874,11 @@ export default function TypingPractice({
   const handleInput = (value: string) => {
     if (isFinishedRef.current || !promptReady || (connectMode && !isTestActive)) return;
     const sanitized = sanitizeTypingInput(value);
+    // A suspended tab may resume past expiry before the renewal timer runs.
+    if (!isRunningRef.current && sessionIdRef.current && Date.now() - sessionPreparedAtRef.current >= SOLO_PREPARED_SESSION_TTL_MS) {
+      void cancelSessionMutation({ sessionId: sessionIdRef.current }).catch(() => {});
+      sessionIdRef.current = null;
+    }
     isRunningRef.current = true;
     if (!isRunning) setIsRunning(true);
     typedTextRef.current = sanitized;
@@ -1301,68 +944,6 @@ export default function TypingPractice({
     }
   };
 
-  // --- Plan Mode Handlers ---
-  const applyPlanStep = useCallback((item: PlanItem) => {
-    // Merge plan item settings into current settings
-    setSettings((prev) => ({
-      ...prev,
-      ...item.settings,
-      mode: item.mode,
-    }));
-  }, []);
-
-  const handleStartPlan = (newPlan: Plan) => {
-    if (newPlan.length === 0) return;
-    setPlan(newPlan);
-    setPlanIndex(0);
-    setIsPlanActive(true);
-    setIsPlanSplash(true);
-    setPlanResults({});
-  };
-
-  const handlePlanStepStart = useCallback(() => {
-    const item = plan[planIndex];
-    if (!item) return;
-
-    setIsPlanSplash(false);
-    applyPlanStep(item);
-    // Slight delay to allow settings to update before generating test
-    setTimeout(() => {
-      generateTest();
-    }, 0);
-  }, [plan, planIndex, applyPlanStep, generateTest]);
-
-  const handlePlanNext = useCallback(() => {
-    const nextIndex = planIndex + 1;
-
-    if (nextIndex < plan.length) {
-      setPlanIndex(nextIndex);
-      setIsPlanSplash(true);
-      setIsFinished(false);
-      setIsRunning(false);
-    } else {
-      // Finished plan
-      setShowPlanResultsModal(true);
-    }
-  }, [plan.length, planIndex]);
-
-  const handlePlanPrev = useCallback(() => {
-    if (planIndex > 0) {
-      setPlanIndex(planIndex - 1);
-      setIsPlanSplash(true);
-      setIsFinished(false);
-      setIsRunning(false);
-    }
-  }, [planIndex]);
-
-  const exitPlanMode = useCallback(() => {
-    setIsPlanActive(false);
-    setIsPlanSplash(false);
-    setPlan([]);
-    setPlanIndex(0);
-    setPlanResults({});
-  }, []);
-
   useLayoutEffect(() => {
     if (isCompactMode || isFinished) return;
 
@@ -1412,13 +993,6 @@ export default function TypingPractice({
     isCustomDurationSelected, isCustomWordTargetSelected,
   };
 
-  // Resolution and queued defaults belong to one account visit, including signing back into the same account.
-  if (observedAccountId !== (user?.id ?? null)) {
-    setObservedAccountId(user?.id ?? null);
-    setHydratedAccountId(null);
-    if (observedAccountId !== null) setQueuedPromptPreferences(null);
-  }
-
   // A new resolved configuration is a new attempt. Reset before children can observe old input
   // against the new prompt; external session/clock cleanup follows the committed epoch below.
   if (!matchesPromptRequest) {
@@ -1426,16 +1000,7 @@ export default function TypingPractice({
     setCurrentQuote(preparedPrompt.quote);
     setWords(preparedPrompt.text);
     setSessionEpoch((epoch) => epoch + 1);
-    setTypedText("");
-    setCompositionDraft(null);
-    setIsRunning(false);
-    setIsFinished(false);
-    setIsRepeated(false);
-    setIsFocused(false);
-    setRankingStatus(!isSignedIn || settings.mode === "zen" ? "unranked" : "pending");
-    setSaveState("idle");
-    setLastResultIsValid(null);
-    setLastResultInvalidReason(undefined);
+    resetAttemptView(false, isSignedIn && settings.mode !== "zen");
     if (preparedPrompt.needsPreset) setShowPresetInput(true);
   }
 
@@ -1811,7 +1376,7 @@ export default function TypingPractice({
         handlePresetSubmit={handlePresetSubmit}
       />
 
-      <PracticeThemePicker showThemeModal={showThemeModal} setShowThemeModal={setShowThemeModal} {...{ onUserSelection: () => { themeEditedRef.current = true; } }} />
+      <PracticeThemePicker showThemeModal={showThemeModal} setShowThemeModal={setShowThemeModal} onUserSelection={markThemeEdited} />
 
       <PracticeSettingsDialog
         showSettings={showSettings}
@@ -1843,76 +1408,7 @@ export default function TypingPractice({
         setMaxWordsPerLine={updateMaxWordsPerLine}
       />
 
-      {/* Plan Builder Modal */}
-      {showPlanBuilder && (
-        <PlanBuilderModal
-          initialPlan={plan}
-          onSave={handleStartPlan}
-          onClose={() => setShowPlanBuilder(false)}
-        />
-      )}
 
-      {/* Plan Splash Screen */}
-      {isPlanActive && isPlanSplash && plan[planIndex] && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ backgroundColor: tv.ui.background }}>
-          <div className="absolute top-4 right-4">
-            <button
-              onClick={exitPlanMode}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 transition-colors hover:opacity-80"
-              style={{ color: tv.ui.mutedForeground }}
-            >
-              <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />
-              Exit Plan
-            </button>
-          </div>
-          <PlanSplash
-            item={plan[planIndex]}
-            progress={{ current: planIndex + 1, total: plan.length }}
-            onStart={handlePlanStepStart}
-            theme={planTheme}
-          />
-        </div>
-      )}
-
-      {/* Plan Results Modal */}
-      {showPlanResultsModal && (
-        <PlanResultsModal
-          user={{ id: "local", name: "You" }}
-          plan={plan}
-          results={planResults}
-          theme={planTheme}
-          onClose={() => {
-            setShowPlanResultsModal(false);
-            exitPlanMode();
-          }}
-        />
-      )}
-
-      {/* Plan Navigation (shown when in plan mode and finished a step) */}
-      {isPlanActive && !isPlanSplash && isFinished && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-4">
-          {planIndex > 0 && (
-            <button
-              onClick={handlePlanPrev}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors hover:opacity-90"
-              style={{ backgroundColor: tv.ui.card, color: tv.ui.foreground }}
-            >
-              <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
-              Previous
-            </button>
-          )}
-          <button
-            onClick={handlePlanNext}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-white rounded-lg font-medium transition-colors hover:opacity-90"
-            style={{ backgroundColor: tv.ui.secondaryEmphasis, color: tv.ui.background }}
-          >
-            {planIndex < plan.length - 1
-              ? <ArrowFatRightIcon className="size-4 shrink-0" aria-hidden="true" />
-              : <ChartBarIcon className="size-4 shrink-0" aria-hidden="true" />}
-            {planIndex < plan.length - 1 ? "Next" : "View Results"}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

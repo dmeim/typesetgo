@@ -1,14 +1,15 @@
 // convex/raceResults.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { saveRaceSnapshot } from "./lib/multiplayer";
+import { checkRoomMember, saveRaceSnapshot } from "./lib/multiplayer";
 
 // Retained for older callers; endRace now persists this snapshot atomically.
 export const saveResults = mutation({
-  args: { raceId: v.id("rooms"), raceStartTime: v.optional(v.number()) },
+  args: { raceId: v.id("rooms"), raceStartTime: v.optional(v.number()), credential: v.string() },
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.raceId);
     if (!room) throw new Error("Room not found");
+    await checkRoomMember(ctx, room, args.credential);
     if (room.gameMode !== "race") throw new Error("Room is not a race");
     if (args.raceStartTime !== undefined && args.raceStartTime !== room.raceStartTime) return null;
     if (room.raceEndTime === undefined) throw new Error("Race has not ended");

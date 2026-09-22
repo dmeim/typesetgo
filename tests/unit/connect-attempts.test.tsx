@@ -39,10 +39,10 @@ vi.mock("convex/react", () => ({
         ? mocks.create
         : name === "participants:disconnect"
           ? mocks.disconnect
-          : vi.fn();
+          : vi.fn().mockResolvedValue(undefined);
   },
 }));
-vi.mock("@/lib/themes", () => ({ fetchAllThemes: async () => [] }));
+vi.mock("@/lib/themes", () => ({ fetchThemeCatalogIndex: async () => ({ themes: [] }), fetchTheme: async () => null }));
 vi.mock("@/lib/sounds", () => ({ fetchSoundManifest: async () => ({}) }));
 vi.mock("@/lib/words", () => ({
   fetchWordsManifest: async () => ({ difficulties: [] }),
@@ -124,7 +124,7 @@ it("waits for a pending join and disconnects its result before canceling navigat
   fireEvent.click(screen.getByText("Cancel", { exact: true }));
   expect(screen.getByTestId("path")).toHaveTextContent("/connect/join");
   await act(async () => resolveJoin({ participantId: "pending-participant" }));
-  await waitFor(() => expect(mocks.disconnect).toHaveBeenCalledWith({ participantId: "pending-participant" }));
+  await waitFor(() => expect(mocks.disconnect).toHaveBeenCalledWith(expect.objectContaining({ participantId: "pending-participant" })));
   expect(await screen.findByText("Connect hub")).toBeVisible();
 });
 

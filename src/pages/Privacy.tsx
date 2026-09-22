@@ -34,7 +34,7 @@ export default function Privacy() {
             Privacy Policy
           </h1>
           <p style={{ color: tv.ui.mutedForeground }}>
-            Last updated: January 15, 2026
+            Last updated: September 22, 2026
           </p>
         </div>
 
@@ -59,12 +59,16 @@ export default function Privacy() {
                 sessions, words per minute, accuracy rates, and progress data.
               </li>
               <li>
-                <strong>Device Information:</strong> Browser type, operating
-                system, and device identifiers for analytics purposes.
+                <strong>Account Information:</strong> When you sign in, Clerk handles
+                authentication. Your account identifier, email, display name, and
+                avatar are stored in Convex to associate your progress with you.
               </li>
               <li>
                 <strong>Local Storage:</strong> Your preferences, theme
                 selections, and settings are stored locally on your device.
+                Notification history is kept separately for each account and for
+                guests in this browser. Multiplayer uses a browser identifier and
+                a private credential to resume your own rooms and participation.
               </li>
             </ul>
           </section>
@@ -93,11 +97,11 @@ export default function Privacy() {
               3. Data Storage
             </h2>
             <p>
-              Most of your data is stored locally in your browser using local
-              storage. This means your typing statistics and preferences remain
-              on your device. When using multiplayer features, session data may
-              be temporarily stored on our servers to facilitate real-time
-              gameplay.
+              Signed-in saved results, typing-session validation data, account
+              preferences, achievements, and streaks are stored in Convex.
+              Multiplayer rooms, progress, and race results are also stored there.
+              Some preferences and notification history stay in browser storage.
+              Clearing browser storage does not delete saved account data.
             </p>
           </section>
 
@@ -109,9 +113,11 @@ export default function Privacy() {
               4. Data Sharing
             </h2>
             <p>
-              We do not sell, trade, or otherwise transfer your personal
-              information to third parties. We may share anonymized, aggregated
-              data for analytics and service improvement purposes.
+              Public profiles and leaderboards display your name, avatar, saved
+              typing statistics, and achievements. Multiplayer participants can
+              see room names and progress. Public profile responses exclude email
+              and authentication identifiers. Cloudflare hosts the website,
+              Clerk provides authentication, and Convex stores application data.
             </p>
           </section>
 
@@ -124,8 +130,8 @@ export default function Privacy() {
             </h2>
             <p>
               TypeSetGo uses local storage to save your preferences and
-              settings. We may use analytics tools to understand how our service
-              is used and to improve the user experience.
+              settings. Clerk manages sign-in session storage. Hosting and
+              authentication providers process requests to deliver their services.
             </p>
           </section>
 
@@ -139,10 +145,9 @@ export default function Privacy() {
             <p className="mb-3">You have the right to:</p>
             <ul className="list-disc list-inside space-y-2 ml-4">
               <li>Access your locally stored data through your browser</li>
-              <li>
-                Delete your data by clearing your browser&apos;s local storage
-              </li>
-              <li>Opt out of analytics tracking</li>
+              <li>Clear browser storage to remove local settings and notifications</li>
+              <li>Delete individual saved tests from your signed-in profile</li>
+              <li>Manage your sign-in account through the account menu</li>
             </ul>
           </section>
 
@@ -168,8 +173,12 @@ export default function Privacy() {
               8. Contact Us
             </h2>
             <p>
-              If you have any questions about this Privacy Policy, please
-              contact us through our official channels.
+              For questions about this page, use the <a
+                href="https://github.com/dmeim/typesetgo/issues"
+                className="underline underline-offset-4"
+              >project issue tracker</a>. Issues are public; do not include private
+              account information. Deleting a sign-in account does not currently
+              provide automatic deletion of associated Convex records.
             </p>
           </section>
         </div>

@@ -51,7 +51,7 @@ export const ADMIN_REVIEW_WPM_FLOOR = 250;
 
 export const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
-// Session TTL - 10 minutes, sessions older than this are expired
+// Abandoned active-session grace after its last progress or timed deadline.
 export const SESSION_TTL_MS = 600000;
 
 // Progress reporting interval for frontend

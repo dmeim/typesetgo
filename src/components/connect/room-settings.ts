@@ -34,7 +34,6 @@ export function resolveRoomSettings(
     "soundEnabled",
     "typingSound",
     "warningSound",
-    "errorSound",
   ] as const) {
     if (settings[key] !== undefined)
       Object.assign(resolved, { [key]: settings[key] });
@@ -43,7 +42,6 @@ export function resolveRoomSettings(
   resolved.soundEnabled = settings.soundEnabled ?? false;
   resolved.typingSound = settings.typingSound ?? "creamy";
   resolved.warningSound = settings.warningSound ?? "clock";
-  resolved.errorSound = settings.errorSound ?? "";
   delete resolved.plan;
   delete resolved.planIndex;
   return resolved;

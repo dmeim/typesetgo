@@ -35,3 +35,9 @@ Convex `convex/auth.config.ts` expects dashboard env `CLERK_JWT_ISSUER_DOMAIN`. 
 `api.admin.login` (action) checks Convex env `ADMIN_PASSWORD` (timing-safe, never `VITE_`). `listReview` returns invalid rows and WPM ≥ 250. `setValidity` patches one row and rebuilds **that user's** stats and leaderboard caches.
 
 Set `ADMIN_PASSWORD` in the Convex dashboard only. Do not put the real password in git.
+
+## Session lifetime and activity policy
+
+Prepared sessions expire after 24 hours; the client recreates old prepared sessions before the first input. Active sessions expire after ten minutes without progress, using `lastEventAt`, so supported long tests remain valid while active. Cleanup runs in bounded batches.
+
+UTC dates define activity streaks and daily totals. Browser-local calendar facts are stored separately for local-time badges; old results without those facts do not assume a timezone. All achievement entry points share a bounded evaluator and scheduled rebuild path; see [development contracts](../development.md).

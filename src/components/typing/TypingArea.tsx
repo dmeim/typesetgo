@@ -1,4 +1,5 @@
 import { ArrowFatLineUpIcon } from "@phosphor-icons/react";
+import { calculateAccuracy, calculateWpm } from "@/lib/typing-metrics";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { computeStats, sanitizeTypingInput, getInputPosition, getNextTypingKey,
   hasCompletedPrompt, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
@@ -15,7 +16,7 @@ import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
 // --- Types ---
 export interface TypingStats {
   wpm: number;
-  rawWpm: number;
+  correctWpm: number;
   accuracy: number;
   progress: number; // 0-100
   correctChars: number;
@@ -169,19 +170,17 @@ export default function TypingArea({
   }, [typedText, targetText, mode, consecutiveCorrect]);
   
   const accuracy = useMemo(() => {
-    return typedText.length > 0 ? (stats.correct / typedText.length) * 100 : 100;
+    return calculateAccuracy(stats.correct, typedText.length);
   }, [stats.correct, typedText.length]);
 
   const wpm = useMemo(() => {
-    const elapsedMinutes = elapsedMs / 60000 || 0.01;
     // In race mode, use consecutive correct for WPM calculation
     const charsToCount = mode === "race" ? consecutiveCorrect : typedText.length;
-    return (charsToCount / 5) / elapsedMinutes;
+    return calculateWpm(charsToCount, elapsedMs);
   }, [typedText.length, elapsedMs, mode, consecutiveCorrect]);
 
-  const rawWpm = useMemo(() => {
-    const elapsedMinutes = elapsedMs / 60000 || 0.01;
-    return (stats.correct / 5) / elapsedMinutes;
+  const correctWpm = useMemo(() => {
+    return calculateWpm(stats.correct, elapsedMs);
   }, [stats.correct, elapsedMs]);
 
   // Progress calculation
@@ -198,7 +197,7 @@ export default function TypingArea({
   // Build full stats object
   const fullStats: TypingStats = useMemo(() => ({
     wpm: Math.round(wpm) || 0,
-    rawWpm: Math.round(rawWpm) || 0,
+    correctWpm: Math.round(correctWpm) || 0,
     accuracy: Math.round(accuracy * 10) / 10,
     progress,
     correctChars: stats.correct,
@@ -210,7 +209,7 @@ export default function TypingArea({
     totalLength: targetText.length,
     elapsedMs,
     isFinished,
-  }), [wpm, rawWpm, accuracy, progress, stats, typedText, targetText.length, elapsedMs, isFinished]);
+  }), [wpm, correctWpm, accuracy, progress, stats, typedText, targetText.length, elapsedMs, isFinished]);
 
   // --- Effects ---
 

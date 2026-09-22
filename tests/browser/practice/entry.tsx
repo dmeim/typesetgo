@@ -8,7 +8,7 @@ import { AppAuthContext, unavailableAuth } from "@/components/layout/useAppAuth"
 import type { AppAuth, AppAuthUser } from "@/components/layout/useAppAuth";
 import Home from "@/pages/Home";
 import AreaFixture from "./AreaFixture";
-import ColorFixture from "./ColorFixture";
+import { AccountProvider } from "@/components/layout/AccountProvider";
 import ToastFixture from "./ToastFixture";
 import "@/index.css";
 
@@ -31,15 +31,15 @@ const auth: AppAuth = query.has("ranked") ? {
 
 createRoot(document.getElementById("root")!).render(
   <AppAuthContext.Provider value={auth}>
-    <NotificationProvider>
+    <AccountProvider><NotificationProvider>
       <BrowserRouter>
         <ThemeProvider>
           <IconProvider>
-            {query.has("toasts") ? <ToastFixture /> : query.has("color") ? <ColorFixture /> : query.has("area") ? <AreaFixture /> : <Home />}
+            {query.has("toasts") ? <ToastFixture /> : query.has("area") ? <AreaFixture /> : <Home />}
             <Toaster />
           </IconProvider>
         </ThemeProvider>
       </BrowserRouter>
-    </NotificationProvider>
+    </NotificationProvider></AccountProvider>
   </AppAuthContext.Provider>,
 );

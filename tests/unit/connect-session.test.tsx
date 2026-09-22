@@ -46,6 +46,7 @@ vi.mock("convex/react", () => ({
       : (state.participants ?? [state.participant]),
   useMutation: (reference: Parameters<typeof getFunctionName>[0]) => {
     const name = getFunctionName(reference);
+    if (name === "multiplayerPresence:heartbeat") return async () => undefined;
     return name === "participants:join"
       ? state.join
       : name === "participants:disconnect"
@@ -134,7 +135,6 @@ describe("participant session lifecycle", () => {
         soundEnabled: true,
         typingSound: "creamy",
         warningSound: "clock",
-        errorSound: "",
         plan: [
           {
             id: "one",
@@ -224,7 +224,7 @@ describe("participant session lifecycle", () => {
         typedText: "abc",
       }),
     );
-    act(() =>
+    await act(async () =>
       state.props.onStatsUpdate(
         { ...stats, isFinished: true },
         "abcdef",
@@ -257,7 +257,47 @@ describe("participant session lifecycle", () => {
     await screen.findByLabelText("Practice input");
     fireEvent.click(screen.getByRole("button", { name: "Leave room" }));
     await waitFor(() =>
-      expect(state.disconnect).toHaveBeenCalledWith({ participantId: "p1" }),
+      expect(state.disconnect).toHaveBeenCalledWith(expect.objectContaining({ participantId: "p1" })),
     );
   });
+});
+
+
+it("retains a rejected final snapshot until an explicit successful retry", async () => {
+  state.update.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
+  render(<View />);
+  await screen.findByLabelText("Practice input");
+  await act(async () => state.props.onStatsUpdate({ ...stats, isFinished: true }, "done", "done"));
+  expect(await screen.findByRole("button", { name: "Retry sync" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Retry sync" }));
+  await waitFor(() => expect(state.update).toHaveBeenCalledTimes(2));
+  expect(state.update.mock.calls[1][0]).toMatchObject({ typedText: "done", stats: { isFinished: true } });
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Retry sync" })).not.toBeInTheDocument());
+});
+
+it("retains the newer final snapshot when an earlier in-flight update fails", async () => {
+  let reject!: (error: Error) => void;
+  state.update.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+  render(<View />);
+  await screen.findByLabelText("Practice input");
+  act(() => state.props.onStatsUpdate(stats, "old", "done"));
+  act(() => state.props.onStatsUpdate({ ...stats, isFinished: true }, "done", "done"));
+  await act(async () => reject(new Error("offline")));
+  fireEvent.click(screen.getByRole("button", { name: "Retry sync" }));
+  await waitFor(() => expect(state.update).toHaveBeenCalledTimes(2));
+  expect(state.update.mock.calls[1][0]).toMatchObject({ typedText: "done", stats: { isFinished: true } });
+});
+
+it("discards failed and in-flight snapshots when the attempt resets", async () => {
+  let reject!: (error: Error) => void;
+  state.update.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+  const view = render(<View />);
+  await screen.findByLabelText("Practice input");
+  act(() => state.props.onStatsUpdate({ ...stats, isFinished: true }, "old", "old"));
+  state.participant = { ...state.participant, resetVersion: 1 };
+  view.rerender(<View />);
+  await act(async () => reject(new Error("offline")));
+  expect(screen.queryByRole("button", { name: "Retry sync" })).not.toBeInTheDocument();
+  await act(async () => state.props.onStatsUpdate(stats, "new", "new"));
+  expect(state.update.mock.calls[1][0]).toMatchObject({ resetVersion: 1, typedText: "new" });
 });

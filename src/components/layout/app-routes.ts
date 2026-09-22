@@ -11,6 +11,7 @@ export const appRoutes: RouteObject[] = [{
     { path: "/user/:userId", lazy: async () => ({ Component: (await import("@/pages/UserStats")).default }) },
     { path: "/connect", lazy: async () => ({ Component: (await import("@/pages/Connect")).default }) },
     { path: "/connect/host", lazy: async () => ({ Component: (await import("@/pages/Host")).default }) },
+    { path: "/connect/host/:roomId", lazy: async () => ({ Component: (await import("@/pages/Host")).default }) },
     { path: "/connect/join", lazy: async () => ({ Component: (await import("@/pages/Join")).default }) },
     { path: "/race", lazy: async () => ({ Component: (await import("@/pages/Race")).default }) },
     { path: "/race/lobby/:lobbyId", lazy: async () => ({ Component: (await import("@/pages/RaceLobby")).default }) },

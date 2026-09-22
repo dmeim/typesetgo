@@ -1,3 +1,4 @@
+import { activityCalendar, utcDate } from "./lib/activityCalendar";
 /**
  * Solo typing session API (frontend teammate should match these names).
  *
@@ -37,7 +38,6 @@ import {
   calculateWpm,
 } from "./lib/computeStats";
 import { validateTypingSession } from "./lib/validateSession";
-import { isLeaderboardEligible } from "./lib/leaderboardEligibility";
 import { requireAuthedUser, getAuthedUser } from "./lib/identity";
 import { resolveSessionTargetText } from "./lib/soloPrompt";
 import {
@@ -302,17 +302,15 @@ export const finalizeSession = mutation({
       isValid,
       invalidReason,
       rankedEligible: true,
+      localCalendar: activityCalendar(args, now),
       createdAt: now,
     });
 
     let newAchievements: string[] = [];
     if (isValid) {
-      const isWeekend =
-        args.isWeekend ?? (args.dayOfWeek === 0 || args.dayOfWeek === 6);
-
       await ctx.runMutation(internal.streaks.updateStreak, {
         userId: session.userId,
-        localDate: args.localDate,
+        localDate: utcDate(now),
         duration: serverElapsed,
         wordsCorrect,
       });
@@ -321,27 +319,7 @@ export const finalizeSession = mutation({
         internal.achievements.checkAndAwardAchievements,
         {
           userId: session.userId,
-          testResult: {
-            wpm: roundedWpm,
-            accuracy: roundedAccuracy,
-            mode: session.settings.mode,
-            duration: serverElapsed,
-            wordCount: Math.floor(args.typedText.length / 5),
-            difficulty: session.settings.difficulty,
-            punctuation: session.settings.punctuation,
-            numbers: session.settings.numbers,
-            capitalization: session.settings.capitalization,
-            wordsCorrect,
-            wordsIncorrect: wordResults.incorrectWords.length,
-            createdAt: now,
-          },
-          localHour: args.localHour,
-          isWeekend,
-          dayOfWeek: args.dayOfWeek,
-          month: args.month,
-          day: args.day,
-          isValid: true,
-          rankedEligible: true,
+          resultId,
         }
       );
       newAchievements = achievementResult.newAchievements;
@@ -355,29 +333,6 @@ export const finalizeSession = mutation({
         isValid: true,
       });
 
-      if (
-        isLeaderboardEligible({
-          isValid: true,
-          rankedEligible: true,
-          accuracy: roundedAccuracy,
-          wpm: roundedWpm,
-          duration: serverElapsed,
-          wordsCorrect,
-        })
-      ) {
-        await ctx.runMutation(internal.statsCache.updateLeaderboardCache, {
-          userId: session.userId,
-          wpm: roundedWpm,
-          accuracy: roundedAccuracy,
-          duration: serverElapsed,
-          wordsCorrect,
-          isValid: true,
-          rankedEligible: true,
-          createdAt: now,
-          username: user.username,
-          avatarUrl: user.avatarUrl,
-        });
-      }
     }
 
     await ctx.db.delete(args.sessionId);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useAppAuth } from "@/components/layout/useAppAuth";
 import {
   NotificationContext,
   loadNotifications,
@@ -9,14 +10,21 @@ import {
 } from "@/lib/notification-state";
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>(() =>
-    loadNotifications()
-  );
-
-  // Persist to localStorage when notifications change
+  const { user, isSignedIn } = useAppAuth();
+  const ownerId = isSignedIn && user ? user.id : null;
+  const [history, setHistory] = useState(() => ({ ownerId, notifications: loadNotifications(ownerId) }));
+  if (history.ownerId !== ownerId) {
+    setHistory({ ownerId, notifications: loadNotifications(ownerId) });
+  }
+  const { notifications } = history;
   useEffect(() => {
-    saveNotifications(notifications);
-  }, [notifications]);
+    saveNotifications(history.notifications, history.ownerId);
+  }, [history]);
+
+  const updateNotifications = useCallback((update: (previous: Notification[]) => Notification[]) => {
+    setHistory((previous) => previous.ownerId === ownerId
+      ? { ...previous, notifications: update(previous.notifications) } : previous);
+  }, [ownerId]);
 
   const addNotification = useCallback(
     (notification: Omit<Notification, "id" | "timestamp" | "read">) => {
@@ -27,29 +35,29 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         read: false,
       };
 
-      setNotifications((prev) => [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS));
+      updateNotifications((prev) => [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS));
       return newNotification;
     },
-    []
+    [updateNotifications]
   );
 
   const markAsRead = useCallback((id: string) => {
-    setNotifications((prev) =>
+    updateNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
-  }, []);
+  }, [updateNotifications]);
 
   const markAllAsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
+    updateNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }, [updateNotifications]);
 
   const clearAll = useCallback(() => {
-    setNotifications([]);
-  }, []);
+    updateNotifications(() => []);
+  }, [updateNotifications]);
 
   const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+    updateNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, [updateNotifications]);
 
   const getUnreadCount = useCallback(() => {
     return notifications.filter((n) => !n.read).length;

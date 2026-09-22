@@ -14,6 +14,7 @@ export default function Fixture() {
       </nav>
       <Routes>
         <Route path="/connect/host" element={<Host />} />
+        <Route path="/connect/host/:roomId" element={<Host />} />
         <Route path="/connect/join" element={<Join />} />
         <Route path="*" element={<Connect />} />
       </Routes>

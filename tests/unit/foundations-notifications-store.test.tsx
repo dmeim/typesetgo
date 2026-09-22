@@ -8,7 +8,7 @@ import {
   type NotificationStore,
 } from "@/lib/notification-store";
 
-const STORAGE_KEY = "typesetgo_notifications";
+const STORAGE_KEY = "typesetgo_notifications:guest";
 let latest: NotificationStore;
 function Probe() {
   const notifications = useNotifications();

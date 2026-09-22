@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { fromAccountPreferences, toAccountPreferences } from "@/lib/practice-preferences";
+import { calculateAccuracy, calculateWpm } from "@/lib/typing-metrics";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS, loadLayoutSettings, loadSettings, saveSettings } from "@/lib/storage-utils";
 import { normalizePracticeSettings } from "@/lib/typing-constants";
 import { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS } from "@/components/typing/practice-config";
@@ -46,5 +48,47 @@ describe("practice preference boundaries", () => {
     expect(normalizePracticeSettings({ ...maxSettings, duration: MAX_DURATION_SECONDS + 1,
       wordTarget: MAX_WORD_TARGET + 1, typingFontSize: TEXT_SIZE_MAX + 1,
       ghostWriterSpeed: MAX_GHOST_SPEED + 1 })).toMatchObject(limits);
+  });
+});
+
+
+describe("typed practice persistence adapters", () => {
+  it("round-trips false and zero-compatible preferences without persisting session contents", () => {
+    const settings = { ...DEFAULT_SETTINGS, presetText: "private prompt", mode: "quote" as const,
+      soundEnabled: false, showOnScreenKeyboard: false, theme: undefined, planIndex: 4 };
+    const preferences = toAccountPreferences(settings, { linePreview: 3, maxWordsPerLine: 7 },
+      { themeId: "typesetgo", themeMode: "dark" });
+    expect(preferences).not.toHaveProperty("presetText");
+    expect(preferences).not.toHaveProperty("planIndex");
+    expect(fromAccountPreferences({ ...DEFAULT_SETTINGS, presetText: "" }, preferences)).toMatchObject({
+      mode: "quote", soundEnabled: false, showOnScreenKeyboard: false, presetText: "",
+    });
+    localStorage.setItem("typesetgo_settings", JSON.stringify(settings));
+    expect(loadSettings()).toMatchObject({ presetText: "", mode: "quote" });
+    expect(loadSettings()).not.toHaveProperty("planIndex");
+  });
+  it("ignores dormant error sounds from legacy local and account preferences", () => {
+    const settings = { ...DEFAULT_SETTINGS, presetText: "" };
+    localStorage.setItem("typesetgo_settings", JSON.stringify({ ...settings, errorSound: "legacy" }));
+    expect(loadSettings()).not.toHaveProperty("errorSound");
+    const preferences = toAccountPreferences(settings, { linePreview: 3, maxWordsPerLine: 7 }, {});
+    expect(preferences).not.toHaveProperty("errorSound");
+    expect(fromAccountPreferences(settings, { ...preferences, errorSound: "legacy" })).not.toHaveProperty("errorSound");
+  });
+  it("performs storage reads without an availability write and survives unavailable storage", () => {
+    const write = vi.spyOn(Storage.prototype, "setItem");
+    loadSettings();
+    expect(write).not.toHaveBeenCalled();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("disabled"); });
+    expect(loadSettings()).toBeNull();
+    expect(warning).toHaveBeenCalled();
+    read.mockRestore(); write.mockRestore(); warning.mockRestore();
+  });
+  it("keeps gross WPM and accuracy definitions independent of race completion rules", () => {
+    expect(calculateWpm(300, 60000)).toBe(60);
+    expect(calculateWpm(300, 0)).toBe(0);
+    expect(calculateAccuracy(0, 3)).toBe(0);
+    expect(calculateAccuracy(0, 0)).toBe(100);
   });
 });

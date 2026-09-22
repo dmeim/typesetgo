@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuthedUser, requireIdentity } from "./lib/identity";
 
 // Theme object validator
 const themeValidator = v.object({
@@ -29,7 +30,7 @@ const preferencesValidator = v.object({
   soundEnabled: v.boolean(),
   typingSound: v.string(),
   warningSound: v.string(),
-  errorSound: v.string(),
+  errorSound: v.optional(v.string()), // Legacy clients and stored preferences only.
 
   // Ghost writer
   ghostWriterEnabled: v.boolean(),
@@ -69,15 +70,7 @@ export const savePreferences = mutation({
     preferences: preferencesValidator,
   },
   handler: async (ctx, args) => {
-    // Find the user by Clerk ID
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .first();
-
-    if (!user) {
-      throw new Error("User not found. Please sign in first.");
-    }
+    const user = await requireAuthedUser(ctx, args.clerkId);
 
     // Check if preferences already exist for this user
     const existingPrefs = await ctx.db
@@ -109,6 +102,7 @@ export const getPreferences = query({
     clerkId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireIdentity(ctx, args.clerkId);
     // Find the user by Clerk ID
     const user = await ctx.db
       .query("users")

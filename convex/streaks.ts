@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { requireIdentity } from "./lib/identity";
 import { query, internalMutation } from "./_generated/server";
 import {
   qualifiesForStreak,
@@ -23,7 +24,7 @@ function getNextDay(dateStr: string): string {
 export const updateStreak = internalMutation({
   args: {
     userId: v.id("users"),
-    localDate: v.string(), // "YYYY-MM-DD" in user's local time
+    localDate: v.string(), // UTC date from the server-owned result timestamp
     duration: v.number(),
     wordsCorrect: v.number(),
   },
@@ -132,6 +133,7 @@ export const getUserStreak = query({
     clerkId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireIdentity(ctx, args.clerkId);
     // Find the user by Clerk ID
     const user = await ctx.db
       .query("users")

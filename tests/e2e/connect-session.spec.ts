@@ -2,6 +2,13 @@ import { test, expect, type Page } from "@playwright/test";
 import type { fixture } from "../fixtures/connect-browser/convex";
 declare global { interface Window { connectFixture: typeof fixture } }
 
+const diagnostics = new WeakMap<Page, string[]>();
+test.afterEach(async ({ page }, testInfo) => {
+  const messages = diagnostics.get(page) ?? [];
+  if (messages.length) await testInfo.attach("browser-diagnostics", { body: messages.join("\n"), contentType: "text/plain" });
+  expect(messages).toEqual([]);
+});
+
 async function reportCount(page: Page) {
   return page.evaluate(() => window.connectFixture.requests.filter((r) => r.name === "participants:updateStats").length);
 }
@@ -11,14 +18,18 @@ async function lastStats(page: Page) {
 
 test("real Join executes the selected timed plan and obeys stop, reset and fresh start", async ({ page }) => {
   const errors: string[] = [];
+  diagnostics.set(page, errors);
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("requestfailed", (request) => errors.push(`${request.url()}: ${request.failure()?.errorText}`));
+  page.on("response", (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
   await page.route("**/*", (route) => {
     const url = new URL(route.request().url());
     return url.hostname === "127.0.0.1" || url.protocol === "data:" ? route.continue() : route.abort();
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/connect/join?code=DEMO1&name=Tester");
+  await expect.poll(() => page.evaluate(() => Boolean(window.connectFixture)), { message: "Connect fixture must bootstrap before scenario setup" }).toBe(true);
   await page.evaluate(() => {
     const f = window.connectFixture;
     f.room.settings = {

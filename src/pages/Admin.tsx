@@ -2,7 +2,7 @@ import { ArrowLeftIcon, CircleNotchIcon, SignInIcon, SignOutIcon } from "@phosph
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useConvex } from "convex/react";
-import type { FunctionReference } from "convex/server";
+import type { FunctionReturnType } from "convex/server";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -13,32 +13,8 @@ import { Label } from "@/components/ui/label";
 
 const ADMIN_TOKEN_KEY = "typesetgo.adminToken";
 
-type AdminReviewItem = {
-  resultId: Id<"testResults">;
-  userId?: Id<"users">;
-  username?: string | null;
-  wpm: number;
-  accuracy: number;
-  duration: number;
-  mode?: string;
-  isValid?: boolean;
-  invalidReason?: string | null;
-  createdAt: number;
-  wordsCorrect?: number;
-};
-
-type AdminApi = {
-  login: FunctionReference<"action", "public", { password: string }, { token: string }>;
-  listReview: FunctionReference<"query", "public", { token: string }, AdminReviewItem[] | { results: AdminReviewItem[] }>;
-  setValidity: FunctionReference<
-    "mutation",
-    "public",
-    { token: string; resultId: Id<"testResults">; isValid: boolean },
-    { success: boolean }
-  >;
-};
-
-const adminApi = (api as typeof api & { admin?: AdminApi }).admin;
+type AdminReviewItem = FunctionReturnType<typeof api.admin.listReview>[number];
+const adminApi = api.admin;
 const EMPTY_REVIEW: AdminReviewItem[] = [];
 type ReviewSnapshot = { token: string; revision: number; rows: AdminReviewItem[]; error: string | null };
 
@@ -79,12 +55,6 @@ function formatDateTime(timestamp: number): string {
   return date.toLocaleString();
 }
 
-function normalizeReviewList(payload: AdminReviewItem[] | { results: AdminReviewItem[] } | undefined): AdminReviewItem[] {
-  if (!payload) return [];
-  if (Array.isArray(payload)) return payload;
-  return payload.results ?? [];
-}
-
 export default function Admin() {
   const convex = useConvex();
   const [token, setToken] = useState(readStoredToken);
@@ -99,16 +69,15 @@ export default function Admin() {
   const isLoggedIn = Boolean(token);
   const currentReview = review?.token === token && review.revision === refreshKey ? review : null;
   const rows = token ? currentReview?.rows ?? EMPTY_REVIEW : EMPTY_REVIEW;
-  const isLoadingList = Boolean(token && adminApi?.listReview && !currentReview);
-  const listError = actionError ?? (token && !adminApi?.listReview
-    ? "Admin API is not available yet." : currentReview?.error ?? null);
+  const isLoadingList = Boolean(token && !currentReview);
+  const listError = actionError ?? currentReview?.error ?? null;
 
   useEffect(() => {
-    if (!token || !adminApi?.listReview) return;
+    if (!token) return;
     let cancelled = false;
     // Loading/empty state belongs to this request key; only its response writes state.
     void convex.query(adminApi.listReview, { token }).then((payload) => {
-      if (!cancelled) setReview({ token, revision: refreshKey, rows: normalizeReviewList(payload), error: null });
+      if (!cancelled) setReview({ token, revision: refreshKey, rows: payload, error: null });
     }).catch((error: unknown) => {
       if (cancelled) return;
       const message = error instanceof Error ? error.message : "Failed to load review queue.";
@@ -124,10 +93,6 @@ export default function Admin() {
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
     setLoginError(null);
-    if (!adminApi?.login) {
-      setLoginError("Admin API is not available yet.");
-      return;
-    }
     setIsLoggingIn(true);
     try {
       const result = await convex.action(adminApi.login, { password });
@@ -156,7 +121,7 @@ export default function Admin() {
   };
 
   const handleSetValidity = async (resultId: Id<"testResults">, isValid: boolean) => {
-    if (!token || !adminApi?.setValidity) return;
+    if (!token) return;
     setPendingId(resultId);
     setActionError(null);
     try {

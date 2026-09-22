@@ -37,7 +37,7 @@ describe("toast delivery and browser notification history", () => {
     expect(await screen.findByRole("dialog", { name: achievement.title })).toBeInTheDocument();
     expect(screen.getByTestId("history")).toHaveTextContent("1/1");
     expect(document.querySelectorAll('[data-slot="toast"]')).toHaveLength(1);
-    const stored = JSON.parse(localStorage.getItem("typesetgo_notifications")!);
+    const stored = JSON.parse(localStorage.getItem("typesetgo_notifications:guest")!);
     expect(stored).toHaveLength(1);
     expect(stored[0]).toMatchObject({ type: "achievement", read: false, metadata: { achievementId: achievement.id } });
     fireEvent.click(screen.getByRole("button", { name: "Ok", exact: true }));

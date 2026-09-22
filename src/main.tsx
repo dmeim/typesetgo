@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { AppAuthProvider } from "@/components/layout/AppAuthProvider";
+import { AccountProvider } from "@/components/layout/AccountProvider";
 import { NotificationProvider } from "@/lib/notification-store";
 import { ConvexClerkProvider } from "./ConvexClerkProvider.tsx";
 import App from "./App.tsx";
@@ -24,20 +25,20 @@ if (!CLERK_PUBLISHABLE_KEY) {
 
 const appTree = (
   <AppAuthProvider enabled={Boolean(CLERK_PUBLISHABLE_KEY)}>
-    <App />
+    <AccountProvider>
+      <NotificationProvider><App /></NotificationProvider>
+    </AccountProvider>
   </AppAuthProvider>
 );
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <NotificationProvider>
-      {CLERK_PUBLISHABLE_KEY ? (
-        <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-          <ConvexClerkProvider client={convex}>{appTree}</ConvexClerkProvider>
-        </ClerkProvider>
-      ) : (
-        <ConvexProvider client={convex}>{appTree}</ConvexProvider>
-      )}
-    </NotificationProvider>
+    {CLERK_PUBLISHABLE_KEY ? (
+      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+        <ConvexClerkProvider client={convex}>{appTree}</ConvexClerkProvider>
+      </ClerkProvider>
+    ) : (
+      <ConvexProvider client={convex}>{appTree}</ConvexProvider>
+    )}
   </StrictMode>
 );

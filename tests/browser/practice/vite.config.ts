@@ -34,6 +34,7 @@ export default defineConfig({
   root,
   cacheDir: path.join(tmpdir(), "typesetgo-practice-" + createHash("sha256").update(root).digest("hex").slice(0, 12)),
   envDir: false,
+  optimizeDeps: { entries: ["tests/browser/practice/entry.tsx"] },
   envPrefix: "TYPESETGO_FIXTURE_",
   plugins: [
     react(),

@@ -6,11 +6,90 @@ export const emptyParticipantStats = () => ({
   wpm: 0, accuracy: 0, progress: 0, wordsTyped: 0, timeElapsed: 0, isFinished: false,
 });
 
-// Compatibility check for session-owned room controls. This is not authentication.
-export function checkRoomHost(room: Doc<"rooms">, hostSessionId?: string) {
-  if (hostSessionId !== undefined && room.hostId !== hostSessionId) {
+export const ROOM_RETENTION_MS = 15 * 60_000;
+export const PRESENCE_TIMEOUT_MS = 75_000; // 45s heartbeat timeout plus 30s reconnect grace.
+
+export async function credentialHash(credential: string) {
+  if (typeof credential !== "string" || !/^[a-f0-9]{64}$/.test(credential)) {
+    throw new Error("A private multiplayer credential is required");
+  }
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(credential));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export function requireLiveRoom(room: Doc<"rooms"> | null): asserts room is Doc<"rooms"> {
+  if (!room || !room.hostCredentialHash || room.expiresAt <= Date.now()) {
+    throw new Error("This room has expired. Create a new room.");
+  }
+}
+
+export async function checkRoomHost(room: Doc<"rooms">, credential: string) {
+  requireLiveRoom(room);
+  if (room.hostCredentialHash !== await credentialHash(credential)) {
     throw new Error("Only the room host can change this room");
   }
+}
+
+export async function checkParticipant(ctx: MutationCtx, participant: Doc<"participants"> | null, credential: string, allowHost = false) {
+  if (!participant) throw new Error("Participant not found");
+  const room = await ctx.db.get(participant.roomId);
+  requireLiveRoom(room);
+  const hash = await credentialHash(credential);
+  if (participant.credentialHash !== hash && !(allowHost && room.hostCredentialHash === hash)) {
+    throw new Error("This participant belongs to another player");
+  }
+  return room;
+}
+
+export async function checkRoomMember(ctx: MutationCtx, room: Doc<"rooms">, credential: string) {
+  requireLiveRoom(room);
+  const hash = await credentialHash(credential);
+  if (room.hostCredentialHash === hash) return;
+  const members = await ctx.db.query("participants").withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
+  if (!members.some((member) => member.credentialHash === hash && member.isConnected)) {
+    throw new Error("Join this room before changing it");
+  }
+}
+
+export function publicRoom(room: Doc<"rooms"> | null) {
+  if (!room || !room.hostCredentialHash || room.expiresAt <= Date.now()) return null;
+  const { hostCredentialHash: secret, ...result } = room;
+  void secret;
+  return result;
+}
+
+export function publicParticipant(participant: Doc<"participants">) {
+  const { credentialHash: secret, ...result } = participant;
+  void secret;
+  return result;
+}
+
+export async function finishRaceIfReady(ctx: MutationCtx, room: Doc<"rooms">) {
+  if (room.gameMode !== "race" || room.raceStartTime === undefined || room.raceEndTime !== undefined || Date.now() < room.raceStartTime) return false;
+  const members = await ctx.db.query("participants").withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
+  const connected = members.filter((member) => member.isConnected);
+  const finishes = members.flatMap((member) => member.finishTime === undefined ? [] : [member.finishTime]).sort((a, b) => a - b);
+  if (!connected.every((member) => member.stats.isFinished) && !(finishes.length >= 3 && Date.now() >= room.raceStartTime + finishes[2] + 10_000)) return false;
+  await ctx.db.patch(room._id, { raceEndTime: Date.now() });
+  await saveRaceSnapshot(ctx, room);
+  return true;
+}
+
+export async function disconnectMember(ctx: MutationCtx, participant: Doc<"participants">) {
+  if (!participant.isConnected) return;
+  const now = Date.now();
+  await ctx.db.patch(participant._id, { isConnected: false, isReady: false, disconnectedAt: now });
+  const room = await ctx.db.get(participant.roomId);
+  if (!room) return;
+  const members = await ctx.db.query("participants").withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
+  const successor = members.filter((member) => member._id !== participant._id && member.isConnected && member.lastSeen > now - PRESENCE_TIMEOUT_MS && member.credentialHash)
+    .sort((a, b) => a.joinedAt - b.joinedAt || a._id.localeCompare(b._id))[0];
+  await ctx.db.patch(room._id, {
+    readyParticipants: (room.readyParticipants ?? []).filter((id) => id !== participant.sessionId),
+    ...(room.gameMode === "race" && room.hostId === participant.sessionId && successor
+      ? { hostId: successor.sessionId, hostName: successor.name, hostCredentialHash: successor.credentialHash } : {}),
+  });
+  await finishRaceIfReady(ctx, room);
 }
 
 /** Persist the current race snapshot in the same transaction that ends the race. */

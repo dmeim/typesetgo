@@ -1,5 +1,7 @@
 # TypeSetGo Master TODO
 
+> Historical audit or plan. Current setup and the active remediation checklist are indexed in [docs/README.md](README.md). Recheck source before acting on an old item.
+
 > Last updated: November 2024
 > Use this file for planning and task distribution.
 

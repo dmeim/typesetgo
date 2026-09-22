@@ -11,9 +11,11 @@ For the full handbook, see [`docs/AGENTS.md`](docs/AGENTS.md). Keep this root fi
 ## Commands
 
 ```bash
-# Development (usually two terminals)
-bun run convex:dev      # Start Convex backend
-bun run dev             # Start Vite frontend (port 3000)
+# Isolated UI development (no live services)
+bun run dev:fixture     # Local fixture on port 4317
+# Explicit backend target: see docs/development.md
+# bun run convex:dev --env-file PATH --expect local:NAME
+bun run dev             # Vite; connects to configured services
 
 # Build & Test
 bun run build           # TypeScript check + Vite build
@@ -33,7 +35,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 ## Architecture
 
 - **Frontend:** Vite 8 SPA with React 19 + TypeScript 7 (`src/`)
-- **Hosting:** Cloudflare Workers Static Assets (`typesetgo.app`); manual Wrangler deployment, no container build workflow
+- **Hosting:** Cloudflare Workers Static Assets (`typesetgo.app`); manual Wrangler deployment; owner-reported Workers Builds connection (unverified), no container build workflow
 - **Live services:** production Clerk + existing Convex development deployment (intentional; do not migrate the database)
 - **Backend:** Convex real-time functions (`convex/`)
 - **Auth:** Clerk, enabled when `VITE_CLERK_PUBLISHABLE_KEY` is set
@@ -50,11 +52,11 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `src/pages/` | Route-level pages (`Home`, `Connect`, `Race`, `Leaderboard`, `Lessons`, legal/info pages) |
 | `src/components/` | Feature components organized by domain (`typing/`, `race/`, `connect/`, `auth/`, `plan/`, `settings/`, `stats/`, `layout/`) |
 | `src/components/ui/` | Shadcn/Radix-style UI primitives |
-| `src/hooks/` | Custom hooks (`useTheme`, `useSound`, `useAnimatedCounter`, `useSessionId`, `useGridColumns`) |
-| `src/lib/` | Utilities, schemas, constants, stores, content loaders |
+| `src/hooks/` | Custom hooks (`useTheme`, `useSoundPreview`, `useAnimatedCounter`, `useSessionId`) |
+| `src/lib/` | Utilities, adapters, constants, stores, content loaders |
 | `src/context/` | React context providers |
 | `src/types/` | TypeScript domain types |
-| `convex/schema.ts` | Database schema (11 tables) + indexes |
+| `convex/schema.ts` | Database schema (14 tables) + indexes |
 | `convex/*.ts` | Convex queries/mutations/actions for users, results, rooms, participants, races, achievements, streaks, stats, cleanup, migrations |
 | `convex/lib/` | Convex-side shared helpers/constants |
 | `public/themes/` | Theme JSON files (startup manifest and browsing catalog generated) |
@@ -76,7 +78,8 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/leaderboard` | Leaderboard |
 | `/user/:userId` | User stats profile |
 | `/connect` | Multiplayer hub |
-| `/connect/host` | Host a room |
+| `/connect/host` | Create a room |
+| `/connect/host/:roomId` | Resume the owned room |
 | `/connect/join` | Join a room |
 | `/race` | Race creation/selection |
 | `/race/lobby/:lobbyId` | Race lobby |
@@ -89,14 +92,14 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 
 ## Provider Stack (`src/main.tsx`)
 
-`NotificationProvider` -> optional `ClerkProvider` -> `ConvexClerkProvider` (or anonymous `ConvexProvider`) -> `AppAuthProvider` -> `App`. App owns `ThemeProvider`, `IconProvider`, `MotionConfig reducedMotion="user"`, lazy `RouterProvider`, and themed `Toaster`.
+optional `ClerkProvider` -> `ConvexClerkProvider` (or anonymous `ConvexProvider`) -> `AppAuthProvider` -> `AccountProvider` -> `NotificationProvider` -> `App`. App owns `ThemeProvider`, `IconProvider`, `MotionConfig reducedMotion="user"`, lazy `RouterProvider`, and themed `Toaster`.
 
 Notes:
 - `VITE_CONVEX_URL` is required for the Convex client.
 - Missing `VITE_CLERK_PUBLISHABLE_KEY` logs a warning and disables auth-only features.
 - Feature auth uses `useAppAuth`; it safely describes missing/unavailable Clerk.
 - `ThemeProvider` wraps routes and Toaster inside `App`. Route boundaries cover loading/render failures; bootstrap configuration must still be valid.
-- Notifications use the themed shadcn Base UI `src/components/ui/toast.tsx`. Use `toast.add` from `@/lib/toast-manager` for temporary feedback, or `useNotify` for a toast plus notification-center history. History stays in browser localStorage (latest 50; not account-scoped or synced to Convex).
+- Notifications use the themed shadcn Base UI `src/components/ui/toast.tsx`. Use `toast.add` from `@/lib/toast-manager` for temporary feedback, or `useNotify` for a toast plus notification-center history. History stays in browser localStorage (latest 50 per account or guest; not synced to Convex).
 - Browser acceptance uses local mocks, never the live Convex development deployment. See [`tests/browser/README.md`](tests/browser/README.md).
 - The `fonts` browser suite also checks production CSS/assets; build first with fixture environment values as documented in the browser guide.
 - Build pins native TypeScript 7; lint uses the compatible TypeScript 6 API. Use `bun run build`, not an ambiguous bare `tsc`; see [`docs/ui-cleanup/tooling.md`](docs/ui-cleanup/tooling.md).

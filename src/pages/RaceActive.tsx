@@ -1,3 +1,5 @@
+import { useMultiplayerPresence } from "@/hooks/useMultiplayerPresence";
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
@@ -103,6 +105,8 @@ function RaceAttempt({
   participants: Participant[];
   participant: Participant;
 }) {
+  const credential = useMultiplayerCredential();
+  useMultiplayerPresence(participant._id ? room._id : undefined, participant._id);
   const navigate = useNavigate();
   const participantId = participant._id;
   const raceStartTime = room.raceStartTime!;
@@ -176,10 +180,10 @@ function RaceAttempt({
   const finishRace = useCallback(() => {
     if (endGuard.current || isLeaving) return;
     endGuard.current = true;
-    return endRace({ roomId: room._id, raceStartTime }).catch(() => {
+    return endRace({ credential, roomId: room._id, raceStartTime }).catch(() => {
       setEndError("Could not finalize the race. Retry to prepare the results.");
     });
-  }, [endRace, room._id, raceStartTime, isLeaving]);
+  }, [credential, endRace, room._id, raceStartTime, isLeaving]);
 
   useEffect(() => {
     if (shouldEnd && !room.raceEndTime) void finishRace();
@@ -202,7 +206,7 @@ function RaceAttempt({
       setFinishPending(true);
       setFinishError("");
       try {
-        await recordFinish({
+        await recordFinish({ credential,
           participantId,
           raceStartTime,
           resetVersion,
@@ -220,7 +224,7 @@ function RaceAttempt({
         setFinishPending(false);
       }
     },
-    [cancel, participantId, raceStartTime, resetVersion, recordFinish],
+    [credential, cancel, participantId, raceStartTime, resetVersion, recordFinish],
   );
 
   useEffect(() => {
@@ -388,7 +392,7 @@ function RaceAttempt({
                 setResetPending(true);
                 setResetError("");
                 try {
-                  await resetStats({ participantId });
+                  await resetStats({ credential, participantId });
                 } catch {
                   setResetError("Could not restart your attempt. Try again.");
                   setResetPending(false);

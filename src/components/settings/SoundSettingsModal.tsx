@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useSoundPreview } from "@/hooks/useSoundPreview";
+import { useRef } from "react";
 import { PlayIcon } from "@phosphor-icons/react";
 import type { SettingsState } from "@/lib/typing-constants";
-import { getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
+import { type SoundManifest } from "@/lib/sounds";
 import { tv } from "@/lib/theme-vars";
 import {
   Dialog,
@@ -28,36 +29,12 @@ export default function SoundSettingsModal({
   soundManifest,
   disabled = false,
 }: SoundSettingsModalProps) {
-  const preview = useRef<HTMLAudioElement | null>(null);
   const opener = useRef<HTMLElement | null>(null);
-  const [previewError, setPreviewError] = useState("");
-  useEffect(
-    () => () => {
-      preview.current?.pause();
-      preview.current = null;
-    },
-    [isOpen],
-  );
-  const playPreview = (category: string, pack: string) => {
-    preview.current?.pause();
-    const url = getRandomSoundUrl(soundManifest, category, pack);
-    if (!url) return;
-    setPreviewError("");
-    try {
-      const audio = new Audio(url);
-      preview.current = audio;
-      audio.volume = 0.5;
-      void audio
-        .play()
-        .catch(() => setPreviewError("Unable to play this preview."));
-    } catch {
-      setPreviewError("Unable to play this preview.");
-    }
-  };
+  const { play: playPreview, stop, error: previewError } = useSoundPreview(soundManifest,
+    isOpen && !disabled && !!settings.soundEnabled, `${settings.typingSound}:${settings.warningSound}`);
   const categories = [
     { category: "typing", key: "typingSound", label: "Typing sound" },
     { category: "warning", key: "warningSound", label: "Warning sound" },
-    { category: "error", key: "errorSound", label: "Error sound" },
   ] as const;
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -93,7 +70,7 @@ export default function SoundSettingsModal({
             checked={settings.soundEnabled ?? false}
             disabled={disabled}
             onChange={(event) => {
-              if (!event.target.checked) preview.current?.pause();
+              if (!event.target.checked) stop();
               onUpdateSettings({ soundEnabled: event.target.checked });
             }}
           />
@@ -108,7 +85,6 @@ export default function SoundSettingsModal({
             const packs = Object.keys(soundManifest?.[category] ?? {}).filter(
               (pack) => soundManifest?.[category]?.[pack]?.length,
             );
-            if (category === "error" && !packs.length) return null;
             const selected = settings[key] ?? "";
             const available = packs.includes(selected);
             return (
@@ -122,7 +98,7 @@ export default function SoundSettingsModal({
                     value={available ? selected : ""}
                     disabled={!packs.length}
                     onChange={(event) => {
-                      preview.current?.pause();
+                      stop();
                       onUpdateSettings({ [key]: event.target.value });
                     }}
                     className="min-h-10 min-w-0 flex-1 rounded border px-3 py-2 focus-visible:outline-2"

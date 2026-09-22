@@ -1,75 +1,27 @@
-# Connect (Multiplayer) Feature
+# Connect and Race
 
-## Overview
+The Vite/React frontend uses Convex reactive queries and mutations. There is no Socket.IO server, Next.js route tree, or in-memory production room map.
 
-The "Connect" feature allows multiple users to join a room and type together in real-time. It creates a synchronized environment where a **Host** controls the settings and flow of the test, while **Joiners** participate.
+## Connect
 
-## Architecture
+`src/pages/Host.tsx` creates a room through `convex/rooms.ts` and replaces the creation route with `/connect/host/:roomId`. Reloading that route resumes the same room if this browser retains its private ownership credential. The editor hydrates from stored settings; Apply or Start saves the draft deliberately. Stop/reset operations retain run and participant reset versions so delayed progress cannot change another attempt.
 
-TypeSetGo uses a **Client-Server** architecture powered by **Socket.IO**.
+The theme picker browses compact catalog metadata and fetches the selected palette on demand, with loading/error/retry states. Shared plan components remain available to the Host; the unreachable solo plan workflow was removed.
 
--   **Server**: A custom Node.js server (`server.js`) integrated with Next.js. It manages room state (`rooms` Map) and broadcasts events.
--   **Host Client**: Creates the room, owns the "truth" for settings, and controls the test lifecycle (Start/Stop/Reset).
--   **Join Client**: Connects to a room via code, listens for state updates, and reports local typing statistics.
+`src/pages/Join.tsx` joins by room code, subscribes to the room and participants, and renders `TypingPractice` with locked settings. `useConnectProgress` acknowledges a snapshot only after success, preserves a failed latest snapshot for retry, and resets delivery state when the run changes. Connect does not create ranked solo sessions.
 
-## Room State
+## Ownership and presence
 
-Each room on the server is an object stored in a `Map`:
+`src/lib/multiplayer-identity.ts` initializes a stable browser session ID and a random 256-bit credential outside render-time storage snapshots. The backend stores a hash of the credential and omits it from public room/participant data. IDs identify records; the private credential authorizes host or member actions. Denied storage falls back to memory for the current page lifetime; a reload cannot restore credentials that were never persisted.
 
-```javascript
-{
-  hostId: "socket_id_string",
-  users: [
-    { 
-      id: "socket_id", 
-      name: "User Name", 
-      stats: { wpm: 0, accuracy: 0, progress: 0, ... } 
-    }
-  ],
-  settings: { ... }, // Shared settings (Mode, Duration, etc.)
-  status: "waiting" | "active"
-}
-```
+Presence heartbeats update `lastSeen` and extend room retention. Scheduled cleanup applies disconnect behavior after 75 seconds without participant activity (including reconnect grace), checks race completion, and transfers a vanished Race host to an eligible connected participant. Rooms expire after 15 minutes without heartbeat renewal and their associated data is removed in bounded room batches. Explicit Leave and End room remain available; browser unload is not the sole cleanup mechanism.
 
-## Protocol & Events
+Legacy rooms without a credential cannot be safely claimed. They are treated as expired and the user creates a new room. Clearing browser storage similarly loses ownership; public record IDs cannot recover it.
 
-### Room Management
+## Race
 
--   `create_room` (Client -> Server): Requests a new room. Server returns a unique 5-character code.
--   `join_room` (Client -> Server): Payload `{ code, name }`. Server adds user and broadcasts `user_joined`.
--   `claim_host` (Client -> Server): Payload `{ code }`. Used for host reconnection/initialization.
+`RaceLobby`, `RaceActive`, and `RaceResults` own lobby readiness, strict typing progress, and the podium. Backend completion writes a race snapshot in the same transaction. Run/start and reset identity reject stale updates. Race remains a separately routed feature; navigation visibility is controlled by the app route configuration.
 
-### Synchronization
+## Checks
 
--   `update_settings` (Host -> Server): Host changes settings.
--   `settings_updated` (Server -> All): Broadcasts new settings. Clients update their local `lockedSettings`.
--   `host_disconnected` (Server -> All): Sent if the host loses connection for >2 minutes.
-
-### Test Lifecycle
-
-1.  **Start**: Host emits `start_test`. Server updates status to `active` and broadcasts `test_started`.
-2.  **Stop**: Host emits `stop_test`. Server broadcasts `test_stopped`.
-3.  **Reset**: Host emits `reset_test`. Server resets user stats and broadcasts `test_reset`.
-
-### Real-time Stats
-
-1.  **Reporting**: Clients emit `send_stats` periodically (every 500ms) during a test.
-2.  **Broadcasting**: Server updates its internal state and emits `stats_update` to the Host (and potentially others).
-    *   *Note:* Currently, the Host is the primary consumer of detailed real-time stats to render the live dashboard.
-
-## Frontend Implementation
-
-### Host (`app/connect/host/page.tsx`)
--   Maintains a persistent connection via `localStorage` ("hostRoomCode") to handle page refreshes.
--   Renders a **Dashboard** showing all connected users as cards or a list.
--   Visualizes progress bars and live WPM/Accuracy for every user.
--   Provides administrative controls: Kick User, Reset User.
-
-### Joiner (`app/connect/join/page.tsx`)
--   Wraps the `TypingPractice` component.
--   Passes `lockedSettings` received from the socket to `TypingPractice`.
--   Intercepts stats updates from `TypingPractice` via `onStatsUpdate` and forwards them to the socket.
--   Blocks typing input if `status` is "waiting".
-
-## Reconnection Handling
-The server implements a grace period for Hosts. If a Host disconnects, the room remains alive for **2 minutes**. If the Host reconnects and claims the room (`claim_host`) within that window, the session resumes.
+Registered multiplayer contract tests use `convex-test` for omitted/forged/wrong-member credentials, validators, public secret omission, expiry, host transfer, and race completion. Browser suites `connect`, `connect-session`, and `race` exercise local fixture transport, including Host refresh and failed progress retry. See [browser acceptance](../../tests/browser/README.md); these tests do not contact the live deployment.

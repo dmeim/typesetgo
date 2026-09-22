@@ -1,3 +1,4 @@
+import "./identity";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -8,11 +9,6 @@ import RaceActive from "@/pages/RaceActive";
 import RaceResults from "@/pages/RaceResults";
 import "@/index.css";
 
-localStorage.setItem("typesetgo_session_id", "self");
-localStorage.setItem(
-  "typesetgo-theme-mode",
-  new URLSearchParams(window.location.search).get("theme") || "dark",
-);
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider>
     <IconProvider>

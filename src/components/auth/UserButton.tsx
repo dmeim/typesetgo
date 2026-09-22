@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useState } from "react";
 import { ArrowsClockwiseIcon, CaretDownIcon, SignInIcon, SignOutIcon, UserGearIcon, UserIcon } from "@phosphor-icons/react";
 import { toast } from "@/lib/toast-manager";
-import { api } from "../../../convex/_generated/api";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -10,8 +8,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 
 export default function UserButton({ inactive = false }: { inactive?: boolean }) {
   const { status, isSignedIn, user, isLoaded, unavailableReason, openSignIn, openUserProfile, signOut } = useAppAuth();
-  const getOrCreateUser = useMutation(api.users.getOrCreateUser);
-  const lastSyncedKeyRef = useRef<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unavailableOpen, setUnavailableOpen] = useState(false);
 
@@ -19,21 +15,6 @@ export default function UserButton({ inactive = false }: { inactive?: boolean })
     setMenuOpen(false);
     setUnavailableOpen(false);
   }
-
-  useEffect(() => {
-    if (isSignedIn && user) {
-      const email = user.primaryEmailAddress?.emailAddress ?? "";
-      const username = user.username ?? user.firstName ?? "User";
-      const avatarUrl = user.imageUrl;
-      const syncKey = `${user.id}:${email}:${username}:${avatarUrl}`;
-      if (lastSyncedKeyRef.current === syncKey) return;
-      void getOrCreateUser({ clerkId: user.id, email, username, avatarUrl }).then(() => {
-        lastSyncedKeyRef.current = syncKey;
-      }).catch((error: unknown) => console.error("Failed to sync user to Convex:", error));
-    } else {
-      lastSyncedKeyRef.current = null;
-    }
-  }, [isSignedIn, user, getOrCreateUser]);
 
   const runAction = async (action: () => Promise<boolean>, message: string) => {
     if (!await action()) toast.add({ type: "error", title: message });

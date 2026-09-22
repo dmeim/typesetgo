@@ -1,3 +1,4 @@
+import { useSoundPreview } from "@/hooks/useSoundPreview";
 import { useState } from "react";
 import { PlayIcon, XIcon } from "@phosphor-icons/react";
 import { Switch } from "@/components/ui/switch";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "./practice-config";
 import type { SettingsState } from "@/lib/typing-constants";
-import { getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
+import { type SoundManifest } from "@/lib/sounds";
 import { TYPING_FONT_OPTIONS, getTypingFontFamily } from "@/lib/typing-fonts";
 import { tv } from "@/lib/theme-vars";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,7 +20,6 @@ const SETTINGS_TABS = [
   { id: "type", label: "Type" },
 ] as const;
 const TEXT_ALIGN_OPTIONS = ["left", "center", "right", "justify"] as const;
-const NONE_SOUND_VALUE = "__none_sound__";
 type SettingsTabId = (typeof SETTINGS_TABS)[number]["id"];
 interface PracticeSettingsDialogProps {
   showSettings: boolean;
@@ -53,34 +53,21 @@ export default function PracticeSettingsDialog({
     return `${normalized}rem`;
   };
 
-  const getSoundPackOptions = (category: "typing" | "warning" | "error") => {
+  const getSoundPackOptions = (category: "typing" | "warning") => {
     if (!soundManifest?.[category]) return [];
     return Object.keys(soundManifest[category]);
   };
 
-  const playSettingsSoundPreview = (category: "typing" | "warning" | "error", pack: string) => {
-    if (!pack || !soundManifest) return;
-    const soundUrl = getRandomSoundUrl(soundManifest, category, pack);
-    if (!soundUrl) return;
-
-    try {
-      const audio = new Audio(soundUrl);
-      audio.volume = 0.5;
-      audio.play().catch(() => {});
-    } catch {
-      // Ignore preview errors
-    }
-  };
+  const { play: playSettingsSoundPreview, error: previewError } = useSoundPreview(soundManifest,
+    showSettings && settings.soundEnabled, `${settings.typingSound}:${settings.warningSound}`);
 
   const clampedTextSize = Math.max(TEXT_SIZE_MIN, Math.min(TEXT_SIZE_MAX, settings.typingFontSize));
   const clampedLinePreview = Math.max(1, Math.min(6, linePreview));
   const clampedMaxWordsPerLine = Math.max(1, Math.min(10, maxWordsPerLine));
   const typingSoundOptions = getSoundPackOptions("typing");
   const warningSoundOptions = getSoundPackOptions("warning");
-  const errorSoundOptions = getSoundPackOptions("error");
   const selectedTypingSound = typingSoundOptions.includes(settings.typingSound) ? settings.typingSound : undefined;
   const selectedWarningSound = warningSoundOptions.includes(settings.warningSound) ? settings.warningSound : undefined;
-  const selectedErrorSound = errorSoundOptions.includes(settings.errorSound) ? settings.errorSound : "";
   const closeSettingsModal = () => {
     setActiveSettingsTab("all");
     setShowSettings(false);
@@ -399,70 +386,7 @@ export default function PracticeSettingsDialog({
                   </Button>
                 </div>
 
-                {errorSoundOptions.length > 0 && (
-                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                    <div>
-                      <Label
-                        htmlFor="error-sound"
-                        className="mb-2 block text-sm"
-                        style={{ color: tv.ui.mutedForeground }}
-                      >
-                        Error Sound
-                      </Label>
-                      <Select
-                        disabled={!settings.soundEnabled}
-                        value={selectedErrorSound || NONE_SOUND_VALUE}
-                        onValueChange={(value) =>
-                          updateSettings({
-                            errorSound: value === NONE_SOUND_VALUE ? "" : value,
-                          })
-                        }
-                      >
-                        <SelectTrigger
-                          id="error-sound"
-                          className="w-full"
-                          style={{
-                            backgroundColor: tv.ui.card,
-                            borderColor: tv.border.subtle,
-                            color: tv.ui.foreground,
-                          }}
-                        >
-                          <SelectValue placeholder="None" />
-                        </SelectTrigger>
-                        <SelectContent
-                          style={{
-                            backgroundColor: tv.ui.card,
-                            borderColor: tv.border.subtle,
-                          }}
-                        >
-                          <SelectItem value={NONE_SOUND_VALUE} style={{ color: tv.ui.foreground }}>
-                            None
-                          </SelectItem>
-                          {errorSoundOptions.map((pack) => (
-                            <SelectItem key={pack} value={pack} style={{ color: tv.ui.foreground }}>
-                              {pack.charAt(0).toUpperCase() + pack.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={() => selectedErrorSound && playSettingsSoundPreview("error", selectedErrorSound)}
-                      className="rounded-md border px-3 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-                      style={{
-                        color: tv.ui.foreground,
-                        backgroundColor: tv.ui.card,
-                        borderColor: tv.border.subtle,
-                      }}
-                      disabled={!settings.soundEnabled || !selectedErrorSound || errorSoundOptions.length === 0}
-                    >
-                      <PlayIcon className="size-4 shrink-0" aria-hidden="true" />
-                      Preview
-                    </Button>
-                  </div>
-                )}
+                {previewError && <p role="alert" style={{ color: tv.ui.destructive }}>{previewError}</p>}
               </div>
             </section>
 

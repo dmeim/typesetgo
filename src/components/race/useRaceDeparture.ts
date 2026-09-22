@@ -1,3 +1,4 @@
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { useCallback, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +7,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 
 /** Explicit departure is complete only after membership has been disconnected. */
 export function useRaceDeparture(participantId?: Id<"participants">) {
+  const credential = useMultiplayerCredential();
   const disconnect = useMutation(api.participants.disconnect);
   const navigate = useNavigate();
   const pendingRef = useRef(false);
@@ -18,7 +20,7 @@ export function useRaceDeparture(participantId?: Id<"participants">) {
     setIsLeaving(true);
     setLeaveError("");
     try {
-      if (participantId) await disconnect({ participantId });
+      if (participantId) await disconnect({ credential, participantId });
       navigate("/race");
     } catch {
       setLeaveError(
@@ -28,7 +30,7 @@ export function useRaceDeparture(participantId?: Id<"participants">) {
       pendingRef.current = false;
       setIsLeaving(false);
     }
-  }, [disconnect, navigate, participantId]);
+  }, [credential, disconnect, navigate, participantId]);
 
   return { leave, isLeaving, leaveError };
 }

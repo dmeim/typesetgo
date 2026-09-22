@@ -1,5 +1,8 @@
+import { useConnectProgress } from "@/components/connect/useConnectProgress";
+import { useMultiplayerPresence } from "@/hooks/useMultiplayerPresence";
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { ArrowLeftIcon, ArrowsClockwiseIcon, CircleNotchIcon, PencilSimpleIcon, SignOutIcon, XIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -15,20 +18,11 @@ import {
   resolveRoomSettings,
 } from "@/components/connect/room-settings";
 
-type Progress = {
-  wpm: number;
-  accuracy: number;
-  progress: number;
-  wordsTyped: number;
-  timeElapsed: number;
-  isFinished: boolean;
-};
-
 function JoinRoomContent({ code, name }: { code: string; name: string }) {
   const navigate = useNavigate();
   const sessionId = useSessionId();
+  const credential = useMultiplayerCredential();
   const join = useMutation(api.participants.join);
-  const updateStats = useMutation(api.participants.updateStats);
   const disconnect = useMutation(api.participants.disconnect);
   const room = useQuery(api.rooms.getByCode, { code });
   const participants = useQuery(
@@ -36,11 +30,12 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
     room ? { roomId: room._id } : "skip",
   );
   const request = useCallback(
-    () => join({ roomCode: code, name, sessionId, gameMode: "practice" }),
-    [code, name, sessionId, join],
+    () => join({ credential, roomCode: code, name, sessionId, gameMode: "practice" }),
+    [credential, code, name, sessionId, join],
   );
   const attempt = useRoomAttempt(Boolean(sessionId), request);
   const participantId = attempt.value?.participantId;
+  useMultiplayerPresence(participantId ? room?._id : undefined, participantId);
   const participant = participants?.find((item) => item._id === participantId);
   // Wait for the subscribed list to include a successful join before treating
   // an absent record as removal. This history affects rendering, so it is state.
@@ -67,53 +62,7 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
   const [leaving, setLeaving] = useState(false);
   const active =
     room?.status === "active" && Boolean(participant?.isConnected) && !leaving;
-  const report = useRef<{
-    timer?: ReturnType<typeof setTimeout>;
-    signature?: string;
-    lastSent: number;
-    pending?: { stats: Progress; typedText?: string; targetText?: string };
-  }>({ lastSent: 0 });
-
-  useEffect(() => {
-    const current = report.current;
-    current.signature = undefined;
-    current.lastSent = 0;
-    return () => {
-      clearTimeout(current.timer);
-      current.pending = undefined;
-    };
-  }, [sessionKey, active]);
-
-  const handleStatsUpdate = useCallback(
-    (stats: Progress, typedText?: string, targetText?: string) => {
-      if (!participantId || !active) return;
-      const current = report.current;
-      const signature = JSON.stringify([stats, typedText, targetText]);
-      if (signature === current.signature) return;
-      current.signature = signature;
-      current.pending = { stats, typedText, targetText };
-      const flush = () => {
-        current.timer = undefined;
-        const snapshot = current.pending;
-        if (!snapshot) return;
-        current.pending = undefined;
-        current.lastSent = Date.now();
-        const args = { participantId, ...snapshot, runVersion, resetVersion };
-        void updateStats(args).catch(() =>
-          setFeedback("Progress could not be sent. Check your connection."),
-        );
-      };
-      if (stats.isFinished || Date.now() - current.lastSent >= 500) {
-        clearTimeout(current.timer);
-        flush();
-      } else if (!current.timer)
-        current.timer = setTimeout(
-          flush,
-          500 - (Date.now() - current.lastSent),
-        );
-    },
-    [participantId, active, runVersion, resetVersion, updateStats],
-  );
+  const { report: handleStatsUpdate, retry: retryProgress, error: progressError } = useConnectProgress(participantId, runVersion, resetVersion, active, sessionKey);
 
   const handleLeave = async () => {
     if (leaving) return;
@@ -125,7 +74,7 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
         ? { participantId }
         : await attempt.waitForResult()?.catch(() => undefined);
       if (joined && !wasRemoved)
-        await disconnect({ participantId: joined.participantId });
+        await disconnect({ credential, participantId: joined.participantId });
       navigate("/connect");
     } catch {
       setFeedback("Unable to leave the room. Please try again.");
@@ -198,17 +147,18 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
     );
   return (
     <>
-      {feedback && (
+      {(feedback || progressError) && (
         <div
           role="alert"
           className="flex flex-wrap items-center justify-center gap-3 p-3"
           style={{ backgroundColor: tv.ui.card, color: tv.ui.foreground }}
         >
-          {feedback}
-          <RoomButton onClick={() => setFeedback("")}>
+          {feedback || progressError}
+          {progressError && <RoomButton onClick={() => void retryProgress()}><ArrowsClockwiseIcon className="size-4" aria-hidden="true" />Retry sync</RoomButton>}
+          {feedback && <RoomButton onClick={() => setFeedback("")}>
             <XIcon className="size-4 shrink-0" aria-hidden="true" />
             Dismiss
-          </RoomButton>
+          </RoomButton>}
           <RoomButton onClick={handleLeave} disabled={leaving}>
             <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />
             Leave room

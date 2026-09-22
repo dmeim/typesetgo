@@ -27,7 +27,6 @@ const plan: SettingsState["plan"] = [
     mode: "words",
     settings: { wordTarget: 10 },
     metadata: { title: "Warm-up", subtitle: "" },
-    syncSettings: { waitForAll: true, zenWaiting: true },
   },
   {
     id: "second",
@@ -39,7 +38,6 @@ const plan: SettingsState["plan"] = [
       typingSound: "local",
     },
     metadata: { title: "Text", subtitle: "" },
-    syncSettings: { waitForAll: false, zenWaiting: false },
   },
 ];
 
@@ -51,7 +49,6 @@ describe("host-led settings", () => {
       planIndex: 1,
       typingSound: "shared",
       warningSound: "clock",
-      errorSound: "",
       soundEnabled: true,
     });
     expect(resolved).toMatchObject({
@@ -61,7 +58,6 @@ describe("host-led settings", () => {
       duration: 20,
       typingSound: "shared",
       warningSound: "clock",
-      errorSound: "",
       soundEnabled: true,
     });
     expect(resolved).not.toHaveProperty("plan");
@@ -117,10 +113,8 @@ describe("host-led settings", () => {
     expect(screen.queryByText(/wait for all/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/zen waiting/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save plan" }));
-    expect(onSave.mock.calls[0][0][0].syncSettings).toEqual({
-      waitForAll: false,
-      zenWaiting: false,
-    });
+    expect(onSave).toHaveBeenCalledWith(plan);
+    expect(onSave.mock.calls[0][0][0]).not.toHaveProperty("syncSettings");
   });
 });
 

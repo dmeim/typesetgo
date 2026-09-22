@@ -48,10 +48,13 @@ export const fixture = {
   })),
   requests: [] as { name: string; args: Record<string, unknown> }[],
   emit() {
+    sessionStorage.setItem("connect-browser-state", JSON.stringify({ room: this.room, participants: this.participants, requests: this.requests }));
     revision++;
     listeners.forEach((listener) => listener());
   },
 };
+const restored = sessionStorage.getItem("connect-browser-state");
+if (restored) Object.assign(fixture, JSON.parse(restored));
 const mutationCache = new Map<
   string,
   (args: Record<string, unknown>) => Promise<unknown>
@@ -61,13 +64,16 @@ export function useMutation(reference: Parameters<typeof getFunctionName>[0]) {
   if (!mutationCache.has(name))
     mutationCache.set(name, async (args) => {
       fixture.requests.push({ name, args });
+      if (name === "multiplayerPresence:heartbeat") { fixture.emit(); return null; }
       const failure = new URLSearchParams(location.search).get("failure");
       if (failure === "create" && name === "rooms:create")
         throw new Error("Fixture connection unavailable");
       if (failure === "join" && name === "participants:join")
         throw new Error("Fixture room not found");
-      if (name === "rooms:create")
+      if (name === "rooms:create" || name === "rooms:resume") {
+        fixture.emit();
         return { code: fixture.room.code, roomId: fixture.room._id };
+      }
       if (name === "participants:join")
         return { participantId: "participant-0" };
       if (name === "rooms:updateSettings")

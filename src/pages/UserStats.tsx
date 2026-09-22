@@ -2,6 +2,8 @@ import { ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, ArrowsDownUp
 import { useState, useMemo, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
+import { useAccount } from "@/components/layout/useAccount";
+import { toast } from "@/lib/toast-manager";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -26,10 +28,10 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
   const profileUser = useQuery(api.users.getUserById, userId ? { userId: userId as Id<"users"> } : "skip");
   const stats = useQuery(api.testResults.getUserStatsByUserId, userId ? { userId: userId as Id<"users"> } : "skip");
   const achievements = useQuery(api.achievements.getUserAchievementsByUserId, userId ? { userId: userId as Id<"users"> } : "skip");
-  const currentConvexUser = useQuery(api.users.getUser, clerkUser ? { clerkId: clerkUser.id } : "skip");
+  const account = useAccount();
   const recheckAchievements = useMutation(api.achievements.recheckAllAchievements);
   const refreshPending = useRef(false);
-  const isOwner = !!clerkUser && !!userId && currentConvexUser?._id === userId;
+  const isOwner = !!clerkUser && !!userId && account.status === "ready" && account.userId === userId;
 
   const [selectedTest, setSelectedTest] = useState<ProfileTestResult | null>(null);
   const [selectedChart, setSelectedChart] = useState<StatCardType | null>(null);
@@ -67,7 +69,9 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
     if (!isOwner || !clerkUser || refreshPending.current) return;
     refreshPending.current = true;
     try {
-      return await recheckAchievements({ clerkId: clerkUser.id });
+      const result = await recheckAchievements({ clerkId: clerkUser.id });
+      if (result.pending) toast.add({ title: "Achievement refresh started", description: "Your history is being checked. Awards will update automatically.", type: "info" });
+      return result;
     } finally {
       refreshPending.current = false;
     }

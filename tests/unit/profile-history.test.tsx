@@ -16,6 +16,7 @@ const fixture = vi.hoisted(() => ({
   chartData: [] as { value: number; isBest: boolean; isLowest: boolean }[],
 }));
 
+vi.mock("@/components/layout/useAccount", () => ({ useAccount: () => ({ status: fixture.currentUser ? "ready" : "loading", userId: fixture.currentUser?._id }) }));
 vi.mock("@/components/layout/useAppAuth", () => ({ useAppAuth: () => ({ user: fixture.user }) }));
 vi.mock("../../convex/_generated/api", () => ({ api: {
   users: { getUserById: "profile", getUser: "currentUser" },
@@ -73,13 +74,13 @@ afterEach(cleanup);
 
 describe("profile capabilities and states", () => {
   it("refreshes only the verified owner's achievements and guards duplicate actions", async () => {
-    let resolveRefresh!: () => void;
-    fixture.refresh.mockImplementation(() => new Promise<void>((resolve) => { resolveRefresh = resolve; }));
+    let resolveRefresh!: (value: { pending: boolean }) => void;
+    fixture.refresh.mockImplementation(() => new Promise<{ pending: boolean }>((resolve) => { resolveRefresh = resolve; }));
     mount();
     fireEvent.click(screen.getByRole("button", { name: "Refresh achievements" }));
     fireEvent.click(screen.getByRole("button", { name: "Refresh achievements" }));
     expect(fixture.refresh).toHaveBeenCalledExactlyOnceWith({ clerkId: "clerk-owner" });
-    resolveRefresh();
+    resolveRefresh({ pending: false });
     await waitFor(() => expect(fixture.achievementProps?.onRefresh).toBeDefined());
   });
 

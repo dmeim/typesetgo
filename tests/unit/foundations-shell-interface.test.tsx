@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Header from "@/components/layout/Header";
 import NotificationCenter from "@/components/layout/NotificationCenter";
+import { AccountContext, unavailableAccount } from "@/components/layout/useAccount";
 import { AppAuthContext, unavailableAuth, type AppAuthUser } from "@/components/layout/useAppAuth";
 import { NotificationProvider, type Notification } from "@/lib/notification-store";
 
@@ -86,7 +87,7 @@ describe("responsive shell semantics and focus", () => {
 
 describe("notification actions", () => {
   it("uses independent buttons and keeps removal separate from activation", async () => {
-    localStorage.setItem("typesetgo_notifications", JSON.stringify([notification("1", "First update"), notification("2", "Second update")]));
+    localStorage.setItem("typesetgo_notifications:user:user_1", JSON.stringify([notification("1", "First update"), notification("2", "Second update")]));
     render(<Notifications />);
     fireEvent.click(screen.getByRole("button", { name: "Notifications, 2 unread" }));
     const popup = await screen.findByRole("dialog", { name: "Notifications" });
@@ -115,11 +116,23 @@ describe("notification actions", () => {
   });
 
   it("keeps a focus destination after clearing the list", async () => {
-    localStorage.setItem("typesetgo_notifications", JSON.stringify([notification("1", "First update")]));
+    localStorage.setItem("typesetgo_notifications:user:user_1", JSON.stringify([notification("1", "First update")]));
     render(<Notifications />);
     fireEvent.click(screen.getByRole("button", { name: "Notifications, 1 unread" }));
     fireEvent.click(await screen.findByRole("button", { name: "Clear all" }));
     expect(screen.getByText("No notifications yet")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Notifications" })).toHaveFocus();
   });
+});
+
+
+it("waits for account readiness before querying a stored achievement", () => {
+  localStorage.setItem("typesetgo_notifications:user:user_1", JSON.stringify([{ ...notification("badge", "Earned badge"), type: "achievement", metadata: { achievementId: "speed_30" } }]));
+  const view = render(<AccountContext.Provider value={{ ...unavailableAccount, status: "loading" }}><Notifications /></AccountContext.Provider>);
+  fireEvent.click(screen.getByRole("button", { name: /Notifications, 1 unread/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Earned badge, unread" }));
+  expect(screen.getByRole("dialog", { name: "Achievements" })).toBeInTheDocument();
+  expect(backend.query.mock.calls.every((call) => call[1] === "skip")).toBe(true);
+  view.rerender(<AccountContext.Provider value={{ ...unavailableAccount, status: "ready" }}><Notifications /></AccountContext.Provider>);
+  expect(backend.query.mock.calls.at(-1)?.[1]).toEqual({ clerkId: "user_1" });
 });

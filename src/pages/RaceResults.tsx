@@ -1,3 +1,5 @@
+import { useMultiplayerPresence } from "@/hooks/useMultiplayerPresence";
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
@@ -21,6 +23,7 @@ export default function RaceResults() {
   const { raceId } = useParams<{ raceId: string }>();
   const navigate = useNavigate();
   const sessionId = useSessionId();
+  const credential = useMultiplayerCredential();
   const roomId = raceId as Id<"rooms"> | undefined;
   const room = useQuery(api.rooms.getById, roomId ? { roomId } : "skip");
   const results = useQuery(
@@ -34,6 +37,7 @@ export default function RaceResults() {
   const resetForNewRace = useMutation(api.rooms.resetForNewRace);
   const saveResults = useMutation(api.raceResults.saveResults);
   const { leave, isLeaving, leaveError } = useRaceDeparture(participant?._id);
+  useMultiplayerPresence(participant?._id ? room?._id : undefined, participant?._id);
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   const [error, setError] = useState("");
@@ -108,7 +112,7 @@ export default function RaceResults() {
               onClick={() =>
                 void runAction(
                   () =>
-                    saveResults({
+                    saveResults({ credential,
                       raceId: room._id,
                       raceStartTime: room.raceStartTime,
                     }),
@@ -236,7 +240,7 @@ export default function RaceResults() {
               onClick={() =>
                 void runAction(
                   () =>
-                    resetForNewRace({
+                    resetForNewRace({ credential,
                       roomId: room._id,
                       hostSessionId: sessionId,
                     }),

@@ -1,5 +1,7 @@
 # UI Cleanup Audit
 
+> Historical audit or plan. Current setup and the active remediation checklist are indexed in [docs/README.md](README.md). Recheck source before acting on an old item.
+
 Reviewed September 16, 2026 against commit `de758cf`.
 
 This is an implementation backlog for a structural UI cleanup. Preserve TypeSetGo’s flat, matte character: restrained surfaces, clear type, useful contrast, subtle borders, and purposeful motion. The goal is consistent components and reliable state ownership, with fixes at the source of each problem.

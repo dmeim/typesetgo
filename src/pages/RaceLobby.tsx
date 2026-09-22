@@ -1,3 +1,5 @@
+import { useMultiplayerPresence } from "@/hooks/useMultiplayerPresence";
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
@@ -25,6 +27,7 @@ export default function RaceLobby() {
   const { lobbyId } = useParams<{ lobbyId: string }>();
   const navigate = useNavigate();
   const sessionId = useSessionId();
+  const credential = useMultiplayerCredential();
   const roomId = lobbyId as Id<"rooms"> | undefined;
   const room = useQuery(api.rooms.getById, roomId ? { roomId } : "skip");
   const participants = useQuery(
@@ -44,6 +47,7 @@ export default function RaceLobby() {
   const { leave, isLeaving, leaveError } = useRaceDeparture(
     currentParticipant?._id,
   );
+  useMultiplayerPresence(currentParticipant?._id ? room?._id : undefined, currentParticipant?._id);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
@@ -92,7 +96,7 @@ export default function RaceLobby() {
     if (!roomId || !canAutoStart || startAttempted.current === startAttempt)
       return;
     startAttempted.current = startAttempt;
-    return startRace({ roomId, hostSessionId: sessionId }).catch(() => {
+    return startRace({ credential, roomId, hostSessionId: sessionId }).catch(() => {
       setStartState((current) =>
         current.attempt === startAttempt
           ? {
@@ -102,7 +106,7 @@ export default function RaceLobby() {
           : current,
       );
     });
-  }, [roomId, canAutoStart, startAttempt, sessionId, startRace]);
+  }, [credential, roomId, canAutoStart, startAttempt, sessionId, startRace]);
 
   useEffect(() => {
     if (canAutoStart) void beginRace();
@@ -302,7 +306,7 @@ export default function RaceLobby() {
                       onClick={() =>
                         void runAction(
                           () =>
-                            updateSettings({
+                            updateSettings({ credential,
                               roomId: room._id,
                               hostSessionId: sessionId,
                               settings: { difficulty },
@@ -337,7 +341,7 @@ export default function RaceLobby() {
                       onClick={() =>
                         void runAction(
                           () =>
-                            updateSettings({
+                            updateSettings({ credential,
                               roomId: room._id,
                               hostSessionId: sessionId,
                               settings: { wordTarget },
@@ -392,8 +396,8 @@ export default function RaceLobby() {
                           void runAction(
                             () =>
                               isReady
-                                ? setNotReady({ participantId })
-                                : setReady({ participantId }),
+                                ? setNotReady({ credential, participantId })
+                                : setReady({ credential, participantId }),
                             "Could not update readiness. Try again.",
                           )
                       : undefined
@@ -402,7 +406,7 @@ export default function RaceLobby() {
                     participantId
                       ? (emoji) =>
                           void runAction(
-                            () => setEmoji({ participantId, emoji }),
+                            () => setEmoji({ credential, participantId, emoji }),
                             "Could not update your avatar. Try again.",
                           )
                       : undefined
@@ -411,7 +415,7 @@ export default function RaceLobby() {
                     participantId
                       ? (name) =>
                           runAction(
-                            () => setName({ participantId, name }),
+                            () => setName({ credential, participantId, name }),
                             "Could not save your name. Your draft is still available.",
                           )
                       : undefined

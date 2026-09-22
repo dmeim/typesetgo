@@ -293,11 +293,15 @@ test("host loads the theme catalog on demand and sends the selected theme", asyn
       .getByRole("dialog")
       .getByRole("option", { name: "GitHub", exact: true }),
   ).toBeAttached();
-  expect(githubRequests).toBe(1);
+  expect(githubRequests).toBe(0);
   await page
     .getByRole("dialog")
     .getByRole("combobox")
     .selectOption({ label: "GitHub" });
+  await expect(page.getByRole("dialog").getByRole("status")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Apply settings" }).click();
+  expect(githubRequests).toBe(1);
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -311,10 +315,7 @@ test("host loads the theme catalog on demand and sends the selected theme", asyn
       ),
     )
     .toBe(true);
-  await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("button", { name: "Participant theme", exact: true }),
-  ).toBeFocused();
+
 });
 
 test("Escape cancels keyboard step dragging before closing the unsaved plan", async ({ page }) => {
@@ -379,4 +380,21 @@ test("early Escape survives the keyboard sensor registration task", async ({ pag
   await expect(page.getByText("1. Unsaved first step", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+
+test("host refresh resumes the same room and saved settings without creating again", async ({ page }) => {
+  await page.goto("/connect/host?name=Resumable");
+  await expect(page.getByRole("heading", { name: "Host panel" })).toBeVisible();
+  await expect(page).toHaveURL(/\/connect\/host\/fixture-room$/);
+  await page.getByLabel("Duration (seconds)", { exact: true }).fill("75");
+  await page.getByRole("button", { name: "Apply settings" }).click();
+  await expect(page.getByRole("button", { name: "Apply settings" })).toBeDisabled();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Host panel" })).toBeVisible();
+  await expect(page.getByLabel("Duration (seconds)", { exact: true })).toHaveValue("75");
+  const creates = await page.evaluate(() => window.connectFixture.requests.filter((request) => request.name === "rooms:create").length);
+  expect(creates).toBe(1);
+  await page.getByRole("button", { name: "Start test" }).click();
+  await expect(page.getByRole("button", { name: "Stop test" })).toBeVisible();
 });

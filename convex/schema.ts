@@ -1,6 +1,8 @@
 // convex/schema.ts
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { activityCalendarValidator } from "./lib/activityCalendar";
+import { achievementStateValidator } from "./lib/achievementEvaluator";
 
 export default defineSchema({
   // Users for authentication
@@ -38,6 +40,7 @@ export default defineSchema({
     // Ranked path marker. false = saveResult (never ranks). true = finalizeSession.
     // omitted = legacy rows (keep prior eligibility; do not backfill).
     rankedEligible: v.optional(v.boolean()),
+    localCalendar: v.optional(activityCalendarValidator),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
@@ -67,12 +70,14 @@ export default defineSchema({
     maxBurstChars: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_created_at", ["createdAt"])
+    .index("by_last_event", ["lastEventAt"]),
 
   // Rooms for multiplayer Connect mode
   rooms: defineTable({
     code: v.string(),
     hostId: v.string(),
+    hostCredentialHash: v.optional(v.string()),
     hostName: v.string(),
     status: v.union(v.literal("waiting"), v.literal("active")),
     runVersion: v.optional(v.number()),
@@ -112,12 +117,14 @@ export default defineSchema({
     expiresAt: v.number(),
   })
     .index("by_code", ["code"])
-    .index("by_host", ["hostId"]),
+    .index("by_host", ["hostId"])
+    .index("by_expires", ["expiresAt"]),
 
   // Participants in rooms
   participants: defineTable({
     roomId: v.id("rooms"),
     sessionId: v.string(),
+    credentialHash: v.optional(v.string()),
     name: v.string(),
     isConnected: v.boolean(),
     resetVersion: v.optional(v.number()),
@@ -142,7 +149,8 @@ export default defineSchema({
     lastSeen: v.number(),
   })
     .index("by_room", ["roomId"])
-    .index("by_session", ["sessionId"]),
+    .index("by_session", ["sessionId"])
+    .index("by_presence", ["isConnected", "lastSeen"]),
 
   // User preferences for syncing settings across devices
   userPreferences: defineTable({
@@ -173,7 +181,7 @@ export default defineSchema({
     soundEnabled: v.boolean(),
     typingSound: v.string(),
     warningSound: v.string(),
-    errorSound: v.string(),
+    errorSound: v.optional(v.string()), // Legacy clients and stored preferences only.
 
     // Ghost writer
     ghostWriterEnabled: v.boolean(),
@@ -216,12 +224,21 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
+  // Incremental achievement state. Existing users initialize lazily in bounded batches.
+  achievementProgress: defineTable({
+    userId: v.id("users"),
+    generation: v.number(),
+    pending: v.boolean(),
+    cursor: v.union(v.string(), v.null()),
+    state: achievementStateValidator,
+  }).index("by_user", ["userId"]),
+
   // User streak tracking
   userStreaks: defineTable({
     userId: v.id("users"),
     currentStreak: v.number(),
     longestStreak: v.number(),
-    lastActivityDate: v.string(), // "YYYY-MM-DD" in user's local time
+    lastActivityDate: v.string(), // "YYYY-MM-DD" in UTC
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
@@ -238,8 +255,7 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
-  // Pre-computed leaderboard entries (one row per user per time range)
-  // Avoids scanning entire testResults table for leaderboard queries
+  // Retained only for compatibility with existing stored rows. No readers/writers.
   leaderboardCache: defineTable({
     userId: v.id("users"),
     timeRange: v.union(
