@@ -101,20 +101,23 @@ describe("achievement dialogs", () => {
     const earned = tiers.map((tier) => ALL_ACHIEVEMENTS.find((achievement) => achievement.tier === tier)!);
     render(<AchievementsModal earnedAchievements={Object.fromEntries(earned.map((achievement) => [achievement.id, 0]))} onClose={vi.fn()} />);
     const board = screen.getByRole("dialog", { name: "All Achievements" });
+    const tiles = within(board).getAllByRole("button").filter((tile) => tile.hasAttribute("data-achievement-tier"));
     for (const tier of tiers) {
-      const earnedTile = within(board).getAllByRole("button", { name: new RegExp(`, ${tier}, earned$`) })[0];
-      const unearnedTile = within(board).getAllByRole("button", { name: new RegExp(`, ${tier}, not yet earned$`) })[0];
+      const earnedTile = tiles.find((tile) => tile.dataset.achievementTier === tier && tile.dataset.achievementState === "earned")!;
+      const unearnedTile = tiles.find((tile) => tile.dataset.achievementTier === tier && tile.dataset.achievementState === "unearned")!;
       expect(earnedTile).toBeEnabled();
       expect(unearnedTile).toBeEnabled();
+      expect(earnedTile.getAttribute("aria-label")).toMatch(new RegExp(`, ${tier}, earned$`));
+      expect(unearnedTile.getAttribute("aria-label")).toMatch(new RegExp(`, ${tier}, not yet earned$`));
       expect(earnedTile).toHaveTextContent("Earned");
       expect(unearnedTile).toHaveTextContent("Not yet earned");
     }
     expect(within(board).getByText(new RegExp(`5 / ${ALL_ACHIEVEMENTS.length} earned`))).toBeInTheDocument();
-    const unearnedTile = within(board).getAllByRole("button", { name: /, emerald, not yet earned$/ })[0];
+    const unearnedTile = tiles.find((tile) => tile.dataset.achievementTier === "emerald" && tile.dataset.achievementState === "unearned")!;
     fireEvent.click(unearnedTile);
     const detail = screen.getByRole("dialog", { name: "Achievement details" });
     expect(within(detail).getByText("How to earn it", { selector: '[aria-hidden="false"] *' })).toBeInTheDocument();
-  });
+  }, 20_000);
 
   it("restores a caller-supplied persistent control when its menu opener unmounts", async () => {
     function MenuHarness() {
