@@ -670,10 +670,10 @@ describe("custom duration boundary", () => {
         onApply={onApply}
       />,
     );
-    expect(screen.queryByRole("spinbutton", { name: "hours" })).toBeNull();
-    expect(screen.getByRole("spinbutton", { name: "minutes" })).toHaveAttribute("aria-valuemax", "10");
+    expect(screen.getByRole("spinbutton", { name: "hours" })).toHaveAttribute("aria-valuemax", "1");
+    expect(screen.getByRole("spinbutton", { name: "minutes" })).toHaveAttribute("aria-valuemax", "0");
     expect(screen.getByRole("spinbutton", { name: "seconds" })).toHaveAttribute("aria-valuemax", "0");
-    expect(screen.getByText("10:00")).toBeInTheDocument();
+    expect(screen.getByText("01:00:00")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
     expect(onApply).toHaveBeenCalledWith(MAX_DURATION_SECONDS);
   });

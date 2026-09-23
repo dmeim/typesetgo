@@ -26,6 +26,7 @@ import { getLocalCalendarFields } from "@/lib/activity-calendar";
 import { calculateAccuracy, calculateWpm } from "@/lib/typing-metrics";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { PROGRESS_CHAR_THRESHOLD, PROGRESS_INTERVAL_MS } from "../../../convex/lib/antiCheatConstants";
 import { useNotify } from "@/hooks/useNotify";
 import { getAchievementById } from "@/lib/achievement-definitions";
 import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey,
@@ -285,6 +286,9 @@ export default function TypingPractice({
   const sessionPreparedAtRef = useRef(0);
   const completedAtRef = useRef<number | null>(null);
   const sessionIdRef = useRef<Id<"typingSessions"> | null>(null);
+  const lastProgressRef = useRef<{ sessionId: Id<"typingSessions">; at: number; typedLength: number } | null>(null);
+  const progressEventsSentRef = useRef(0);
+  const previousInputLengthRef = useRef(0);
   const startingSessionRef = useRef(false);
   const finalizedRef = useRef(false);
   const savingRef = useRef(false);
@@ -331,6 +335,9 @@ export default function TypingPractice({
     const previousSessionId = sessionIdRef.current;
     sessionEpochRef.current = epoch;
     sessionIdRef.current = null;
+    lastProgressRef.current = null;
+    progressEventsSentRef.current = 0;
+    previousInputLengthRef.current = 0;
     sessionPreparedAtRef.current = 0;
     completedAtRef.current = null;
     pendingResultRef.current = null;
@@ -712,9 +719,21 @@ export default function TypingPractice({
   }, [accountStatus, ensureAccount, startSessionMutation, cancelSessionMutation]);
 
   const reportSoloProgress = useCallback((typedLength: number) => {
+    const inputLengthJump = typedLength - previousInputLengthRef.current;
+    previousInputLengthRef.current = typedLength;
     if (connectModeRef.current) return;
     const sessionId = sessionIdRef.current;
     if (!sessionId) return;
+    const now = Date.now();
+    const last = lastProgressRef.current;
+    // Long tests otherwise write to Convex for every keystroke. Keep the first
+    // two events, large input jumps, and a final exact update before saving.
+    const longTimedTest = settingsRef.current.mode === "time" && settingsRef.current.duration > 600;
+    if (longTimedTest && last?.sessionId === sessionId && progressEventsSentRef.current >= 2 &&
+      now - last.at < PROGRESS_INTERVAL_MS &&
+      Math.abs(typedLength - last.typedLength) < PROGRESS_CHAR_THRESHOLD && inputLengthJump < 12) return;
+    lastProgressRef.current = { sessionId, at: now, typedLength };
+    progressEventsSentRef.current = last?.sessionId === sessionId ? progressEventsSentRef.current + 1 : 1;
     void recordProgressMutation({ sessionId, typedLength }).catch(() => {});
   }, [recordProgressMutation]);
 
@@ -1275,6 +1294,7 @@ export default function TypingPractice({
                 style={{ transform: `translateY(-${scrollOffset}px)` }}>
                 {promptReady && <PracticeText targetText={words} typedText={compositionDraft ?? typedText} caretRef={caretRef}
                   maxWordsPerLine={maxWordsPerLine} justifyLines={settings.textAlign === "justify"}
+                  maxVisibleWords={settings.mode === "time" ? 300 : undefined}
                   ghostPosition={settings.ghostWriterEnabled ? ghostCharIndex : undefined} />}
               </div>
             </div>

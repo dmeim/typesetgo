@@ -35,7 +35,7 @@ export function useMutation(reference: Reference) {
         sessionId: "fixture-session-" + fixture.__mutations.length,
         targetText: args.mode === "quote" || args.mode === "preset"
           ? args.targetText
-          : Array(typeof args.wordTarget === "number" ? args.wordTarget : 25).fill("dog").join(" "),
+          : Array(fixture.__sessionWordCount ?? (typeof args.wordTarget === "number" ? args.wordTarget : 25)).fill("dog").join(" "),
       };
     }
     if (name === "typingSessions:recordProgress" || name === "typingSessions:cancelSession") {

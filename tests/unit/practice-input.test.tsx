@@ -93,6 +93,25 @@ describe("word-aligned practice input", () => {
     expect(container.querySelector("br")).toBeNull();
     expect(container.textContent).toBe("cat dog foxxx owl bat");
   });
+  it("keeps a long timed prompt's caret and nearby words without mounting the full prompt", () => {
+    const words = Array.from({ length: 500 }, (_, index) => `w${index}`);
+    const ref = createRef<HTMLSpanElement>();
+    const props = { targetText: words.join(" "), caretRef: ref, maxWordsPerLine: 10,
+      maxVisibleWords: 300, justifyLines: true };
+    const { container, rerender } = render(<PracticeText {...props} typedText="" />);
+    expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(300);
+    expect(container.querySelector("[data-typing-word]")?.textContent).toBe("w0");
+    rerender(<PracticeText {...props} typedText={`${words.slice(0, 155).join(" ")} `} />);
+    expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(300);
+    expect(container.querySelector("[data-typing-word]")?.textContent).toBe("w50");
+    expect(ref.current?.closest("[data-typing-word]")?.textContent).toBe("w155");
+    rerender(<PracticeText {...props} typedText={`${words.slice(0, 75).join(" ")} `} />);
+    expect(container.querySelector("[data-typing-word]")?.textContent).toBe("w0");
+    expect(ref.current?.closest("[data-typing-word]")?.textContent).toBe("w75");
+    rerender(<PracticeText {...props} maxWordsPerLine={7} typedText="" />);
+    expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(294);
+    expect(container.querySelectorAll("[data-typing-line]:last-child [data-typing-word]")).toHaveLength(7);
+  });
 });
 
 describe("TypingArea contracts", () => {

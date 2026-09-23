@@ -96,7 +96,7 @@ await withFixtureBrowser(async browser => {
   await expect(explanation).toHaveCount(0);
   await expect(results).toBeFocused();
   await info.hover();
-  await expect(explanation).toContainText("This practice can be saved to your history, but will not appear on leaderboards.");
+  await expect(explanation).toContainText("This practice can be saved to history only. It will not appear on leaderboards or count toward statistics, achievements, or streaks.");
   await expectPageCentered(explanation);
   await expect(results).toBeFocused();
   await explanation.hover();

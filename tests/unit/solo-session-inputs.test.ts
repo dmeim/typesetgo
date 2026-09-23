@@ -17,7 +17,7 @@ describe("ranked session request bounds", () => {
     const maximum = await owner.mutation(api.typingSessions.startSession, {
       mode: "time", difficulty: "easy", duration: MAX_DURATION_SECONDS,
     });
-    expect(maximum.targetText.split(" ").length).toBe(3750);
+    expect(maximum.targetText.split(" ").length).toBe(22500);
 
     await expect(owner.mutation(api.typingSessions.startSession, {
       mode: "time", difficulty: "easy", duration: MAX_DURATION_SECONDS + 1,

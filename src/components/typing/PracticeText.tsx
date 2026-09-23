@@ -9,6 +9,7 @@ interface PracticeTextProps {
   feedingTape?: boolean;
   ghostPosition?: number;
   justifyLines?: boolean;
+  maxVisibleWords?: number;
 }
 
 function Caret({ caretRef, ghost = false }: { caretRef: RefObject<HTMLSpanElement | null>; ghost?: boolean }) {
@@ -54,7 +55,7 @@ const PracticeWord = memo(function PracticeWord({ word, typedWord, current, past
 });
 
 const PracticeText = memo(function PracticeText({ targetText, typedText, caretRef, maxWordsPerLine = 10,
-  feedingTape = false, ghostPosition, justifyLines = false }: PracticeTextProps) {
+  feedingTape = false, ghostPosition, justifyLines = false, maxVisibleWords }: PracticeTextProps) {
   const typedWords = typedText.split(" ");
   const currentWordIndex = typedWords.length - 1;
   const { targetWords, wordStarts } = useMemo(() => {
@@ -67,7 +68,24 @@ const PracticeText = memo(function PracticeText({ targetText, typedText, caretRe
     return { targetWords, wordStarts };
   }, [targetText]);
 
-  const renderedWords = targetWords.map((word, wordIndex) => {
+  // Long timed prompts stay whole for scoring, while the DOM only keeps the
+  // nearby lines. Align the window with forced line groups to avoid partial rows.
+  const groupSize = Number.isFinite(maxWordsPerLine) && maxWordsPerLine >= 1
+    ? Math.floor(maxWordsPerLine) : targetWords.length;
+  const windowed = maxVisibleWords !== undefined && targetWords.length > maxVisibleWords;
+  const chunkWords = groupSize * 5;
+  const backWords = groupSize * 10;
+  const visibleWordCount = Math.max(groupSize * Math.floor((maxVisibleWords ?? 0) / groupSize),
+    backWords + chunkWords + groupSize);
+  const anchoredIndex = Math.min(currentWordIndex, targetWords.length - 1);
+  const windowStart = windowed
+    ? Math.floor(Math.max(0, anchoredIndex - backWords) / chunkWords) * chunkWords : 0;
+  const windowEnd = windowed
+    ? Math.min(targetWords.length, windowStart + visibleWordCount)
+    : targetWords.length;
+
+  const renderedWords = targetWords.slice(windowStart, windowEnd).map((word, index) => {
+    const wordIndex = windowStart + index;
     const wordStart = wordStarts[wordIndex];
     const typedWord = typedWords[wordIndex] ?? "";
     const current = wordIndex === currentWordIndex;
@@ -88,13 +106,11 @@ const PracticeText = memo(function PracticeText({ targetText, typedText, caretRe
   // A forced <br> is a paragraph-ending line for CSS justification. Give each
   // capped group its own block so full groups fill the width, while a short
   // final group keeps natural spacing. Word indices and real spaces stay intact.
-  const groupSize = Number.isFinite(maxWordsPerLine) && maxWordsPerLine >= 1
-    ? Math.floor(maxWordsPerLine) : targetWords.length;
   const groups = [];
   for (let start = 0; start < renderedWords.length; start += groupSize) {
     const end = Math.min(start + groupSize, renderedWords.length);
     groups.push(
-      <div key={start} data-typing-line style={{ textAlignLast: end - start === groupSize ? "justify" : "start" }}>
+      <div key={windowStart + start} data-typing-line style={{ textAlignLast: end - start === groupSize ? "justify" : "start" }}>
         {renderedWords.slice(start, end)}
         {end === renderedWords.length && terminalCaret}
       </div>,

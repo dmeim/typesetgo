@@ -17,8 +17,8 @@ Use `api.typingSessions.startSession` / `recordProgress` / `finalizeSession`. He
 
 | Function | Notes |
 |---|---|
-| `startSession` | `ctx.auth` required. Time/words: client `targetText` is ignored; server generates the prompt. Quote/preset: pass `targetText` (locked at start). Duration is at most 600 seconds, word target at most 9,999, and supplied text at most 10,000 characters. `startedAt` is set on first `recordProgress`. |
-| `recordProgress` | `{ sessionId, typedLength }`. Send on first keystroke (do not skip time mode). Burst is time-scaled at 25 cps. |
+| `startSession` | `ctx.auth` required. Time/words: client `targetText` is ignored; server generates the prompt. Quote/preset: pass `targetText` (locked at start). Duration is at most 3,600 seconds, word target at most 9,999, and supplied text at most 10,000 characters. `startedAt` is set on first `recordProgress`. |
+| `recordProgress` | `{ sessionId, typedLength }`. Send on the first two keystrokes; for timed tests over ten minutes, subsequent reports are batched to two seconds or 50 characters, with large input jumps reported immediately. Finalization sends the exact typed length. Burst is time-scaled at 25 cps. |
 | `finalizeSession` | Stats vs `session.targetText`. Ranked WPM from **server elapsed**. Invalidates if `typedText.length` jumps past last heartbeat beyond 25 cps + a small floor. Invalid tests skip streaks, achievements, stats-cache PB, and leaderboard. |
 | `saveResult` | History only when no server-owned session exists. The server validates metric bounds, marks the row unverified, and does not count it toward progress. Guests must sign in. |
 
@@ -38,7 +38,7 @@ Set `ADMIN_PASSWORD` in the Convex dashboard only. Do not put the real password 
 
 ## Session lifetime and activity policy
 
-Prepared sessions expire after 24 hours; the client recreates old prepared sessions before the first input. Active sessions expire after ten minutes without progress, using `lastEventAt`. Cleanup runs in bounded batches.
+Prepared sessions expire after 24 hours; the client recreates old prepared sessions before the first input. Active timed sessions are retained through their deadline and then expire after ten minutes without progress. Other active sessions expire after ten minutes without progress. Cleanup runs in bounded batches.
 
 UTC dates define activity streaks and daily totals. Browser-local calendar facts are stored separately for local-time badges; old results without those facts do not assume a timezone. All achievement entry points share a bounded evaluator and scheduled rebuild path; see [development contracts](../development.md).
 

@@ -14,6 +14,7 @@ declare global {
     __preferences: Record<string, unknown> | null | undefined;
     __setPreferences: (value: Record<string, unknown> | null) => void;
     __sessionDelay?: number;
+    __sessionWordCount?: number;
   }
 }
 
