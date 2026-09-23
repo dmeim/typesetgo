@@ -6,7 +6,7 @@ Solo-home integrity for TypeSetGo. This does **not** cover Connect, Race, or cla
 
 - `isValid` is the anti-cheat persist flag. Legacy rows with `isValid` unset still count (`isValid !== false`).
 - Ranked leaderboard is stricter: `rankedEligible !== false` AND `isValid !== false` AND `accuracy >= 90` AND `wpm <= 300` AND (`duration >= 30000` OR `wordsCorrect >= 50`).
-- New `saveResult` rows set `rankedEligible: false` and never rank. Legacy rows omit the field and keep prior eligibility (no backfill).
+- New `saveResult` rows set `rankedEligible: false` and remain unverified history only: they do not rank or update streaks, achievements, or aggregate stats. Legacy rows omit the field and keep prior eligibility (no backfill).
 - `finalizeSession` sets `rankedEligible: true`. 15s tests stay valid for history, PBs, and exempt achievements. They do **not** rank unless they also have 50 `wordsCorrect`.
 - Hard WPM cap is **300**. 170–200 WPM is always valid. There is no auto-invalid at 150 or 220.
 - Gross WPM: typed length / 5 / minutes. Today/week buckets are UTC.
@@ -17,10 +17,10 @@ Use `api.typingSessions.startSession` / `recordProgress` / `finalizeSession`. He
 
 | Function | Notes |
 |---|---|
-| `startSession` | `ctx.auth` required. Time/words/zen: client `targetText` is ignored; server always generates the prompt. Quote/preset: pass `targetText` (locked at start). `startedAt` is set on first `recordProgress`. |
+| `startSession` | `ctx.auth` required. Time/words: client `targetText` is ignored; server generates the prompt. Quote/preset: pass `targetText` (locked at start). Duration is at most 600 seconds, word target at most 9,999, and supplied text at most 10,000 characters. `startedAt` is set on first `recordProgress`. |
 | `recordProgress` | `{ sessionId, typedLength }`. Send on first keystroke (do not skip time mode). Burst is time-scaled at 25 cps. |
 | `finalizeSession` | Stats vs `session.targetText`. Ranked WPM from **server elapsed**. Invalidates if `typedText.length` jumps past last heartbeat beyond 25 cps + a small floor. Invalid tests skip streaks, achievements, stats-cache PB, and leaderboard. |
-| `saveResult` | History/PBs/exempt only. Sets `rankedEligible: false` so live `getLeaderboard` skips it. Over 300 WPM persists `isValid: false` (not clamped). Guests must sign in. |
+| `saveResult` | History only when no server-owned session exists. The server validates metric bounds, marks the row unverified, and does not count it toward progress. Guests must sign in. |
 
 ## Achievements
 
@@ -32,12 +32,14 @@ Convex `convex/auth.config.ts` expects dashboard env `CLERK_JWT_ISSUER_DOMAIN`. 
 
 ## Admin
 
-`api.admin.login` (action) checks Convex env `ADMIN_PASSWORD` (timing-safe, never `VITE_`). `listReview` returns invalid rows and WPM ≥ 250. `setValidity` patches one row and rebuilds **that user's** stats and leaderboard caches.
+`api.admin.login` (action) requires a signed-in Clerk identity and checks Convex env `ADMIN_PASSWORD` (timing-safe, never `VITE_`). Login attempts are throttled per signed-in identity. Review sessions remain bound to that identity; admin sign-out revokes the server session. `listReview` returns invalid rows and WPM ≥ 250. `setValidity` patches one row and starts a paged rebuild of **that user's** stats cache.
 
 Set `ADMIN_PASSWORD` in the Convex dashboard only. Do not put the real password in git.
 
 ## Session lifetime and activity policy
 
-Prepared sessions expire after 24 hours; the client recreates old prepared sessions before the first input. Active sessions expire after ten minutes without progress, using `lastEventAt`, so supported long tests remain valid while active. Cleanup runs in bounded batches.
+Prepared sessions expire after 24 hours; the client recreates old prepared sessions before the first input. Active sessions expire after ten minutes without progress, using `lastEventAt`. Cleanup runs in bounded batches.
 
 UTC dates define activity streaks and daily totals. Browser-local calendar facts are stored separately for local-time badges; old results without those facts do not assume a timezone. All achievement entry points share a bounded evaluator and scheduled rebuild path; see [development contracts](../development.md).
+
+After deployment, historical client-only saves already counted in progress can be reconciled with the explicit, resumable `internal.migrations.backfillAllCaches` maintenance action. It rebuilds stats, achievements, and streaks from stored results. Run it only as an authorized live maintenance operation and follow its returned cursor and failed-user IDs.

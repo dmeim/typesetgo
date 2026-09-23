@@ -1,10 +1,48 @@
 # TypeSetGo codebase improvements
 
-Reviewed September 23, 2026 against `ee92a69` on `main`. This is a new review of the current code, following the [September 22 review](CODEBASE-REVIEW.md), whose 35 listed items are marked resolved. The sections below are proposals for review, not approved changes.
+Reviewed September 23, 2026 against `ee92a69` on `main`. This is a new review of the code at that commit, following the [September 22 review](CODEBASE-REVIEW.md), whose 35 listed items are marked resolved. The original findings and possible actions remain below as review history; the implementation status here tracks the subsequent local work on `codex/codebase-improvements-2026-09-23`.
 
 **Priority guide:** P1 affects correctness, trust, or availability; P2 affects supported flows or has a plausible scaling cost; P3 is cleanup or an optimization to measure. “Confirmed” means the behavior follows from current code. Conditional cases and unmeasured scaling risks are identified explicitly.
 
 The review covered the route and component code, practice, profiles, themes, Connect and Race, non-generated Convex functions and helpers, build configuration, documentation, and tests. It included read-only browsing of the running guest site at `localhost:3000` (Home and Leaderboard) and isolated browser tests. No live database writes, deployment, migration, or production load test was performed. The prior review's resolved items were not copied into this list.
+
+## Implementation status
+
+| Finding | Local status | What changed or remains |
+| --- | --- | --- |
+| 01 · Saved results | Implemented locally | Numeric inputs are checked; client-only saves remain visible as **unverified history** and cannot add progress or rank. The explicit maintenance action can repair historical aggregates, awards, and streaks after deployment. |
+| 02 · Session bounds | Implemented | Server validates modes, difficulty, counts, duration, and supplied text before prompt generation. Direct Race text generation was also bounded. |
+| 03 · Long timed tests | Implemented | The supported duration is now 1–600 seconds across the browser and server. The custom picker adapts to the new maximum. A local browser fixture rendered the 3,750-word maximum prompt and accepted input. |
+| 04 · Admin lockout | Implemented | Login requires Clerk sign-in, and rate limiting is scoped to that identity. Admin sessions are bound to the signed-in identity. |
+| 05 · Race finish claims | Mitigated | The server checks the full target, calculates elapsed time and WPM, and applies a 300 WPM minimum-time floor. A browser can still fabricate its own typed text; the podium cannot prove physical keystrokes. |
+| 06 · Clock differences | Implemented | Early finish returns an explicit retry delay; the client resubmits after the server's start boundary. |
+| 07 · Stranded host | Implemented | The next racer joining a waiting room takes over after its host disconnected alone. |
+| 08 · Placement rule | Implemented | Live positions and final snapshots use the same finish-time ordering and stable tie-breaker. |
+| 09 · Date labels | Implemented | Leaderboard labels and backend windows both use UTC. |
+| 10 · Midnight refresh | Implemented | An open page refreshes period arguments and labels at UTC midnight and on visibility return. |
+| 11 · Leaderboard scanning | Mitigated | Today and Week use a date index, so they do not scan older history. They still inspect all scores inside the selected window; measure that cost as data grows. |
+| 12 · Stats repair | Implemented | Best-score replacement uses an index; full repair runs in resumable pages. Aggregate figures can lag while pages complete. |
+| 13 · Public payload | Implemented | Public profile results return only displayed fields and a verification status. |
+| 14 · Number dials | Implemented | Buttons and keyboard arrows now move in the same direction, with interaction coverage. |
+| 15 · Profile charts | Implemented | The chart loads when opened; the profile route chunk fell from about 427 kB to 40 kB minified in the fixture build. |
+| 16 · Old theme loaders | Implemented | Unused full-catalog and storage helpers and their old tests were removed; the browsing index and selected-palette path remain. |
+| 17 · Solo plan branches | Implemented | Unreachable solo practice branches were removed; Connect plan selection remains. |
+| 18 · Session shape | Implemented with compatibility | Current clients send one flat shape. The backend accepts older nested calls when fields do not conflict. |
+| 19 · Source maps | Implemented | Production Vite assets no longer include public `.map` files; the local fixture build emitted zero. |
+| 20 · Check gate | Local only | A GitHub workflow now runs build, explicit Convex typecheck, lint, unit tests, and isolated browser tests. It cannot run remotely until this branch is pushed. |
+| 21 · Review links | Implemented | Root and docs READMEs point to this report; the September 22 report is labeled historical. |
+
+**Before deployment:** review the existing unverified results' historical awards and aggregates. After the new code is deployed, `internal.migrations.backfillAllCaches` can rebuild stats, achievements, and streaks in resumable user batches; running it against a live deployment requires a separate authorized maintenance step. No production data has been changed during this work. Remote CI, deployment, and browser checks against the live service remain unverified.
+
+| Local implementation check | Result |
+| --- | --- |
+| Fixture `bun run build`; explicit Convex typecheck; `bun run lint` | Passed. |
+| `bun run test:run` | Passed: 49 files and 395 tests; one file/test skipped. |
+| `bun run test:e2e` | Passed: Practice, Fonts, Profiles, Connect, Connect Session, and Race isolated suites. |
+| Production asset maps | Zero `.map` files in `dist`. |
+| Maximum timed prompt in an unthrottled desktop browser fixture | 3,750 words; about 1.33 s from navigation to full prompt, 114 ms for a one-character Playwright fill. This is a local synthetic measurement, not a live-service or low-end-device result. |
+
+### Original review evidence
 
 | Check | Result |
 | --- | --- |

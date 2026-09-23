@@ -19,6 +19,7 @@ bun run dev             # Vite; connects to configured services
 
 # Build & Test
 bun run build           # TypeScript check + Vite build
+node node_modules/@typescript/native/bin/tsc --project convex/tsconfig.json --noEmit # Explicit Convex check
 bun run test:run        # Unit tests (single run)
 bun run test            # Unit tests (watch mode)
 bun run test:e2e        # Isolated browser acceptance (installed Chrome by default)
@@ -31,6 +32,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 ```
 
 **Before handoff/commit:** run `bun run build && bun run test:run` when possible. Add `bun run lint` for broader/shared changes.
+`.github/workflows/checks.yml` runs the build, explicit Convex check, lint, unit tests, and isolated browser acceptance on pushes and pull requests.
 
 ## Architecture
 
@@ -56,7 +58,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `src/lib/` | Utilities, adapters, constants, stores, content loaders |
 | `src/context/` | React context providers |
 | `src/types/` | TypeScript domain types |
-| `convex/schema.ts` | Database schema (14 tables) + indexes |
+| `convex/schema.ts` | Database schema (15 tables) + indexes |
 | `convex/*.ts` | Convex queries/mutations/actions for users, results, rooms, participants, races, achievements, streaks, stats, cleanup, migrations |
 | `convex/lib/` | Convex-side shared helpers/constants |
 | `public/themes/` | Theme JSON files (startup manifest and browsing catalog generated) |
@@ -68,6 +70,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `tests/e2e/`, `tests/browser/`, `tests/fixtures/` | Isolated browser acceptance, local auth/data fixtures, and Playwright specs |
 | `docs/` | Agent handbook, feature docs, PRDs, release notes, deployment docs |
 | `worker/`, `wrangler.jsonc` | Worker asset handler, generated runtime types, and live deployment configuration |
+| `.github/workflows/checks.yml` | Repository checks using fixture configuration and local browser fixtures |
 | `scripts/` | One-off migration/maintenance scripts |
 
 ## Routes (`src/components/layout/app-routes.ts`)
@@ -87,7 +90,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/race/results/:raceId` | Race results/podium |
 | `/lessons` | Lessons mode |
 | `/about`, `/privacy`, `/tos` | Info/legal pages |
-| `/admin` | Existing review route; backend capability dependent |
+| `/admin` | Review route; requires Clerk sign-in and the server-side admin password |
 | Other paths | Themed not-found recovery |
 
 ## Provider Stack (`src/main.tsx`)

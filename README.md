@@ -144,7 +144,7 @@ Builds retain native TypeScript 7 while lint uses the compatible TypeScript 6 AP
 
 ## Documentation
 
-[Documentation index](docs/README.md) identifies current guides and historical plans. [Codebase review](docs/CODEBASE-REVIEW.md) is the current remediation checklist.
+[Documentation index](docs/README.md) identifies current guides and historical plans. [Codebase improvements](docs/CODEBASE-IMPROVEMENTS-2026-09-23.md) is the current implementation checklist; the [previous review](docs/CODEBASE-REVIEW.md) records resolved findings.
 
 - **[Tech Stack](docs/TECH-STACK.md)** — full technology inventory with versions and roles
 - **[Cloudflare Deployment](docs/deployment/CLOUDFLARE_GUIDE.md)** — configured hosting and recorded deployment history

@@ -62,6 +62,7 @@ Start with `bun run dev:fixture` (isolated UI on port 4317). For a real backend 
 - **Install deps:** `bun install`
 - **Dev server:** `bun run dev`
 - **Build:** `bun run build` (explicit native TypeScript 7 project build + Vite; includes Worker source checking)
+- **Convex typecheck:** `node node_modules/@typescript/native/bin/tsc --project convex/tsconfig.json --noEmit`
 - **Lint:** `bun run lint`
 - **Unit tests (watch):** `bun run test`
 - **Unit tests (single run):** `bun run test:run`
@@ -83,6 +84,7 @@ Use this testing strategy for reliable changes.
 2. `bun run test:run`
 
 These catch type errors, bundling issues, and unit regressions.
+The checked-in `.github/workflows/checks.yml` also runs the explicit Convex typecheck, lint, and isolated browser acceptance on pushes and pull requests. Its build uses fixture environment values, and its browser tests use installed local Chromium. The remote workflow has not been run or verified from this checkout.
 
 ### B. Lint discipline
 - Run `bun run lint` when touching multiple files, shared utilities, hooks, or architecture-level code.
@@ -190,6 +192,7 @@ Primary schema tables in `convex/schema.ts` include:
 - `userAchievements`
 - `userStreaks`
 - `userStatsCache`
+- `userStatsRebuild` (paged stats-cache rebuild state)
 - `leaderboardCache` (legacy rows retained for schema compatibility; no runtime reader/writer)
 - `achievementProgress`
 - `raceResults`
@@ -197,7 +200,7 @@ Primary schema tables in `convex/schema.ts` include:
 Patterns in this codebase:
 - timestamp-based lifecycle fields (`createdAt`, `updatedAt`, etc.)
 - explicit indexes for common lookups
-- bounded achievement progress and profile stats cache; leaderboard queries read indexed results directly
+- bounded achievement progress and paged profile stats-cache rebuilds; leaderboard queries read indexed results directly
 - anti-cheat/session tracking in typing session records
 
 Convex guidance:
@@ -225,7 +228,7 @@ Generation runs:
 Rules:
 - Add/edit/remove source content files; do not manually maintain generated files.
 - Manifests and the theme catalog are git-ignored generated artifacts.
-- The practice picker uses `fetchThemeCatalogIndex()` to browse without loading all palettes. Full palettes load on preview/selection using the existing cache and prioritized queue. `fetchAllThemes()` remains available for older callers; Host now uses catalog metadata and selected-palette loading.
+- The practice picker uses `fetchThemeCatalogIndex()` to browse without loading all palettes. Full palettes load on preview/selection using the existing cache and prioritized queue; Host uses catalog metadata and selected-palette loading.
 
 ---
 

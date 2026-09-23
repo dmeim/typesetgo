@@ -2,7 +2,7 @@
 
 Current setup and behavior are described by [the root README](../README.md), [agent handbook](AGENTS.md), [development targets](development.md), [tech stack](TECH-STACK.md), and [browser testing guide](../tests/browser/README.md). Source and tests are authoritative when older prose disagrees.
 
-[CODEBASE-REVIEW.md](CODEBASE-REVIEW.md) is the September 2026 review and remediation checklist. Its original findings describe the reviewed base commit; the implementation status records what changed afterward. Use this checklist for the current cleanup instead of reopening already completed items from older lists.
+[Codebase improvements](CODEBASE-IMPROVEMENTS-2026-09-23.md) is the current review and implementation checklist. The [September 22 codebase review](CODEBASE-REVIEW.md) records resolved findings and their verification history.
 
 Current feature details: [typing](features/Core_Typing_Engine.md), [Connect](features/Connect_Multiplayer.md), [solo validation](features/Solo_Anti_Cheat.md), [content](features/Content_Management.md), and [fonts](../public/fonts/README.md).
 
