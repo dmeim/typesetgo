@@ -41,10 +41,10 @@ describe("one achievement evaluator for save and rebuild", () => {
     await owner.mutation(api.achievements.recheckAllAchievements, { clerkId: "owner" });
     expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual(before);
     const tokenHash = await sha256Hex("admin-test");
-    await t.run((ctx) => ctx.db.insert("adminSessions", { tokenHash, createdAt: Date.now(), expiresAt: Date.now() + 60000 }));
-    await t.mutation(api.admin.setValidity, { token: "admin-test", resultId: saved.resultId, isValid: false });
+    await t.run((ctx) => ctx.db.insert("adminSessions", { tokenHash, subject: "owner", createdAt: Date.now(), expiresAt: Date.now() + 60000 }));
+    await owner.mutation(api.admin.setValidity, { token: "admin-test", resultId: saved.resultId, isValid: false });
     expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual({});
-    await t.mutation(api.admin.setValidity, { token: "admin-test", resultId: saved.resultId, isValid: true });
+    await owner.mutation(api.admin.setValidity, { token: "admin-test", resultId: saved.resultId, isValid: true });
     expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual({});
     await owner.mutation(api.testResults.deleteResult, { clerkId: "owner", resultId: saved.resultId });
     expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual({});
@@ -156,8 +156,8 @@ describe("one achievement evaluator for save and rebuild", () => {
       await owner.mutation(api.testResults.deleteResult, { clerkId: "owner", resultId: targetId });
     } else {
       const tokenHash = await sha256Hex("admin-interleave");
-      await t.run((ctx) => ctx.db.insert("adminSessions", { tokenHash, createdAt: Date.now(), expiresAt: Date.now() + 60000 }));
-      await t.mutation(api.admin.setValidity, { token: "admin-interleave", resultId: targetId, isValid: false });
+      await t.run((ctx) => ctx.db.insert("adminSessions", { tokenHash, subject: "owner", createdAt: Date.now(), expiresAt: Date.now() + 60000 }));
+      await owner.mutation(api.admin.setValidity, { token: "admin-interleave", resultId: targetId, isValid: false });
     }
     const restarted = await t.run((ctx) => ctx.db.query("achievementProgress").withIndex("by_user", (q) => q.eq("userId", userId)).first());
     expect(restarted?.generation).toBe(interrupted!.generation + 1);

@@ -10,9 +10,10 @@ import { tv } from "@/lib/theme-vars";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAppAuth } from "@/components/layout/useAppAuth";
+import { useAppAuth, type AppAuth } from "@/components/layout/useAppAuth";
 
 const ADMIN_TOKEN_KEY = "typesetgo.adminToken";
+const ADMIN_TOKEN_OWNER_KEY = "typesetgo.adminTokenOwner";
 
 type AdminReviewItem = FunctionReturnType<typeof api.admin.listReview>[number];
 const adminApi = api.admin;
@@ -27,9 +28,18 @@ function readStoredToken(): string {
   }
 }
 
-function storeToken(token: string) {
+function readStoredOwner(): string {
+  try {
+    return sessionStorage.getItem(ADMIN_TOKEN_OWNER_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function storeToken(token: string, owner: string) {
   try {
     sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+    sessionStorage.setItem(ADMIN_TOKEN_OWNER_KEY, owner);
   } catch {
     // Ignore storage failures; in-memory state still works for this tab.
   }
@@ -38,6 +48,7 @@ function storeToken(token: string) {
 function clearStoredToken() {
   try {
     sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    sessionStorage.removeItem(ADMIN_TOKEN_OWNER_KEY);
   } catch {
     // Ignore
   }
@@ -57,9 +68,15 @@ function formatDateTime(timestamp: number): string {
 }
 
 export default function Admin() {
-  const convex = useConvex();
   const auth = useAppAuth();
+  const accountKey = auth.status === "signed-in" ? `user:${auth.user?.id ?? ""}` : auth.status;
+  return <AdminReview key={accountKey} auth={auth} />;
+}
+
+function AdminReview({ auth }: { auth: AppAuth }) {
+  const convex = useConvex();
   const [token, setToken] = useState(readStoredToken);
+  const [tokenOwner, setTokenOwner] = useState(readStoredOwner);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -68,14 +85,21 @@ export default function Admin() {
   const [pendingId, setPendingId] = useState<Id<"testResults"> | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const isLoggedIn = Boolean(token);
+  const isLoggedIn = Boolean(token && auth.status === "signed-in" && auth.user?.id === tokenOwner);
   const currentReview = review?.token === token && review.revision === refreshKey ? review : null;
-  const rows = token ? currentReview?.rows ?? EMPTY_REVIEW : EMPTY_REVIEW;
-  const isLoadingList = Boolean(token && !currentReview);
+  const rows = isLoggedIn ? currentReview?.rows ?? EMPTY_REVIEW : EMPTY_REVIEW;
+  const isLoadingList = Boolean(isLoggedIn && !currentReview);
   const listError = actionError ?? currentReview?.error ?? null;
 
   useEffect(() => {
     if (!token) return;
+    if (auth.status === "loading") return;
+    if (auth.status === "signed-in" && auth.user?.id === tokenOwner) return;
+    clearStoredToken();
+  }, [auth.status, auth.user?.id, token, tokenOwner]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
     let cancelled = false;
     // Loading/empty state belongs to this request key; only its response writes state.
     void convex.query(adminApi.listReview, { token }).then((payload) => {
@@ -87,23 +111,27 @@ export default function Admin() {
       if (/unauthorized|invalid token|password/i.test(message)) {
         clearStoredToken();
         setToken("");
+        setTokenOwner("");
       }
     });
     return () => { cancelled = true; };
-  }, [token, refreshKey, convex]);
+  }, [token, refreshKey, convex, isLoggedIn]);
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
     setLoginError(null);
     setIsLoggingIn(true);
     try {
+      const owner = auth.user?.id;
+      if (auth.status !== "signed-in" || !owner) throw new Error("Sign in before using admin review.");
       const result = await convex.action(adminApi.login, { password });
       if (!result?.token) {
         setLoginError("Invalid password.");
         return;
       }
-      storeToken(result.token);
+      storeToken(result.token, owner);
       setToken(result.token);
+      setTokenOwner(owner);
       setActionError(null);
       setRefreshKey((value) => value + 1);
       setPassword("");
@@ -116,14 +144,16 @@ export default function Admin() {
   };
 
   const handleSignOut = () => {
+    if (isLoggedIn) void convex.mutation(adminApi.logout, { token }).catch(() => {});
     clearStoredToken();
     setToken("");
+    setTokenOwner("");
     setReview(null);
     setActionError(null);
   };
 
   const handleSetValidity = async (resultId: Id<"testResults">, isValid: boolean) => {
-    if (!token) return;
+    if (!isLoggedIn) return;
     setPendingId(resultId);
     setActionError(null);
     try {

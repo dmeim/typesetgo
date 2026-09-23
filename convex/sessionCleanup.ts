@@ -70,12 +70,14 @@ export const consumeAdminLoginRateLimit = internalMutation({
 export const createAdminSession = internalMutation({
   args: {
     tokenHash: v.string(),
+    subject: v.string(),
     createdAt: v.number(),
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("adminSessions", {
       tokenHash: args.tokenHash,
+      subject: args.subject,
       createdAt: args.createdAt,
       expiresAt: args.expiresAt,
     });

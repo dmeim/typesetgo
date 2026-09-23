@@ -4,6 +4,7 @@ import { api, internal } from "../../convex/_generated/api";
 import { backendContract, resultRow, userRow } from "./fixtures/backend-contract";
 import { getLocalCalendarFields } from "../../src/lib/activity-calendar";
 import { todayTitleUTC, utcDayStart, weekTitleUTC } from "../../src/lib/leaderboard-period";
+import { sha256Hex } from "../../convex/lib/crypto";
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
@@ -81,6 +82,29 @@ describe("admin login isolation", () => {
     const sessions = await t.run((ctx) => ctx.db.query("adminSessions").collect());
     expect(sessions).toHaveLength(1);
     expect(sessions[0].tokenHash).not.toBe(result.token);
+    expect(sessions[0].subject).toBe("admin");
+    await expect(t.query(api.admin.listReview, { token: result.token })).rejects.toThrow(/Invalid token/);
+    await expect(t.withIdentity({ subject: "other" }).query(api.admin.listReview, { token: result.token })).rejects.toThrow(/Invalid token/);
+    await expect(t.withIdentity({ subject: "admin" }).query(api.admin.listReview, { token: result.token })).resolves.toEqual([]);
+    await t.withIdentity({ subject: "admin" }).mutation(api.admin.logout, { token: result.token });
+    await expect(t.withIdentity({ subject: "admin" }).query(api.admin.listReview, { token: result.token })).rejects.toThrow(/Invalid token/);
+  });
+
+  it("rejects legacy sessions without a bound identity and cross-account validity writes", async () => {
+    const t = backendContract();
+    const tokenHash = await sha256Hex("legacy-token");
+    const resultId = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", userRow("owner"));
+      await ctx.db.insert("adminSessions", { tokenHash, createdAt: Date.now(), expiresAt: Date.now() + 60_000 });
+      return ctx.db.insert("testResults", resultRow(userId));
+    });
+    await expect(t.withIdentity({ subject: "admin" }).mutation(api.admin.setValidity,
+      { token: "legacy-token", resultId, isValid: false })).rejects.toThrow(/Invalid token/);
+    const currentHash = await sha256Hex("current-token");
+    await t.run((ctx) => ctx.db.insert("adminSessions", { tokenHash: currentHash, subject: "admin", createdAt: Date.now(), expiresAt: Date.now() + 60_000 }));
+    await expect(t.withIdentity({ subject: "other" }).mutation(api.admin.setValidity,
+      { token: "current-token", resultId, isValid: false })).rejects.toThrow(/Invalid token/);
+    expect((await t.run((ctx) => ctx.db.get(resultId)))?.isValid).toBe(true);
   });
 });
 

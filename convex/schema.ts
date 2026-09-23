@@ -318,6 +318,8 @@ export default defineSchema({
   // Admin review sessions (token is stored hashed; never put ADMIN_PASSWORD in git)
   adminSessions: defineTable({
     tokenHash: v.string(),
+    // Optional only so old sessions can be read and rejected by requireAdminSession.
+    subject: v.optional(v.string()),
     createdAt: v.number(),
     expiresAt: v.number(),
   }).index("by_token_hash", ["tokenHash"]),

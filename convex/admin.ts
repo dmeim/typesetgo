@@ -43,6 +43,7 @@ export const login = action({
     const now = Date.now();
     await ctx.runMutation(internal.sessionCleanup.createAdminSession, {
       tokenHash: await sha256Hex(token),
+      subject: identity.subject,
       createdAt: now,
       expiresAt: now + ADMIN_SESSION_TTL_MS,
     });
@@ -62,18 +63,29 @@ async function requireAdminSession(
   ctx: QueryCtx | MutationCtx,
   token: string
 ) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Invalid token");
   const tokenHash = await sha256Hex(token);
   const session = await ctx.db
     .query("adminSessions")
     .withIndex("by_token_hash", (q) => q.eq("tokenHash", tokenHash))
     .first();
 
-  if (!session || session.expiresAt < Date.now()) {
+  // Old sessions with no subject are intentionally invalidated.
+  if (!session || session.expiresAt < Date.now() || session.subject !== identity.subject) {
     throw new Error("Invalid token");
   }
 
   return session;
 }
+
+export const logout = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    const session = await requireAdminSession(ctx, args.token);
+    await ctx.db.delete(session._id);
+  },
+});
 
 export const listReview = query({
   args: {
