@@ -112,7 +112,7 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
             >
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this test?</AlertDialogTitle>
-                <AlertDialogDescription>This removes the saved test{result.verification === "verified" ? " and updates your statistics" : " from your history"}. This cannot be undone.</AlertDialogDescription>
+                <AlertDialogDescription>This removes the saved test{result.verification === "verified" || result.verification === "valid" ? " and updates your statistics" : " from your history"}. This cannot be undone.</AlertDialogDescription>
               </AlertDialogHeader>
               {deleteError && <p role="alert" className="text-sm text-destructive">{deleteError}</p>}
               <AlertDialogFooter>

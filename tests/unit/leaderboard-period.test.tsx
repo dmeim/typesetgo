@@ -17,8 +17,11 @@ describe("open leaderboard period rollover", () => {
     expect(screen.getByText("Tuesday, Sep 22 · UTC")).toBeVisible();
     act(() => vi.advanceTimersByTime(31_000));
     expect(screen.getByText("Wednesday, Sep 23 · UTC")).toBeVisible();
-    expect(queries).toHaveBeenCalledWith("leaderboard", {
-      timeRange: "today", limit: 50, periodStart: Date.parse("2026-09-23T00:00:00Z"),
-    });
+    const beforeLimit = 50 + (Math.floor(Date.parse("2026-09-22T00:00:00Z") / 86_400_000) % 2);
+    const afterLimit = 50 + (Math.floor(Date.parse("2026-09-23T00:00:00Z") / 86_400_000) % 2);
+    expect(beforeLimit).not.toBe(afterLimit);
+    expect(queries).toHaveBeenCalledWith("leaderboard", { timeRange: "today", limit: beforeLimit });
+    expect(queries).toHaveBeenCalledWith("leaderboard", { timeRange: "today", limit: afterLimit });
+    expect(queries).toHaveBeenCalledWith("leaderboard", { timeRange: "week", limit: afterLimit });
   });
 });

@@ -92,7 +92,7 @@ export default function PracticeResults({
   const resultsInfo = lastResultIsValid === false
     ? "This test could not be verified and cannot be saved."
     : isRepeated || rankingStatus === "unranked"
-      ? "This practice can be saved to history only. It will not appear on leaderboards or count toward statistics, achievements, or streaks."
+      ? "This practice can be saved to your history, but will not appear on leaderboards."
       : rankingStatus === "pending"
         ? "Waiting for verification…"
         : "Review your words per minute, accuracy, and typing details below.";
@@ -513,7 +513,7 @@ export default function PracticeResults({
           transition={{ duration: reducedMotion ? 0 : 0.2, delay: 0 }}
         >
           {lastResultIsValid === true && <p>Verified</p>}
-          {saveState === "saved" && lastResultIsValid === null && <p>Saved to history as unverified.</p>}
+          {saveState === "saved" && lastResultIsValid === null && <p>Saved to history.</p>}
           {rankingStatus === "pending" && <p>Waiting for verification…</p>}
           {!connectMode && (
             <p>

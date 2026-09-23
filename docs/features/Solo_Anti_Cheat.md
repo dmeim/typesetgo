@@ -2,6 +2,8 @@
 
 Solo-home integrity for TypeSetGo. This does **not** cover Connect, Race, or classroom.
 
+Deployment note: this page describes the checked-in Convex source. Until those functions are deployed, the existing backend still counts valid unranked saves in statistics and eligible achievements, and admin sessions are not bound to a Clerk identity. The visible frontend uses the deployed API and avoids claiming those server-side changes are active.
+
 ## Ranked vs valid
 
 - `isValid` is the anti-cheat persist flag. Legacy rows with `isValid` unset still count (`isValid !== false`).

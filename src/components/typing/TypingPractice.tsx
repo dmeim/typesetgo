@@ -620,7 +620,7 @@ export default function TypingPractice({
         return;
       }
 
-      // No matching server-owned prompt: history only; this server endpoint always sets rankedEligible:false.
+      // No matching server-owned prompt: the result cannot enter leaderboards.
       const result = await saveResultMutation({
         clerkId: user.id,
         ...snapshot,

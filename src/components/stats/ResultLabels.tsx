@@ -29,10 +29,10 @@ export function ResultModeLabels({ result }: { result: ProfileTestResult }) {
 export function ResultValidity({ verification }: { verification: ResultVerification }) {
   const StatusIcon = verification === "invalid" ? WarningCircleIcon
     : verification === "unverified" ? QuestionIcon : CheckCircleIcon;
-  const label = verification === "invalid" ? "Invalid" : verification === "unverified" ? "Unverified" : "Verified";
+  const label = verification === "invalid" ? "Invalid" : verification === "unverified" ? "Unverified" : verification === "valid" ? "Valid" : "Verified";
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs ${verification === "invalid" ? "text-destructive" : verification === "unverified" ? "text-warning" : "text-muted-foreground"}`}>
-      <StatusIcon aria-hidden="true" className={`size-3.5 shrink-0 ${verification === "verified" ? "text-primary" : ""}`} />
+      <StatusIcon aria-hidden="true" className={`size-3.5 shrink-0 ${verification === "verified" || verification === "valid" ? "text-primary" : ""}`} />
       {label}
     </span>
   );

@@ -134,17 +134,31 @@ describe("profile capabilities and states", () => {
 });
 
 describe("profile recent charts", () => {
+  it("keeps charts working with the deployed profile response without verification fields", async () => {
+    fixture.stats = makeStats([
+      { ...baseResult, _id: "legacy-valid", verification: undefined, isValid: true, rankedEligible: false },
+      { ...baseResult, _id: "legacy-invalid", verification: undefined, isValid: false, createdAt: baseResult.createdAt + 1 },
+    ]);
+    mount();
+    expect(screen.getByText("Valid")).toBeInTheDocument();
+    expect(screen.getByText("Invalid")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Best WPM:/ }));
+    const chart = await screen.findByRole("dialog", { name: "Recent WPM" });
+    expect(within(chart).getByText(/Tests shown: 1 of the latest 2 saved/)).toBeInTheDocument();
+    expect(fixture.chartData.map((point) => point.value)).toEqual([80]);
+  });
+
   it("keeps 350 lifetime tests and the lifetime best separate from the latest 100 sample", async () => {
     fixture.stats = makeStats(Array.from({ length: 100 }, (_, index) => ({ ...baseResult, _id: `test-${index}`, wpm: 50 + index, createdAt: baseResult.createdAt - index * 60_000, isValid: index !== 99, verification: index === 99 ? "invalid" : "verified" })));
     mount();
-    expect(screen.getByText(/350 verified tests/)).toBeInTheDocument();
-    expect(screen.getByText(/Showing 100 saved tests \(latest 100 maximum\), including unverified and invalid tests/)).toBeInTheDocument();
+    expect(screen.getByText(/350 tests in lifetime statistics/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 100 saved tests \(latest 100 maximum\), including invalid tests/)).toBeInTheDocument();
     const card = screen.getByRole("button", { name: "Best WPM: 180. View recent tests" });
     card.focus();
     fireEvent.click(card);
     const dialog = await screen.findByRole("dialog", { name: "Recent WPM" });
     expect(within(dialog).getByText("Lifetime best WPM: 180")).toBeInTheDocument();
-    expect(within(dialog).getByText(/99 verified tests from the latest 100 saved tests/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Tests shown: 99 of the latest 100 saved/)).toBeInTheDocument();
     expect(fixture.chartData).toHaveLength(99);
     expect(fixture.chartData.find((point) => point.isBest)?.value).toBe(148);
     expect(fixture.chartData.find((point) => point.isLowest)?.value).toBe(50);
@@ -189,8 +203,8 @@ describe("profile recent charts", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: /^Best WPM:/ }));
     await screen.findByRole("dialog", { name: "Recent WPM" });
-    expect(screen.getByText(/0 verified tests from the latest 1 saved tests/)).toBeInTheDocument();
-    expect(screen.getByText("No verified tests in the recent history sample.")).toBeInTheDocument();
+    expect(screen.getByText(/Tests shown: 0 of the latest 1 saved/)).toBeInTheDocument();
+    expect(screen.getByText("No tests in the recent history sample can be shown here.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Highest in sample" })).not.toBeInTheDocument();
   });
 
@@ -210,7 +224,7 @@ describe("profile recent charts", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     fireEvent.click(screen.getByRole("button", { name: /^Best WPM:/ }));
     const chart = await screen.findByRole("dialog", { name: "Recent WPM" });
-    expect(within(chart).getByText(/1 verified tests from the latest 3 saved tests/)).toBeInTheDocument();
+    expect(within(chart).getByText(/Tests shown: 1 of the latest 3 saved/)).toBeInTheDocument();
     expect(fixture.chartData.map((point) => point.value)).toEqual([80]);
   });
 });

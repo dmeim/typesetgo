@@ -6,10 +6,10 @@ import { utcDayStart } from "@/lib/leaderboard-period";
 
 const queries = vi.hoisted(() => ({
   ranges: {} as Record<string, unknown>,
-  calls: [] as Array<{ timeRange: string; limit: number; periodStart?: number }>,
+  calls: [] as Array<{ timeRange: string; limit: number }>,
 }));
 vi.mock("convex/react", () => ({
-  useQuery: (_query: unknown, args: { timeRange: string; limit: number; periodStart?: number }) => {
+  useQuery: (_query: unknown, args: { timeRange: string; limit: number }) => {
     queries.calls.push(args);
     return queries.ranges[args.timeRange];
   },
@@ -36,10 +36,11 @@ describe("leaderboard ranges", () => {
     expect(within(week).getByText("No scores yet")).toBeVisible();
     expect(screen.getByRole("link", { name: "Homepage" })).toHaveAttribute("href", "/");
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    const refreshLimit = 50 + (Math.floor(utcDayStart(Date.now()) / 86_400_000) % 2);
     expect(queries.calls).toEqual([
       { timeRange: "all-time", limit: 50 },
-      { timeRange: "today", limit: 50, periodStart: utcDayStart(Date.now()) },
-      { timeRange: "week", limit: 50, periodStart: utcDayStart(Date.now()) },
+      { timeRange: "today", limit: refreshLimit },
+      { timeRange: "week", limit: refreshLimit },
     ]);
   });
 

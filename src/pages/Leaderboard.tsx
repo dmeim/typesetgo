@@ -193,9 +193,14 @@ export default function Leaderboard() {
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
+  // The deployed query accepts only timeRange and limit. Alternating between
+  // two supported limits subscribes again at UTC midnight; display stays at 50.
+  const refreshLimit = 50 + (Math.floor(periodStart / 86_400_000) % 2);
   const allTimeLeaderboard = useQuery(api.testResults.getLeaderboard, { timeRange: "all-time", limit: 50 });
-  const todayLeaderboard = useQuery(api.testResults.getLeaderboard, { timeRange: "today", limit: 50, periodStart });
-  const weekLeaderboard = useQuery(api.testResults.getLeaderboard, { timeRange: "week", limit: 50, periodStart });
+  const todayResults = useQuery(api.testResults.getLeaderboard, { timeRange: "today", limit: refreshLimit });
+  const weekResults = useQuery(api.testResults.getLeaderboard, { timeRange: "week", limit: refreshLimit });
+  const todayLeaderboard = todayResults?.slice(0, 50);
+  const weekLeaderboard = weekResults?.slice(0, 50);
 
   return (
     <div className="min-h-[100dvh] bg-background font-mono text-foreground">

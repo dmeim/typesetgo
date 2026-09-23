@@ -7,9 +7,15 @@ export type ProfileTestResult = Pick<Doc<"testResults">,
   | "isValid" | "invalidReason" | "createdAt"
 >;
 
-export type ResultVerification = "verified" | "unverified" | "invalid";
+export type ResultVerification = "valid" | "verified" | "unverified" | "invalid";
 
 export type VerifiedProfileTestResult = ProfileTestResult & { verification: ResultVerification };
+
+// The deployed profile query still returns raw results. Its replacement adds
+// `verification`; keep both responses readable during the frontend rollout.
+export function profileResultVerification(result: ProfileTestResult & { verification?: ResultVerification }): ResultVerification {
+  return result.verification ?? (result.isValid === false ? "invalid" : "valid");
+}
 
 // The public profile query returns the latest 100 saved results, including invalid ones.
 export const PROFILE_HISTORY_LIMIT = 100;

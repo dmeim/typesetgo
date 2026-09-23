@@ -50,6 +50,8 @@ The first command only validates and prints the selected target. The second star
 
 No backend deployment, data migration, cloud configuration change, or push is included in the local remediation work.
 
-## Releasing this branch after review
+## Releasing this branch
 
-This branch adds Convex functions and changes multiplayer mutation arguments. The frontend and backend need a coordinated release to the existing intended deployment; publishing only the frontend against old functions is not supported. A push to `main` may trigger only the Worker build, which does not deploy Convex. Plan the backend/frontend release together and have existing multiplayer users create new credential-backed rooms or reload their clients. The original checkout may still have its live Convex watcher running: stop that watcher before merging/copying backend files there unless the live backend release is explicitly authorized. No release command was run during remediation.
+The visible solo, leaderboard, profile, and admin frontend routes remain compatible with the currently deployed Convex function arguments. Profile history accepts both the deployed raw-result response and the proposed projected response. The Today/Week leaderboard refreshes at UTC midnight by changing the supported `limit` argument; it never sends `periodStart`, which the deployed function rejects. The frontend rollout does not activate the Convex changes in this branch: unranked saves still follow the existing server's stats and award behavior, and admin sign-out cannot revoke a server session until the new function is deployed.
+
+This branch also changes multiplayer Convex functions. Keep that backend release separate while multiplayer remains inactive. A push to `main` may trigger only the Worker build; it does not deploy Convex. Before any later backend release, identify the intended deployment and coordinate client compatibility. The original checkout may still have a live Convex watcher; stop it before merging or copying backend files there unless the live backend release is authorized.

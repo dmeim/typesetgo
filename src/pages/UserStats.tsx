@@ -11,7 +11,7 @@ import AchievementsCategoryGrid from "@/components/auth/AchievementsCategoryGrid
 import type { StatCardType } from "@/components/stats/UserStatsChartModal";
 import TestDetailDialog from "@/components/stats/TestDetailDialog";
 import { ResultModeLabels, ResultValidity } from "@/components/stats/ResultLabels";
-import { formatDuration, PROFILE_HISTORY_LIMIT, type VerifiedProfileTestResult } from "@/components/stats/profile-presentation";
+import { formatDuration, profileResultVerification, PROFILE_HISTORY_LIMIT, type VerifiedProfileTestResult } from "@/components/stats/profile-presentation";
 
 type SortColumn = "date" | "wpm" | "accuracy";
 type SortDirection = "asc" | "desc";
@@ -45,7 +45,7 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
   const allResults = stats?.allResults;
   const sortedResults = useMemo(() => {
     if (!allResults) return [];
-    return [...allResults].sort((a, b) => {
+    return allResults.map((result) => ({ ...result, verification: profileResultVerification(result) })).sort((a, b) => {
       const key = sortColumn === "date" ? "createdAt" : sortColumn;
       const comparison = a[key] - b[key];
       return sortDirection === "desc" ? -comparison : comparison;
@@ -121,7 +121,7 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
         <div className="mx-auto flex max-w-[1600px] flex-col gap-5 px-4 pb-6 md:px-6">
           <section aria-labelledby="lifetime-heading">
             <h2 id="lifetime-heading" className="text-sm font-semibold">Lifetime statistics</h2>
-            <p className="mt-1 mb-3 text-xs text-muted-foreground">{stats.totalTests.toLocaleString()} verified tests. Select a statistic to view recent tests. Characters are estimated as words × 5.</p>
+            <p className="mt-1 mb-3 text-xs text-muted-foreground">{stats.totalTests.toLocaleString()} tests in lifetime statistics. Select a statistic to view recent tests. Characters are estimated as words × 5.</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
               {cards.map((card) => (
                 <button
@@ -149,7 +149,7 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
             <section aria-labelledby="history-heading" className="@container min-w-0 rounded-lg border border-border bg-card text-card-foreground">
               <div className="border-b border-border p-4">
                 <h2 id="history-heading" ref={historyHeading} tabIndex={-1} className="font-semibold">Recent test history</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Showing {sortedResults.length} saved tests (latest {PROFILE_HISTORY_LIMIT} maximum), including unverified and invalid tests.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Showing {sortedResults.length} saved tests (latest {PROFILE_HISTORY_LIMIT} maximum), including invalid tests.</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" aria-label="Sort history">
                   <span className="text-muted-foreground">Sort by</span>
                   {([ ["date", "Date"], ["wpm", "WPM"], ["accuracy", "Accuracy"] ] as const).map(([column, label]) => (
@@ -207,7 +207,7 @@ function ProfileStats({ userId }: { userId: string | undefined }) {
       )}
       {selectedChart && stats && (
         <Suspense fallback={<p role="status" className="py-6 text-center text-sm text-muted-foreground">Loading chart…</p>}>
-          <UserStatsChartModal isOpen onClose={() => setSelectedChart(null)} cardType={selectedChart} cardValue={cards.find((card) => card.type === selectedChart)!.value} allResults={stats.allResults} onCloseAutoFocus={restoreFocus} />
+          <UserStatsChartModal isOpen onClose={() => setSelectedChart(null)} cardType={selectedChart} cardValue={cards.find((card) => card.type === selectedChart)!.value} allResults={sortedResults} onCloseAutoFocus={restoreFocus} />
         </Suspense>
       )}
     </main>
