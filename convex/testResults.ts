@@ -1,4 +1,4 @@
-import { activityCalendar, utcDate } from "./lib/activityCalendar";
+import { activityCalendar } from "./lib/activityCalendar";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -12,7 +12,34 @@ import { requireAuthedUser, requireIdentity } from "./lib/identity";
 import { consumeRateLimit } from "./lib/consumeRateLimit";
 import { RESULT_WRITE_RATE_LIMIT } from "./lib/rateLimit";
 
-// Save a test result (history / PBs / exempt achievements only — not ranked).
+function validateUnrankedSave(args: {
+  wpm: number; accuracy: number; duration: number; wordCount: number;
+  wordsCorrect: number; wordsIncorrect: number; charsMissed: number; charsExtra: number;
+  mode: string; difficulty: string;
+}) {
+  if (!["time", "words", "quote", "zen", "preset"].includes(args.mode) ||
+      !["beginner", "easy", "medium", "hard", "expert"].includes(args.difficulty)) {
+    throw new Error("Invalid practice settings.");
+  }
+  if (!Number.isFinite(args.wpm) || args.wpm < 0 ||
+      !Number.isFinite(args.accuracy) || args.accuracy < 0 || args.accuracy > 100 ||
+      !Number.isFinite(args.duration) || args.duration <= 0 || args.duration > 24 * 60 * 60 * 1000) {
+    throw new Error("Invalid practice metrics.");
+  }
+  for (const count of [args.wordCount, args.wordsCorrect, args.wordsIncorrect, args.charsMissed, args.charsExtra]) {
+    if (!Number.isSafeInteger(count) || count < 0 || count > 1_000_000) {
+      throw new Error("Invalid practice counts.");
+    }
+  }
+  // The browser reports floor(typed characters / 5) as wordCount and gross WPM.
+  const maximumWpm = Math.round((args.wordCount + 0.8) * 60_000 / args.duration) + 1;
+  if (args.wpm > maximumWpm ||
+      args.wordsCorrect + args.wordsIncorrect > Math.ceil((args.wordCount * 5 + 5) / 2)) {
+    throw new Error("Inconsistent practice metrics.");
+  }
+}
+
+// Save an unverified result for history only, never progress or ranking.
 // Ranked path is typingSessions.finalizeSession. Guests must sign in.
 // Identity comes from ctx.auth; a compatibility clerkId must match that identity.
 export const saveResult = mutation({
@@ -40,6 +67,7 @@ export const saveResult = mutation({
   },
   handler: async (ctx, args): Promise<{ resultId: Id<"testResults">; newAchievements: string[] }> => {
     const user = await requireAuthedUser(ctx, args.clerkId);
+    validateUnrankedSave(args);
 
     await consumeRateLimit(ctx, `saveResult:${user._id}`, RESULT_WRITE_RATE_LIMIT);
 
@@ -68,38 +96,9 @@ export const saveResult = mutation({
       createdAt,
     });
 
-    if (!validity.isValid) {
-      return { resultId, newAchievements: [] };
-    }
-
-    await ctx.runMutation(internal.streaks.updateStreak, {
-      userId: user._id,
-      localDate: utcDate(createdAt),
-      duration: args.duration,
-      wordsCorrect: args.wordsCorrect,
-    });
-
-    const achievementResult: { newAchievements: string[]; totalAchievements: number } = await ctx.runMutation(
-      internal.achievements.checkAndAwardAchievements,
-      {
-        userId: user._id,
-        resultId,
-      }
-    );
-
-    await ctx.runMutation(internal.statsCache.updateUserStatsCache, {
-      userId: user._id,
-      wpm: args.wpm,
-      accuracy: args.accuracy,
-      duration: args.duration,
-      wordCount: args.wordCount,
-      isValid: true,
-    });
-
-    return {
-      resultId,
-      newAchievements: achievementResult.newAchievements,
-    };
+    // No matching server-owned prompt exists for this fallback save. Keep it in
+    // history, but never use client-reported facts for progress or aggregates.
+    return { resultId, newAchievements: [] };
   },
 });
 
@@ -147,7 +146,7 @@ export const deleteResult = mutation({
       accuracy: result.accuracy,
       duration: result.duration,
       wordCount: result.wordCount,
-      wasValid: result.isValid !== false,
+      wasValid: result.isValid !== false && result.rankedEligible !== false,
       wasBestWpm,
     });
 
@@ -277,6 +276,26 @@ export const getUserStatsByUserId = query({
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
       .take(100); // Limit history to last 100 results
+    const publicResults = recentResults.map((result) => ({
+      _id: result._id,
+      wpm: result.wpm,
+      accuracy: result.accuracy,
+      mode: result.mode,
+      duration: result.duration,
+      wordCount: result.wordCount,
+      difficulty: result.difficulty,
+      punctuation: result.punctuation,
+      numbers: result.numbers,
+      capitalization: result.capitalization,
+      wordsCorrect: result.wordsCorrect,
+      wordsIncorrect: result.wordsIncorrect,
+      charsMissed: result.charsMissed,
+      charsExtra: result.charsExtra,
+      isValid: result.isValid,
+      invalidReason: result.invalidReason,
+      verification: result.isValid === false ? "invalid" as const : result.rankedEligible === false ? "unverified" as const : "verified" as const,
+      createdAt: result.createdAt,
+    }));
 
     if (!cachedStats) {
       // No cache yet - return empty stats with whatever results exist
@@ -288,7 +307,7 @@ export const getUserStatsByUserId = query({
         totalTimeTyped: 0,
         totalWordsTyped: 0,
         totalCharactersTyped: 0,
-        allResults: recentResults,
+        allResults: publicResults,
       };
     }
 
@@ -309,7 +328,7 @@ export const getUserStatsByUserId = query({
       totalTimeTyped,
       totalWordsTyped,
       totalCharactersTyped,
-      allResults: recentResults,
+      allResults: publicResults,
     };
   },
 });
@@ -325,32 +344,51 @@ export const getLeaderboard = query({
       v.literal("today")
     ),
     limit: v.optional(v.number()),
+    periodStart: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 20), 100));
 
     let timeCutoff = 0;
     if (args.timeRange === "today") {
-      timeCutoff = getStartOfDayUTC(0);
+      timeCutoff = Math.max(getStartOfDayUTC(0), args.periodStart ?? 0);
     } else if (args.timeRange === "week") {
-      timeCutoff = getStartOfDayUTC(7);
+      timeCutoff = Math.max(getStartOfDayUTC(0), args.periodStart ?? 0) - 7 * 86_400_000;
     }
 
     const leaderboard: Array<{
       userId: Id<"users">; username: string; avatarUrl: string | null;
       wpm: number; createdAt: number;
     }> = [];
-    const seen = new Set<string>();
-    // Descending score index lets us stop once enough distinct users qualify.
-    // No cache writers, full user scan, or per-user history collections.
-    const results = ctx.db.query("testResults").withIndex("by_wpm").order("desc");
-    for await (const result of results) {
-      if (result.createdAt < timeCutoff || result.wpm <= 0 || seen.has(result.userId) || !isLeaderboardEligible(result)) continue;
-      const user = await ctx.db.get(result.userId);
-      if (!user) continue;
-      seen.add(user._id);
-      leaderboard.push({ userId: user._id, username: user.username, avatarUrl: user.avatarUrl ?? null, wpm: result.wpm, createdAt: result.createdAt });
-      if (leaderboard.length >= limit) break;
+    if (args.timeRange === "all-time") {
+      const seen = new Set<string>();
+      for await (const result of ctx.db.query("testResults").withIndex("by_wpm").order("desc")) {
+        if (result.wpm <= 0 || seen.has(result.userId) || !isLeaderboardEligible(result)) continue;
+        const user = await ctx.db.get(result.userId);
+        if (!user) continue;
+        seen.add(user._id);
+        leaderboard.push({ userId: user._id, username: user.username, avatarUrl: user.avatarUrl ?? null, wpm: result.wpm, createdAt: result.createdAt });
+        if (leaderboard.length >= limit) break;
+      }
+    } else {
+      // The date index avoids walking older scores on a quiet day/week.
+      const bestByUser = new Map<Id<"users">, { wpm: number; createdAt: number }>();
+      for await (const result of ctx.db.query("testResults")
+        .withIndex("by_created_at", (q) => q.gte("createdAt", timeCutoff).lt("createdAt", getStartOfDayUTC(0) + 86_400_000))) {
+        if (result.wpm <= 0 || !isLeaderboardEligible(result)) continue;
+        const previous = bestByUser.get(result.userId);
+        if (!previous || result.wpm > previous.wpm ||
+            (result.wpm === previous.wpm && result.createdAt > previous.createdAt)) {
+          bestByUser.set(result.userId, { wpm: result.wpm, createdAt: result.createdAt });
+        }
+      }
+      const ranked = [...bestByUser.entries()].sort((a, b) => b[1].wpm - a[1].wpm || b[1].createdAt - a[1].createdAt);
+      for (const [userId, score] of ranked) {
+        const user = await ctx.db.get(userId);
+        if (!user) continue;
+        leaderboard.push({ userId, username: user.username, avatarUrl: user.avatarUrl ?? null, ...score });
+        if (leaderboard.length >= limit) break;
+      }
     }
 
     return leaderboard.slice(0, limit).map((entry, index) => ({

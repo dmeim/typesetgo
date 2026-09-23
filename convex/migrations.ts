@@ -25,7 +25,8 @@ export const backfillAllCaches = internalAction({
   args: { cursor: v.optional(v.string()), maxBatches: v.optional(v.number()) },
   handler: async (ctx, args) => {
     let cursor: string | null = args.cursor ?? null;
-    let userStatsProcessed = 0;
+    let userStatsRebuildsStarted = 0;
+    let userStatsRebuildsCompleted = 0;
     const failedUserIds: Id<"users">[] = [];
     const maxBatches = Math.max(1, Math.min(Math.floor(args.maxBatches ?? 20), 100));
     for (let count = 0; count < maxBatches; count++) {
@@ -34,8 +35,9 @@ export const backfillAllCaches = internalAction({
       });
       for (const userId of batch.userIds) {
         try {
-          await ctx.runMutation(internal.statsCache.rebuildUserStatsCacheForUser, { userId });
-          userStatsProcessed++;
+          const result = await ctx.runMutation(internal.statsCache.rebuildUserStatsCacheForUser, { userId });
+          userStatsRebuildsStarted++;
+          if (!result.pending) userStatsRebuildsCompleted++;
         } catch {
           failedUserIds.push(userId);
         }
@@ -43,6 +45,12 @@ export const backfillAllCaches = internalAction({
       cursor = batch.nextCursor;
       if (!cursor) break;
     }
-    return { userStatsProcessed, failedUserIds, nextCursor: cursor };
+    return {
+      userStatsRebuildsStarted,
+      userStatsRebuildsCompleted,
+      userStatsRebuildsPending: userStatsRebuildsStarted - userStatsRebuildsCompleted,
+      failedUserIds,
+      nextCursor: cursor,
+    };
   },
 });

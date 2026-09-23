@@ -1,5 +1,14 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
+
+const REBUILD_BATCH_SIZE = 100;
+
+async function rebuildProgress(ctx: MutationCtx, userId: Id<"users">) {
+  return ctx.db.query("userStatsRebuild").withIndex("by_user", (q) => q.eq("userId", userId)).first();
+}
 
 export const updateUserStatsCache = internalMutation({
   args: {
@@ -15,6 +24,11 @@ export const updateUserStatsCache = internalMutation({
     // isValid !== false means valid (includes undefined for legacy data)
     if (args.isValid === false) {
       return null;
+    }
+    // A save may arrive after earlier pages were replayed. Restart so it is
+    // included exactly once; the generation guard ignores queued stale pages.
+    if ((await rebuildProgress(ctx, args.userId))?.pending) {
+      return startRebuild(ctx, args.userId);
     }
 
     const now = Date.now();
@@ -71,6 +85,10 @@ export const decrementUserStatsCache = internalMutation({
       return null;
     }
 
+    if ((await rebuildProgress(ctx, args.userId))?.pending) {
+      return startRebuild(ctx, args.userId);
+    }
+
     const existingCache = await ctx.db
       .query("userStatsCache")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -90,17 +108,18 @@ export const decrementUserStatsCache = internalMutation({
     }
 
     if (args.wasBestWpm) {
-      // Need to recalculate best WPM from remaining results
-      const allResults = await ctx.db
-        .query("testResults")
-        .withIndex("by_user", (q) => q.eq("userId", args.userId))
-        .collect();
-
-      const validResults = allResults.filter((r) => r.isValid !== false);
-      const newBestWpm =
-        validResults.length > 0
-          ? Math.max(...validResults.map((r) => r.wpm))
-          : 0;
+      // Indexed combinations include current verified and legacy rows, never
+      // an invalid or unverified client-only save.
+      let newBestWpm = 0;
+      for (const isValid of [true, undefined]) {
+        for (const rankedEligible of [true, undefined]) {
+          const best = await ctx.db.query("testResults")
+            .withIndex("by_user_validity_ranked_wpm", (q) => q.eq("userId", args.userId)
+              .eq("isValid", isValid).eq("rankedEligible", rankedEligible))
+            .order("desc").first();
+          newBestWpm = Math.max(newBestWpm, best?.wpm ?? 0);
+        }
+      }
 
       await ctx.db.patch(existingCache._id, {
         totalTests: newTotalTests,
@@ -127,60 +146,67 @@ export const decrementUserStatsCache = internalMutation({
   },
 });
 
+async function replayBatch(ctx: MutationCtx, progress: Doc<"userStatsRebuild">) {
+  const batch = await ctx.db.query("testResults")
+    .withIndex("by_user", (q) => q.eq("userId", progress.userId))
+    .paginate({ cursor: progress.cursor, numItems: REBUILD_BATCH_SIZE });
+  const totals = {
+    totalTests: progress.totalTests,
+    totalWpm: progress.totalWpm,
+    bestWpm: progress.bestWpm,
+    totalAccuracy: progress.totalAccuracy,
+    totalTimeTyped: progress.totalTimeTyped,
+    totalWordsTyped: progress.totalWordsTyped,
+  };
+  for (const result of batch.page) {
+    if (result.isValid === false || result.rankedEligible === false) continue;
+    totals.totalTests++;
+    totals.totalWpm += result.wpm;
+    totals.bestWpm = Math.max(totals.bestWpm, result.wpm);
+    totals.totalAccuracy += result.accuracy;
+    totals.totalTimeTyped += result.duration;
+    totals.totalWordsTyped += result.wordCount;
+  }
+  await ctx.db.patch(progress._id, { ...totals, cursor: batch.isDone ? null : batch.continueCursor, pending: !batch.isDone });
+  if (!batch.isDone) {
+    await ctx.scheduler.runAfter(0, internal.statsCache.continueUserStatsRebuild,
+      { userId: progress.userId, generation: progress.generation });
+    return { pending: true, totalTests: totals.totalTests };
+  }
+  const cache = await ctx.db.query("userStatsCache")
+    .withIndex("by_user", (q) => q.eq("userId", progress.userId)).first();
+  if (totals.totalTests === 0) {
+    if (cache) await ctx.db.delete(cache._id);
+    return { pending: false, totalTests: 0 };
+  }
+  if (cache) await ctx.db.patch(cache._id, { ...totals, updatedAt: Date.now() });
+  else await ctx.db.insert("userStatsCache", { userId: progress.userId, ...totals, updatedAt: Date.now() });
+  return { pending: false, totalTests: totals.totalTests };
+}
+
+async function startRebuild(ctx: MutationCtx, userId: Id<"users">) {
+  const previous = await rebuildProgress(ctx, userId);
+  const data = { userId, generation: (previous?.generation ?? 0) + 1, pending: true,
+    cursor: null, totalTests: 0, totalWpm: 0, bestWpm: 0,
+    totalAccuracy: 0, totalTimeTyped: 0, totalWordsTyped: 0 };
+  const id = previous?._id ?? await ctx.db.insert("userStatsRebuild", data);
+  if (previous) await ctx.db.patch(id, data);
+  const progress = await ctx.db.get(id);
+  if (!progress) throw new Error("Stats rebuild state missing.");
+  return replayBatch(ctx, progress);
+}
+
 export const rebuildUserStatsCacheForUser = internalMutation({
-  args: {
-    userId: v.id("users"),
-  },
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => startRebuild(ctx, args.userId),
+});
+
+export const continueUserStatsRebuild = internalMutation({
+  args: { userId: v.id("users"), generation: v.number() },
   handler: async (ctx, args) => {
-    const now = Date.now();
-
-    // Delete existing cache entry if any
-    const existingCache = await ctx.db
-      .query("userStatsCache")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .first();
-
-    if (existingCache) {
-      await ctx.db.delete(existingCache._id);
-    }
-
-    // Get all results for this user
-    const allResults = await ctx.db
-      .query("testResults")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
-
-    // Filter to valid results only
-    const validResults = allResults.filter((r) => r.isValid !== false);
-
-    if (validResults.length === 0) {
-      return { skipped: true, reason: "no valid results" };
-    }
-
-    // Calculate aggregates
-    const totalTests = validResults.length;
-    const totalWpm = validResults.reduce((sum, r) => sum + r.wpm, 0);
-    const bestWpm = Math.max(...validResults.map((r) => r.wpm));
-    const totalAccuracy = validResults.reduce((sum, r) => sum + r.accuracy, 0);
-    const totalTimeTyped = validResults.reduce((sum, r) => sum + r.duration, 0);
-    const totalWordsTyped = validResults.reduce(
-      (sum, r) => sum + r.wordCount,
-      0
-    );
-
-    // Insert new cache entry
-    await ctx.db.insert("userStatsCache", {
-      userId: args.userId,
-      totalTests,
-      totalWpm,
-      bestWpm,
-      totalAccuracy,
-      totalTimeTyped,
-      totalWordsTyped,
-      updatedAt: now,
-    });
-
-    return { created: true, totalTests };
+    const progress = await rebuildProgress(ctx, args.userId);
+    if (!progress?.pending || progress.generation !== args.generation) return null;
+    return replayBatch(ctx, progress);
   },
 });
 

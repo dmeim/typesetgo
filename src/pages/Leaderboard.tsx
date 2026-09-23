@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { ArrowLeftIcon, MedalIcon, MedalMilitaryIcon, TrophyIcon } from "@phosphor-icons/react";
@@ -6,6 +6,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableCap
 import { cn } from "@/lib/utils";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { msUntilNextUtcDay, todayTitleUTC, utcDayStart, weekTitleUTC } from "@/lib/leaderboard-period";
 
 interface LeaderboardEntry {
   // Older deployed query responses remain readable until the additive update ships.
@@ -17,40 +18,13 @@ interface LeaderboardEntry {
   createdAt: number;
 }
 
-const TIMEZONE = "America/New_York";
-
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString("en-US", {
+    timeZone: "UTC",
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-}
-
-function getTodayTitleET(): string {
-  return new Date().toLocaleDateString("en-US", {
-    timeZone: TIMEZONE,
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function getWeekRangeTitleET(): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TIMEZONE,
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  }).formatToParts(new Date());
-  const year = Number(parts.find((part) => part.type === "year")!.value);
-  const month = Number(parts.find((part) => part.type === "month")!.value) - 1;
-  const day = Number(parts.find((part) => part.type === "day")!.value);
-  const format = (date: Date) => date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-  return `${format(new Date(year, month, day - 7))} – ${format(new Date(year, month, day))}`;
 }
 
 function Avatar({ entry, podium = false }: { entry: LeaderboardEntry; podium?: boolean }) {
@@ -158,7 +132,7 @@ function LeaderboardColumn({
     <section aria-labelledby={`${id}-title`} aria-busy={leaderboard === undefined} className="@container min-w-0 rounded-xl border border-border bg-card p-3 text-card-foreground sm:p-4">
       <header className="mb-6 min-h-12">
         <h2 id={`${id}-title`} className="text-lg font-semibold">{title}</h2>
-        {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle} · ET</p>}
+        {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle} · UTC</p>}
       </header>
       {leaderboard === undefined ? (
         <p role="status" className="py-8 text-center text-sm text-muted-foreground">Loading {title.toLowerCase()} scores…</p>
@@ -206,9 +180,22 @@ function LeaderboardColumn({
 }
 
 export default function Leaderboard() {
+  const [periodStart, setPeriodStart] = useState(() => utcDayStart(Date.now()));
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = () => {
+      clearTimeout(timer);
+      setPeriodStart(utcDayStart(Date.now()));
+      timer = setTimeout(refresh, msUntilNextUtcDay(Date.now()) + 1);
+    };
+    refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", onVisible); };
+  }, []);
   const allTimeLeaderboard = useQuery(api.testResults.getLeaderboard, { timeRange: "all-time", limit: 50 });
-  const todayLeaderboard = useQuery(api.testResults.getLeaderboard, { timeRange: "today", limit: 50 });
-  const weekLeaderboard = useQuery(api.testResults.getLeaderboard, { timeRange: "week", limit: 50 });
+  const todayLeaderboard = useQuery(api.testResults.getLeaderboard, { timeRange: "today", limit: 50, periodStart });
+  const weekLeaderboard = useQuery(api.testResults.getLeaderboard, { timeRange: "week", limit: 50, periodStart });
 
   return (
     <div className="min-h-[100dvh] bg-background font-mono text-foreground">
@@ -226,8 +213,8 @@ export default function Leaderboard() {
         </p>
         <div className="grid grid-cols-1 items-start gap-4 min-[90rem]:grid-cols-3">
           <LeaderboardColumn id="all-time" title="All-Time" leaderboard={allTimeLeaderboard} emptyMessage="Complete a typing test and save your results to appear on the leaderboard!" />
-          <LeaderboardColumn id="today" title="Today" subtitle={getTodayTitleET()} leaderboard={todayLeaderboard} emptyMessage="No one has completed a test today yet. Be the first!" />
-          <LeaderboardColumn id="week" title="This Week" subtitle={getWeekRangeTitleET()} leaderboard={weekLeaderboard} emptyMessage="No tests completed this week. Start typing to claim the top spot!" />
+          <LeaderboardColumn id="today" title="Today" subtitle={todayTitleUTC(periodStart)} leaderboard={todayLeaderboard} emptyMessage="No one has completed a test today yet. Be the first!" />
+          <LeaderboardColumn id="week" title="This Week" subtitle={weekTitleUTC(periodStart)} leaderboard={weekLeaderboard} emptyMessage="No tests completed this week. Start typing to claim the top spot!" />
         </div>
       </main>
       <footer className="px-4 pb-5 text-center text-xs text-muted-foreground">Leaderboard shows verified tests only</footer>

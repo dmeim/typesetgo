@@ -28,7 +28,7 @@ async function setup() {
 }
 
 describe("one achievement evaluator for save and rebuild", () => {
-  it("keeps unranked short tests exempt-only on save, refresh, deletion and admin invalidation", async () => {
+  it("keeps unverified saves history-only on save, refresh, deletion and admin validity changes", async () => {
     const { t, userId, owner } = await setup();
     const saved = await owner.mutation(api.testResults.saveResult, {
       clerkId: "owner", wpm: 180, accuracy: 100, mode: "time", duration: 10000,
@@ -37,8 +37,7 @@ describe("one achievement evaluator for save and rebuild", () => {
       ...getLocalCalendarFields(),
     });
     const before = await t.query(api.achievements.getUserAchievementsByUserId, { userId });
-    expect(Object.keys(before)).toContain("special-first-test");
-    expect(Object.keys(before).some((id) => id.startsWith("speed-"))).toBe(false);
+    expect(before).toEqual({});
     await owner.mutation(api.achievements.recheckAllAchievements, { clerkId: "owner" });
     expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual(before);
     const tokenHash = await sha256Hex("admin-test");
@@ -46,7 +45,7 @@ describe("one achievement evaluator for save and rebuild", () => {
     await t.mutation(api.admin.setValidity, { token: "admin-test", resultId: saved.resultId, isValid: false });
     expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual({});
     await t.mutation(api.admin.setValidity, { token: "admin-test", resultId: saved.resultId, isValid: true });
-    expect(Object.keys(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).sort()).toEqual(Object.keys(before).sort());
+    expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual({});
     await owner.mutation(api.testResults.deleteResult, { clerkId: "owner", resultId: saved.resultId });
     expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual({});
   });
@@ -97,7 +96,7 @@ describe("one achievement evaluator for save and rebuild", () => {
     expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual(before);
   });
 
-  it("includes an append during a pending rebuild without restarting that rebuild", async () => {
+  it("ignores an unverified append during a pending rebuild without restarting", async () => {
     const { t, userId, owner } = await setup();
     await t.run(async (ctx) => {
       for (let i = 0; i < 250; i++) {
@@ -121,14 +120,14 @@ describe("one achievement evaluator for save and rebuild", () => {
     const final = await t.run((ctx) => ctx.db.query("achievementProgress").withIndex("by_user", (q) => q.eq("userId", userId)).first());
     expect(final?.generation).toBe(first?.generation);
     expect(final?.pending).toBe(false);
-    expect(final?.state.totalTests).toBe(251);
+    expect(final?.state.totalTests).toBe(250);
     const expected = emptyAchievementState();
     const history = await t.run((ctx) => ctx.db.query("testResults").withIndex("by_user_and_date", (q) => q.eq("userId", userId)).collect());
     for (const result of history) advanceAchievementState(expected, result);
     expect(final?.state).toEqual(expected);
     const awards = await t.query(api.achievements.getUserAchievementsByUserId, { userId });
     expect(awards).toEqual(expected.awards);
-    expect(awards["quirky-42"]).toBeTruthy();
+    expect(awards["quirky-42"]).toBeUndefined();
   });
 
   it.each(["deletion", "admin invalidation"] as const)("restarts after %s of an already-replayed result and prevents stale queued pages from regranting it", async (operation) => {

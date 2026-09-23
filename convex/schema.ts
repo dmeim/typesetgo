@@ -45,6 +45,8 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_and_date", ["userId", "createdAt"])
+    .index("by_created_at", ["createdAt"])
+    .index("by_user_validity_ranked_wpm", ["userId", "isValid", "rankedEligible", "wpm"])
     .index("by_wpm", ["wpm"])
     .index("by_validity", ["isValid"]),
 
@@ -253,6 +255,19 @@ export default defineSchema({
     totalTimeTyped: v.number(),
     totalWordsTyped: v.number(),
     updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  userStatsRebuild: defineTable({
+    userId: v.id("users"),
+    generation: v.number(),
+    pending: v.boolean(),
+    cursor: v.union(v.string(), v.null()),
+    totalTests: v.number(),
+    totalWpm: v.number(),
+    bestWpm: v.number(),
+    totalAccuracy: v.number(),
+    totalTimeTyped: v.number(),
+    totalWordsTyped: v.number(),
   }).index("by_user", ["userId"]),
 
   // Retained only for compatibility with existing stored rows. No readers/writers.

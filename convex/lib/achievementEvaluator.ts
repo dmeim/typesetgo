@@ -448,10 +448,9 @@ function consecutive(previous: string, current: string): boolean {
  * Historical rows without local calendar facts cannot earn local-time badges.
  */
 export function advanceAchievementState(state: AchievementState, result: Doc<"testResults">): void {
-  if (result.isValid === false) return;
+  if (result.isValid === false || result.rankedEligible === false) return;
   const wordsCorrect = result.wordsCorrect ?? 0;
-  const eligible = result.rankedEligible !== false &&
-    qualifiesForAchievement(result.duration, wordsCorrect, result.accuracy);
+  const eligible = qualifiesForAchievement(result.duration, wordsCorrect, result.accuracy);
   const date = utcDate(result.createdAt);
   const calendar = result.localCalendar;
   state.totalTests++;

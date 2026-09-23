@@ -61,9 +61,9 @@ export const cleanupExpiredAdminSessions = internalMutation({
 });
 
 export const consumeAdminLoginRateLimit = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    await consumeRateLimit(ctx, "admin_login", ADMIN_LOGIN_RATE_LIMIT);
+  args: { subject: v.string() },
+  handler: async (ctx, args) => {
+    await consumeRateLimit(ctx, `admin_login:${args.subject}`, ADMIN_LOGIN_RATE_LIMIT);
   },
 });
 

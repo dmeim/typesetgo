@@ -10,6 +10,7 @@ import { tv } from "@/lib/theme-vars";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAppAuth } from "@/components/layout/useAppAuth";
 
 const ADMIN_TOKEN_KEY = "typesetgo.adminToken";
 
@@ -57,6 +58,7 @@ function formatDateTime(timestamp: number): string {
 
 export default function Admin() {
   const convex = useConvex();
+  const auth = useAppAuth();
   const [token, setToken] = useState(readStoredToken);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -183,7 +185,18 @@ export default function Admin() {
           </p>
         </div>
 
-        {!isLoggedIn ? (
+        {!isLoggedIn && auth.status !== "signed-in" ? (
+          <div className="max-w-sm mx-auto space-y-4 rounded-lg p-6 text-center" style={{ backgroundColor: tv.ui.secondary }}>
+            <p>Sign in to your account before opening admin review.</p>
+            {auth.status === "unavailable" ? (
+              <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>Account sign-in is unavailable in this environment.</p>
+            ) : auth.status === "signed-out" ? (
+              <Button type="button" onClick={() => void auth.openSignIn()}><SignInIcon aria-hidden="true" /> Sign in</Button>
+            ) : (
+              <p className="text-sm" role="status">Checking sign-in…</p>
+            )}
+          </div>
+        ) : !isLoggedIn ? (
           <form
             onSubmit={handleLogin}
             className="max-w-sm mx-auto space-y-4 p-6 rounded-lg"

@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Admin from "@/pages/Admin";
 
 const backend = vi.hoisted(() => ({ query: vi.fn(), action: vi.fn(), mutation: vi.fn() }));
+const auth = vi.hoisted(() => ({ status: "signed-in", openSignIn: vi.fn() }));
 vi.mock("convex/react", () => ({ useConvex: () => backend }));
+vi.mock("@/components/layout/useAppAuth", () => ({ useAppAuth: () => auth }));
 vi.mock("../../convex/_generated/api", () => ({ api: { admin: {
   listReview: "listReview", login: "login", setValidity: "setValidity",
 } } }));
@@ -26,12 +28,20 @@ function deferred<T>() {
 beforeEach(() => {
   sessionStorage.clear();
   vi.resetAllMocks();
+  auth.status = "signed-in";
   backend.action.mockResolvedValue({ token: "new-session" });
   backend.mutation.mockResolvedValue({ success: true });
 });
 afterEach(cleanup);
 
 describe("admin review request ownership", () => {
+  it("offers account sign-in before asking for the admin password", () => {
+    auth.status = "signed-out";
+    mount();
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(auth.openSignIn).toHaveBeenCalledOnce();
+  });
   it("derives loading until the current request resolves and then shows the empty state", async () => {
     const request = deferred<[]>();
     sessionStorage.setItem("typesetgo.adminToken", "stored-session");

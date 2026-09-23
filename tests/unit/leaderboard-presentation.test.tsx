@@ -2,13 +2,14 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Leaderboard from "@/pages/Leaderboard";
+import { utcDayStart } from "@/lib/leaderboard-period";
 
 const queries = vi.hoisted(() => ({
   ranges: {} as Record<string, unknown>,
-  calls: [] as Array<{ timeRange: string; limit: number }>,
+  calls: [] as Array<{ timeRange: string; limit: number; periodStart?: number }>,
 }));
 vi.mock("convex/react", () => ({
-  useQuery: (_query: unknown, args: { timeRange: string; limit: number }) => {
+  useQuery: (_query: unknown, args: { timeRange: string; limit: number; periodStart?: number }) => {
     queries.calls.push(args);
     return queries.ranges[args.timeRange];
   },
@@ -37,8 +38,8 @@ describe("leaderboard ranges", () => {
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
     expect(queries.calls).toEqual([
       { timeRange: "all-time", limit: 50 },
-      { timeRange: "today", limit: 50 },
-      { timeRange: "week", limit: 50 },
+      { timeRange: "today", limit: 50, periodStart: utcDayStart(Date.now()) },
+      { timeRange: "week", limit: 50, periodStart: utcDayStart(Date.now()) },
     ]);
   });
 

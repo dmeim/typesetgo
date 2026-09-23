@@ -74,7 +74,7 @@ describe("calendar policy and native migration pagination", () => {
       difficulty: "easy", punctuation: false, numbers: false, wordsCorrect: 50,
       wordsIncorrect: 0, charsMissed: 0, charsExtra: 0, ...getLocalCalendarFields(),
     });
-    expect(await owner.query(api.streaks.getUserStreak, { clerkId: "owner" })).toMatchObject({ currentStreak: 1, lastActivityDate: "2026-09-22" });
+    expect(await owner.query(api.streaks.getUserStreak, { clerkId: "owner" })).toMatchObject({ currentStreak: 0, lastActivityDate: null });
   });
 
   it("does not interpret out-of-order IDs as the cursor", async () => {

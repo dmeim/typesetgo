@@ -22,7 +22,9 @@ export const login = action({
     password: v.string(),
   },
   handler: async (ctx, args): Promise<{ token: string }> => {
-    await ctx.runMutation(internal.sessionCleanup.consumeAdminLoginRateLimit, {});
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Sign in before using admin review.");
+    await ctx.runMutation(internal.sessionCleanup.consumeAdminLoginRateLimit, { subject: identity.subject });
 
     const adminPassword = convexEnv("ADMIN_PASSWORD");
     const configured =
