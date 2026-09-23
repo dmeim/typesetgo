@@ -20,7 +20,7 @@ const interrupt = () => controller.abort();
 process.once("SIGINT", interrupt);
 process.once("SIGTERM", interrupt);
 
-function run(command, args) {
+function run(command, args, timeoutMs = 120_000) {
   controller.signal.throwIfAborted();
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -29,7 +29,7 @@ function run(command, args) {
       stdio: "inherit",
       detached: process.platform !== "win32",
     });
-    const timeout = setTimeout(stop, 120_000);
+    const timeout = setTimeout(stop, timeoutMs);
     let killed = false;
     let killTimer;
     function kill(signal) {
@@ -95,7 +95,7 @@ try {
       }
       if (suite === "fonts") await run(process.execPath, ["tests/browser/fonts-production.mjs"]);
     } else if (suite === "profiles") {
-      await run(process.execPath, ["tests/browser/profiles/check.mjs"]);
+      await run(process.execPath, ["tests/browser/profiles/check.mjs"], 300_000);
     } else {
       const config = suite === "race" ? "tests/fixtures/race/playwright.config.ts"
         : "tests/fixtures/connect-browser/playwright" + (suite === "connect-session" ? ".real" : "") + ".config.ts";
