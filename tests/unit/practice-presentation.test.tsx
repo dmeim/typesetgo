@@ -670,10 +670,25 @@ describe("custom duration boundary", () => {
         onApply={onApply}
       />,
     );
-    expect(screen.getByRole("spinbutton", { name: "hours" })).toHaveAttribute("aria-valuemax", "1");
-    expect(screen.getByRole("spinbutton", { name: "minutes" })).toHaveAttribute("aria-valuemax", "0");
+    expect(screen.queryByRole("spinbutton", { name: "hours" })).not.toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "minutes" })).toHaveAttribute("aria-valuemax", "60");
     expect(screen.getByRole("spinbutton", { name: "seconds" })).toHaveAttribute("aria-valuemax", "0");
-    expect(screen.getByText("01:00:00")).toBeInTheDocument();
+    expect(screen.getByText("60:00")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
+    expect(onApply).toHaveBeenCalledWith(MAX_DURATION_SECONDS);
+  });
+
+  it("offers 60 seconds below the one-hour limit", () => {
+    const onApply = vi.fn();
+    render(<PracticeCountDialog settings={{ ...settings, mode: "time", duration: 59 * 60 }}
+      setShowCustomCountModal={vi.fn()} onApply={onApply} />);
+    const seconds = screen.getByRole("spinbutton", { name: "seconds" });
+    expect(seconds).toHaveAttribute("aria-valuemax", "60");
+    fireEvent.keyDown(seconds, { key: "End" });
+    expect(screen.getByText("59:60")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("spinbutton", { name: "minutes" }), { key: "End" });
+    expect(seconds).toHaveAttribute("aria-valuemax", "0");
+    expect(screen.getByText("60:00")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
     expect(onApply).toHaveBeenCalledWith(MAX_DURATION_SECONDS);
   });

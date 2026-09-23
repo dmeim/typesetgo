@@ -12,7 +12,7 @@ The review covered the route and component code, practice, profiles, themes, Con
 | --- | --- | --- |
 | 01 · Saved results | Implemented locally | Numeric inputs are checked; client-only saves remain visible as **unverified history** and cannot add progress or rank. The explicit maintenance action can repair historical aggregates, awards, and streaks after deployment. |
 | 02 · Session bounds | Implemented | Server validates modes, difficulty, counts, duration, and supplied text before prompt generation. Direct Race text generation was also bounded. |
-| 03 · Long timed tests | Implemented | The supported duration is now 1–3,600 seconds across the browser and server. A one-hour ranked prompt contains up to 22,500 words, with roughly 300 mounted near the caret. Progress reports for tests over ten minutes are batched. The custom picker supports 01:00:00. |
+| 03 · Long timed tests | Implemented | The supported duration is now 1–3,600 seconds across the browser and server. A one-hour ranked prompt contains up to 22,500 words, with roughly 300 mounted near the caret. Progress reports for tests over ten minutes are batched. The custom picker uses minutes and seconds, each with a 60 option. |
 | 04 · Admin lockout | Implemented | Login requires Clerk sign-in, and rate limiting is scoped to that identity. Admin sessions are bound to the signed-in identity. |
 | 05 · Race finish claims | Mitigated | The server checks the full target, calculates elapsed time and WPM, and applies a 300 WPM minimum-time floor. A browser can still fabricate its own typed text; the podium cannot prove physical keystrokes. |
 | 06 · Clock differences | Implemented | Early finish returns an explicit retry delay; the client resubmits after the server's start boundary. |
@@ -37,7 +37,7 @@ The review covered the route and component code, practice, profiles, themes, Con
 | Local implementation check | Result |
 | --- | --- |
 | Fixture `bun run build`; explicit Convex typecheck; `bun run lint` | Passed. |
-| `bun run test:run` | Passed: 49 files and 397 tests; one file/test skipped. |
+| `bun run test:run` | Passed: 49 files and 398 tests; one file/test skipped. |
 | `bun run test:e2e` | Practice, Connect, and Connect Session passed after the one-hour change. Fonts, Profiles, and Race passed at the preceding local checkpoint. |
 | Production asset maps | Zero `.map` files in `dist`. |
 | Maximum timed prompt in an unthrottled desktop browser fixture | 22,500 words; about 2.63 s from navigation to the 300-word visible window, 81 ms for a one-character Playwright fill, and about 1,670 DOM nodes. A 15,000-word typed prefix took 45 ms for a subsequent input update. These are local synthetic measurements, not live-service or low-end-device results. |

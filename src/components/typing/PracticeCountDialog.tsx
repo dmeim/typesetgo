@@ -7,7 +7,7 @@ import { tv } from "@/lib/theme-vars";
 
 const CUSTOM_WORD_MIN = 1;
 const CUSTOM_WORD_MAX = 9999;
-const CUSTOM_DURATION_MAX_HOURS = Math.floor(MAX_DURATION_SECONDS / 3600);
+const CUSTOM_DURATION_MAX_MINUTES = Math.floor(MAX_DURATION_SECONDS / 60);
 const DIAL_ROW_HEIGHT = 42;
 const DIAL_VISIBLE_ROWS = 5;
 const DIAL_PADDING_ROWS = Math.floor(DIAL_VISIBLE_ROWS / 2);
@@ -21,8 +21,7 @@ const durationToDialValues = (totalSeconds: number) => {
   const clampedSeconds = clampNumber(Math.round(totalSeconds), 0, MAX_DURATION_SECONDS);
 
   return {
-    hours: Math.floor(clampedSeconds / 3600),
-    minutes: Math.floor((clampedSeconds % 3600) / 60),
+    minutes: Math.floor(clampedSeconds / 60),
     seconds: clampedSeconds % 60,
   };
 };
@@ -221,14 +220,10 @@ interface PracticeCountDialogProps {
 export default function PracticeCountDialog({ settings, setShowCustomCountModal, onApply }: PracticeCountDialogProps) {
   const [customDuration, setCustomDuration] = useState(() => durationToDialValues(settings.duration));
   const [customWordDigits, setCustomWordDigits] = useState<WordDigits>(() => wordTargetToDigits(settings.wordTarget));
-  const customDurationSeconds = customDuration.hours * 3600 + customDuration.minutes * 60 + customDuration.seconds;
-  const formattedCustomDuration = `${CUSTOM_DURATION_MAX_HOURS > 0 ? `${customDuration.hours.toString().padStart(2, "0")}:` : ""}${customDuration.minutes
-    .toString()
-    .padStart(2, "0")}:${customDuration.seconds.toString().padStart(2, "0")}`;
-  const maxMinutes = CUSTOM_DURATION_MAX_HOURS === customDuration.hours
-    ? Math.floor((MAX_DURATION_SECONDS - customDuration.hours * 3600) / 60) : 59;
-  const maxSeconds = CUSTOM_DURATION_MAX_HOURS === customDuration.hours && maxMinutes === customDuration.minutes
-    ? MAX_DURATION_SECONDS % 60 : 59;
+  const customDurationSeconds = customDuration.minutes * 60 + customDuration.seconds;
+  const formattedCustomDuration = `${customDuration.minutes.toString().padStart(2, "0")}:${customDuration.seconds.toString().padStart(2, "0")}`;
+  const maxSeconds = customDuration.minutes === CUSTOM_DURATION_MAX_MINUTES
+    ? MAX_DURATION_SECONDS % 60 : 60;
   const customWordValue = digitsToWordTarget(customWordDigits);
   const formattedCustomWordValue = customWordValue.toString().padStart(4, "0");
   const applyCustomCount = () => {
@@ -252,13 +247,13 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
         if (!open) setShowCustomCountModal(false);
       }}
     >
-      <DialogContent showCloseButton={false} className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent showCloseButton={false} className={`max-h-[90dvh] overflow-y-auto ${settings.mode === "time" ? "sm:max-w-lg" : "sm:max-w-2xl"}`}>
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <DialogTitle>{settings.mode === "time" ? "Custom Duration" : "Custom Word Count"}</DialogTitle>
             <DialogDescription className="mt-1">
               {settings.mode === "time"
-                ? `Scroll each dial or use arrows to set ${CUSTOM_DURATION_MAX_HOURS > 0 ? "hours, minutes, and seconds" : "minutes and seconds"}.`
+                ? "Scroll each dial or use arrows to set minutes and seconds."
                 : "Scroll each dial or use arrows to set a word count from 0001 to 9999."}
             </DialogDescription>
           </div>
@@ -283,22 +278,13 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
             </div>
 
             <div className="flex flex-wrap justify-center gap-3 sm:gap-6">
-              {CUSTOM_DURATION_MAX_HOURS > 0 && <NumberDial
-                label="hours"
-                min={0}
-                max={CUSTOM_DURATION_MAX_HOURS}
-                value={customDuration.hours}
-                onChange={(hours) =>
-                  setCustomDuration((prev) => durationToDialValues(hours * 3600 + prev.minutes * 60 + prev.seconds))
-                }
-              />}
               <NumberDial
                 label="minutes"
                 min={0}
-                max={maxMinutes}
+                max={CUSTOM_DURATION_MAX_MINUTES}
                 value={customDuration.minutes}
                 onChange={(minutes) =>
-                  setCustomDuration((prev) => durationToDialValues(prev.hours * 3600 + minutes * 60 + prev.seconds))
+                  setCustomDuration((prev) => ({ minutes, seconds: minutes === CUSTOM_DURATION_MAX_MINUTES ? 0 : prev.seconds }))
                 }
               />
               <NumberDial
@@ -307,7 +293,7 @@ export default function PracticeCountDialog({ settings, setShowCustomCountModal,
                 max={maxSeconds}
                 value={customDuration.seconds}
                 onChange={(seconds) =>
-                  setCustomDuration((prev) => durationToDialValues(prev.hours * 3600 + prev.minutes * 60 + seconds))
+                  setCustomDuration((prev) => ({ ...prev, seconds }))
                 }
               />
             </div>
