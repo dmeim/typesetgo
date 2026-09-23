@@ -196,14 +196,6 @@ export type ThemeUIColors = {
   ring: string;
 };
 
-export type ThemeCatalogResult = {
-  themes: ThemeDefinition[];
-  requestedThemeIds: string[];
-  failedThemeIds: string[];
-  manifestError: boolean;
-  complete: boolean;
-};
-
 /** Browsing metadata only. Full palettes are loaded when previewing or selecting. */
 export type ThemeVariantSummary = {
   id: string;

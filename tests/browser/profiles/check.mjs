@@ -70,7 +70,7 @@ try {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("dialog", { name: "Recent WPM" })).toBeVisible();
     await expect(page.getByText("Lifetime best WPM: 180", { exact: true })).toBeVisible();
-    await expect(page.getByText(/99 valid tests from the latest 100 saved tests/)).toBeVisible();
+    await expect(page.getByText(/99 verified tests from the latest 100 saved tests/)).toBeVisible();
     await dialogWithinViewport(`chart ${label}`);
     await page.screenshot({ path: path.join(output, `chart-${label}.png`) });
     await page.keyboard.press("Escape");
@@ -93,7 +93,7 @@ try {
   const disclosure = page.locator("summary", { hasText: "View chart data (99 tests)" });
   await disclosure.focus();
   await page.keyboard.press("Enter");
-  const dataTable = page.getByRole("table", { name: "Recent valid tests, oldest first" });
+  const dataTable = page.getByRole("table", { name: "Recent verified tests, oldest first" });
   await expect(dataTable).toBeVisible();
   await expect(dataTable.getByRole("row")).toHaveCount(100);
   await expect(dataTable).toContainText("89 (highest in sample)");

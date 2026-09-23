@@ -155,7 +155,7 @@ describe("practice presentation command boundaries", () => {
     const onApply = vi.fn();
     const onClose = vi.fn();
     render(<PracticeCountDialog settings={settings} setShowCustomCountModal={onClose} onApply={onApply} />);
-    fireEvent.click(screen.getByRole("button", { name: "ones down" }));
+    fireEvent.click(screen.getByRole("button", { name: "ones up" }));
     expect(onApply).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Set Word Count" }));
     expect(onApply).toHaveBeenCalledWith(26);
@@ -317,6 +317,19 @@ describe("accessible practice dialogs and results", () => {
     expect(onApply).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Set Word Count" }));
     expect(onApply).toHaveBeenCalledWith(26);
+  });
+
+  it("keeps dial buttons and arrow keys in the same direction", () => {
+    render(<PracticeCountDialog settings={settings} setShowCustomCountModal={vi.fn()} onApply={vi.fn()} />);
+    const ones = screen.getByRole("spinbutton", { name: "ones" });
+    fireEvent.click(screen.getByRole("button", { name: "ones up" }));
+    expect(ones).toHaveAttribute("aria-valuenow", "6");
+    fireEvent.click(screen.getByRole("button", { name: "ones down" }));
+    expect(ones).toHaveAttribute("aria-valuenow", "5");
+    fireEvent.keyDown(ones, { key: "ArrowUp" });
+    expect(ones).toHaveAttribute("aria-valuenow", "6");
+    fireEvent.keyDown(ones, { key: "ArrowDown" });
+    expect(ones).toHaveAttribute("aria-valuenow", "5");
   });
 
   it("result shortcuts only run from the focused summary, respecting composition, modifiers, and Tab navigation", () => {
@@ -637,15 +650,15 @@ it.each(["qwerty", "dvorak", "colemak"] as const)("does not highlight Shift just
 });
 
 describe("custom duration boundary", () => {
-  it("retains a user-selected 6:30 duration through preference normalization", () => {
-    const timedSettings = { ...settings, mode: "time" as const, duration: 6 * 3600 + 29 * 60 };
+  it("retains a user-selected duration through preference normalization", () => {
+    const timedSettings = { ...settings, mode: "time" as const, duration: 8 * 60 + 30 };
     const onApply = vi.fn();
     render(<PracticeCountDialog settings={timedSettings} setShowCustomCountModal={vi.fn()} onApply={onApply} />);
     fireEvent.keyDown(screen.getByRole("spinbutton", { name: "minutes" }), { key: "ArrowUp" });
     fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
-    expect(onApply).toHaveBeenCalledWith(23400);
+    expect(onApply).toHaveBeenCalledWith(9 * 60 + 30);
     const [duration] = onApply.mock.calls[0];
-    expect(normalizePracticeSettings({ ...timedSettings, duration }).duration).toBe(23400);
+    expect(normalizePracticeSettings({ ...timedSettings, duration }).duration).toBe(9 * 60 + 30);
   });
 
   it("clamps the editor to the same supported duration maximum as preferences", () => {
@@ -657,8 +670,10 @@ describe("custom duration boundary", () => {
         onApply={onApply}
       />,
     );
-    expect(screen.getByRole("spinbutton", { name: "hours" })).toHaveAttribute("aria-valuemax", "6");
-    expect(screen.getByText("06:59:59")).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: "hours" })).toBeNull();
+    expect(screen.getByRole("spinbutton", { name: "minutes" })).toHaveAttribute("aria-valuemax", "10");
+    expect(screen.getByRole("spinbutton", { name: "seconds" })).toHaveAttribute("aria-valuemax", "0");
+    expect(screen.getByText("10:00")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
     expect(onApply).toHaveBeenCalledWith(MAX_DURATION_SECONDS);
   });

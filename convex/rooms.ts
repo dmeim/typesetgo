@@ -1,8 +1,35 @@
 // convex/rooms.ts
 import { mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { generateRaceText } from "./lib/raceWords";
 import { checkRoomHost, checkRoomMember, credentialHash, publicRoom, ROOM_RETENTION_MS, finishRaceIfReady, resetParticipantAttempt, validatePracticeSettings } from "./lib/multiplayer";
+import { MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET } from "../src/lib/practice-limits";
+
+const RACE_DIFFICULTIES = ["beginner", "easy", "medium", "hard", "expert"];
+
+function validatedRaceWords(difficulty: string, wordCount: number) {
+  if (!RACE_DIFFICULTIES.includes(difficulty)) throw new Error("Choose a supported race difficulty");
+  if (!Number.isInteger(wordCount) || wordCount < 1 || wordCount > MAX_WORD_TARGET) {
+    throw new Error(`Choose a whole race word count from 1 to ${MAX_WORD_TARGET}`);
+  }
+  return generateRaceText(difficulty, wordCount);
+}
+
+function validateStoredPresetText(settings: Doc<"rooms">["settings"]) {
+  const texts: unknown[] = [settings.presetText];
+  if (Array.isArray(settings.plan)) {
+    for (const item of settings.plan) {
+      if (item && typeof item === "object" && "settings" in item &&
+        item.settings && typeof item.settings === "object" && "presetText" in item.settings) {
+        texts.push(item.settings.presetText);
+      }
+    }
+  }
+  if (texts.some((text) => typeof text === "string" && text.length > MAX_PRESET_TEXT_LENGTH)) {
+    throw new Error(`Preset text must be at most ${MAX_PRESET_TEXT_LENGTH} characters`);
+  }
+}
 
 function generateRoomCode(): string {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -81,8 +108,10 @@ export const updateSettings = mutation({
 
     await checkRoomHost(room, args.credential);
     if (room.status === "active") throw new Error("Stop the run before changing its settings");
+    const settings = { ...room.settings, ...args.settings };
+    validateStoredPresetText(settings);
     await ctx.db.patch(args.roomId, {
-      settings: { ...room.settings, ...args.settings },
+      settings,
     });
   },
 });
@@ -173,13 +202,14 @@ export const setRaceText = mutation({
 
     await checkRoomHost(room, args.credential);
     if (room.status !== "waiting") throw new Error("Reset the room before changing race text");
-    // Use custom text if provided, otherwise generate
-    const targetText =
-      args.customText ||
-      generateRaceText(
-        args.difficulty || room.settings.difficulty,
-        args.wordCount || room.settings.wordTarget
-      );
+    if (room.gameMode !== "race") throw new Error("Room is not a race");
+    if (args.customText !== undefined && (!args.customText.trim() || args.customText.length > MAX_PRESET_TEXT_LENGTH)) {
+      throw new Error(`Race text must be 1 to ${MAX_PRESET_TEXT_LENGTH} characters`);
+    }
+    const targetText = args.customText ?? validatedRaceWords(
+      args.difficulty ?? room.settings.difficulty,
+      args.wordCount ?? room.settings.wordTarget,
+    );
 
     await ctx.db.patch(args.roomId, { targetText });
     return targetText;
@@ -220,7 +250,7 @@ export const startRace = mutation({
 
     // Generate race text if not already set
     if (!room.targetText) {
-      const targetText = generateRaceText(
+      const targetText = validatedRaceWords(
         room.settings.difficulty,
         room.settings.wordTarget
       );

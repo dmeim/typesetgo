@@ -10,11 +10,11 @@ import { api } from "../../../convex/_generated/api";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { formatRecordedMetric, type ProfileTestResult } from "./profile-presentation";
+import { formatRecordedMetric, type VerifiedProfileTestResult } from "./profile-presentation";
 import { ResultModeLabels, ResultValidity } from "@/components/stats/ResultLabels";
 
 interface TestDetailDialogProps {
-  result: ProfileTestResult;
+  result: VerifiedProfileTestResult;
   clerkId: string | null;
   isOwner: boolean;
   onClose: () => void;
@@ -64,10 +64,13 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
         </DialogHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <ResultModeLabels result={result} />
-          <ResultValidity isValid={result.isValid} />
+          <ResultValidity verification={result.verification} />
         </div>
-        {result.isValid === false && (
+        {result.verification === "invalid" && (
           <p className="flex items-start gap-2 rounded-lg border border-destructive/30 p-3 text-sm text-destructive"><WarningCircleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span>Invalid test. Excluded from lifetime statistics and charts.{result.invalidReason ? ` ${result.invalidReason}` : ""}</span></p>
+        )}
+        {result.verification === "unverified" && (
+          <p className="rounded-lg border border-warning/30 p-3 text-sm text-warning">Saved for history only. This result is not verified and does not count toward lifetime statistics, achievements, streaks, leaderboards, or charts.</p>
         )}
         <dl className="grid grid-cols-2 gap-3">
           <div className="relative min-w-0 overflow-hidden rounded-xl border border-primary/30 bg-secondary p-3 text-secondary-foreground sm:p-4">
@@ -109,7 +112,7 @@ export default function TestDetailDialog({ result, clerkId, isOwner, onClose, on
             >
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this test?</AlertDialogTitle>
-                <AlertDialogDescription>This removes the saved test and updates your statistics. This cannot be undone.</AlertDialogDescription>
+                <AlertDialogDescription>This removes the saved test{result.verification === "verified" ? " and updates your statistics" : " from your history"}. This cannot be undone.</AlertDialogDescription>
               </AlertDialogHeader>
               {deleteError && <p role="alert" className="text-sm text-destructive">{deleteError}</p>}
               <AlertDialogFooter>

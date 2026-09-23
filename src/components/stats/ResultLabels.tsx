@@ -1,8 +1,8 @@
 import {
   CheckCircleIcon, InfinityIcon, KeyboardIcon, ListChecksIcon,
-  QuotesIcon, TextAaIcon, TimerIcon, WarningCircleIcon,
+  QuestionIcon, QuotesIcon, TextAaIcon, TimerIcon, WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { getTestTypeLabels, type ProfileTestResult } from "@/components/stats/profile-presentation";
+import { getTestTypeLabels, type ProfileTestResult, type ResultVerification } from "@/components/stats/profile-presentation";
 
 const modeIcons = {
   time: TimerIcon,
@@ -26,13 +26,14 @@ export function ResultModeLabels({ result }: { result: ProfileTestResult }) {
   );
 }
 
-export function ResultValidity({ isValid }: { isValid: boolean | undefined }) {
-  const invalid = isValid === false;
-  const StatusIcon = invalid ? WarningCircleIcon : CheckCircleIcon;
+export function ResultValidity({ verification }: { verification: ResultVerification }) {
+  const StatusIcon = verification === "invalid" ? WarningCircleIcon
+    : verification === "unverified" ? QuestionIcon : CheckCircleIcon;
+  const label = verification === "invalid" ? "Invalid" : verification === "unverified" ? "Unverified" : "Verified";
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs ${invalid ? "text-destructive" : "text-muted-foreground"}`}>
-      <StatusIcon aria-hidden="true" className={`size-3.5 shrink-0 ${invalid ? "" : "text-primary"}`} />
-      {invalid ? "Invalid" : "Valid"}
+    <span className={`inline-flex items-center gap-1.5 text-xs ${verification === "invalid" ? "text-destructive" : verification === "unverified" ? "text-warning" : "text-muted-foreground"}`}>
+      <StatusIcon aria-hidden="true" className={`size-3.5 shrink-0 ${verification === "verified" ? "text-primary" : ""}`} />
+      {label}
     </span>
   );
 }

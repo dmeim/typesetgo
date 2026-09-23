@@ -1,6 +1,6 @@
 import { persistablePracticeSettings } from "./practice-preferences";
-import type { SettingsState, Theme } from "@/lib/typing-constants";
-import { DEFAULT_THEME, normalizePracticeSettings } from "@/lib/typing-constants";
+import type { SettingsState } from "@/lib/typing-constants";
+import { normalizePracticeSettings } from "@/lib/typing-constants";
 import { DEFAULT_TYPING_FONT } from "@/lib/typing-fonts";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 
@@ -8,8 +8,6 @@ import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 const STORAGE_KEYS = {
   SETTINGS: "typesetgo_settings",
   LAYOUT: "typesetgo_layout",
-  THEME: "typesetgo_theme",
-  THEME_NAME: "typesetgo_theme_name",
 } as const;
 
 export interface LayoutSettings {
@@ -98,72 +96,6 @@ export function loadSettings(): Partial<SettingsState> | null {
   }
 }
 
-/**
- * Save theme colors to localStorage
- */
-export function saveTheme(theme: Theme): void {
-
-  try {
-    window.localStorage.setItem(STORAGE_KEYS.THEME, JSON.stringify(theme));
-  } catch (error) {
-    console.warn("Failed to save theme to localStorage:", error);
-  }
-}
-
-/**
- * Load theme from localStorage
- * Returns null if nothing stored or parsing fails
- */
-export function loadTheme(): Theme | null {
-
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.THEME);
-    if (!stored) return null;
-
-    const parsed = JSON.parse(stored);
-
-    // Validate it has the expected shape
-    if (typeof parsed !== "object" || parsed === null) {
-      return null;
-    }
-
-    // Merge with defaults to handle schema changes
-    return {
-      ...DEFAULT_THEME,
-      ...parsed,
-    };
-  } catch (error) {
-    console.warn("Failed to load theme from localStorage:", error);
-    return null;
-  }
-}
-
-/**
- * Save selected theme name to localStorage
- */
-export function saveThemeName(themeName: string): void {
-
-  try {
-    window.localStorage.setItem(STORAGE_KEYS.THEME_NAME, themeName);
-  } catch (error) {
-    console.warn("Failed to save theme name to localStorage:", error);
-  }
-}
-
-/**
- * Load theme name from localStorage
- * Returns null if nothing stored
- */
-export function loadThemeName(): string | null {
-
-  try {
-    return window.localStorage.getItem(STORAGE_KEYS.THEME_NAME);
-  } catch (error) {
-    console.warn("Failed to load theme name from localStorage:", error);
-    return null;
-  }
-}
-
 export function saveLayoutSettings(layout: LayoutSettings): void {
   try {
     window.localStorage.setItem(STORAGE_KEYS.LAYOUT, JSON.stringify(layout));
@@ -184,20 +116,5 @@ export function loadLayoutSettings(): LayoutSettings | null {
     };
   } catch {
     return null;
-  }
-}
-
-/**
- * Clear all typesetgo settings from localStorage
- */
-export function clearAllSettings(): void {
-
-  try {
-    window.localStorage.removeItem(STORAGE_KEYS.SETTINGS);
-    window.localStorage.removeItem(STORAGE_KEYS.LAYOUT);
-    window.localStorage.removeItem(STORAGE_KEYS.THEME);
-    window.localStorage.removeItem(STORAGE_KEYS.THEME_NAME);
-  } catch (error) {
-    console.warn("Failed to clear settings from localStorage:", error);
   }
 }

@@ -3,9 +3,9 @@ import { activityCalendar, utcDate } from "./lib/activityCalendar";
  * Solo typing session API (frontend teammate should match these names).
  *
  * api.typingSessions.startSession
- *   Preferred: mode, duration?, wordTarget?, difficulty, punctuation, numbers,
- *         capitalization?, quoteId?, presetId?, targetText?
- *   Also accepts the live TypingPractice shape: { clerkId?, settings, targetText }
+ *   Current clients send flat mode/settings fields and optional targetText.
+ *   Older open clients may still send the same fields inside `settings`;
+ *   conflicting copies are rejected during that compatibility period.
  *   returns: { sessionId, targetText }
  *   Auth: ctx.auth (ConvexProviderWithClerk). clerkId is ignored. startedAt is
  *   set on first recordProgress.
@@ -47,6 +47,10 @@ import {
 } from "./lib/finalizeLength";
 import { consumeRateLimit } from "./lib/consumeRateLimit";
 import { RESULT_WRITE_RATE_LIMIT } from "./lib/rateLimit";
+import { MAX_DURATION_SECONDS, MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET } from "../src/lib/practice-limits";
+
+const SOLO_RANKED_MODES = ["time", "words", "quote", "preset"];
+const DIFFICULTIES = ["beginner", "easy", "medium", "hard", "expert"];
 
 export const startSession = mutation({
   args: {
@@ -77,6 +81,13 @@ export const startSession = mutation({
   handler: async (ctx, args): Promise<{ sessionId: Id<"typingSessions">; targetText: string }> => {
     const user = await requireAuthedUser(ctx);
     const now = Date.now();
+    if (args.settings) {
+      for (const key of ["mode", "duration", "wordTarget", "difficulty", "punctuation", "numbers", "capitalization"] as const) {
+        if (args[key] !== undefined && args.settings[key] !== undefined && args[key] !== args.settings[key]) {
+          throw new Error(`Conflicting ${key} settings`);
+        }
+      }
+    }
     const mode = args.settings?.mode ?? args.mode;
     const difficulty = args.settings?.difficulty ?? args.difficulty;
     const punctuation = args.settings?.punctuation ?? args.punctuation ?? false;
@@ -86,8 +97,18 @@ export const startSession = mutation({
     const duration = args.settings?.duration ?? args.duration;
     const wordTarget = args.settings?.wordTarget ?? args.wordTarget;
 
-    if (!mode || !difficulty) {
-      throw new Error("mode and difficulty are required");
+    if (!mode || !SOLO_RANKED_MODES.includes(mode)) throw new Error("Unsupported ranked practice mode");
+    if (!difficulty || !DIFFICULTIES.includes(difficulty)) throw new Error("Unsupported difficulty");
+    if (duration !== undefined && (!Number.isInteger(duration) || duration < 1 || duration > MAX_DURATION_SECONDS)) {
+      throw new Error(`Choose a whole duration from 1 to ${MAX_DURATION_SECONDS} seconds`);
+    }
+    if (wordTarget !== undefined && (!Number.isInteger(wordTarget) || wordTarget < 1 || wordTarget > MAX_WORD_TARGET)) {
+      throw new Error(`Choose a whole word count from 1 to ${MAX_WORD_TARGET}`);
+    }
+    if (mode === "time" && duration === undefined) throw new Error("Duration is required for time mode");
+    if (mode === "words" && wordTarget === undefined) throw new Error("Word count is required for words mode");
+    if (args.targetText !== undefined && args.targetText.length > MAX_PRESET_TEXT_LENGTH) {
+      throw new Error(`Prompt text must be at most ${MAX_PRESET_TEXT_LENGTH} characters`);
     }
 
     const targetText = resolveSessionTargetText({

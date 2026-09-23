@@ -7,6 +7,10 @@ export type ProfileTestResult = Pick<Doc<"testResults">,
   | "isValid" | "invalidReason" | "createdAt"
 >;
 
+export type ResultVerification = "verified" | "unverified" | "invalid";
+
+export type VerifiedProfileTestResult = ProfileTestResult & { verification: ResultVerification };
+
 // The public profile query returns the latest 100 saved results, including invalid ones.
 export const PROFILE_HISTORY_LIMIT = 100;
 

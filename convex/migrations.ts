@@ -20,13 +20,15 @@ export const getUserIdsBatch = internalQuery({
   },
 });
 
-/** Explicit maintenance only. Returns the cursor and failed IDs for resumption. */
+/** Explicit maintenance only. Rebuilds stats, achievements, and streaks; returns a cursor and failed IDs for resumption. */
 export const backfillAllCaches = internalAction({
   args: { cursor: v.optional(v.string()), maxBatches: v.optional(v.number()) },
   handler: async (ctx, args) => {
     let cursor: string | null = args.cursor ?? null;
     let userStatsRebuildsStarted = 0;
     let userStatsRebuildsCompleted = 0;
+    let achievementRebuildsStarted = 0;
+    let achievementRebuildsCompleted = 0;
     const failedUserIds: Id<"users">[] = [];
     const maxBatches = Math.max(1, Math.min(Math.floor(args.maxBatches ?? 20), 100));
     for (let count = 0; count < maxBatches; count++) {
@@ -38,6 +40,9 @@ export const backfillAllCaches = internalAction({
           const result = await ctx.runMutation(internal.statsCache.rebuildUserStatsCacheForUser, { userId });
           userStatsRebuildsStarted++;
           if (!result.pending) userStatsRebuildsCompleted++;
+          const achievements = await ctx.runMutation(internal.achievements.recheckAchievementsAfterDeletion, { userId });
+          achievementRebuildsStarted++;
+          if (!achievements.pending) achievementRebuildsCompleted++;
         } catch {
           failedUserIds.push(userId);
         }
@@ -49,6 +54,9 @@ export const backfillAllCaches = internalAction({
       userStatsRebuildsStarted,
       userStatsRebuildsCompleted,
       userStatsRebuildsPending: userStatsRebuildsStarted - userStatsRebuildsCompleted,
+      achievementRebuildsStarted,
+      achievementRebuildsCompleted,
+      achievementRebuildsPending: achievementRebuildsStarted - achievementRebuildsCompleted,
       failedUserIds,
       nextCursor: cursor,
     };

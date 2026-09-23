@@ -34,8 +34,8 @@ describe("practice preference boundaries", () => {
       ghostWriterSpeed: Infinity });
     expect(settings.wordTarget).toBe(25);
     expect(settings.duration).toBe(1);
-    expect(MAX_DURATION_SECONDS).toBe(25199);
-    expect(normalizePracticeSettings({ ...DEFAULT_SETTINGS, presetText: "", duration: 25199 }).duration).toBe(25199);
+    expect(MAX_DURATION_SECONDS).toBe(600);
+    expect(normalizePracticeSettings({ ...DEFAULT_SETTINGS, presetText: "", duration: MAX_DURATION_SECONDS }).duration).toBe(MAX_DURATION_SECONDS);
     expect(settings.ghostWriterSpeed).toBe(40);
     localStorage.setItem("typesetgo_layout", JSON.stringify({ linePreview: 999, maxWordsPerLine: 0 }));
     expect(loadLayoutSettings()).toEqual({ linePreview: 6, maxWordsPerLine: 1 });

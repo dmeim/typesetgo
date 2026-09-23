@@ -30,7 +30,6 @@ vi.mock("@/lib/words", () => ({ fetchWords: (...args: unknown[]) => mocks.words(
 vi.mock("@/lib/quotes", () => ({ fetchQuotes: (...args: unknown[]) => mocks.quotes(...args),
   fetchQuotesManifest: async () => ({ lengths: ["short", "long"], default: "short" }) }));
 vi.mock("@/lib/sounds", () => ({ fetchSoundManifest: async () => ({ typing: {}, warning: {}, error: {} }), getRandomSoundUrl: () => null }));
-vi.mock("@/lib/themes", async (original) => ({ ...(await original<object>()), fetchAllThemes: async () => [] }));
 vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
   return { useQuery: (_reference: unknown, args: unknown) => { mocks.queryArgs = args; return args === "skip" ? undefined : mocks.preferences; }, useMutation: (reference: Parameters<typeof getFunctionName>[0]) => mocks.mutations[getFunctionName(reference)] };
@@ -72,6 +71,14 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); });
 
 describe("canonical practice prompt transitions", () => {
+  it("resumes a legacy saved solo plan as Zen practice", async () => {
+    setLocal({ mode: "plan" });
+    const { container } = render(<TypingPractice />);
+    await waitFor(() => expect(promptWords(container)).not.toBe(""));
+    expect(screen.getByRole("radio", { name: "zen", exact: true })).toBeChecked();
+    expect(screen.queryByText("Waiting for the host to choose a plan step.")).toBeNull();
+  });
+
   it("samples a fresh quote for Next and starts a new attempt even when the next random sample repeats", async () => {
     const random = vi.spyOn(Math, "random").mockReturnValue(0);
     try {

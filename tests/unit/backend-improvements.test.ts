@@ -142,10 +142,32 @@ describe("bounded stats repair", () => {
     });
     const backfill = await t.action(internal.migrations.backfillAllCaches, { maxBatches: 1 });
     expect(backfill).toMatchObject({ userStatsRebuildsStarted: 1, userStatsRebuildsCompleted: 0,
-      userStatsRebuildsPending: 1, failedUserIds: [] });
+      userStatsRebuildsPending: 1, achievementRebuildsStarted: 1,
+      achievementRebuildsCompleted: 0, failedUserIds: [] });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const cache = await t.run((ctx) => ctx.db.query("userStatsCache").first());
     expect(cache?.totalTests).toBe(101);
+  });
+
+  it("repairs historical awards and streaks from unverified saves during maintenance", async () => {
+    const t = backendContract();
+    const userId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("users", userRow("owner"));
+      await ctx.db.insert("testResults", resultRow(id, { rankedEligible: false }));
+      await ctx.db.insert("userStatsCache", { userId: id, totalTests: 1, totalWpm: 80,
+        bestWpm: 80, totalAccuracy: 98, totalTimeTyped: 30_000,
+        totalWordsTyped: 50, updatedAt: Date.now() });
+      await ctx.db.insert("userAchievements", { userId: id, achievements: { "special-first-test": Date.now() }, updatedAt: Date.now() });
+      await ctx.db.insert("userStreaks", { userId: id, currentStreak: 1,
+        longestStreak: 1, lastActivityDate: "2026-09-23", updatedAt: Date.now() });
+      return id;
+    });
+    const result = await t.action(internal.migrations.backfillAllCaches, { maxBatches: 1 });
+    expect(result).toMatchObject({ userStatsRebuildsCompleted: 1,
+      achievementRebuildsCompleted: 1, failedUserIds: [] });
+    expect(await t.run((ctx) => ctx.db.query("userStatsCache").withIndex("by_user", (q) => q.eq("userId", userId)).first())).toBeNull();
+    expect(await t.query(api.achievements.getUserAchievementsByUserId, { userId })).toEqual({});
+    expect(await t.run((ctx) => ctx.db.query("userStreaks").withIndex("by_user", (q) => q.eq("userId", userId)).first())).toBeNull();
   });
 
   it("finds the next valid best through the score index", async () => {

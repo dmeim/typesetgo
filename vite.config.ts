@@ -16,6 +16,7 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    sourcemap: true,
+    // Worker static assets are public; local stack traces use the source tree.
+    sourcemap: false,
   },
 });

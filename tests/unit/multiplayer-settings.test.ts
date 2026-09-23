@@ -1,4 +1,4 @@
-import { MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED, TEXT_SIZE_MAX } from "../../src/lib/practice-limits";
+import { MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_PRESET_TEXT_LENGTH, MAX_GHOST_SPEED, TEXT_SIZE_MAX } from "../../src/lib/practice-limits";
 import { describe, it, expect } from "vitest";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { validatePracticeSettings } from "../../convex/lib/multiplayer";
@@ -22,6 +22,8 @@ describe("host-led plan configuration", () => {
     expect(() => validatePracticeSettings({ ...settings, mode: "preset", presetModeType: "finish", presetText: "cat", duration: 0 })).not.toThrow();
     expect(() => validatePracticeSettings({ ...settings, mode: "preset", presetModeType: "time", presetText: "cat", duration: 0 })).toThrow("duration");
     expect(() => validatePracticeSettings({ ...settings, mode: "preset", presetModeType: "finish", presetText: " " })).toThrow("preset text");
+    expect(() => validatePracticeSettings({ ...settings, mode: "preset", presetModeType: "finish",
+      presetText: "x".repeat(MAX_PRESET_TEXT_LENGTH + 1) })).toThrow("Preset text");
   });
 });
 

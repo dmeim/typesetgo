@@ -8,7 +8,6 @@ import type {
   ThemeManifest,
   ThemeColors,
   GroupedThemes,
-  ThemeCatalogResult,
   ThemeCatalogIndex,
   ThemeCatalogEntry,
 } from "@/types/theme";
@@ -116,10 +115,6 @@ export async function fetchThemeManifest(): Promise<ThemeManifest> {
   return await loadThemeManifest() ?? { themes: [], default: "typesetgo" };
 }
 
-export function getThemeManifestFromCache(): ThemeManifest | null {
-  return cachedManifest;
-}
-
 /** A single retryable metadata request, independent of startup and full palette loading. */
 export async function fetchThemeCatalogIndex(): Promise<ThemeCatalogIndex | null> {
   if (cachedCatalogIndex) return cachedCatalogIndex;
@@ -172,7 +167,7 @@ export async function fetchThemeForPreview(themeName: string): Promise<ThemeDefi
   return loadTheme(themeName, "background");
 }
 
-// One promise per ID, shared by selection, catalog loaders, and concurrent mounts.
+// One promise per ID, shared by selection, previews, and concurrent mounts.
 async function loadTheme(themeName: string, priority: ThemeRequestPriority): Promise<ThemeDefinition | null> {
   const key = themeName.toLowerCase();
   if (!isThemeId(key)) return null;
@@ -227,51 +222,6 @@ async function loadTheme(themeName: string, priority: ThemeRequestPriority): Pro
   }).finally(() => themeRequests.delete(key));
   themeRequests.set(key, request);
   return request;
-}
-
-function sortThemes(themes: ThemeDefinition[]): ThemeDefinition[] {
-  return themes.sort((a, b) => {
-    if (a.id === b.id) return 0;
-    if (a.id === "typesetgo") return -1;
-    if (b.id === "typesetgo") return 1;
-    return a.name.localeCompare(b.name);
-  });
-}
-
-/** Full palettes for legacy callers. The practice picker uses the separate browsing index. */
-export async function fetchThemeCatalog(
-  options: { themeIds?: readonly string[] } = {},
-): Promise<ThemeCatalogResult> {
-  const manifest = options.themeIds ? null : await loadThemeManifest();
-  const manifestError = !options.themeIds && manifest === null;
-  const requestedThemeIds = [...new Set((options.themeIds ?? manifest?.themes ?? []).map((id) => id.toLowerCase()))];
-  const results = await Promise.all(requestedThemeIds.map((id) => loadTheme(id, "background")));
-  const failedThemeIds = requestedThemeIds.filter((_, index) => results[index] === null);
-  return {
-    themes: sortThemes(results.filter((theme): theme is ThemeDefinition => theme !== null)),
-    requestedThemeIds,
-    failedThemeIds,
-    manifestError,
-    complete: !manifestError && failedThemeIds.length === 0,
-  };
-}
-
-/** Retry only failed IDs and merge recovered themes into the previous result. */
-export async function retryThemeCatalog(previous: ThemeCatalogResult): Promise<ThemeCatalogResult> {
-  if (previous.manifestError) return fetchThemeCatalog();
-  const retried = await fetchThemeCatalog({ themeIds: previous.failedThemeIds });
-  const themes = new Map(previous.themes.map((theme) => [theme.id, theme]));
-  for (const theme of retried.themes) themes.set(theme.id, theme);
-  return {
-    ...retried,
-    themes: sortThemes([...themes.values()]),
-    requestedThemeIds: previous.requestedThemeIds,
-  };
-}
-
-/** Legacy callers receive successful themes; use fetchThemeCatalog for recovery UI. */
-export async function fetchAllThemes(): Promise<ThemeDefinition[]> {
-  return (await fetchThemeCatalog()).themes;
 }
 
 // Group themes by category

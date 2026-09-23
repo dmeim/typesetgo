@@ -5,7 +5,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useMutation } from "convex/react";
-import { SOLO_PREPARED_SESSION_TTL_MS } from "@/lib/practice-limits";
+import { MAX_PRESET_TEXT_LENGTH, SOLO_PREPARED_SESSION_TTL_MS } from "@/lib/practice-limits";
 import { toast } from "@/lib/toast-manager";
 import { normalizePracticeSettings, type Quote, type SettingsState } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
@@ -182,7 +182,7 @@ export default function TypingPractice({
   const preparedPrompt = useMemo(() => {
     const prompt = { configKey: promptConfigKey, seed: promptSeed, datasetStatus: dataset.status,
       wordPool, quotes, text: "", quote: null as Quote | null, needsPreset: false };
-    if (dataset.status !== "ready" || settings.mode === "plan") return prompt;
+    if (dataset.status !== "ready") return prompt;
     const random = createPromptRandom(promptSeed.value);
     if (settings.mode === "quote") {
       prompt.quote = quotes[Math.floor(random() * quotes.length)] ?? null;
@@ -660,7 +660,7 @@ export default function TypingPractice({
     if (sessionIdRef.current || startingSessionRef.current || finalizedRef.current) return;
 
     const s = settingsRef.current;
-    if (s.mode === "zen" || s.mode === "plan" || attemptedSessionEpochRef.current === sessionEpochRef.current) return;
+    if (s.mode === "zen" || attemptedSessionEpochRef.current === sessionEpochRef.current) return;
     attemptedSessionEpochRef.current = sessionEpochRef.current;
     const needsClientPrompt = s.mode === "quote" || s.mode === "preset";
     const text = targetText || wordsRef.current;
@@ -675,7 +675,6 @@ export default function TypingPractice({
       .then(() => {
         if (sessionEpochRef.current !== epoch || composingRef.current || isRunningRef.current || typedTextRef.current || userRef.current?.id !== currentUser.id) return null;
         return startSessionMutation({
-          clerkId: currentUser.id,
           mode: s.mode,
           duration: s.duration,
           wordTarget: s.wordTarget,
@@ -683,15 +682,6 @@ export default function TypingPractice({
           punctuation: s.punctuation,
           numbers: s.numbers,
           capitalization: s.capitalization,
-          settings: {
-            mode: s.mode,
-            duration: s.duration,
-            wordTarget: s.wordTarget,
-            difficulty: s.difficulty,
-            punctuation: s.punctuation,
-            numbers: s.numbers,
-            capitalization: s.capitalization,
-          },
           ...(needsClientPrompt ? { targetText: text } : {}),
         });
       })
@@ -938,7 +928,7 @@ export default function TypingPractice({
 
   const handlePresetSubmit = (text: string) => {
     const sanitized = text.replace(/[^\x20-\x7E\n]/g, "").replace(/\s+/g, " ").trim();
-    if (sanitized.length > 0 && sanitized.length <= 10000) {
+    if (sanitized.length > 0 && sanitized.length <= MAX_PRESET_TEXT_LENGTH) {
       updateSettings({ presetText: sanitized });
       setShowPresetInput(false);
     }
@@ -1294,7 +1284,7 @@ export default function TypingPractice({
                 <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
                 Retry
               </button></>
-                : settings.mode === "plan" ? "Waiting for the host to choose a plan step." : "Loading prompt…"}
+                : "Loading prompt…"}
             </div>}
             <span id="practice-editing-help" className="sr-only">Type at the end of the text. Use Backspace to correct the current word. Tab moves to the next control.</span>
             {/* Click to focus overlay */}

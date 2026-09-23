@@ -44,6 +44,7 @@ const recentResults = Array.from({ length: 100 }, (_, index) => ({
   numbers: index % 3 === 0,
   capitalization: true,
   isValid: index !== 4,
+  verification: index === 4 ? "invalid" : "verified",
   invalidReason: index === 4 ? "Fixture invalid result" : undefined,
   createdAt: now - index * 86400000,
   ...(index === 0 ? {} : {

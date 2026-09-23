@@ -1,4 +1,4 @@
-import { MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED, TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "../../src/lib/practice-limits";
+import { MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_PRESET_TEXT_LENGTH, MAX_GHOST_SPEED, TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "../../src/lib/practice-limits";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
@@ -181,6 +181,9 @@ export function validatePracticeSettings(settings: Doc<"rooms">["settings"]) {
   }
   if (selected.mode === "preset" && !selected.presetText?.trim()) {
     throw new Error("Enter preset text before starting");
+  }
+  if (selected.mode === "preset" && selected.presetText && selected.presetText.length > MAX_PRESET_TEXT_LENGTH) {
+    throw new Error(`Preset text must be at most ${MAX_PRESET_TEXT_LENGTH} characters`);
   }
 }
 

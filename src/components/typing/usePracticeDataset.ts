@@ -12,7 +12,7 @@ export function usePracticeDataset(settings: SettingsState, quotesManifest: Quot
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
   const key = settings.mode === "quote" ? `quotes:${settings.quoteLength}`
-    : settings.mode === "preset" || settings.mode === "plan" ? "none" : `words:${settings.difficulty}`;
+    : settings.mode === "preset" ? "none" : `words:${settings.difficulty}`;
   const quoteLengthsKey = settings.mode === "quote" && settings.quoteLength === "all" ? quotesManifest?.lengths.join(",") : undefined;
   useEffect(() => {
     let cancelled = false;

@@ -40,7 +40,7 @@ interface ChartTestResult {
   accuracy: number;
   duration: number;
   wordCount: number;
-  isValid?: boolean;
+  verification: "verified" | "unverified" | "invalid";
   createdAt: number;
 }
 
@@ -168,10 +168,10 @@ export default function UserStatsChartModal({
 
   const meta = getChartMeta(cardType, cardValue);
 
-  // Build chart data from results (chronological order, valid only)
+  // Only server-verified tests contribute chart points and sample highlights.
   const { chartData } = useMemo(() => {
     const validResults = allResults
-      .filter((r) => r.isValid !== false)
+      .filter((r) => r.verification === "verified")
       .sort((a, b) => a.createdAt - b.createdAt);
 
     const data = validResults.map((r) => {
@@ -289,7 +289,7 @@ export default function UserStatsChartModal({
         <DialogHeader className="pr-6">
           <DialogTitle>{meta.title}</DialogTitle>
           <DialogDescription>
-            {chartData.length} valid tests from the latest {allResults.length} saved tests (up to {PROFILE_HISTORY_LIMIT}). Invalid tests are excluded.
+            {chartData.length} verified tests from the latest {allResults.length} saved tests (up to {PROFILE_HISTORY_LIMIT}). Unverified and invalid tests are excluded.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1 text-sm">
@@ -457,7 +457,7 @@ export default function UserStatsChartModal({
               <ChartBarIcon className="size-8 text-muted-foreground" aria-hidden="true" />
             </div>
             <p className="text-sm text-muted-foreground">
-              No valid tests in the recent history sample.
+              No verified tests in the recent history sample.
             </p>
           </div>
         )}
@@ -472,7 +472,7 @@ export default function UserStatsChartModal({
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: tv.ui.secondaryEmphasis }}
               />
-              <span>Valid tests in sample</span>
+              <span>Verified tests in sample</span>
             </div>
             {showBest && (
               <div className="flex items-center gap-1.5">
@@ -499,7 +499,7 @@ export default function UserStatsChartModal({
             <summary className="cursor-pointer rounded-md px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">View chart data ({chartData.length} tests)</summary>
             <div className="max-h-60 overflow-auto px-3 pb-3">
               <Table className="w-full text-left text-xs">
-                <TableCaption className="sr-only">Recent valid tests, oldest first</TableCaption>
+                <TableCaption className="sr-only">Recent verified tests, oldest first</TableCaption>
                 <TableHeader><TableRow><TableHead scope="col" className="py-2">Date</TableHead><TableHead scope="col" className="py-2 text-right">{meta.yLabel}</TableHead></TableRow></TableHeader>
                 <TableBody>{chartData.map((point, index) => (
                   <TableRow key={`${point.time}-${index}`} className="border-t border-border">

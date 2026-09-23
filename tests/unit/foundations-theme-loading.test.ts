@@ -13,147 +13,64 @@ function response(data: unknown, ok = true) {
 beforeEach(() => { vi.resetModules(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-describe("theme loading lifecycle", () => {
-  it("deduplicates concurrent manifests and theme requests, then reuses successful objects", async () => {
+describe("on-demand theme loading", () => {
+  it("deduplicates startup manifests and concurrent preview/selection, then caches successful palettes", async () => {
     const themes = await import("@/lib/themes");
     const palette = themes.getDefaultTheme().dark;
     const manifest = deferred<Response>();
     const theme = deferred<Response>();
     const fetch = vi.fn((url: string) => url.includes("manifest") ? manifest.promise : theme.promise);
     vi.stubGlobal("fetch", fetch);
-    const first = themes.fetchThemeCatalog();
-    const second = themes.fetchAllThemes();
+    const firstManifest = themes.fetchThemeManifest();
+    const secondManifest = themes.fetchThemeManifest();
     expect(fetch).toHaveBeenCalledTimes(1);
     manifest.resolve(response({ themes: ["typesetgo"], default: "typesetgo" }));
+    expect(await firstManifest).toEqual(await secondManifest);
+    const preview = themes.fetchThemeForPreview("typesetgo");
+    const selected = themes.fetchTheme("TYPESETGO");
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    const direct = themes.fetchTheme("TYPESETGO");
     theme.resolve(response({ dark: palette }));
-    const [catalog, compatible, loaded] = await Promise.all([first, second, direct]);
-    expect(catalog.complete).toBe(true);
-    expect(catalog.themes[0]).toBe(compatible[0]);
-    expect(loaded).toBe(compatible[0]);
-    expect(await themes.fetchTheme("typesetgo")).toBe(loaded);
+    expect(await preview).toBe(await selected);
+    expect(await themes.fetchTheme("typesetgo")).toBe(await selected);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("bounds network work across overlapping catalogs, preserving explicit partial results and retry", async () => {
+  it("prioritizes a selected theme ahead of queued previews", async () => {
     const themes = await import("@/lib/themes");
     const palette = themes.getDefaultTheme().dark;
-    const ids = Array.from({ length: 18 }, (_, i) => `theme-${i}`);
-    const pending: Array<{ url: string; finish: () => void }> = [];
-    let active = 0;
-    let peak = 0;
-    let fail = true;
-    const fetch = vi.fn((url: string) => {
-      const request = deferred<Response>();
-      active++;
-      peak = Math.max(peak, active);
-      pending.push({ url, finish: () => {
-        active--;
-        request.resolve(response({ dark: palette }, !(fail && url.includes("theme-4.json"))));
-      } });
-      return request.promise;
-    });
-    vi.stubGlobal("fetch", fetch);
-    const first = themes.fetchThemeCatalog({ themeIds: ids });
-    const second = themes.fetchThemeCatalog({ themeIds: ids.slice(2) });
-    await vi.waitFor(() => expect(pending).toHaveLength(6));
-    for (let batch = 0; batch < 3; batch++) {
-      const current = pending.splice(0);
-      current.forEach(({ finish }) => finish());
-      if (batch < 2) await vi.waitFor(() => expect(pending).toHaveLength(6));
-    }
-    const [result, overlapping] = await Promise.all([first, second]);
-    expect(peak).toBe(6);
-    expect(fetch).toHaveBeenCalledTimes(ids.length);
-    expect(result).toMatchObject({ complete: false, manifestError: false, failedThemeIds: ["theme-4"] });
-    expect(result.themes).toHaveLength(17);
-    expect(overlapping.failedThemeIds).toEqual(["theme-4"]);
-    fail = false;
-    const retry = themes.retryThemeCatalog(result);
-    await vi.waitFor(() => expect(pending).toHaveLength(1));
-    expect(pending[0].url).toBe("/themes/theme-4.json");
-    pending[0].finish();
-    const recovered = await retry;
-    expect(recovered).toMatchObject({ complete: true, failedThemeIds: [], requestedThemeIds: ids });
-    expect(recovered.themes).toHaveLength(18);
-    expect(fetch).toHaveBeenCalledTimes(19);
-  });
-
-  it.each(["theme-17", "outside-catalog"])("prioritizes foreground %s ahead of catalog backlog without duplicate requests", async (selectedId) => {
-    const themes = await import("@/lib/themes");
-    const palette = themes.getDefaultTheme().dark;
-    const ids = Array.from({ length: 18 }, (_, i) => `theme-${i}`);
     const pending = new Map<string, () => void>();
-    let active = 0;
-    let peak = 0;
-    let autoComplete = false;
     const fetch = vi.fn((url: string) => {
-      active++;
-      peak = Math.max(peak, active);
-      if (autoComplete) {
-        active--;
-        return Promise.resolve(response({ dark: palette }));
-      }
       const request = deferred<Response>();
-      pending.set(url, () => {
-        pending.delete(url);
-        active--;
-        request.resolve(response({ dark: palette }));
-      });
+      pending.set(url, () => { pending.delete(url); request.resolve(response({ dark: palette })); });
       return request.promise;
     });
     vi.stubGlobal("fetch", fetch);
-    const catalog = themes.fetchThemeCatalog({ themeIds: ids });
+    const previews = Array.from({ length: 7 }, (_, index) => themes.fetchThemeForPreview(`preview-${index}`));
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(6));
-    const selection = themes.fetchTheme(selectedId);
-    const repeatedSelection = themes.fetchTheme(selectedId);
-    const selectedUrl = `/themes/${selectedId}.json`;
-    expect(fetch).toHaveBeenCalledTimes(6);
-
-    pending.get("/themes/theme-0.json")!();
-    await vi.waitFor(() => expect(fetch.mock.calls[6]?.[0]).toBe(selectedUrl));
-    expect(fetch.mock.calls.filter(([url]) => url === selectedUrl)).toHaveLength(1);
-    expect(peak).toBe(6);
-    pending.get(selectedUrl)!();
-    const [selected, repeated] = await Promise.all([selection, repeatedSelection]);
-    expect(selected?.id).toBe(selectedId);
-    expect(repeated).toBe(selected);
-
-    autoComplete = true;
+    const selected = themes.fetchTheme("selected");
+    pending.get("/themes/preview-0.json")!();
+    await vi.waitFor(() => expect(fetch.mock.calls[6]?.[0]).toBe("/themes/selected.json"));
     for (const finish of [...pending.values()]) finish();
-    const completedCatalog = await catalog;
-    expect(completedCatalog.complete).toBe(true);
-    if (ids.includes(selectedId)) {
-      expect(completedCatalog.themes.find((theme) => theme.id === selectedId)).toBe(selected);
-    }
-    expect(fetch).toHaveBeenCalledTimes(ids.length + (ids.includes(selectedId) ? 0 : 1));
-    expect(fetch.mock.calls.filter(([url]) => url === selectedUrl)).toHaveLength(1);
-    expect(peak).toBe(6);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(8));
+    pending.get("/themes/preview-6.json")!();
+    await Promise.all([...previews, selected]);
+    expect(fetch.mock.calls.map(([url]) => url)).toContain("/themes/preview-6.json");
   });
 
-  it("distinguishes a failed manifest from an empty catalog and permits an explicit retry", async () => {
-    const themes = await import("@/lib/themes");
-    const fetch = vi.fn().mockResolvedValueOnce(response(null, false))
-      .mockResolvedValueOnce(response({ themes: [], default: "typesetgo" }));
-    vi.stubGlobal("fetch", fetch);
-    const result = await themes.fetchThemeCatalog();
-    expect(result).toMatchObject({ complete: false, manifestError: true, themes: [] });
-    expect(themes.getThemeManifestFromCache()).toBeNull();
-    expect(await themes.retryThemeCatalog(result)).toMatchObject({ complete: true, manifestError: false });
-    expect(fetch).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not cache invalid themes, resolves a missing default variant, and rejects path IDs", async () => {
+  it("retries failed manifests and themes without caching failures", async () => {
     const themes = await import("@/lib/themes");
     const palette = themes.getDefaultTheme().dark;
-    const fetch = vi.fn().mockResolvedValueOnce(response({ variants: {} }))
+    const fetch = vi.fn().mockResolvedValueOnce(response(null, false))
+      .mockResolvedValueOnce(response({ themes: ["typesetgo"], default: "typesetgo" }))
+      .mockResolvedValueOnce(response({ variants: {} }))
       .mockResolvedValueOnce(response({ defaultVariant: "missing", variants: { valid: { dark: palette } } }));
     vi.stubGlobal("fetch", fetch);
+    expect(await themes.fetchThemeManifest()).toEqual({ themes: [], default: "typesetgo" });
+    expect((await themes.fetchThemeManifest()).themes).toEqual(["typesetgo"]);
     expect(await themes.fetchTheme("example")).toBeNull();
     expect(await themes.fetchTheme("example")).toMatchObject({ defaultVariantId: "valid" });
     expect(await themes.fetchTheme("../example")).toBeNull();
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(4);
   });
 
   it("times out hung requests, releases capacity, and allows a fresh retry", async () => {

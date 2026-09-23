@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import schema from "../../convex/schema";
 import { api, internal } from "../../convex/_generated/api";
 import { getFunctionName, type FunctionReference } from "convex/server";
+import { MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET } from "../../src/lib/practice-limits";
 
 const modules = import.meta.glob("../../convex/**/*.ts");
 const host = "a".repeat(64);
@@ -18,6 +19,28 @@ async function setup(gameMode: "practice" | "race" = "race") {
 }
 
 describe("multiplayer credentials through registered Convex validators/schema", () => {
+  it("rejects oversized Connect preset text before storing room settings", async () => {
+    const { t, room } = await setup("practice");
+    await expect(t.mutation(api.rooms.updateSettings, { roomId: room.roomId, credential: host,
+      settings: { presetText: "x".repeat(MAX_PRESET_TEXT_LENGTH + 1) } })).rejects.toThrow(/Preset text/);
+    await expect(t.mutation(api.rooms.updateSettings, { roomId: room.roomId, credential: host,
+      settings: { plan: [{ mode: "preset", settings: { presetText: "x".repeat(MAX_PRESET_TEXT_LENGTH + 1) } }] } })).rejects.toThrow(/Preset text/);
+  });
+
+  it("bounds race text generation and custom text before starting", async () => {
+    const { t, room, member, other } = await setup();
+    await expect(t.mutation(api.rooms.setRaceText, { roomId: room.roomId, credential: host,
+      wordCount: MAX_WORD_TARGET + 1 })).rejects.toThrow(/race word count/);
+    await expect(t.mutation(api.rooms.setRaceText, { roomId: room.roomId, credential: host,
+      customText: "x".repeat(MAX_PRESET_TEXT_LENGTH + 1) })).rejects.toThrow(/Race text/);
+    await t.mutation(api.rooms.updateSettings, { roomId: room.roomId, credential: host,
+      settings: { wordTarget: MAX_WORD_TARGET + 1 } });
+    await t.mutation(api.participants.setReady, { participantId: member.participantId, credential: host });
+    await t.mutation(api.participants.setReady, { participantId: other.participantId, credential: guest });
+    await expect(t.mutation(api.rooms.startRace, { roomId: room.roomId, credential: host,
+      countdownSeconds: 0 })).rejects.toThrow(/race word count/);
+  });
+
   it("allows anonymous ownership, hides credentials, and rejects impersonating a visible session", async () => {
     const { t, room, member } = await setup();
     const unjoinedRoom = await t.mutation(api.rooms.create, { hostSessionId: "not-joined", hostName: "New host", gameMode: "race", credential: host });

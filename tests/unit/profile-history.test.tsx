@@ -49,6 +49,7 @@ vi.mock("recharts", () => ({
 const baseResult = {
   _id: "test-legacy", wpm: 80, accuracy: 97.5, mode: "time", duration: 30_000,
   wordCount: 40, difficulty: "easy", punctuation: false, numbers: false,
+  verification: "verified",
   createdAt: new Date("2026-09-15T12:00:00Z").getTime(),
 };
 
@@ -134,16 +135,16 @@ describe("profile capabilities and states", () => {
 
 describe("profile recent charts", () => {
   it("keeps 350 lifetime tests and the lifetime best separate from the latest 100 sample", async () => {
-    fixture.stats = makeStats(Array.from({ length: 100 }, (_, index) => ({ ...baseResult, _id: `test-${index}`, wpm: 50 + index, createdAt: baseResult.createdAt - index * 60_000, isValid: index !== 99 })));
+    fixture.stats = makeStats(Array.from({ length: 100 }, (_, index) => ({ ...baseResult, _id: `test-${index}`, wpm: 50 + index, createdAt: baseResult.createdAt - index * 60_000, isValid: index !== 99, verification: index === 99 ? "invalid" : "verified" })));
     mount();
-    expect(screen.getByText(/350 valid tests/)).toBeInTheDocument();
-    expect(screen.getByText(/Showing 100 saved tests \(latest 100 maximum\), including invalid tests/)).toBeInTheDocument();
+    expect(screen.getByText(/350 verified tests/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 100 saved tests \(latest 100 maximum\), including unverified and invalid tests/)).toBeInTheDocument();
     const card = screen.getByRole("button", { name: "Best WPM: 180. View recent tests" });
     card.focus();
     fireEvent.click(card);
-    const dialog = screen.getByRole("dialog", { name: "Recent WPM" });
+    const dialog = await screen.findByRole("dialog", { name: "Recent WPM" });
     expect(within(dialog).getByText("Lifetime best WPM: 180")).toBeInTheDocument();
-    expect(within(dialog).getByText(/99 valid tests from the latest 100 saved tests/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/99 verified tests from the latest 100 saved tests/)).toBeInTheDocument();
     expect(fixture.chartData).toHaveLength(99);
     expect(fixture.chartData.find((point) => point.isBest)?.value).toBe(148);
     expect(fixture.chartData.find((point) => point.isLowest)?.value).toBe(50);
@@ -157,15 +158,15 @@ describe("profile recent charts", () => {
     await waitFor(() => expect(card).toHaveFocus());
   });
 
-  it("labels character estimates rather than claiming measured keystrokes", () => {
+  it("labels character estimates rather than claiming measured keystrokes", async () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: /Estimated characters:/ }));
-    expect(screen.getByRole("dialog", { name: "Recent estimated characters" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Recent estimated characters" })).toBeInTheDocument();
     expect(screen.getByText(/Estimated as words × 5/)).toBeInTheDocument();
     expect(fixture.chartData[0].value).toBe(200);
   });
 
-  it("marks the earliest tied extrema without modifying saved results", () => {
+  it("marks the earliest tied extrema without modifying saved results", async () => {
     const results = [90, 60, 90, 60].map((wpm, index) => Object.freeze({
       ...baseResult, _id: `test-${index}`, wpm, createdAt: baseResult.createdAt - index * 60_000,
     }));
@@ -173,6 +174,7 @@ describe("profile recent charts", () => {
     fixture.stats = makeStats(results);
     mount();
     fireEvent.click(screen.getByRole("button", { name: /^Best WPM:/ }));
+    await screen.findByRole("dialog", { name: "Recent WPM" });
     expect(fixture.chartData.map(({ value, isBest, isLowest }) => ({ value, isBest, isLowest }))).toEqual([
       { value: 60, isBest: false, isLowest: true },
       { value: 90, isBest: true, isLowest: false },
@@ -182,19 +184,40 @@ describe("profile recent charts", () => {
     expect(results.map((result) => result.wpm)).toEqual([90, 60, 90, 60]);
   });
 
-  it("keeps an invalid-only recent history distinct from missing history", () => {
-    fixture.stats = makeStats([{ ...baseResult, isValid: false }]);
+  it("keeps an invalid-only recent history distinct from missing history", async () => {
+    fixture.stats = makeStats([{ ...baseResult, isValid: false, verification: "invalid" }]);
     mount();
     fireEvent.click(screen.getByRole("button", { name: /^Best WPM:/ }));
-    expect(screen.getByText(/0 valid tests from the latest 1 saved tests/)).toBeInTheDocument();
-    expect(screen.getByText("No valid tests in the recent history sample.")).toBeInTheDocument();
+    await screen.findByRole("dialog", { name: "Recent WPM" });
+    expect(screen.getByText(/0 verified tests from the latest 1 saved tests/)).toBeInTheDocument();
+    expect(screen.getByText("No verified tests in the recent history sample.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Highest in sample" })).not.toBeInTheDocument();
+  });
+
+  it("shows unverified saves as history only and excludes them from verified charts", async () => {
+    fixture.stats = makeStats([
+      { ...baseResult, _id: "verified", wpm: 80 },
+      { ...baseResult, _id: "unverified", wpm: 99, verification: "unverified", createdAt: baseResult.createdAt + 1 },
+      { ...baseResult, _id: "invalid", wpm: 120, verification: "invalid", isValid: false, createdAt: baseResult.createdAt + 2 },
+    ]);
+    mount();
+    expect(screen.getByText("Unverified")).toBeInTheDocument();
+    expect(screen.getByText("Invalid")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Unverified").closest("button")!);
+    const detail = screen.getByRole("dialog", { name: "Test details" });
+    expect(within(detail).getByText(/Saved for history only/)).toBeInTheDocument();
+    fireEvent.keyDown(detail, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: /^Best WPM:/ }));
+    const chart = await screen.findByRole("dialog", { name: "Recent WPM" });
+    expect(within(chart).getByText(/1 verified tests from the latest 3 saved tests/)).toBeInTheDocument();
+    expect(fixture.chartData.map((point) => point.value)).toEqual([80]);
   });
 });
 
 describe("profile detail dialogs", () => {
   it.each(["time", "words", "quote", "zen", "preset", "future-mode"])("keeps %s mode and settings readable in history and details", (mode) => {
-    fixture.stats = makeStats([{ ...baseResult, mode, punctuation: true, numbers: true, capitalization: true, isValid: false, invalidReason: "Recorded invalid reason" }]);
+    fixture.stats = makeStats([{ ...baseResult, mode, punctuation: true, numbers: true, capitalization: true, isValid: false, verification: "invalid", invalidReason: "Recorded invalid reason" }]);
     mount();
     const row = screen.getByRole("button", { name: /View details/ });
     const label = mode.charAt(0).toUpperCase() + mode.slice(1);
