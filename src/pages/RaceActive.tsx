@@ -125,8 +125,8 @@ function RaceAttempt({
   const [finishStats, setFinishStats] = useState<TypingStats | null>(null);
   const [finishError, setFinishError] = useState("");
   const [finishPending, setFinishPending] = useState(false);
+  const [finishRetryDelay, setFinishRetryDelay] = useState<number | null>(null);
   const finishGuard = useRef(false);
-  const finishTime = useRef<number | null>(null);
   const [endError, setEndError] = useState("");
   const endGuard = useRef(false);
   const [showLeave, setShowLeave] = useState(false);
@@ -200,21 +200,29 @@ function RaceAttempt({
     async (stats: TypingStats) => {
       if (finishGuard.current) return;
       finishGuard.current = true;
-      finishTime.current ??= Math.max(0, Date.now() - raceStartTime);
       cancel();
       setFinishStats(stats);
       setFinishPending(true);
+      setFinishRetryDelay(null);
       setFinishError("");
       try {
-        await recordFinish({ credential,
+        const result = await recordFinish({ credential,
           participantId,
           raceStartTime,
           resetVersion,
-          finishTime: finishTime.current,
           typedText: stats.typedText,
           typedProgress: stats.correctChars,
           stats: { ...raceStats(stats), isFinished: true },
         });
+        if (!result?.accepted) {
+          finishGuard.current = false;
+          if (result?.reason === "not_started") {
+            setFinishError("Waiting for the server race clock before saving your finish.");
+            setFinishRetryDelay(Math.max(50, result.retryAfterMs ?? 250) + 50);
+          } else {
+            setFinishError("This attempt is no longer active. Return to the race lobby.");
+          }
+        }
       } catch {
         finishGuard.current = false;
         setFinishError(
@@ -226,6 +234,12 @@ function RaceAttempt({
     },
     [credential, cancel, participantId, raceStartTime, resetVersion, recordFinish],
   );
+
+  useEffect(() => {
+    if (finishRetryDelay === null || !finishStats) return;
+    const timer = window.setTimeout(() => void handleFinish(finishStats), finishRetryDelay);
+    return () => window.clearTimeout(timer);
+  }, [finishRetryDelay, finishStats, handleFinish]);
 
   useEffect(() => {
     if (showLeave) return;
@@ -424,7 +438,7 @@ function RaceAttempt({
               Waiting for other racers.
             </p>
             <RaceError>{finishError}</RaceError>
-            {finishError && finishStats && (
+            {finishError && finishStats && finishRetryDelay === null && (
               <button
                 disabled={finishPending}
                 className="inline-flex items-center justify-center gap-2 underline"

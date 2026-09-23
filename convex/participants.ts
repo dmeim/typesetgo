@@ -1,7 +1,7 @@
 // convex/participants.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { acceptsAttempt, checkParticipant, checkRoomHost, credentialHash, disconnectMember, publicParticipant, publicRoom, requireLiveRoom, resetParticipantAttempt, validateParticipantStats } from "./lib/multiplayer";
+import { acceptsAttempt, checkParticipant, checkRoomHost, compareRaceFinish, credentialHash, disconnectMember, publicParticipant, publicRoom, requireLiveRoom, resetParticipantAttempt, validateParticipantStats } from "./lib/multiplayer";
 
 const statsValidator = v.object({
   wpm: v.number(), accuracy: v.number(), progress: v.number(),
@@ -108,7 +108,15 @@ export const join = mutation({
       lastSeen: now,
     });
 
-    return { participantId, isReconnect: false, room: publicRoom(room) };
+    // A room whose only host has disconnected can be recovered by its next racer.
+    const host = members.find((member) => member.sessionId === room.hostId);
+    if (isRace && room.status === "waiting" && host && !host.isConnected) {
+      await ctx.db.patch(room._id, {
+        hostId: args.sessionId, hostName: name, hostCredentialHash: hash,
+      });
+    }
+
+    return { participantId, isReconnect: false, room: publicRoom(await ctx.db.get(room._id)) };
   },
 });
 
@@ -267,7 +275,8 @@ export const recordFinish = mutation({
   args: {
     participantId: v.id("participants"),
     credential: v.string(),
-    finishTime: v.number(),
+    // Accepted for older open clients; server timing remains authoritative.
+    finishTime: v.optional(v.number()),
     typedProgress: v.optional(v.number()),
     typedText: v.optional(v.string()),
     stats: v.optional(statsValidator),
@@ -279,23 +288,55 @@ export const recordFinish = mutation({
     await checkParticipant(ctx, participant, args.credential);
     if (!participant) throw new Error("Participant not found");
     const room = await ctx.db.get(participant.roomId);
-    if (room?.gameMode !== "race" || !acceptsAttempt(room, participant, args)) return;
-    if (participant.finishTime !== undefined) return { position: participant.position };
-    const stats = args.stats ?? participant.stats;
-    validateParticipantStats(stats);
-    if (!Number.isFinite(args.finishTime) || args.finishTime < 0) throw new Error("Invalid finish time");
+    if (participant.finishTime !== undefined && room?.raceStartTime === args.raceStartTime) {
+      return { accepted: true as const, position: participant.position };
+    }
+    if (room?.gameMode !== "race" || !acceptsAttempt(room, participant, args)) {
+      if (room?.gameMode === "race" && room.status === "active" &&
+        room.raceStartTime !== undefined && room.raceStartTime === args.raceStartTime &&
+        room.raceStartTime > Date.now()) {
+        return { accepted: false as const, reason: "not_started" as const,
+          retryAfterMs: room.raceStartTime - Date.now() };
+      }
+      return { accepted: false as const, reason: "stale_attempt" as const };
+    }
+    if (!room.targetText || args.typedText !== room.targetText ||
+      args.typedProgress !== room.targetText.length) {
+      throw new Error("The race target is not complete");
+    }
+    const now = Date.now();
+    const elapsed = now - room.raceStartTime!;
+    // Even a very fast 300 WPM racer needs 40 ms per target character.
+    const earliestFinishMs = room.targetText.length * 40;
+    if (elapsed < earliestFinishMs) {
+      return { accepted: false as const, reason: "not_started" as const,
+        retryAfterMs: earliestFinishMs - elapsed };
+    }
+    if (args.stats) validateParticipantStats(args.stats);
+    const stats = {
+      wpm: elapsed > 0 ? Math.round(room.targetText.length / 5 / (elapsed / 60_000)) : 0,
+      accuracy: 100, progress: 100, wordsTyped: Math.floor(room.targetText.length / 5),
+      timeElapsed: elapsed, isFinished: true,
+    };
     const members = await ctx.db.query("participants")
       .withIndex("by_room", (q) => q.eq("roomId", participant.roomId)).collect();
-    const position = members.filter((p) => p.finishTime !== undefined).length + 1;
+    const finishers = [...members.filter((p) => p.finishTime !== undefined),
+      { ...participant, finishTime: elapsed }].sort(compareRaceFinish);
+    const position = finishers.findIndex((p) => p._id === participant._id) + 1;
+    for (const [index, finisher] of finishers.entries()) {
+      if (finisher._id !== participant._id && finisher.position !== index + 1) {
+        await ctx.db.patch(finisher._id, { position: index + 1 });
+      }
+    }
     await ctx.db.patch(args.participantId, {
-      finishTime: args.finishTime,
+      finishTime: elapsed,
       position,
-      typedText: args.typedText ?? participant.typedText,
-      typedProgress: args.typedProgress ?? participant.typedProgress,
-      stats: { ...stats, isFinished: true },
-      lastSeen: Date.now(),
+      typedText: args.typedText,
+      typedProgress: room.targetText.length,
+      stats,
+      lastSeen: now,
     });
-    return { position };
+    return { accepted: true as const, position };
   },
 });
 

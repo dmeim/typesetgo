@@ -88,14 +88,54 @@ describe("multiplayer credentials through registered Convex validators/schema", 
     expect(member.participantId).toBeTruthy();
   });
 
+  it("lets a later joiner recover a waiting room after its lone host disconnects", async () => {
+    const t = convexTest(schema, modules);
+    const room = await t.mutation(api.rooms.create, { hostSessionId: "host", hostName: "Host", gameMode: "race", credential: host });
+    const first = await t.mutation(api.participants.join, { roomCode: room.code, sessionId: "host", name: "Host", credential: host });
+    await t.mutation(api.participants.disconnect, { participantId: first.participantId, credential: host });
+    expect((await t.query(api.rooms.getById, { roomId: room.roomId }))?.hostId).toBe("host");
+    await t.mutation(api.participants.join, { roomCode: room.code, sessionId: "guest", name: "Guest", credential: guest });
+    expect((await t.query(api.rooms.getById, { roomId: room.roomId }))?.hostId).toBe("guest");
+    await t.mutation(api.participants.join, { roomCode: room.code, sessionId: "host", name: "Host", credential: host });
+    expect((await t.query(api.rooms.getById, { roomId: room.roomId }))?.hostId).toBe("guest");
+    await expect(t.mutation(api.rooms.startRace, { roomId: room.roomId, credential: host })).rejects.toThrow("Only the room host");
+  });
+
+  it("rejects incomplete and impossible finishes, acknowledges early retries, and keeps live and final ties aligned", async () => {
+    const { t, room, member, other } = await setup();
+    const now = Date.now();
+    vi.useFakeTimers(); vi.setSystemTime(now);
+    await t.run(async (ctx) => {
+      await ctx.db.patch(room.roomId, { status: "active", raceStartTime: now + 1000, targetText: "cat dog" });
+    });
+    const finish = { credential: guest, participantId: other.participantId, raceStartTime: now + 1000,
+      typedText: "cat dog", typedProgress: 7 };
+    expect(await t.mutation(api.participants.recordFinish, finish)).toMatchObject({ accepted: false, reason: "not_started", retryAfterMs: 1000 });
+    vi.setSystemTime(now + 1000);
+    await expect(t.mutation(api.participants.recordFinish, { ...finish, typedText: "cat" })).rejects.toThrow("target is not complete");
+    expect(await t.mutation(api.participants.recordFinish, finish)).toMatchObject({ accepted: false, reason: "not_started", retryAfterMs: 280 });
+    vi.setSystemTime(now + 1280);
+    expect(await t.mutation(api.participants.recordFinish, { ...finish, finishTime: 100_000 })).toEqual({ accepted: true, position: 1 });
+    expect(await t.mutation(api.participants.recordFinish, finish)).toEqual({ accepted: true, position: 1 });
+    expect(await t.mutation(api.participants.recordFinish, { ...finish, credential: host, participantId: member.participantId })).toEqual({ accepted: true, position: 1 });
+    const live = await t.query(api.participants.listByRoom, { roomId: room.roomId });
+    expect(live.map((p) => [p.sessionId, p.position])).toEqual([["host", 1], ["guest", 2]]);
+    await t.mutation(api.rooms.endRace, { roomId: room.roomId, credential: host, raceStartTime: now + 1000 });
+    const snapshot = await t.query(api.raceResults.getResults, { raceId: room.roomId });
+    expect(snapshot?.rankings.map((p) => [p.sessionId, p.position])).toEqual([["host", 1], ["guest", 2]]);
+  });
+
   it("finishes a two-player race when the unfinished racer vanishes and prunes expired rooms", async () => {
     const { t, room, member, other } = await setup();
     await t.mutation(api.participants.setReady, { participantId: member.participantId, credential: host });
     await t.mutation(api.participants.setReady, { participantId: other.participantId, credential: guest });
     const { raceStartTime } = await t.mutation(api.rooms.startRace, { roomId: room.roomId, credential: host, countdownSeconds: 0 });
     await expect(t.mutation(api.rooms.endRace, { roomId: room.roomId, credential: host, raceStartTime })).rejects.toThrow("still racing");
-    await t.mutation(api.participants.recordFinish, { participantId: member.participantId, credential: host, finishTime: 1000, raceStartTime });
-    const now = Date.now(); vi.useFakeTimers(); vi.setSystemTime(now + 76_000);
+    const raceRoom = await t.query(api.rooms.getById, { roomId: room.roomId });
+    const targetText = raceRoom!.targetText!;
+    vi.useFakeTimers(); vi.setSystemTime(raceStartTime + targetText.length * 40);
+    await t.mutation(api.participants.recordFinish, { participantId: member.participantId, credential: host, typedText: targetText, typedProgress: targetText.length, raceStartTime });
+    const now = Date.now(); vi.setSystemTime(now + 76_000);
     await t.mutation(api.multiplayerPresence.heartbeat, { roomId: room.roomId, participantId: member.participantId, credential: host });
     await t.mutation(internal.multiplayerPresence.cleanup, {});
     expect((await t.query(api.raceResults.getResults, { raceId: room.roomId }))?.rankings).toHaveLength(2);

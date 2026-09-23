@@ -410,18 +410,19 @@ describe("Race exact resume and progress", () => {
     expect(mocks.typing!.initialInput).toBe("");
   });
 
-  it("records the final snapshot atomically and retries with the original finish time", async () => {
+  it("records the final snapshot atomically and retries after a transport error", async () => {
     vi.useFakeTimers();
     activeFixture();
     mocks.mutations["participants:recordFinish"] = vi
       .fn()
       .mockRejectedValueOnce(new Error("offline"))
-      .mockResolvedValue({ position: 1 });
+      .mockResolvedValue({ accepted: true, position: 1 });
     render(page("/race/race-room"));
     await act(async () => {
       await mocks.typing!.onFinish!({
         ...stats,
         typedText: "hello world",
+        correctChars: 11,
         isFinished: true,
         progress: 100,
       });
@@ -441,8 +442,25 @@ describe("Race exact resume and progress", () => {
     );
     await act(async () => {});
     expect(
-      mocks.mutations["participants:recordFinish"].mock.calls[1][0].finishTime,
-    ).toBe(first.finishTime);
+      mocks.mutations["participants:recordFinish"].mock.calls[1][0],
+    ).toEqual(first);
+  });
+
+  it("retries a finish acknowledged as early by the server clock", async () => {
+    vi.useFakeTimers();
+    activeFixture();
+    mocks.mutations["participants:recordFinish"] = vi.fn()
+      .mockResolvedValueOnce({ accepted: false, reason: "not_started", retryAfterMs: 1000 })
+      .mockResolvedValue({ accepted: true, position: 1 });
+    render(page("/race/race-room"));
+    await act(async () => {
+      await mocks.typing!.onFinish!({ ...stats, typedText: "hello world", correctChars: 11,
+        isFinished: true, progress: 100 });
+    });
+    expect(screen.getByText(/Waiting for the server race clock/)).toBeVisible();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1050); });
+    expect(mocks.mutations["participants:recordFinish"]).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: "Retry saving finish" })).toBeNull();
   });
 
   it("keeps the final deadline when a finished racer leaves", async () => {

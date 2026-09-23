@@ -64,6 +64,12 @@ export function publicParticipant(participant: Doc<"participants">) {
   return result;
 }
 
+/** Server-observed finish time, then stable membership order for same-millisecond ties. */
+export function compareRaceFinish(a: Doc<"participants">, b: Doc<"participants">) {
+  return (a.finishTime ?? Infinity) - (b.finishTime ?? Infinity) ||
+    a.joinedAt - b.joinedAt || a._id.localeCompare(b._id);
+}
+
 export async function finishRaceIfReady(ctx: MutationCtx, room: Doc<"rooms">) {
   if (room.gameMode !== "race" || room.raceStartTime === undefined || room.raceEndTime !== undefined || Date.now() < room.raceStartTime) return false;
   const members = await ctx.db.query("participants").withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
@@ -101,8 +107,8 @@ export async function saveRaceSnapshot(ctx: MutationCtx, room: Doc<"rooms">) {
     .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
   const sorted = [...participants].sort((a, b) => {
     if (a.stats.isFinished !== b.stats.isFinished) return a.stats.isFinished ? -1 : 1;
-    if (a.stats.isFinished) return (a.finishTime ?? Infinity) - (b.finishTime ?? Infinity);
-    return b.stats.progress - a.stats.progress;
+    if (a.stats.isFinished) return compareRaceFinish(a, b);
+    return b.stats.progress - a.stats.progress || a.joinedAt - b.joinedAt || a._id.localeCompare(b._id);
   });
   return await ctx.db.insert("raceResults", {
     raceId: room._id,

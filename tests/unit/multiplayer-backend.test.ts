@@ -107,17 +107,18 @@ describe("attempt progress boundaries", () => {
   });
 
   it("persists exact race input, then atomically finishes without a late progress rollback", async () => {
-    const db = multiplayerDb({ rooms: [{ ...room, status: "active", raceStartTime: 1 }], participants: [participant] });
-    const args = { credential, participantId, typedProgress: 2, typedText: "cxt", stats: report, raceStartTime: 1 };
+    const db = multiplayerDb({ rooms: [{ ...room, status: "active", raceStartTime: Date.now() - 2000, targetText: "cat dog" }], participants: [participant] });
+    const raceStartTime = db.get(roomId).raceStartTime as number;
+    const args = { credential, participantId, typedProgress: 2, typedText: "cxt", stats: report, raceStartTime };
     await updateProgress._handler(db.ctx, { credential, ...args, raceStartTime: 2 });
     expect(db.get(participantId)?.typedText).toBeUndefined();
     await updateProgress._handler(db.ctx, args);
     expect(db.get(participantId)?.typedText).toBe("cxt");
-    const final = { ...args, typedText: "cxt dog", stats: { ...report, progress: 100, isFinished: true }, finishTime: 2000 };
-    expect(await recordFinish._handler(db.ctx, final)).toEqual({ position: 1 });
+    const final = { ...args, typedText: "cat dog", typedProgress: 7, stats: { ...report, progress: 100, isFinished: true } };
+    expect(await recordFinish._handler(db.ctx, final)).toEqual({ accepted: true, position: 1 });
     await updateProgress._handler(db.ctx, args);
-    expect(await recordFinish._handler(db.ctx, { credential, ...final, finishTime: 3000 })).toEqual({ position: 1 });
-    expect(db.get(participantId)).toMatchObject({ typedText: "cxt dog", finishTime: 2000, stats: { isFinished: true, progress: 100 } });
+    expect(await recordFinish._handler(db.ctx, final)).toEqual({ accepted: true, position: 1 });
+    expect(db.get(participantId)).toMatchObject({ typedText: "cat dog", finishTime: expect.any(Number), stats: { isFinished: true, progress: 100, accuracy: 100 } });
   });
 });
 
