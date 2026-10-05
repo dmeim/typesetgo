@@ -1,4 +1,4 @@
-import { SlidersHorizontalIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ export default function PracticeQuickSettingsDialog({
   wordsManifest,
   quotesManifest,
   openCustomCountModal,
+  openPresetInput,
   isCustomDurationSelected,
   isCustomWordTargetSelected,
   showQuickSettings,
@@ -182,8 +183,17 @@ export default function PracticeQuickSettingsDialog({
             </div>
           )}
 
+          {settings.mode === "preset" && openPresetInput && (
+            <div className="text-center">
+              <Button type="button" variant="ghost" onClick={openPresetInput}>
+                <PencilSimpleIcon className="size-4 shrink-0" aria-hidden="true" />
+                Edit custom text
+              </Button>
+            </div>
+          )}
+
           {/* Difficulty */}
-          {settings.mode !== "quote" && wordsManifest && (
+          {settings.mode !== "quote" && settings.mode !== "preset" && wordsManifest && (
             <div className="text-center">
               <label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
                 Difficulty
@@ -222,7 +232,7 @@ export default function PracticeQuickSettingsDialog({
               <Toggle
                 pressed={settings.capitalization}
                 onPressedChange={(pressed) => updateSettings({ capitalization: pressed })}
-                disabled={settings.mode === "quote"}
+                disabled={settings.mode === "quote" || settings.mode === "preset"}
                 className={`rounded px-4 py-2 text-sm transition ${settings.capitalization ? "font-medium" : "hover:opacity-80"}`}
                 style={{
                   color: settings.capitalization ? tv.ui.primary : tv.ui.mutedForeground,
@@ -235,7 +245,7 @@ export default function PracticeQuickSettingsDialog({
               <Toggle
                 pressed={settings.punctuation}
                 onPressedChange={(pressed) => updateSettings({ punctuation: pressed })}
-                disabled={settings.mode === "quote"}
+                disabled={settings.mode === "quote" || settings.mode === "preset"}
                 className={`rounded px-4 py-2 text-sm transition ${settings.punctuation ? "font-medium" : "hover:opacity-80"}`}
                 style={{
                   color: settings.punctuation ? tv.ui.primary : tv.ui.mutedForeground,
@@ -248,7 +258,7 @@ export default function PracticeQuickSettingsDialog({
               <Toggle
                 pressed={settings.numbers}
                 onPressedChange={(pressed) => updateSettings({ numbers: pressed })}
-                disabled={settings.mode === "quote"}
+                disabled={settings.mode === "quote" || settings.mode === "preset"}
                 className={`rounded px-4 py-2 text-sm transition ${settings.numbers ? "font-medium" : "hover:opacity-80"}`}
                 style={{
                   color: settings.numbers ? tv.ui.primary : tv.ui.mutedForeground,

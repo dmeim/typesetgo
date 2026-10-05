@@ -13,7 +13,7 @@ import { activityCalendar, utcDate } from "./lib/activityCalendar";
  *   Quote/preset require targetText.
  *
  * api.typingSessions.recordProgress
- *   args: sessionId, typedLength
+ *   args: sessionId, typedLength, completed? (await completed:true before finalize)
  *
  * api.typingSessions.finalizeSession
  *   args: sessionId, typedText, clientElapsedMs, localDate, localHour,
@@ -29,7 +29,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { SESSION_RESUME_GRACE_MS } from "./lib/antiCheatConstants";
+import { PROGRESS_INTERVAL_MS } from "./lib/antiCheatConstants";
 import { burstCharsPerSecond } from "./lib/burst";
 import {
   computeStats,
@@ -51,6 +51,13 @@ import { MAX_DURATION_SECONDS, MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET } from ".
 
 const SOLO_RANKED_MODES = ["time", "words", "quote", "preset"];
 const DIFFICULTIES = ["beginner", "easy", "medium", "hard", "expert"];
+
+function completionTime(session: { startedAt?: number; settings: { mode: string; duration?: number } }, now: number): number {
+  if (session.startedAt !== undefined && session.settings.mode === "time" && session.settings.duration !== undefined) {
+    return Math.min(now, session.startedAt + session.settings.duration * 1000);
+  }
+  return now;
+}
 
 export const startSession = mutation({
   args: {
@@ -122,21 +129,6 @@ export const startSession = mutation({
       capitalization,
     });
 
-    const existingSession = await ctx.db
-      .query("typingSessions")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .order("desc")
-      .first();
-
-    if (existingSession) {
-      const isRecent = now - existingSession.createdAt < SESSION_RESUME_GRACE_MS;
-      const sameTargetText = existingSession.targetText === targetText;
-      if (isRecent && sameTargetText) {
-        return { sessionId: existingSession._id, targetText: existingSession.targetText };
-      }
-      await ctx.db.delete(existingSession._id);
-    }
-
     const sessionId = await ctx.db.insert("typingSessions", {
       userId: user._id,
       settings: {
@@ -165,6 +157,7 @@ export const recordProgress = mutation({
   args: {
     sessionId: v.id("typingSessions"),
     typedLength: v.number(),
+    completed: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ success: boolean }> => {
     const session = await ctx.db.get(args.sessionId);
@@ -177,8 +170,35 @@ export const recordProgress = mutation({
       return { success: false };
     }
 
+    if (!Number.isSafeInteger(args.typedLength) || args.typedLength < 0 || args.typedLength > MAX_PRESET_TEXT_LENGTH * 100) {
+      throw new Error("Invalid typed length");
+    }
+    if (session.completedAt !== undefined) {
+      return { success: args.completed === true && args.typedLength === session.lastTypedLength };
+    }
+
     const now = Date.now();
     const startedAt = session.startedAt ?? now;
+    const completedAt = completionTime({ ...session, startedAt }, now);
+    if (args.completed) {
+      // A delayed finish/save must not create an arbitrarily large final-jump allowance.
+      const intervalMs = Math.min(PROGRESS_INTERVAL_MS, Math.max(0, completedAt - session.lastEventAt));
+      const burstCps = finalizeIntervalBurstCps(args.typedLength, session.lastTypedLength, intervalMs);
+      await ctx.db.patch(args.sessionId, {
+        startedAt,
+        completedAt,
+        lastEventAt: now,
+        eventCount: session.eventCount + 1,
+        lastTypedLength: args.typedLength,
+        maxCharsPerSecond: Math.max(session.maxCharsPerSecond, burstCps),
+        maxBurstChars: Math.max(session.maxBurstChars, args.typedLength - session.lastTypedLength),
+      });
+      return { success: true };
+    }
+
+    // Once Time has elapsed, late reports cannot add typing time/characters.
+    // The completion barrier still accepts a bounded final in-flight tail.
+    if (completedAt < now) return { success: false };
 
     if (args.typedLength < session.lastTypedLength) {
       await ctx.db.patch(args.sessionId, {
@@ -251,10 +271,12 @@ export const finalizeSession = mutation({
     );
 
     const now = Date.now();
-    const serverElapsed = session.startedAt
-      ? now - session.startedAt
-      : now - session.createdAt;
-    const timeSinceLastProgressMs = now - session.lastEventAt;
+    // Old clients lack an explicit barrier. Use their last server heartbeat for
+    // non-time tests; time tests stop at the server deadline, never the save call.
+    const finishedAt = session.completedAt ?? completionTime(session,
+      session.settings.mode === "time" ? now : session.lastEventAt);
+    const serverElapsed = Math.max(0, finishedAt - (session.startedAt ?? session.createdAt));
+    const timeSinceLastProgressMs = Math.min(PROGRESS_INTERVAL_MS, Math.max(0, finishedAt - session.lastEventAt));
     const typedLength = args.typedText.length;
     const lengthJumpInvalid = isFinalizeLengthJumpInvalid(
       typedLength,
@@ -297,6 +319,11 @@ export const finalizeSession = mutation({
 
     let isValid = validation.isValid;
     let invalidReason = validation.invalidReason;
+    if (session.completedAt !== undefined && typedLength !== session.lastTypedLength) {
+      isValid = false;
+      const reason = "Typed length changed after completion";
+      invalidReason = invalidReason ? `${invalidReason}; ${reason}` : reason;
+    }
     if (lengthJumpInvalid) {
       isValid = false;
       const jump = typedLength - session.lastTypedLength;
@@ -305,6 +332,7 @@ export const finalizeSession = mutation({
       invalidReason = invalidReason ? `${invalidReason}; ${reason}` : reason;
     }
 
+    const generatedMode = session.settings.mode === "time" || session.settings.mode === "words";
     const resultId = await ctx.db.insert("testResults", {
       userId: session.userId,
       wpm: roundedWpm,
@@ -312,10 +340,11 @@ export const finalizeSession = mutation({
       mode: session.settings.mode,
       duration: serverElapsed,
       wordCount: Math.floor(args.typedText.length / 5),
+      wordTarget: session.settings.mode === "words" ? session.settings.wordTarget : undefined,
       difficulty: session.settings.difficulty,
-      punctuation: session.settings.punctuation,
-      numbers: session.settings.numbers,
-      capitalization: session.settings.capitalization,
+      punctuation: generatedMode && session.settings.punctuation,
+      numbers: generatedMode && session.settings.numbers,
+      capitalization: generatedMode && (session.settings.capitalization ?? false),
       wordsCorrect,
       wordsIncorrect: wordResults.incorrectWords.length,
       charsMissed: stats.missed,

@@ -42,6 +42,8 @@ function AnimatedAccuracyDisplay({ value, color }: { value: number; color: strin
 interface PracticeResultsProps {
   wpm: number;
   accuracy: number;
+  duration?: number;
+  advanceDisabled?: boolean;
   stats: { correct: number; incorrect: number; missed: number; extra: number };
   wordResults: {
     correctWords: string[];
@@ -64,6 +66,8 @@ interface PracticeResultsProps {
 export default function PracticeResults({
   wpm,
   accuracy,
+  duration,
+  advanceDisabled = false,
   stats,
   wordResults,
   settings,
@@ -80,6 +84,7 @@ export default function PracticeResults({
   isRepeated,
 }: PracticeResultsProps) {
   const reducedMotion = useReducedMotion();
+  const advancementBlocked = advanceDisabled || saveState === "saving";
   const resultsRef = useRef<HTMLDivElement>(null);
   const SaveIcon = lastResultIsValid === false || saveState === "error" ? WarningCircleIcon
     : saveState === "saved" ? CheckCircleIcon : saveState === "saving" ? CircleNotchIcon : FloppyDiskIcon;
@@ -122,7 +127,7 @@ export default function PracticeResults({
             return;
           if (event.key === "Enter") {
             event.preventDefault();
-            generateTest();
+            if (!advancementBlocked) generateTest();
           }
           if (event.key === " " && saveState !== "saved" && saveState !== "saving" && lastResultIsValid !== false) {
             event.preventDefault();
@@ -467,6 +472,7 @@ export default function PracticeResults({
                 <button
                   type="button"
                   onClick={repeatTest}
+                  disabled={advancementBlocked}
                   className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-3 font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-6"
                 >
                   <ArrowClockwiseIcon className="size-[18px] shrink-0" aria-hidden="true" />
@@ -476,6 +482,7 @@ export default function PracticeResults({
               <button
                 type="button"
                 onClick={() => generateTest()}
+                disabled={advancementBlocked}
                 className="group relative inline-flex min-w-0 items-center justify-center gap-2 px-3 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 sm:px-8"
                 style={{
                   backgroundColor: tv.ui.card,
@@ -512,6 +519,7 @@ export default function PracticeResults({
           animate={{ opacity: 1 }}
           transition={{ duration: reducedMotion ? 0 : 0.2, delay: 0 }}
         >
+          {duration !== undefined && <p>Duration: {(duration / 1000).toFixed(1)}s</p>}
           {lastResultIsValid === true && <p>Verified</p>}
           {saveState === "saved" && lastResultIsValid === null && <p>Saved to history.</p>}
           {rankingStatus === "pending" && <p>Waiting for verification…</p>}
@@ -519,7 +527,7 @@ export default function PracticeResults({
             <p>
               With the result summary focused:{" "}
               {lastResultIsValid !== false && saveState !== "saved" && saveState !== "saving" ? "Space to save · " : ""}
-              Enter for the next test.
+              {advancementBlocked ? "Next and Repeat are available after saving finishes." : "Enter for the next test."}
             </p>
           )}
         </motion.div>

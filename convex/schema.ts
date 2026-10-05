@@ -24,7 +24,8 @@ export default defineSchema({
     accuracy: v.number(),
     mode: v.string(),
     duration: v.number(),
-    wordCount: v.number(),
+    wordCount: v.number(), // Gross WPM units, not the configured test size.
+    wordTarget: v.optional(v.number()), // Configured Words-mode target; unknown on legacy rows.
     difficulty: v.string(),
     punctuation: v.boolean(),
     numbers: v.boolean(),
@@ -65,6 +66,7 @@ export default defineSchema({
     targetText: v.string(),
     createdAt: v.number(),
     startedAt: v.optional(v.number()), // Set on first recordProgress (not at insert)
+    completedAt: v.optional(v.number()), // Server-owned completion barrier; freezes progress.
     lastEventAt: v.number(),
     eventCount: v.number(),
     lastTypedLength: v.number(), // For monotonic validation

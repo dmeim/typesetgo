@@ -11,6 +11,7 @@ import { normalizePracticeSettings, type Quote, type SettingsState } from "@/lib
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
+import { getRoomThemeStyle } from "@/components/connect/room-theme";
 import { fetchWordsManifest, type WordsManifest } from "@/lib/words";
 import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
 import {
@@ -112,6 +113,7 @@ interface TypingPracticeProps {
   fitToParentHeight?: boolean;
   lockedSettings?: Partial<SettingsState>;
   isTestActive?: boolean;
+  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean };
   onStatsUpdate?: (
     stats: {
       wpm: number;
@@ -139,6 +141,7 @@ export default function TypingPractice({
   fitToParentHeight = false,
   lockedSettings,
   isTestActive = true,
+  initialAttempt,
   onStatsUpdate,
   onLeave,
   // External state control (when used from Home.tsx)
@@ -179,10 +182,17 @@ export default function TypingPractice({
   const dataset = usePracticeDataset(settings, quotesManifest);
   const { wordPool, quotes } = dataset;
   const promptConfigKey = JSON.stringify(PROMPT_SETTING_KEYS.map((key) => settings[key]));
+  const [restoredAttempt, setRestoredAttempt] = useState(() => connectMode && initialAttempt?.targetText ? initialAttempt : undefined);
+  const [restoredConfigKey] = useState(promptConfigKey);
+  const restoringPrompt = Boolean(restoredAttempt && restoredConfigKey === promptConfigKey);
   const [promptSeed, setPromptSeed] = useState(() => ({ value: Math.floor(Math.random() * 4294967296) }));
   const preparedPrompt = useMemo(() => {
-    const prompt = { configKey: promptConfigKey, seed: promptSeed, datasetStatus: dataset.status,
+    const prompt = { configKey: promptConfigKey, seed: promptSeed, datasetStatus: restoringPrompt ? "ready" : dataset.status,
       wordPool, quotes, text: "", quote: null as Quote | null, needsPreset: false };
+    if (restoringPrompt && restoredAttempt) {
+      prompt.text = restoredAttempt.targetText;
+      return prompt;
+    }
     if (dataset.status !== "ready") return prompt;
     const random = createPromptRandom(promptSeed.value);
     if (settings.mode === "quote") {
@@ -198,16 +208,16 @@ export default function TypingPractice({
     }
     return prompt;
   }, [dataset.status, promptConfigKey, promptSeed, settings.mode, settings.presetText,
-    settings.wordTarget, settings.punctuation, settings.numbers, settings.capitalization, wordPool, quotes]);
+    settings.wordTarget, settings.punctuation, settings.numbers, settings.capitalization, wordPool, quotes, restoringPrompt, restoredAttempt]);
   const [activePrompt, setActivePrompt] = useState(preparedPrompt);
   const matchesPromptRequest = activePrompt.configKey === promptConfigKey && activePrompt.seed === promptSeed
-    && activePrompt.datasetStatus === dataset.status && activePrompt.wordPool === wordPool && activePrompt.quotes === quotes;
+    && (restoringPrompt || (activePrompt.datasetStatus === dataset.status && activePrompt.wordPool === wordPool && activePrompt.quotes === quotes));
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(preparedPrompt.quote);
   const [words, setWords] = useState(preparedPrompt.text);
-  const [typedText, setTypedText] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
-  const [isFinished, setIsFinished] = useState(false);
-  const { elapsedMs: clockElapsedMs, readElapsed, resetClock } = usePracticeClock(isRunning && (!connectMode || isTestActive));
+  const [typedText, setTypedText] = useState(restoredAttempt?.typedText ?? "");
+  const [isRunning, setIsRunning] = useState(Boolean(restoredAttempt && !restoredAttempt.isFinished && (restoredAttempt.typedText || restoredAttempt.elapsedMs > 0)));
+  const [isFinished, setIsFinished] = useState(restoredAttempt?.isFinished ?? false);
+  const { elapsedMs: clockElapsedMs, readElapsed, pauseClock, resetClock } = usePracticeClock(isRunning && (!connectMode || isTestActive), restoredAttempt?.elapsedMs ?? 0);
   // A fresh attempt has no elapsed time, including the commit that resets the external clock store.
   const elapsedMs = isRunning || isFinished ? clockElapsedMs : 0;
   const [isRepeated, setIsRepeated] = useState(false);
@@ -246,6 +256,7 @@ export default function TypingPractice({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastResultIsValid, setLastResultIsValid] = useState<boolean | null>(null);
   const [lastResultInvalidReason, setLastResultInvalidReason] = useState<string | undefined>(undefined);
+  const [savedMetrics, setSavedMetrics] = useState<{ wpm: number; accuracy: number; duration: number } | null>(null);
   const pendingResultRef = useRef<{
     attemptEpoch: number;
     completedAt: number;
@@ -254,6 +265,7 @@ export default function TypingPractice({
     mode: string;
     duration: number;
     wordCount: number;
+    wordTarget?: number;
     difficulty: string;
     punctuation: boolean;
     numbers: boolean;
@@ -285,6 +297,7 @@ export default function TypingPractice({
 
   const sessionPreparedAtRef = useRef(0);
   const completedAtRef = useRef<number | null>(null);
+  const completionProgressRef = useRef<Promise<boolean> | null>(null);
   const sessionIdRef = useRef<Id<"typingSessions"> | null>(null);
   const lastProgressRef = useRef<{ sessionId: Id<"typingSessions">; at: number; typedLength: number } | null>(null);
   const progressEventsSentRef = useRef(0);
@@ -328,7 +341,7 @@ export default function TypingPractice({
   const bottomLayoutRef = useRef<HTMLDivElement | null>(null);
   const [typingCenterOffset, setTypingCenterOffset] = useState(0);
 
-  const promptReady = dataset.status === "ready" && matchesPromptRequest && words.length > 0;
+  const promptReady = (restoringPrompt || dataset.status === "ready") && matchesPromptRequest && words.length > 0;
 
   // Prompt replacement and explicit restart share the same runtime cleanup.
   const resetAttemptRuntime = useCallback((epoch: number, isRepeat: boolean) => {
@@ -340,6 +353,7 @@ export default function TypingPractice({
     previousInputLengthRef.current = 0;
     sessionPreparedAtRef.current = 0;
     completedAtRef.current = null;
+    completionProgressRef.current = null;
     pendingResultRef.current = null;
     finalizedRef.current = false;
     savingRef.current = false;
@@ -367,6 +381,7 @@ export default function TypingPractice({
     setSaveState("idle");
     setLastResultIsValid(null);
     setLastResultInvalidReason(undefined);
+    setSavedMetrics(null);
   }, []);
 
   useLayoutEffect(() => {
@@ -435,32 +450,34 @@ export default function TypingPractice({
 
   // --- Callbacks ---
   const updateSettings = useCallback((updates: Partial<SettingsState>) => {
-    markEdited(Object.keys(updates));
     // Explicit prompt edits start a new attempt, so apply queued account defaults at that boundary too.
     const startsPrompt = PROMPT_SETTING_KEYS.some((key) => key in updates);
     if (startsPrompt) {
+      if (savingRef.current || (!connectModeRef.current && isSignedInRef.current && isFinishedRef.current && saveState === "idle")) return;
       setQueuedPromptPreferences(null);
       setPromptSeed({ value: Math.floor(Math.random() * 4294967296) });
     }
+    markEdited(Object.keys(updates));
     setSettings((prev) => normalizePracticeSettings({ ...prev, ...(startsPrompt ? pendingPromptPreferences : {}), ...updates }));
-  }, [pendingPromptPreferences, markEdited, setQueuedPromptPreferences]);
+  }, [pendingPromptPreferences, markEdited, setQueuedPromptPreferences, saveState]);
 
   const openCustomCountModal = useCallback(() => {
     if (settings.mode === "time" || settings.mode === "words") setShowCustomCountModal(true);
   }, [settings.mode]);
 
-  const resetSession = useCallback((isRepeat = false) => {
+  const resetSession = useCallback((isRepeat = false, accountChanged = false) => {
+    if (!accountChanged && (savingRef.current || (!connectModeRef.current && isSignedInRef.current && isFinishedRef.current && saveState === "idle"))) return;
     const epoch = sessionEpochRef.current + 1;
     resetAttemptRuntime(epoch, isRepeat);
     setSessionEpoch(epoch);
     resetAttemptView(isRepeat, !isRepeat && isSignedInRef.current && settingsRef.current.mode !== "zen");
-  }, [resetAttemptRuntime, resetAttemptView]);
+  }, [resetAttemptRuntime, resetAttemptView, saveState]);
 
   const attemptAccountRef = useRef(user?.id ?? null);
   useLayoutEffect(() => {
     const next = user?.id ?? null;
     // Guest completion may survive its first sign-in; authenticated attempts never cross accounts.
-    if (!connectMode && attemptAccountRef.current !== null && attemptAccountRef.current !== next) resetSession();
+    if (!connectMode && attemptAccountRef.current !== null && attemptAccountRef.current !== next) resetSession(false, true);
     attemptAccountRef.current = next;
   }, [user?.id, resetSession, connectMode]);
 
@@ -468,10 +485,16 @@ export default function TypingPractice({
     if (isFinishedRef.current) return;
     isFinishedRef.current = true;
     completedAtRef.current = Date.now();
+    pauseClock();
     elapsedMsRef.current = readElapsed();
+    const sessionId = sessionIdRef.current;
+    if (!connectModeRef.current && sessionId) {
+      completionProgressRef.current = recordProgressMutation({ sessionId, typedLength: typedTextRef.current.length, completed: true })
+        .then((result) => result.success, () => false);
+    }
     setIsFinished(true);
     setIsRunning(false);
-  }, [readElapsed]);
+  }, [readElapsed, pauseClock, recordProgressMutation]);
 
   const finishSessionRef = useRef(finishSession);
   useEffect(() => { finishSessionRef.current = finishSession; }, [finishSession]);
@@ -515,6 +538,7 @@ export default function TypingPractice({
       mode: settings.mode,
       duration: elapsedMs,
       wordCount: Math.floor(typedText.length / 5),
+      ...(settings.mode === "words" ? { wordTarget: settings.wordTarget } : {}),
       difficulty: settings.difficulty,
       punctuation: settings.punctuation,
       numbers: settings.numbers,
@@ -585,13 +609,10 @@ export default function TypingPractice({
       };
 
       if (sessionId) {
-        try {
-          await recordProgressMutation({
-            sessionId,
-            typedLength: finalTypedText.length,
-          });
-        } catch {
-          // Still finalize; progress is best-effort.
+        if (!(await completionProgressRef.current)) {
+          const progress = await recordProgressMutation({ sessionId, typedLength: finalTypedText.length, completed: true });
+          if (!progress.success) throw new Error("Unable to record completion. Please retry saving.");
+          completionProgressRef.current = Promise.resolve(true);
         }
 
         if (!isCurrentAttempt()) return;
@@ -611,6 +632,7 @@ export default function TypingPractice({
         sessionIdRef.current = null;
         setLastResultIsValid(result.isValid);
         setLastResultInvalidReason(result.invalidReason);
+        setSavedMetrics({ wpm: result.wpm, accuracy: result.accuracy, duration: result.duration });
         setSaveState("saved");
         pendingResultRef.current = null;
 
@@ -641,7 +663,7 @@ export default function TypingPractice({
     } finally {
       if (isCurrentAttempt()) savingRef.current = false;
     }
-  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, elapsedMs, typedText, wordResults, stats, openSignIn, authStatus, ensureAccount, saveResultMutation, finalizeSessionMutation, recordProgressMutation, notify, saveState, readElapsed]);
+  }, [connectMode, user, wpm, accuracy, settings.mode, settings.difficulty, settings.punctuation, settings.numbers, settings.capitalization, settings.wordTarget, elapsedMs, typedText, wordResults, stats, openSignIn, authStatus, ensureAccount, saveResultMutation, finalizeSessionMutation, recordProgressMutation, notify, saveState, readElapsed]);
 
   // Effect to save pending result after sign-in
   useEffect(() => {
@@ -754,6 +776,7 @@ export default function TypingPractice({
   }, [isFinished, connectMode, isSignedIn, saveResults]);
 
   const generateTest = useCallback(() => {
+    if (savingRef.current || (!connectModeRef.current && isSignedInRef.current && isFinishedRef.current && saveState === "idle")) return;
     // Object identity makes this a new attempt even when two random samples happen to match.
     setPromptSeed({ value: Math.floor(Math.random() * 4294967296) });
     if (pendingPromptPreferences) {
@@ -761,7 +784,7 @@ export default function TypingPractice({
       setQueuedPromptPreferences(null);
       return; // The resolved configuration/dataset effect generates the next prompt.
     }
-  }, [pendingPromptPreferences, setQueuedPromptPreferences]);
+  }, [pendingPromptPreferences, setQueuedPromptPreferences, saveState]);
 
   const applyCustomCount = useCallback((value: number) => {
     if (settings.mode === "time") {
@@ -870,7 +893,7 @@ export default function TypingPractice({
           wpm: Math.round(wpm) || 0,
           accuracy,
           progress: words.length > 0 ? getInputPosition(typedText, words).referencePosition / words.length * 100 : 0,
-          wordsTyped: Math.floor(typedText.length / 5),
+          wordsTyped: typedWordCount + (hasCompletedPrompt(typedText, words) && !typedText.endsWith(" ") && typedText.trim() ? 1 : 0),
           timeElapsed: elapsedMs,
           isFinished,
         },
@@ -878,7 +901,7 @@ export default function TypingPractice({
         words
       );
     }
-  }, [wpm, accuracy, typedText, words, elapsedMs, isFinished, connectMode, isTestActive, promptReady]);
+  }, [wpm, accuracy, typedText, typedWordCount, words, elapsedMs, isFinished, connectMode, isTestActive, promptReady]);
 
   const handleInput = (value: string) => {
     if (isFinishedRef.current || !promptReady || (connectMode && !isTestActive)) return;
@@ -999,12 +1022,14 @@ export default function TypingPractice({
   const configurationProps = {
     settings, updateSettings, generateTest, isKidMode, handleModeSelect,
     wordsManifest, quotesManifest, openCustomCountModal,
+    openPresetInput: () => { setShowQuickSettings(false); setShowPresetInput(true); },
     isCustomDurationSelected, isCustomWordTargetSelected,
   };
 
   // A new resolved configuration is a new attempt. Reset before children can observe old input
   // against the new prompt; external session/clock cleanup follows the committed epoch below.
   if (!matchesPromptRequest) {
+    if (restoredAttempt) setRestoredAttempt(undefined);
     setActivePrompt(preparedPrompt);
     setCurrentQuote(preparedPrompt.quote);
     setWords(preparedPrompt.text);
@@ -1016,7 +1041,7 @@ export default function TypingPractice({
   return (
     <div
       className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300`}
-      style={{ backgroundColor: tv.ui.background }}
+      style={{ backgroundColor: tv.ui.background, ...(connectMode ? { color: tv.ui.foreground, ...getRoomThemeStyle(settings.theme, colors) } : {}) }}
     >
       <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
       <div className="h-4 shrink-0" />
@@ -1339,8 +1364,10 @@ export default function TypingPractice({
           </div>
         ) : (
           <PracticeResults
-            wpm={wpm}
-            accuracy={accuracy}
+            wpm={savedMetrics?.wpm ?? wpm}
+            accuracy={savedMetrics?.accuracy ?? accuracy}
+            duration={savedMetrics?.duration ?? elapsedMs}
+            advanceDisabled={!connectMode && isSignedIn && (saveState === "saving" || saveState === "idle")}
             stats={stats}
             wordResults={wordResults}
             settings={settings}
@@ -1381,6 +1408,8 @@ export default function TypingPractice({
       <div className={settings.showOnScreenKeyboard && !isFinished ? "shrink-0" : "flex-1"} />
 
       <PracticePresetDialog
+        key={settings.presetText}
+        presetText={settings.presetText}
         showPresetInput={showPresetInput}
         setShowPresetInput={setShowPresetInput}
         handlePresetSubmit={handlePresetSubmit}

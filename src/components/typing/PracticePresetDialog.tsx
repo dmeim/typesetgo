@@ -6,17 +6,19 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { tv } from "@/lib/theme-vars";
 
 interface PracticePresetDialogProps {
+  presetText?: string;
   showPresetInput: boolean;
   setShowPresetInput: (show: boolean) => void;
   handlePresetSubmit: (text: string) => void;
 }
 
 export default function PracticePresetDialog({
+  presetText = "",
   showPresetInput,
   setShowPresetInput,
   handlePresetSubmit,
 }: PracticePresetDialogProps) {
-  const [tempPresetText, setTempPresetText] = useState("");
+  const [tempPresetText, setTempPresetText] = useState(presetText);
   return (
     <Dialog open={showPresetInput} onOpenChange={setShowPresetInput}>
       <DialogContent>

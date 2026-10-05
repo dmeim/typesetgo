@@ -11,9 +11,10 @@ import {
 import { requireAuthedUser, requireIdentity } from "./lib/identity";
 import { consumeRateLimit } from "./lib/consumeRateLimit";
 import { RESULT_WRITE_RATE_LIMIT } from "./lib/rateLimit";
+import { MAX_WORD_TARGET } from "../src/lib/practice-limits";
 
 function validateUnrankedSave(args: {
-  wpm: number; accuracy: number; duration: number; wordCount: number;
+  wpm: number; accuracy: number; duration: number; wordCount: number; wordTarget?: number;
   wordsCorrect: number; wordsIncorrect: number; charsMissed: number; charsExtra: number;
   mode: string; difficulty: string;
 }) {
@@ -30,6 +31,9 @@ function validateUnrankedSave(args: {
     if (!Number.isSafeInteger(count) || count < 0 || count > 1_000_000) {
       throw new Error("Invalid practice counts.");
     }
+  }
+  if (args.wordTarget !== undefined && (!Number.isSafeInteger(args.wordTarget) || args.wordTarget < 1 || args.wordTarget > MAX_WORD_TARGET)) {
+    throw new Error("Invalid word target.");
   }
   // The browser reports floor(typed characters / 5) as wordCount and gross WPM.
   const maximumWpm = Math.round((args.wordCount + 0.8) * 60_000 / args.duration) + 1;
@@ -50,6 +54,7 @@ export const saveResult = mutation({
     mode: v.string(),
     duration: v.number(),
     wordCount: v.number(),
+    wordTarget: v.optional(v.number()),
     difficulty: v.string(),
     punctuation: v.boolean(),
     numbers: v.boolean(),
@@ -81,10 +86,11 @@ export const saveResult = mutation({
       mode: args.mode,
       duration: args.duration,
       wordCount: args.wordCount,
+      wordTarget: args.mode === "words" ? args.wordTarget : undefined,
       difficulty: args.difficulty,
-      punctuation: args.punctuation,
-      numbers: args.numbers,
-      capitalization: args.capitalization,
+      punctuation: args.mode !== "quote" && args.mode !== "preset" && args.punctuation,
+      numbers: args.mode !== "quote" && args.mode !== "preset" && args.numbers,
+      capitalization: args.mode === "quote" || args.mode === "preset" ? false : args.capitalization,
       wordsCorrect: args.wordsCorrect,
       wordsIncorrect: args.wordsIncorrect,
       charsMissed: args.charsMissed,
@@ -283,6 +289,7 @@ export const getUserStatsByUserId = query({
       mode: result.mode,
       duration: result.duration,
       wordCount: result.wordCount,
+      wordTarget: result.wordTarget,
       difficulty: result.difficulty,
       punctuation: result.punctuation,
       numbers: result.numbers,

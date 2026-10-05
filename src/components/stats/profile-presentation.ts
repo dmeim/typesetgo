@@ -1,7 +1,7 @@
 import type { Doc } from "../../../convex/_generated/dataModel";
 
 export type ProfileTestResult = Pick<Doc<"testResults">,
-  | "_id" | "wpm" | "accuracy" | "mode" | "duration" | "wordCount"
+  | "_id" | "wpm" | "accuracy" | "mode" | "duration" | "wordCount" | "wordTarget"
   | "difficulty" | "punctuation" | "numbers" | "capitalization"
   | "wordsCorrect" | "wordsIncorrect" | "charsMissed" | "charsExtra"
   | "isValid" | "invalidReason" | "createdAt"
@@ -40,9 +40,11 @@ export function getTestTypeLabels(result: ProfileTestResult): string[] {
     labels.push(result.difficulty.charAt(0).toUpperCase() + result.difficulty.slice(1));
   }
   if (result.mode === "time") labels.push(`${Math.round(result.duration / 1000)}s`);
-  if (result.mode === "words") labels.push(`${result.wordCount} words`);
-  if (result.capitalization) labels.push("caps");
-  if (result.punctuation) labels.push("punctuation");
-  if (result.numbers) labels.push("numbers");
+  if (result.mode === "words") labels.push(result.wordTarget === undefined ? "Target not recorded" : `${result.wordTarget} words`);
+  if (result.mode !== "quote" && result.mode !== "preset") {
+    if (result.capitalization) labels.push("caps");
+    if (result.punctuation) labels.push("punctuation");
+    if (result.numbers) labels.push("numbers");
+  }
   return labels;
 }

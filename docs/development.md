@@ -48,10 +48,20 @@ The first command only validates and prints the selected target. The second star
 - Error-sound selection has no active assets or consumer and is removed from frontend settings/persistence. Optional legacy backend fields remain accepted for existing rows and older clients.
 - The legacy leaderboard-cache table is retained for existing database rows, but no active code reads or writes it. Removing stored legacy rows is a separate maintenance operation.
 
-No backend deployment, data migration, cloud configuration change, or push is included in the local remediation work.
+Local fixture and verification commands do not deploy the backend, migrate data, change cloud configuration, or push Git commits. Live deployment and publishing are separate, explicitly authorized operations.
 
-## Releasing this branch
+## Releasing backend-dependent changes
 
-The visible solo, leaderboard, profile, and admin frontend routes remain compatible with the currently deployed Convex function arguments. Profile history accepts both the deployed raw-result response and the proposed projected response. The Today/Week leaderboard refreshes at UTC midnight by changing the supported `limit` argument; it never sends `periodStart`, which the deployed function rejects. The frontend rollout does not activate the Convex changes in this branch: unranked saves still follow the existing server's stats and award behavior, and admin sign-out cannot revoke a server session until the new function is deployed.
+Deploy the Convex changes **before publishing this frontend**. Solo completion now sends `completed: true` to `typingSessions.recordProgress`, and unranked Words saves send `wordTarget` to `testResults.saveResult`. A backend without these optional arguments can reject the updated client's saves. The new backend continues accepting older clients that omit them.
 
-This branch also changes multiplayer Convex functions. Keep that backend release separate while multiplayer remains inactive. A push to `main` may trigger only the Worker build; it does not deploy Convex. Before any later backend release, identify the intended deployment and coordinate client compatibility. The original checkout may still have a live Convex watcher; stop it before merging or copying backend files there unless the live backend release is authorized.
+A push to `main` may automatically build and publish the Cloudflare Worker, but that pipeline does **not** deploy Convex. Keep production Clerk and the existing cloud Convex **development** deployment; do not switch databases or use the raw `bun run convex:deploy` command to target it.
+
+Release order:
+
+1. Confirm the intended `dev:` deployment against the backend URL embedded in the live frontend. Check that no uncontrolled Convex watcher is running.
+2. With live backend deployment authorized, use the guarded wrapper with an explicit env file, matching `--expect`, `--allow-cloud`, and `--once`. This pushes schema/functions once and exits rather than leaving a watcher running.
+3. Confirm successful deployment and the updated function argument contracts before publishing the frontend.
+4. Commit only the intended changes and push to `main`; check GitHub checks and the Cloudflare build/deployment separately.
+5. After the frontend publishes, verify authenticated saving and Connect recovery against the intended backend.
+
+The added `typingSessions.completedAt` and `testResults.wordTarget` schema fields are optional, so existing records do not require a backfill for this release. Historical word targets that were not stored remain unknown. Previously incorrect scores or achievement state are not automatically rewritten; an achievement/stats replay is a separate authorized maintenance operation.

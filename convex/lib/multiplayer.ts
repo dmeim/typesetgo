@@ -8,6 +8,7 @@ export const emptyParticipantStats = () => ({
 
 export const ROOM_RETENTION_MS = 15 * 60_000;
 export const PRESENCE_TIMEOUT_MS = 75_000; // 45s heartbeat timeout plus 30s reconnect grace.
+export const REJOIN_RETENTION_MS = 30_000;
 
 export async function credentialHash(credential: string) {
   if (typeof credential !== "string" || !/^[a-f0-9]{64}$/.test(credential)) {
@@ -81,10 +82,10 @@ export async function finishRaceIfReady(ctx: MutationCtx, room: Doc<"rooms">) {
   return true;
 }
 
-export async function disconnectMember(ctx: MutationCtx, participant: Doc<"participants">) {
+export async function disconnectMember(ctx: MutationCtx, participant: Doc<"participants">, disconnectedAt = Date.now()) {
   if (!participant.isConnected) return;
   const now = Date.now();
-  await ctx.db.patch(participant._id, { isConnected: false, isReady: false, disconnectedAt: now });
+  await ctx.db.patch(participant._id, { isConnected: false, isReady: false, disconnectedAt });
   const room = await ctx.db.get(participant.roomId);
   if (!room) return;
   const members = await ctx.db.query("participants").withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
@@ -96,6 +97,24 @@ export async function disconnectMember(ctx: MutationCtx, participant: Doc<"parti
       ? { hostId: successor.sessionId, hostName: successor.name, hostCredentialHash: successor.credentialHash } : {}),
   });
   await finishRaceIfReady(ctx, room);
+}
+
+/** Reclaim only departed practice memberships after their reconnect reservation. */
+export async function reclaimPracticeMemberships(
+  ctx: MutationCtx,
+  room: Doc<"rooms">,
+  members: Doc<"participants">[],
+  now: number,
+) {
+  if ((room.gameMode ?? "practice") !== "practice") return 0;
+  let reclaimed = 0;
+  for (const member of members) {
+    const disconnectedAt = member.disconnectedAt ?? member.lastSeen + PRESENCE_TIMEOUT_MS;
+    if (member.isConnected || disconnectedAt > now - REJOIN_RETENTION_MS) continue;
+    await ctx.db.delete(member._id);
+    reclaimed++;
+  }
+  return reclaimed;
 }
 
 /** Persist the current race snapshot in the same transaction that ends the race. */

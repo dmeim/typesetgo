@@ -54,9 +54,10 @@ await withFixtureBrowser(async (browser) => {
       expect(await contrast(caption), `${themeId}/${mode} ${label} caption`).toBeGreaterThanOrEqual(4.5);
     }
     const typed = page.locator("[data-typing-word]").first().locator(":scope > span").first();
-    expect(await contrast(typed), `${themeId}/${mode} correct text`).toBeGreaterThanOrEqual(4.5);
+    // Input and theme hydration may commit after fill; measure the settled painted role.
+    await expect.poll(() => contrast(typed), { message: `${themeId}/${mode} correct text` }).toBeGreaterThanOrEqual(4.5);
     const untyped = page.locator("[data-typing-word]").nth(1).locator(":scope > span").first();
-    expect(await contrast(untyped), `${themeId}/${mode} untyped text`).toBeGreaterThanOrEqual(3);
+    await expect.poll(() => contrast(untyped), { message: `${themeId}/${mode} untyped text` }).toBeGreaterThanOrEqual(3);
     // Use the same measurement for the narrow, solid caret by treating its paint as ink.
     const caretRatio = await page.locator("[data-typing-caret]").evaluate(async (element) => {
       const { contrastRatio } = await import("/src/lib/colors.ts");

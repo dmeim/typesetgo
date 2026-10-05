@@ -84,6 +84,7 @@ interface AchievementCheckContext {
 function checkAchievements(ctx: AchievementCheckContext): string[] {
   const newAchievements: string[] = [];
   const { testResult } = ctx;
+  const generatedMode = ["time", "words", "zen"].includes(testResult.mode);
 
   // === SPEED ACHIEVEMENTS (WPM milestones) ===
   // Uses tier-based IDs: speed-copper-1, speed-silver-5, etc.
@@ -129,10 +130,10 @@ function checkAchievements(ctx: AchievementCheckContext): string[] {
     }
   }
 
-  if (testResult.punctuation) {
+  if (generatedMode && testResult.punctuation) {
     newAchievements.push("explorer-punctuation");
   }
-  if (testResult.numbers) {
+  if (generatedMode && testResult.numbers) {
     newAchievements.push("explorer-numbers");
   }
 
@@ -214,7 +215,7 @@ function checkAchievements(ctx: AchievementCheckContext): string[] {
 
   // === CHALLENGE MODE ACHIEVEMENTS ===
 
-  const isHard = testResult.difficulty === "hard";
+  const isHard = generatedMode && testResult.difficulty === "hard";
 
   if (isHard && testResult.punctuation) {
     newAchievements.push("challenge-hard-punctuation");
@@ -459,7 +460,7 @@ export function advanceAchievementState(state: AchievementState, result: Doc<"te
   state.dailyTests = state.dailyDate === date ? state.dailyTests + 1 : 1;
   state.dailyDate = date;
   if (["time", "words", "quote", "preset", "zen"].includes(result.mode) && !state.modes.includes(result.mode)) state.modes.push(result.mode);
-  if (["easy", "medium", "hard"].includes(result.difficulty) && !state.difficulties.includes(result.difficulty)) state.difficulties.push(result.difficulty);
+  if (["time", "words", "zen"].includes(result.mode) && ["easy", "medium", "hard"].includes(result.difficulty) && !state.difficulties.includes(result.difficulty)) state.difficulties.push(result.difficulty);
   if (calendar) {
     if (!state.daysCovered.includes(calendar.dayOfWeek)) state.daysCovered.push(calendar.dayOfWeek);
     if (calendar.dayOfWeek === 0 || calendar.dayOfWeek === 6) state.weekendTests++;

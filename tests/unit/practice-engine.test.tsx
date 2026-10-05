@@ -25,6 +25,7 @@ vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({ colors: theme.variants.d
   userSelectionRevision: mocks.userSelectionRevision, themeId: "typesetgo", variantId: "default", themeName: "TypeSetGo", mode: "dark",
   setTheme: mocks.setTheme, setThemeSelection: mocks.setThemeSelection }) }));
 vi.mock("@/lib/notification-store", () => ({ useNotifications: () => ({ addNotification: vi.fn() }) }));
+vi.mock("@/hooks/useAnimatedCounter", () => ({ useAnimatedCounter: (value: number) => value }));
 vi.mock("@/lib/words", () => ({ fetchWords: (...args: unknown[]) => mocks.words(...args),
   fetchWordsManifest: async () => ({ difficulties: ["beginner", "expert"], default: "beginner" }) }));
 vi.mock("@/lib/quotes", () => ({ fetchQuotes: (...args: unknown[]) => mocks.quotes(...args),
@@ -63,7 +64,8 @@ beforeEach(() => {
   for (const name of ["users:getOrCreateUser", "typingSessions:startSession", "typingSessions:recordProgress", "typingSessions:cancelSession", "preferences:savePreferences"]) {
     mocks.mutations[name] = vi.fn(async () => ({}));
   }
-  mocks.mutations["typingSessions:finalizeSession"] = vi.fn(async () => ({ isValid: true, newAchievements: [] }));
+  mocks.mutations["typingSessions:recordProgress"].mockResolvedValue({ success: true });
+  mocks.mutations["typingSessions:finalizeSession"] = vi.fn(async () => ({ wpm: 40, accuracy: 100, duration: 30000, isValid: true, newAchievements: [] }));
   mocks.mutations["testResults:saveResult"] = vi.fn(async () => ({ newAchievements: [] }));
   vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }));
   vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
@@ -360,6 +362,7 @@ describe("preference hydration and Connect boundaries", () => {
     fireEvent.click(screen.getByRole("button", { name: "Repeat Test" }));
     expect(promptWords(container)).toBe(originalPrompt);
     fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: originalPrompt + " " } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
     await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
   });
@@ -423,6 +426,55 @@ describe("preference hydration and Connect boundaries", () => {
   });
 });
 
+describe("Connect attempt recovery", () => {
+  it("restores input, prompt, and elapsed milliseconds before reporting any progress", async () => {
+    const onStatsUpdate = vi.fn();
+    mocks.words.mockImplementation(() => new Promise(() => {}));
+    const initialAttempt = { typedText: "cat ", targetText: "cat dog bird", elapsedMs: 12000, isFinished: false };
+    const { container, rerender } = render(<TypingPractice connectMode lockedSettings={{ mode: "words" }} initialAttempt={initialAttempt} onStatsUpdate={onStatsUpdate} />);
+    expect(promptWords(container)).toBe("cat dog bird");
+    expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("cat ");
+    await waitFor(() => expect(onStatsUpdate).toHaveBeenCalled());
+    expect(onStatsUpdate.mock.calls.every(([stats, input, prompt]) => stats.timeElapsed >= 12000 && input === "cat " && prompt === "cat dog bird")).toBe(true);
+    rerender(<TypingPractice connectMode lockedSettings={{ mode: "words" }} initialAttempt={{ ...initialAttempt, typedText: "different input" }} onStatsUpdate={onStatsUpdate} />);
+    expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("cat ");
+  });
+
+  it("restores completed results without sending an empty or unfinished attempt", async () => {
+    const onStatsUpdate = vi.fn();
+    render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat dog" }}
+      initialAttempt={{ typedText: "cat dog", targetText: "cat dog", elapsedMs: 30000, isFinished: true }} onStatsUpdate={onStatsUpdate} />);
+    expect(screen.getByRole("region", { name: "Test results" })).toBeInTheDocument();
+    await waitFor(() => expect(onStatsUpdate).toHaveBeenCalled());
+    expect(onStatsUpdate.mock.calls.every(([stats, input]) => stats.isFinished && stats.timeElapsed === 30000 && input === "cat dog")).toBe(true);
+    expect(mocks.mutations["typingSessions:startSession"]).not.toHaveBeenCalled();
+  });
+
+  it("freezes the exact elapsed value before emitting the first completed snapshot", async () => {
+    let now = 1000;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    try {
+      const onStatsUpdate = vi.fn();
+      render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat dog" }} onStatsUpdate={onStatsUpdate} />);
+      const input = screen.getByRole("textbox", { name: "Typing practice" });
+      fireEvent.change(input, { target: { value: "cat " } });
+      now = 1250;
+      fireEvent.change(input, { target: { value: "cat dog" } });
+      const finals = onStatsUpdate.mock.calls.filter(([stats]) => stats.isFinished);
+      expect(finals.length).toBeGreaterThan(0);
+      expect(finals.every(([stats]) => stats.timeElapsed === 250)).toBe(true);
+    } finally { clock.mockRestore(); }
+  });
+
+  it("reports actual submitted words rather than five-character speed units", async () => {
+    const onStatsUpdate = vi.fn();
+    const { container } = render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "antidisestablishmentarianism cat dog" }} onStatsUpdate={onStatsUpdate} />);
+    await waitFor(() => expect(promptWords(container)).not.toBe(""));
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "antidisestablishmentarianism " } });
+    expect(onStatsUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ wordsTyped: 1, isFinished: false }), "antidisestablishmentarianism ", "antidisestablishmentarianism cat dog");
+  });
+});
+
 describe("Connect account independence", () => {
   it.each([null, { id: "second-account" }])("keeps participant progress when the Clerk account changes to %j", async (nextUser) => {
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "first-account" };
@@ -438,6 +490,83 @@ describe("Connect account independence", () => {
     expect(onStatsUpdate.mock.calls.slice(reportsBeforeChange).every((call) => call[1] === "cat ")).toBe(true);
     expect(mocks.mutations["typingSessions:startSession"]).not.toHaveBeenCalled();
     expect(mocks.mutations["testResults:saveResult"]).not.toHaveBeenCalled();
+  });
+});
+
+describe("saving completion barriers", () => {
+  it("blocks Next, Repeat, and Enter until completion is recorded and finalized", async () => {
+    setLocal({ mode: "quote", quoteLength: "short" });
+    mocks.auth.user = { id: "signed-in" }; mocks.auth.isSignedIn = true; mocks.preferences = null;
+    mocks.mutations["typingSessions:startSession"].mockResolvedValue({ sessionId: "completed-session", targetText: "cat dog" });
+    const completion = deferred<{ success: boolean }>();
+    mocks.mutations["typingSessions:recordProgress"].mockImplementation(({ completed }: { completed?: boolean }) => completed ? completion.promise : Promise.resolve({ success: true }));
+    const { container } = render(<TypingPractice />);
+    await waitFor(() => expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat dog" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Saving..." })).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Next Test/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Repeat Test/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Repeat Test/ }));
+    fireEvent.keyDown(screen.getByRole("region", { name: "Test results" }), { key: "Enter" });
+    expect(mocks.mutations["typingSessions:cancelSession"]).not.toHaveBeenCalled();
+    expect(mocks.mutations["typingSessions:finalizeSession"]).not.toHaveBeenCalled();
+    await act(async () => completion.resolve({ success: true }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument());
+    expect(mocks.mutations["typingSessions:finalizeSession"]).toHaveBeenCalledWith(expect.objectContaining({ sessionId: "completed-session", typedText: "cat dog" }));
+    fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+    expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("");
+    expect(promptWords(container)).toBe("cat dog");
+  });
+
+  it("uses authoritative WPM, accuracy, and duration after a ranked save", async () => {
+    setLocal({ mode: "quote", quoteLength: "short" });
+    mocks.auth.user = { id: "signed-in" }; mocks.auth.isSignedIn = true; mocks.preferences = null;
+    mocks.mutations["typingSessions:startSession"].mockResolvedValue({ sessionId: "scored-session", targetText: "cat dog" });
+    mocks.mutations["typingSessions:finalizeSession"].mockResolvedValue({ wpm: 40, accuracy: 95, duration: 32000, isValid: true, newAchievements: [] });
+    const { container } = render(<TypingPractice />);
+    await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+    await waitFor(() => expect(mocks.mutations["typingSessions:startSession"]).toHaveBeenCalled());
+    await act(async () => {});
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat dog" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument());
+    expect(screen.getByText("40", { exact: true })).toBeInTheDocument();
+    expect(screen.getByText("95", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Duration: 32.0s")).toBeInTheDocument();
+    expect(mocks.mutations["typingSessions:recordProgress"]).toHaveBeenCalledWith({ sessionId: "scored-session", typedLength: 7, completed: true });
+  });
+});
+
+describe("reachable custom text and room palettes", () => {
+  it("opens Preset from the picker and lets users replace existing text", async () => {
+    setLocal();
+    const { container } = render(<TypingPractice />);
+    await waitFor(() => expect(promptWords(container)).not.toBe(""));
+    fireEvent.click(screen.getByRole("radio", { name: "preset", exact: true }));
+    const customInput = await screen.findByRole("textbox", { name: "Practice text" });
+    fireEvent.change(customInput, { target: { value: "my custom prompt" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start", exact: true }));
+    await waitFor(() => expect(promptWords(container)).toBe("my custom prompt"));
+    fireEvent.click(screen.getByRole("button", { name: "Edit custom text" }));
+    expect(screen.getByRole("textbox", { name: "Practice text" })).toHaveValue("my custom prompt");
+    fireEvent.change(screen.getByRole("textbox", { name: "Practice text" }), { target: { value: "replacement prompt" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start", exact: true }));
+    await waitFor(() => expect(promptWords(container)).toBe("replacement prompt"));
+  });
+
+  it("scopes room colors without modifying personal theme storage or root styles", async () => {
+    const roomTheme = { cursor: "#ffff00", ghostCursor: "#00ffff", defaultText: "#ff00ff", upcomingText: "#ff00ff", correctText: "#ffffff", incorrectText: "#ff0000", backgroundColor: "#000000", surfaceColor: "#111111", buttonUnselected: "#ffff00", buttonSelected: "#00ffff" };
+    const rootStyle = document.documentElement.style.cssText;
+    const { container } = render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat dog", theme: roomTheme }} />);
+    await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
+    const scope = container.firstElementChild as HTMLElement;
+    expect(scope.style.getPropertyValue("--background")).toBe("#000000");
+    expect(scope.style.getPropertyValue("--theme-typing-default")).toBe("#ff00ff");
+    expect(scope.style.getPropertyValue("--theme-typing-cursor")).toBe("#ffff00");
+    expect(document.documentElement.style.cssText).toBe(rootStyle);
+    expect(mocks.setThemeSelection).not.toHaveBeenCalled();
+    expect(localStorage.getItem("typesetgo_theme")).toBeNull();
   });
 });
 
@@ -461,7 +590,7 @@ describe("attempt boundaries during deferred saving", () => {
     await waitFor(() => expect(mocks.mutations[transition === "repeat" ? "testResults:saveResult" : "typingSessions:finalizeSession"]).toHaveBeenCalledTimes(1));
   });
 
-  it("keeps an in-flight save for A from marking B saved", async () => {
+  it("keeps an in-flight unranked save attached to its completed attempt until saved", async () => {
     setLocal({ mode: "quote", quoteLength: "short" });
     const { container, rerender } = render(<TypingPractice />);
     await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
@@ -472,8 +601,12 @@ describe("attempt boundaries during deferred saving", () => {
     mocks.auth.user = { id: "signed-in" }; mocks.auth.isSignedIn = true; mocks.preferences = null;
     rerender(<TypingPractice />);
     await waitFor(() => expect(mocks.mutations["testResults:saveResult"]).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: /Next Test/ })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
+    expect(screen.getByRole("region", { name: "Test results" })).toBeInTheDocument();
     await act(async () => saving.resolve({ newAchievements: [] }));
+    expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Next Test/ }));
     expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveValue("");
     expect(screen.queryByText("Saved")).not.toBeInTheDocument();
   });

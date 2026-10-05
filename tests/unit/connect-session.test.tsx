@@ -12,6 +12,14 @@ import { getFunctionName } from "convex/server";
 import Join from "@/pages/Join";
 import type { SettingsState } from "@/lib/typing-constants";
 
+type ParticipantFixture = {
+  _id: string;
+  isConnected: boolean;
+  resetVersion: number;
+  typedText?: string;
+  targetText?: string;
+  stats?: { timeElapsed: number; isFinished: boolean };
+};
 const state = vi.hoisted(() => ({
   room: {
     _id: "room",
@@ -19,10 +27,8 @@ const state = vi.hoisted(() => ({
     runVersion: 1,
     settings: { mode: "time", duration: 30 } as Partial<SettingsState>,
   },
-  participant: { _id: "p1", isConnected: true, resetVersion: 0 },
-  participants: null as
-    | { _id: string; isConnected: boolean; resetVersion: number }[]
-    | null,
+  participant: { _id: "p1", isConnected: true, resetVersion: 0 } as ParticipantFixture,
+  participants: null as ParticipantFixture[] | null,
   join: vi.fn(),
   update: vi.fn(),
   disconnect: vi.fn(),
@@ -35,7 +41,7 @@ const state = vi.hoisted(() => ({
       typedText?: string,
       targetText?: string,
     ) => void;
-    onLeave: () => void;
+    initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean };
   },
 }));
 vi.mock("@/hooks/useSessionId", () => ({ useSessionId: () => "fixture" }));
@@ -64,8 +70,7 @@ vi.mock("@/components/typing/TypingPractice", async () => {
       }, []);
       return (
         <>
-          <input aria-label="Practice input" defaultValue="" />
-          <button onClick={props.onLeave}>Leave room</button>
+          <input aria-label="Practice input" defaultValue={props.initialAttempt?.typedText ?? ""} />
         </>
       );
     },
@@ -107,6 +112,41 @@ afterEach(() => {
 });
 
 describe("participant session lifecycle", () => {
+  it.each([false, true])("restores a saved attempt on joining (finished: %s) without applying query updates to the live input", async (isFinished) => {
+    state.participant = { ...state.participant, typedText: "cat", targetText: "cat dog",
+      stats: { timeElapsed: 12500, isFinished } };
+    const view = render(<View />);
+    expect(await screen.findByLabelText("Practice input")).toHaveValue("cat");
+    expect(state.props.initialAttempt).toEqual({ typedText: "cat", targetText: "cat dog", elapsedMs: 12500, isFinished });
+    fireEvent.change(screen.getByLabelText("Practice input"), { target: { value: "cat d" } });
+    state.participant = { ...state.participant, typedText: "ca" };
+    view.rerender(<View />);
+    expect(state.mount).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Practice input")).toHaveValue("cat d");
+    state.participant = { ...state.participant, resetVersion: 1, typedText: undefined, targetText: undefined };
+    view.rerender(<View />);
+    expect(state.props.initialAttempt).toBeUndefined();
+    expect(screen.getByLabelText("Practice input")).toHaveValue("");
+  });
+
+  it("does not restore saved typing without its target text", async () => {
+    state.participant = { ...state.participant, typedText: "old", stats: { timeElapsed: 10, isFinished: true } };
+    render(<View />);
+    expect(await screen.findByLabelText("Practice input")).toHaveValue("");
+    expect(state.props.initialAttempt).toBeUndefined();
+  });
+
+  it.each(["waiting", "active"])("offers Leave independently of results while %s", async (status) => {
+    state.room = { ...state.room, status };
+    state.disconnect.mockRejectedValueOnce(new Error("offline"));
+    render(<View />);
+    await screen.findByLabelText("Practice input");
+    fireEvent.click(screen.getByRole("button", { name: "Leave room" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to leave");
+    expect(screen.getAllByRole("button", { name: "Leave room" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Leave room" }));
+    await waitFor(() => expect(state.disconnect).toHaveBeenCalledTimes(2));
+  });
   it("waits for joined membership to reach the query, then recovers when that participant is removed", async () => {
     state.participants = [];
     const view = render(<View />);

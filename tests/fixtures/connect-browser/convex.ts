@@ -45,14 +45,27 @@ export const fixture = {
     resetVersion: 0,
     joinedAt: index,
     stats: { ...stats, wpm: 65 + index },
+    typedText: undefined as string | undefined,
+    targetText: undefined as string | undefined,
   })),
   requests: [] as { name: string; args: Record<string, unknown> }[],
+  resetAttempt(participantId?: string) {
+    for (const participant of this.participants) {
+      if (!participantId || participant._id === participantId) resetAttempt(participant);
+    }
+  },
   emit() {
     sessionStorage.setItem("connect-browser-state", JSON.stringify({ room: this.room, participants: this.participants, requests: this.requests }));
     revision++;
     listeners.forEach((listener) => listener());
   },
 };
+function resetAttempt(participant: typeof fixture.participants[number]) {
+  participant.stats = { wpm: 0, accuracy: 0, progress: 0, wordsTyped: 0, timeElapsed: 0, isFinished: false };
+  participant.typedText = undefined;
+  participant.targetText = undefined;
+}
+
 const restored = sessionStorage.getItem("connect-browser-state");
 if (restored) Object.assign(fixture, JSON.parse(restored));
 const mutationCache = new Map<
@@ -74,8 +87,12 @@ export function useMutation(reference: Parameters<typeof getFunctionName>[0]) {
         fixture.emit();
         return { code: fixture.room.code, roomId: fixture.room._id };
       }
-      if (name === "participants:join")
+      if (name === "participants:join") {
+        fixture.participants[0].isConnected = true;
+        fixture.participants[0].name = String(args.name);
+        fixture.emit();
         return { participantId: "participant-0" };
+      }
       if (name === "rooms:updateSettings")
         fixture.room.settings = {
           ...fixture.room.settings,
@@ -83,15 +100,30 @@ export function useMutation(reference: Parameters<typeof getFunctionName>[0]) {
         };
       if (name === "rooms:setStatus") {
         fixture.room.status = String(args.status);
-        if (args.status === "active") fixture.room.runVersion++;
+        if (args.status === "active") {
+          fixture.room.runVersion++;
+          for (const participant of fixture.participants) resetAttempt(participant);
+        }
       }
       if (name === "rooms:resetPractice") {
         fixture.room.status = "waiting";
         fixture.room.runVersion++;
+        for (const participant of fixture.participants) resetAttempt(participant);
       }
-      if (name === "participants:resetStats")
-        fixture.participants.find((item) => item._id === args.participantId)!
-          .resetVersion++;
+      if (name === "participants:resetStats") {
+        const participant = fixture.participants.find((item) => item._id === args.participantId)!;
+        participant.resetVersion++;
+        resetAttempt(participant);
+      }
+      if (name === "participants:updateStats") {
+        const participant = fixture.participants.find((item) => item._id === args.participantId)!;
+        if (fixture.room.status === "active" && participant.isConnected && !participant.stats.isFinished &&
+          args.runVersion === fixture.room.runVersion && args.resetVersion === participant.resetVersion) {
+          participant.stats = { ...(args.stats as typeof stats) };
+          participant.typedText = args.typedText as string | undefined;
+          participant.targetText = args.targetText as string | undefined;
+        }
+      }
       if (name === "participants:kick")
         fixture.participants = fixture.participants.filter(
           (item) => item._id !== args.participantId,

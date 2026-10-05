@@ -115,6 +115,21 @@ function configurationProps() {
 }
 
 describe("practice presentation command boundaries", () => {
+  it.each(["desktop", "compact"])("%s exposes Preset and a custom-text edit action", (variant) => {
+    const props = { ...configurationProps(), settings: { ...settings, mode: "preset" as const }, openPresetInput: vi.fn() };
+    if (variant === "desktop") {
+      render(<PracticeControls {...props} connectMode={false} isRunning={false} isFinished={false}
+        isCompactMode={false} uiOpacity={1} setShowQuickSettings={vi.fn()} />);
+    } else {
+      render(<PracticeQuickSettingsDialog {...props} showQuickSettings setShowQuickSettings={vi.fn()}
+        linePreview={3} setLinePreview={vi.fn()} maxWordsPerLine={7} setMaxWordsPerLine={vi.fn()} />);
+    }
+    fireEvent.click(screen.getByRole("radio", { name: "preset", exact: true }));
+    expect(props.handleModeSelect).toHaveBeenCalledWith("preset");
+    fireEvent.click(screen.getByRole("button", { name: "Edit custom text" }));
+    expect(props.openPresetInput).toHaveBeenCalledTimes(1);
+  });
+
   it.each(["desktop", "compact"])("%s count controls distinguish selecting a count from repeating it", (variant) => {
     const props = configurationProps();
     if (variant === "desktop") {

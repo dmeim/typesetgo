@@ -1,4 +1,4 @@
-import { AtIcon, HashIcon, InfinityIcon, SlidersHorizontalIcon, TextAaIcon } from "@phosphor-icons/react";
+import { AtIcon, HashIcon, InfinityIcon, PencilSimpleIcon, SlidersHorizontalIcon, TextAaIcon } from "@phosphor-icons/react";
 import { Toggle } from "@/components/ui/toggle";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -17,6 +17,7 @@ export interface PracticeConfigurationProps {
   wordsManifest: WordsManifest | null;
   quotesManifest: QuotesManifest | null;
   openCustomCountModal: () => void;
+  openPresetInput?: () => void;
   isCustomDurationSelected: boolean;
   isCustomWordTargetSelected: boolean;
 }
@@ -39,6 +40,7 @@ export default function PracticeControls({
   wordsManifest,
   quotesManifest,
   openCustomCountModal,
+  openPresetInput,
   isCustomDurationSelected,
   isCustomWordTargetSelected,
   connectMode,
@@ -121,8 +123,8 @@ export default function PracticeControls({
                       style={{
                         color: settings.capitalization ? tv.ui.primary : undefined,
                       }}
-                      disabled={settings.mode === "quote"}
-                      title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle capitalization"}
+                      disabled={settings.mode === "quote" || settings.mode === "preset"}
+                      title={settings.mode === "quote" || settings.mode === "preset" ? "Not available for quotes or custom text" : "Toggle capitalization"}
                     >
                       <TextAaIcon className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>caps</span>
@@ -135,8 +137,8 @@ export default function PracticeControls({
                       style={{
                         color: settings.punctuation ? tv.ui.primary : undefined,
                       }}
-                      disabled={settings.mode === "quote"}
-                      title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle punctuation"}
+                      disabled={settings.mode === "quote" || settings.mode === "preset"}
+                      title={settings.mode === "quote" || settings.mode === "preset" ? "Not available for quotes or custom text" : "Toggle punctuation"}
                     >
                       <AtIcon className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>punctuation</span>
@@ -149,8 +151,8 @@ export default function PracticeControls({
                       style={{
                         color: settings.numbers ? tv.ui.primary : undefined,
                       }}
-                      disabled={settings.mode === "quote"}
-                      title={settings.mode === "quote" ? "Not available in quote mode" : "Toggle numbers"}
+                      disabled={settings.mode === "quote" || settings.mode === "preset"}
+                      title={settings.mode === "quote" || settings.mode === "preset" ? "Not available for quotes or custom text" : "Toggle numbers"}
                     >
                       <HashIcon className="size-4 shrink-0" aria-hidden="true" />
                       <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>numbers</span>
@@ -284,6 +286,13 @@ export default function PracticeControls({
                 </>
               )}
 
+              {settings.mode === "preset" && openPresetInput && (
+                <Button type="button" variant="ghost" onClick={openPresetInput}>
+                  <PencilSimpleIcon className="size-4 shrink-0" aria-hidden="true" />
+                  Edit custom text
+                </Button>
+              )}
+
               {/* Zen mode - show infinity symbol */}
               {settings.mode === "zen" && (
                 <>
@@ -297,7 +306,7 @@ export default function PracticeControls({
               )}
 
               {/* Difficulty (shown for time, words, zen modes) */}
-              {settings.mode !== "quote" && wordsManifest && (
+              {settings.mode !== "quote" && settings.mode !== "preset" && wordsManifest && (
                 <>
                   <div className="w-px h-4 bg-muted"></div>
                   <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>

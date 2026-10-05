@@ -48,7 +48,11 @@ await withFixtureBrowser(async browser => {
   const final = await p.evaluate(() => window.__mutations.find(x => x.name === "typingSessions:finalizeSession"));
   expect(final.args.sessionId).toMatch(/^fixture-session-/);
   expect(final.args.typedText).toBe(Array(10).fill("dog").join(" ") + " ");
-  console.log("Ranked adoption and exact finalization PASS");
+  await expect(p.getByRole("button", { name: "Saved", exact: true })).toBeVisible();
+  await expect(p.getByRole("region", { name: "Test results" }).getByText("40", { exact: true })).toBeVisible();
+  await expect(p.getByText("Duration: 3.0s", { exact: true })).toBeVisible();
+  expect(await p.evaluate(() => window.__mutations.some(x => x.name === "typingSessions:recordProgress" && x.args.completed === true))).toBe(true);
+  console.log("Ranked adoption, completion barrier, and authoritative saved metrics PASS");
   const count = await p.evaluate(() => window.__mutations.filter(x => x.name === "typingSessions:startSession").length);
   await p.getByRole("button", {
     name: "Repeat Test",

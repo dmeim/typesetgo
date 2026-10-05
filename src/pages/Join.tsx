@@ -159,19 +159,26 @@ function JoinRoomContent({ code, name }: { code: string; name: string }) {
             <XIcon className="size-4 shrink-0" aria-hidden="true" />
             Dismiss
           </RoomButton>}
-          <RoomButton onClick={handleLeave} disabled={leaving}>
-            <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />
-            Leave room
-          </RoomButton>
         </div>
       )}
+      <div className="flex justify-end px-4 py-2">
+        <RoomButton onClick={handleLeave} disabled={leaving}>
+          {leaving ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />}
+          {leaving ? "Leaving…" : "Leave room"}
+        </RoomButton>
+      </div>
       <TypingPractice
         key={sessionKey}
         connectMode
         lockedSettings={lockedSettings}
         isTestActive={active}
+        initialAttempt={participant.targetText ? {
+          typedText: participant.typedText ?? "",
+          targetText: participant.targetText,
+          elapsedMs: participant.stats.timeElapsed,
+          isFinished: participant.stats.isFinished,
+        } : undefined}
         onStatsUpdate={handleStatsUpdate}
-        onLeave={handleLeave}
       />
     </>
   );

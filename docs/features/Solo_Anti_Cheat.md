@@ -2,7 +2,7 @@
 
 Solo-home integrity for TypeSetGo. This does **not** cover Connect, Race, or classroom.
 
-Deployment note: this page describes the checked-in Convex source. Until those functions are deployed, the existing backend still counts valid unranked saves in statistics and eligible achievements, and admin sessions are not bound to a Clerk identity. The visible frontend uses the deployed API and avoids claiming those server-side changes are active.
+Deployment order: publish the matching Convex schema/functions before the frontend. The updated client requires the optional `completed` progress argument and `wordTarget` save argument; a frontend-only rollout against older validators can reject saves. Cloudflare publishing does not deploy Convex. See [backend-dependent release order](../development.md#releasing-backend-dependent-changes).
 
 ## Ranked vs valid
 
@@ -15,16 +15,22 @@ Deployment note: this page describes the checked-in Convex source. Until those f
 
 ## Ranked path
 
-Use `api.typingSessions.startSession` / `recordProgress` / `finalizeSession`. Heartbeats are fire-and-forget; `startSession` should be awaited when you need the server prompt.
+Use `api.typingSessions.startSession` / `recordProgress` / `finalizeSession`. Ordinary heartbeats are fire-and-forget; await `startSession` for the server prompt and await the completion heartbeat before finalization.
 
 | Function | Notes |
 |---|---|
-| `startSession` | `ctx.auth` required. Time/words: client `targetText` is ignored; server generates the prompt. Quote/preset: pass `targetText` (locked at start). Duration is at most 3,600 seconds, word target at most 9,999, and supplied text at most 10,000 characters. `startedAt` is set on first `recordProgress`. |
-| `recordProgress` | `{ sessionId, typedLength }`. Send on the first two keystrokes; for timed tests over ten minutes, subsequent reports are batched to two seconds or 50 characters, with large input jumps reported immediately. Finalization sends the exact typed length. Burst is time-scaled at 25 cps. |
-| `finalizeSession` | Stats vs `session.targetText`. Ranked WPM from **server elapsed**. Invalidates if `typedText.length` jumps past last heartbeat beyond 25 cps + a small floor. Invalid tests skip streaks, achievements, stats-cache PB, and leaderboard. |
+| `startSession` | `ctx.auth` required. Every call creates an independent attempt; it never reuses or deletes another tab's session. Time/words: client `targetText` is ignored; server generates the prompt. Quote/preset: pass `targetText` (locked at start). Duration is at most 3,600 seconds, word target at most 9,999, and supplied text at most 10,000 characters. `startedAt` is set on first `recordProgress`. |
+| `recordProgress` | `{ sessionId, typedLength, completed? }`. Send on the first two keystrokes; for timed tests over ten minutes, subsequent reports are batched to two seconds or 50 characters, with large input jumps reported immediately. At finish, await a report with the exact final length and `completed: true`, then finalize. It freezes the length and server-owned `completedAt`. Ordinary Time reports arriving after the server deadline return `{ success: false }`; the completion report still accepts a bounded in-flight tail. Identical completed retries return `{ success: true }` without changing timing; other post-completion reports return `{ success: false }`. Burst is time-scaled at 25 cps. |
+| `finalizeSession` | Stats vs `session.targetText`. Ranked WPM from **server elapsed through completion**, never client elapsed or save/retry delay. Time-mode completion stops at `startedAt + duration` once that deadline has elapsed; early completion remains early and is validated. Other modes use the completion report's server timestamp. A different final length after completion is invalid. Completion/final jumps allow at most two seconds of 25 cps plus a 12-character floor, so waiting to save cannot authorize a large paste. Invalid tests skip streaks, achievements, stats-cache PB, and leaderboard. |
 | `saveResult` | History only when no server-owned session exists. The server validates metric bounds, marks the row unverified, and does not count it toward progress. Guests must sign in. |
 
+Old clients without `completed` remain supported: non-time duration ends at the last server heartbeat, and Time duration is capped at the server deadline. `clientElapsedMs` is accepted for compatibility but never trusted for ranked duration. Old clients should report the exact final length; unreported final jumps still receive the bounded allowance, not unlimited save latency. Finalization consumes/deletes the session after saving; completion reporting is idempotent, but successful finalization itself is not a repeatable write.
+
+Words results store configured `wordTarget` separately from `wordCount` (gross five-character WPM units used by existing stats). Profile history labels the configured target when recorded; legacy target size is unknown rather than inferred from WPM units.
+
 ## Achievements
+
+Generated difficulty and punctuation/numbers challenge/explorer achievements apply only to generated-text modes (Time, Words, and eligible historical Zen results). Quote/Preset results normalize punctuation, numbers, and capitalization to false; the evaluator also ignores generated settings on historical Quote/Preset rows and unsupported modes, including difficulty exploration. Ordinary mode exploration and otherwise eligible activity/speed achievements are unaffected. Zen/kid are not accepted by the ranked `startSession` endpoint.
 
 Invalid tests award nothing. `qualifiesForAchievement` (90% + 30s or 50 wordsCorrect) applies to **non-exempt** IDs only. Exempt first-test, explorer, quirky, night-owl, endurance, and time-based badges can still award on a valid short or messy test.
 

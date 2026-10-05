@@ -240,9 +240,10 @@ describe("profile detail dialogs", () => {
     fireEvent.click(row);
     const dialog = screen.getByRole("dialog", { name: "Test details" });
     expect(within(dialog).getByText(label)).toBeInTheDocument();
-    expect(within(dialog).getByText("caps")).toBeInTheDocument();
-    expect(within(dialog).getByText("punctuation")).toBeInTheDocument();
-    expect(within(dialog).getByText("numbers")).toBeInTheDocument();
+    for (const modifier of ["caps", "punctuation", "numbers"]) {
+      if (mode === "quote" || mode === "preset") expect(within(dialog).queryByText(modifier)).not.toBeInTheDocument();
+      else expect(within(dialog).getByText(modifier)).toBeInTheDocument();
+    }
     expect(within(dialog).getByText(/Invalid test. Excluded from lifetime statistics and charts. Recorded invalid reason/)).toBeInTheDocument();
   });
 

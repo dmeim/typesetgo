@@ -45,5 +45,5 @@ export function usePracticeClock(running: boolean, initialElapsedMs = 0) {
     const interval = setInterval(clock.publish, 100);
     return () => { clearInterval(interval); clock.pause(); };
   }, [clock, running]);
-  return { elapsedMs, readElapsed: clock.read, resetClock: clock.reset };
+  return { elapsedMs, readElapsed: clock.read, pauseClock: clock.pause, resetClock: clock.reset };
 }

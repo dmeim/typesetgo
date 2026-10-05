@@ -1,7 +1,7 @@
 // convex/participants.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { acceptsAttempt, checkParticipant, checkRoomHost, compareRaceFinish, credentialHash, disconnectMember, publicParticipant, publicRoom, requireLiveRoom, resetParticipantAttempt, validateParticipantStats } from "./lib/multiplayer";
+import { acceptsAttempt, checkParticipant, checkRoomHost, compareRaceFinish, credentialHash, disconnectMember, publicParticipant, publicRoom, requireLiveRoom, resetParticipantAttempt, validateParticipantStats, PRESENCE_TIMEOUT_MS, REJOIN_RETENTION_MS, reclaimPracticeMemberships } from "./lib/multiplayer";
 
 const statsValidator = v.object({
   wpm: v.number(), accuracy: v.number(), progress: v.number(),
@@ -55,16 +55,15 @@ export const join = mutation({
     if (existing && existing.roomId === room._id) {
       await checkParticipant(ctx, existing, args.credential);
       const now = Date.now();
-      // Check if within rejoin window (30 seconds)
-      const rejoinWindow = 30 * 1000;
       const canRejoin =
-        !existing.disconnectedAt ||
-        now - existing.disconnectedAt < rejoinWindow;
+        existing.disconnectedAt === undefined ||
+        now - existing.disconnectedAt < REJOIN_RETENTION_MS;
 
       if (room.gameMode === "race" && room.status === "active" && !canRejoin) {
         throw new Error("The rejoin window has ended. Join the next race.");
       }
       await ctx.db.patch(existing._id, {
+        name,
         isConnected: true,
         lastSeen: now,
         disconnectedAt: undefined,
@@ -84,7 +83,22 @@ export const join = mutation({
       throw new Error("This race has already started. Join the next race.");
     }
 
-    if (members.length >= 64) throw new Error("This room is full");
+    if (members.length >= 64) {
+      if ((room.gameMode ?? "practice") === "practice") {
+        // Run the same presence transition here rather than waiting for the cron.
+        for (const member of members) {
+          if (member.isConnected && member.lastSeen < now - PRESENCE_TIMEOUT_MS) {
+            await disconnectMember(ctx, member, member.lastSeen + PRESENCE_TIMEOUT_MS);
+          }
+        }
+        const current = await ctx.db.query("participants")
+          .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
+        const reclaimed = await reclaimPracticeMemberships(ctx, room, current, now);
+        if (current.length - reclaimed >= 64) throw new Error("This room is full");
+      } else {
+        throw new Error("This room is full");
+      }
+    }
     const participantId = await ctx.db.insert("participants", {
       roomId: room._id,
       sessionId: args.sessionId,
@@ -136,6 +150,8 @@ export const updateStats = mutation({
     if (!participant) return;
     const room = await ctx.db.get(participant.roomId);
     if (room?.gameMode === "race" || !acceptsAttempt(room, participant, args)) return;
+    // A finished attempt is immutable until an explicit host reset/new run.
+    if (participant.stats.isFinished) return;
     validateParticipantStats(args.stats);
     await ctx.db.patch(args.participantId, {
       stats: args.stats,
@@ -177,6 +193,9 @@ export const resetStats = mutation({
     if (!participant) throw new Error("Participant not found");
     const room = await ctx.db.get(participant.roomId);
     if (!room) throw new Error("Room not found");
+    if (room.gameMode !== "race" && participant.stats.isFinished) {
+      await checkRoomHost(room, args.credential);
+    }
     if (room.gameMode === "race" && (room.raceEndTime !== undefined || participant.finishTime !== undefined)) {
       throw new Error("A completed race attempt cannot be restarted");
     }
