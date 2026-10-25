@@ -9,6 +9,7 @@ import {
   CONNECT_NAME_MAX,
   CONNECT_ROOM_NAME_MAX,
   emptyConnectStats,
+  isBreakTest,
   validateConnectTest,
   type ConnectResult,
   type ConnectStats,
@@ -21,7 +22,7 @@ export const CONNECT_PARTICIPANT_BATCH = 200;
 
 export const connectTestValidator = v.object({
   id: v.string(),
-  mode: v.union(v.literal("time"), v.literal("words"), v.literal("quote"), v.literal("preset")),
+  mode: v.union(v.literal("time"), v.literal("words"), v.literal("quote"), v.literal("preset"), v.literal("break")),
   duration: v.number(),
   wordTarget: v.number(),
   difficulty: v.union(v.literal("beginner"), v.literal("easy"), v.literal("medium"), v.literal("hard"), v.literal("expert")),
@@ -168,7 +169,7 @@ export function participantRoom(room: Room) {
   return {
     _id: room._id, code: room.code, name: room.name, hostName: room.hostName, status: room.status,
     pacing: room.pacing, currentIndex: room.currentIndex, runVersion: room.runVersion,
-    tests: room.tests, overrides: room.overrides,
+    tests: room.tests, overrides: room.overrides, stepStartedAt: room.stepStartedAt, pausedAt: room.pausedAt,
   };
 }
 
@@ -177,14 +178,15 @@ export function participantSelf(participant: Participant) {
     _id: participant._id, name: participant.name, isConnected: participant.isConnected,
     stepIndex: participant.stepIndex, attempt: participant.attempt, stats: participant.stats,
     typedText: participant.typedText, targetText: participant.targetText,
-    results: participant.results, completedAt: participant.completedAt,
+    results: participant.results, completedAt: participant.completedAt, stepStartedAt: participant.stepStartedAt,
   };
 }
 
 export const effectiveStep = (room: Room, participant: Participant) =>
   room.pacing === "host" ? room.currentIndex : participant.stepIndex;
 
-export const clearedAttempt = () => ({ stats: emptyConnectStats(), typedText: undefined, targetText: undefined });
+// Every (re)start of a step restarts its clock, which self-paced breaks count down from.
+export const clearedAttempt = () => ({ stats: emptyConnectStats(), typedText: undefined, targetText: undefined, stepStartedAt: Date.now() });
 
 export const clearedRun = (stepIndex = 0) => ({
   ...clearedAttempt(), results: [] as ConnectResult[], stepIndex, completedAt: undefined,
@@ -209,6 +211,7 @@ export function validateTests(tests: ConnectTest[]) {
     if (ids.has(test.id)) throw new Error(`Test ${index + 1} duplicates another test's id`);
     ids.add(test.id);
   });
+  if (tests.every(isBreakTest)) throw new Error("Add at least one typing test");
 }
 
 const TEST_KEYS: (keyof ConnectTest)[] = [

@@ -125,6 +125,17 @@ describe("test list", () => {
     expect(tests[2]).not.toHaveProperty("presetText");
   });
 
+  it("adds a break with only a duration and a title", async () => {
+    renderHost();
+    const form = editor();
+    fireEvent.click(within(form).getByRole("radio", { name: "Break" }));
+    expect(within(form).getByText(/next test starts on its own/)).toBeInTheDocument();
+    expect(within(form).queryByLabelText("Difficulty")).not.toBeInTheDocument();
+    fireEvent.click(within(form).getByRole("button", { name: "Add to list" }));
+    await waitFor(() => expect(mutation("setTests")).toHaveBeenCalledTimes(1));
+    expect(lastTests()[2]).toMatchObject({ mode: "break", duration: 30 });
+  });
+
   it("validates custom text before saving", () => {
     renderHost();
     const form = editor();

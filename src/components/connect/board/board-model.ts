@@ -1,6 +1,6 @@
 import type { BoardPrefs } from "@/hooks/useConnectBoardPrefs";
 import type { ConnectPacing, ConnectResult, ConnectRoomStatus, ConnectStats, ConnectTest } from "@/lib/connect-types";
-import { isTimedConnectTest } from "@/lib/connect-types";
+import { breakEndsAt, isBreakTest, isTimedConnectTest } from "@/lib/connect-types";
 import { effectiveStep } from "@/lib/connect-settings";
 
 /** The parts of a room the board derives participant state from. */
@@ -9,6 +9,8 @@ export type BoardRoom = {
   status: ConnectRoomStatus;
   currentIndex: number;
   tests: ConnectTest[];
+  stepStartedAt?: number;
+  pausedAt?: number;
 };
 
 /** The parts of a participant the board derives state from. */
@@ -22,14 +24,16 @@ export type BoardParticipant = {
   stats: ConnectStats;
   results: ConnectResult[];
   completedAt?: number;
+  stepStartedAt?: number;
 };
 
-export type BoardStatus = "waiting" | "typing" | "finished" | "done" | "paused" | "offline" | "left";
+export type BoardStatus = "waiting" | "typing" | "finished" | "break" | "done" | "paused" | "offline" | "left";
 
 export const BOARD_STATUS_LABELS: Record<BoardStatus, string> = {
   waiting: "Waiting",
   typing: "Typing",
   finished: "Finished test",
+  break: "On a break",
   done: "All done",
   paused: "Paused",
   offline: "Offline",
@@ -53,12 +57,25 @@ export function isAllDone(room: BoardRoom, participant: Pick<BoardParticipant, "
   return room.status !== "lobby" && effectiveTestIndex(room, participant) >= room.tests.length;
 }
 
+export function onBreak(room: BoardRoom, participant: Pick<BoardParticipant, "stepIndex" | "completedAt">) {
+  return room.status !== "lobby" && isBreakTest(room.tests[effectiveTestIndex(room, participant)]);
+}
+
+/** Milliseconds left in the participant's break, frozen while the room is paused. */
+export function breakRemaining(room: BoardRoom, participant: Pick<BoardParticipant, "stepIndex" | "completedAt" | "stepStartedAt">, now = Date.now()) {
+  const test = room.tests[effectiveTestIndex(room, participant)];
+  if (!test) return 0;
+  const startedAt = (room.pacing === "host" ? room.stepStartedAt : participant.stepStartedAt) ?? now;
+  return Math.max(0, breakEndsAt(test, startedAt, room.status === "paused" ? room.pausedAt : undefined, now) - now);
+}
+
 export function participantStatus(room: BoardRoom, participant: BoardParticipant): BoardStatus {
   if (participant.leftAt !== undefined) return "left";
   if (!participant.isConnected) return "offline";
   if (room.status === "lobby") return "waiting";
   if (isAllDone(room, participant)) return "done";
   if (room.status === "paused") return "paused";
+  if (onBreak(room, participant)) return "break";
   if (participant.stats.isFinished) return "finished";
   if (hasActivity(participant.stats)) return "typing";
   return "waiting";
@@ -80,10 +97,15 @@ export function formatClock(ms: number) {
 const clamp = (value: number) => Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
 
 /** Progress through the current test: time remaining, words typed, or percent. */
-export function progressDetail(room: BoardRoom, participant: BoardParticipant): ProgressDetail {
+export function progressDetail(room: BoardRoom, participant: BoardParticipant, now = Date.now()): ProgressDetail {
   if (room.status === "lobby") return { percent: 0, label: "Not started" };
   if (isAllDone(room, participant)) return { percent: 100, label: "All tests done" };
   const test = room.tests[effectiveTestIndex(room, participant)];
+  if (isBreakTest(test)) {
+    const remaining = breakRemaining(room, participant, now);
+    const total = test!.duration * 1000;
+    return { percent: clamp(((total - remaining) / total) * 100), label: `Break · ${formatClock(remaining)} left` };
+  }
   const { stats } = participant;
   if (!test) return { percent: clamp(stats.progress), label: `${Math.round(clamp(stats.progress))}%` };
   if (isTimedConnectTest(test)) {
@@ -110,7 +132,7 @@ export function averageResults(results: ConnectResult[]) {
 
 /** The headline stats: the live attempt, or the run average once the participant is done. */
 export function headlineStats(room: BoardRoom, participant: BoardParticipant) {
-  if (isAllDone(room, participant) && !hasActivity(participant.stats)) {
+  if ((isAllDone(room, participant) || onBreak(room, participant)) && !hasActivity(participant.stats)) {
     const average = averageResults(participant.results);
     if (average) return { wpm: average.wpm, accuracy: average.accuracy, isAverage: true };
   }

@@ -6,6 +6,7 @@ import { api, internal } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
   CONNECT_ARCHIVE_MS,
+  CONNECT_BREAK_GRACE_MS,
   CONNECT_CODE_ALPHABET,
   CONNECT_LIVE_IDLE_MS,
   CONNECT_MAX_PARTICIPANTS,
@@ -420,6 +421,61 @@ describe("Connect runs", () => {
     await t.mutation(api.connect.updateRoom, { ...hostArgs, overrides: {} });
     await t.mutation(api.connect.updateRoom, { ...hostArgs, pacing: "participant" });
     await expect(t.mutation(api.connect.updateRoom, { ...hostArgs, pacing: "host" })).rejects.toThrow(/Pacing/);
+  });
+
+  const pause = (id: string, duration = 30): ConnectTest => test(id, { mode: "break", duration });
+
+  it("rejects a list made only of breaks and ignores progress during a break", async () => {
+    const { t, hostArgs } = await setup();
+    await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [pause("b1")] })).rejects.toThrow(/at least one typing test/);
+    await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [pause("b1", 2), test("t1")] })).rejects.toThrow(/break from 5 seconds/);
+    const { report } = await running("host", [pause("b1"), test("t1")]);
+    expect(await report()).toEqual({ accepted: false });
+  });
+
+  it("ends a host-paced break on schedule without recording a result", async () => {
+    vi.useFakeTimers();
+    const { t, roomId, hostArgs, participantId, report } = await running("host", [test("t1"), pause("b1"), test("t2")]);
+    await report({ stats: stats({ progress: 40, timeElapsed: 2000, wpm: 50, accuracy: 96 }) });
+    await t.mutation(api.connect.goToTest, { ...hostArgs, index: 1 });
+    const onBreak = (await hostView(t, roomId)).room;
+    expect(onBreak).toMatchObject({ currentIndex: 1, runVersion: 2, stepStartedAt: Date.now() });
+
+    // Pausing for 10s pushes the end back by 10s; the original job finds the break still running.
+    vi.advanceTimersByTime(20_000);
+    await t.mutation(api.connect.pause, hostArgs);
+    vi.advanceTimersByTime(10_000);
+    await t.mutation(api.connect.start, hostArgs);
+    expect((await hostView(t, roomId)).room.stepStartedAt).toBe(onBreak.stepStartedAt! + 10_000);
+    await t.mutation(internal.connect.endBreak, { roomId, runVersion: 2 });
+    expect((await hostView(t, roomId)).room.currentIndex).toBe(1);
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect((await hostView(t, roomId)).room).toMatchObject({ currentIndex: 2, runVersion: 3, status: "running" });
+    expect((await participantRow(t, participantId))?.results.map((r) => r.testId)).toEqual(["t1"]);
+
+    // A stale job from an earlier run never moves the room.
+    await t.mutation(internal.connect.endBreak, { roomId, runVersion: 2 });
+    expect((await hostView(t, roomId)).room.currentIndex).toBe(2);
+  });
+
+  it("lets a self-paced participant leave a break only when its time is up", async () => {
+    vi.useFakeTimers();
+    const { t, hostArgs, participantId, report } = await running("participant", [test("t1"), pause("b1", 10), test("t2")]);
+    const advance = (stepIndex: number) => t.mutation(api.connect.advance, { participantId, credential: guest, runVersion: 1, stepIndex });
+    await report({ stats: stats({ progress: 100, timeElapsed: 1000, wpm: 60, accuracy: 99, isFinished: true }) });
+    expect(await advance(0)).toMatchObject({ accepted: true, stepIndex: 1 });
+    expect(await report({ stepIndex: 1 })).toEqual({ accepted: false });
+
+    vi.advanceTimersByTime(5_000);
+    expect(await advance(1)).toMatchObject({ accepted: false, stepIndex: 1 });
+    await t.mutation(api.connect.pause, hostArgs);
+    vi.advanceTimersByTime(60_000);
+    await t.mutation(api.connect.start, hostArgs);
+    expect(await advance(1)).toMatchObject({ accepted: false, stepIndex: 1 });
+    vi.advanceTimersByTime(5_000 - CONNECT_BREAK_GRACE_MS);
+    expect(await advance(1)).toEqual({ accepted: true, stepIndex: 2, completed: false });
+    expect((await participantRow(t, participantId))?.results.map((r) => r.testId)).toEqual(["t1"]);
   });
 });
 

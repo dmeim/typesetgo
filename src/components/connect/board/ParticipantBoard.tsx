@@ -14,7 +14,8 @@ import type { BoardPrefs } from "@/hooks/useConnectBoardPrefs";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
 import { connectTestLabels } from "@/lib/connect-settings";
 import { cn } from "@/lib/utils";
-import { reorderIds, sortParticipants, visibleParticipants } from "@/components/connect/board/board-model";
+import { onBreak, reorderIds, sortParticipants, visibleParticipants } from "@/components/connect/board/board-model";
+import { useNow } from "@/hooks/useNow";
 import { ParticipantCard } from "@/components/connect/board/ParticipantCard";
 import { BoardSummary } from "@/components/connect/board/BoardSummary";
 
@@ -56,6 +57,8 @@ export function ParticipantBoard({
   const labels = useMemo(() => connectTestLabels(room.tests), [room.tests]);
   const shown = useMemo(() => visibleParticipants(room, participants, prefs), [room, participants, prefs]);
   const hiddenCount = participants.length - shown.length;
+  // Break countdowns tick on the board; nothing else needs a clock.
+  const now = useNow(room.status === "running" && participants.some((participant) => onBreak(room, participant)), 1000);
   const sortable = Boolean(onReorder) && (prefs.sort === "custom" || Boolean(onPrefsChange));
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -92,7 +95,7 @@ export function ParticipantBoard({
             <ul
               aria-label="Participants"
               className={prefs.layout === "grid" ? "grid gap-[0.75em]" : "flex flex-col gap-[0.4em]"}
-              style={prefs.layout === "grid" ? { gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 15em), 1fr))" } : undefined}
+              style={prefs.layout === "grid" ? { gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 17em), 1fr))" } : undefined}
             >
               {shown.map((participant) => (
                 <ParticipantCard
@@ -101,6 +104,7 @@ export function ParticipantBoard({
                   participant={participant}
                   labels={labels}
                   layout={prefs.layout}
+                  now={now}
                   sortable={sortable}
                   onReset={onReset}
                   onRemove={onRemove}

@@ -8,7 +8,6 @@ import type { HostParticipant, HostRoom } from "@/components/connect/types";
 import {
   averageResults,
   BOARD_STATUS_LABELS,
-  type BoardStatus,
   effectiveTestIndex,
   headlineStats,
   isAway,
@@ -25,32 +24,12 @@ export interface ParticipantCardProps {
   participant: HostParticipant;
   labels: TestLabel[];
   layout: "grid" | "list";
+  /** Clock for break countdowns. */
+  now?: number;
   /** Renders a drag handle and joins the surrounding sortable context. */
   sortable?: boolean;
   onReset?: (participant: HostParticipant) => void;
   onRemove?: (participant: HostParticipant) => void;
-}
-
-const STATUS_CLASS: Record<BoardStatus, string> = {
-  waiting: "bg-muted text-muted-foreground",
-  typing: "bg-primary/15 text-primary",
-  finished: "bg-[var(--theme-status-success-subtle)] text-[var(--theme-status-success)]",
-  done: "bg-[var(--theme-status-success-subtle)] text-[var(--theme-status-success)]",
-  paused: "bg-warning/15 text-warning",
-  offline: "bg-muted text-muted-foreground",
-  left: "bg-muted text-muted-foreground",
-};
-
-export function StatusChip({ status }: { status: BoardStatus }) {
-  return (
-    <span
-      data-status={status}
-      className={cn("inline-flex shrink-0 items-center gap-[0.35em] rounded-full px-[0.6em] py-[0.15em] text-[0.75em] font-medium whitespace-nowrap", STATUS_CLASS[status])}
-    >
-      {status === "typing" && <span aria-hidden="true" className="size-[0.45em] animate-pulse rounded-full bg-current" />}
-      {BOARD_STATUS_LABELS[status]}
-    </span>
-  );
 }
 
 function PresenceDot({ online }: { online: boolean }) {
@@ -104,10 +83,10 @@ function useCardSortable(id: string, enabled: boolean) {
   return { ...sortable, style };
 }
 
-export function ParticipantCard({ room, participant, labels, layout, sortable = false, onReset, onRemove }: ParticipantCardProps) {
+export function ParticipantCard({ room, participant, labels, layout, now, sortable = false, onReset, onRemove }: ParticipantCardProps) {
   const { setNodeRef, attributes, listeners, isDragging, style, setActivatorNodeRef } = useCardSortable(participant._id, sortable);
   const status = participantStatus(room, participant);
-  const progress = progressDetail(room, participant);
+  const progress = progressDetail(room, participant, now);
   const stats = headlineStats(room, participant);
   const average = averageResults(participant.results);
   const away = isAway(participant);
@@ -133,6 +112,8 @@ export function ParticipantCard({ room, participant, labels, layout, sortable = 
       {handle}
       <PresenceDot online={!away} />
       <h3 className="min-w-0 truncate text-[1.05em] font-semibold" title={participant.name}>{participant.name}</h3>
+      {/* Status shows through the presence dot, dimming, and progress colour; keep it for screen readers. */}
+      <span className="sr-only">{BOARD_STATUS_LABELS[status]}</span>
     </div>
   );
 
@@ -175,6 +156,7 @@ export function ParticipantCard({ room, participant, labels, layout, sortable = 
       ref={setNodeRef}
       style={style}
       data-participant={participant._id}
+      data-status={status}
       data-away={away || undefined}
       className={cn(
         "min-w-0 rounded-[0.75em] border border-border bg-card text-card-foreground shadow-xs transition-opacity",
@@ -185,9 +167,9 @@ export function ParticipantCard({ room, participant, labels, layout, sortable = 
     >
       {layout === "grid" ? (
         <article className="flex h-full flex-col gap-[0.75em] p-[0.9em]" aria-label={participant.name}>
-          <div className="flex items-center justify-between gap-[0.5em]">
+          <div className="-my-[0.2em] -mr-[0.35em] flex min-h-[2em] items-center justify-between gap-[0.5em]">
             {identity}
-            <StatusChip status={status} />
+            <Actions participant={participant} onReset={onReset} onRemove={onRemove} />
           </div>
           <div className="flex items-end justify-between gap-[0.75em]">
             <Stat value={stats.wpm} unit={stats.isAverage ? "avg wpm" : "wpm"} large title={statTitle} />
@@ -195,25 +177,19 @@ export function ParticipantCard({ room, participant, labels, layout, sortable = 
           </div>
           {progressBar}
           {position}
-          {(onReset || onRemove) && (
-            <div className="-mb-[0.25em] -mr-[0.25em] mt-auto flex justify-end">
-              <Actions participant={participant} onReset={onReset} onRemove={onRemove} />
-            </div>
-          )}
         </article>
       ) : (
         <article className="flex flex-wrap items-center gap-x-[1em] gap-y-[0.5em] px-[0.9em] py-[0.6em] sm:flex-nowrap" aria-label={participant.name}>
-          <div className="flex w-full min-w-0 items-center justify-between gap-[0.5em] sm:w-[16em] sm:shrink-0">
-            {identity}
-            <StatusChip status={status} />
+          <div className="flex w-full min-w-0 items-center justify-between gap-[1em] sm:w-auto sm:shrink-0">
+            <div className="min-w-0 sm:w-[11em]">{identity}</div>
+            <div className="flex shrink-0 items-baseline gap-[1em]">
+              <div className="flex w-[4.5em] justify-end"><Stat value={stats.wpm} unit={stats.isAverage ? "avg" : "wpm"} title={statTitle} /></div>
+              <div className="flex w-[4.5em] justify-end"><Stat value={stats.accuracy} unit="%" title={statTitle} /></div>
+            </div>
           </div>
           <div className="min-w-[8em] flex-1 space-y-[0.4em]">
             {progressBar}
             {position}
-          </div>
-          <div className="flex shrink-0 items-baseline gap-[1em]">
-            <div className="flex w-[4.5em] justify-end"><Stat value={stats.wpm} unit={stats.isAverage ? "avg" : "wpm"} title={statTitle} /></div>
-            <div className="flex w-[4.5em] justify-end"><Stat value={stats.accuracy} unit="%" title={statTitle} /></div>
           </div>
           <Actions participant={participant} onReset={onReset} onRemove={onRemove} />
         </article>

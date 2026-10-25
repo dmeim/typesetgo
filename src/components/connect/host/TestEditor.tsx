@@ -27,6 +27,7 @@ const MODES: { value: ConnectTestMode; label: string }[] = [
   { value: "words", label: "Words" },
   { value: "quote", label: "Quote" },
   { value: "preset", label: "Custom text" },
+  { value: "break", label: "Break" },
 ];
 const DIFFICULTIES: ConnectDifficulty[] = ["beginner", "easy", "medium", "hard", "expert"];
 const QUOTE_LENGTHS: ConnectQuoteLength[] = ["short", "medium", "long", "xl"];
@@ -111,6 +112,7 @@ export function TestEditor({ editing, testCount, onSubmit, onCancel }: {
   // Empty custom text only complains after a save attempt; other problems show as soon as they appear.
   const visibleError = error && (showErrors || draft.mode !== "preset" || Boolean(draft.presetText?.trim())) ? error : null;
   const full = !editing && testCount >= CONNECT_MAX_TESTS;
+  const noun = draft.mode === "break" ? "break" : "test";
   const usesWordOptions = draft.mode === "time" || draft.mode === "words";
 
   const submit = async (event: FormEvent) => {
@@ -125,9 +127,12 @@ export function TestEditor({ editing, testCount, onSubmit, onCancel }: {
   return (
     <section aria-labelledby={`${id}-heading`} className="min-w-0 rounded-xl border border-border bg-card p-4 text-card-foreground sm:p-5">
       <form aria-labelledby={`${id}-heading`} className="space-y-4" onSubmit={(event) => void submit(event)} noValidate>
-        <h2 id={`${id}-heading`} className="text-lg font-semibold">{editing ? "Edit test" : "Add a test"}</h2>
+        <h2 id={`${id}-heading`} className="text-lg font-semibold">{editing ? `Edit ${noun}` : "Add a test or break"}</h2>
         <Segmented<ConnectTestMode> label="Test mode" value={draft.mode} options={MODES} onChange={(mode) => update({ mode })} />
-        {draft.mode === "time" && <DurationField value={draft.duration} onChange={(duration) => update({ duration })} />}
+        {(draft.mode === "time" || draft.mode === "break") && <DurationField value={draft.duration} onChange={(duration) => update({ duration })} />}
+        {draft.mode === "break" && (
+          <p className="text-sm text-muted-foreground">Everyone sees a countdown, then the next test starts on its own. Breaks freeze while the room is paused.</p>
+        )}
         {draft.mode === "words" && <WordCountField value={draft.wordTarget} onChange={(wordTarget) => update({ wordTarget })} />}
         {usesWordOptions && (
           <div className="grid gap-4 sm:grid-cols-[minmax(0,12rem)_1fr] sm:items-end">

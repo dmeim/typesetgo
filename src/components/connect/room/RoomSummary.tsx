@@ -1,4 +1,4 @@
-import type { ConnectResult, ConnectTest } from "@/lib/connect-types";
+import { isBreakTest, type ConnectResult, type ConnectTest } from "@/lib/connect-types";
 import { connectTestLabels } from "@/lib/connect-settings";
 import { participantTestDetail } from "./test-labels";
 
@@ -7,7 +7,8 @@ const resultFor = (results: ConnectResult[], test: ConnectTest) => results.find(
 /** All of a participant's results once the room (or their own run) is complete. */
 export function RoomSummary({ tests, results, name }: { tests: ConnectTest[]; results: ConnectResult[]; name: string }) {
   const labels = connectTestLabels(tests);
-  const rows = tests.map((test, index) => ({ test, index, result: resultFor(results, test) }));
+  // Breaks record nothing, so the summary lists typing tests only.
+  const rows = tests.flatMap((test, index) => isBreakTest(test) ? [] : [{ test, index, result: resultFor(results, test) }]);
   const recorded = rows.flatMap((row) => row.result ? [row.result] : []);
   const average = (pick: (result: ConnectResult) => number) =>
     recorded.length ? Math.round(recorded.reduce((sum, result) => sum + pick(result), 0) / recorded.length) : null;
@@ -31,9 +32,9 @@ export function RoomSummary({ tests, results, name }: { tests: ConnectTest[]; re
         </div>
       </div>
       <ol className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card" aria-label="Your results">
-        {rows.map(({ test, index, result }) => (
+        {rows.map(({ test, index, result }, position) => (
           <li key={test.id} className="flex items-center gap-3 px-4 py-3 text-sm">
-            <span className="w-6 shrink-0 tabular-nums text-muted-foreground">{index + 1}</span>
+            <span className="w-6 shrink-0 tabular-nums text-muted-foreground">{position + 1}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium">{labels[index].title}</span>
               <span className="block truncate text-xs text-muted-foreground">{participantTestDetail(test)}</span>

@@ -2,6 +2,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckCircleIcon,
+  CoffeeIcon,
   CopySimpleIcon,
   LockSimpleIcon,
   PencilSimpleIcon,
@@ -77,6 +78,7 @@ export function TestList({ room, tests, participants, editingId, onEdit, onSave 
               <div className="min-w-[8rem] flex-1">
                 <p className="break-words text-sm font-medium">
                   <span className="sr-only">Test {position}: </span>
+                  {test.mode === "break" && <CoffeeIcon className="mr-1.5 inline size-4 align-[-0.15em] text-muted-foreground" aria-hidden="true" />}
                   {label.title}
                   {state === "current" && <span className="sr-only"> (current)</span>}
                   {state === "done" && <span className="sr-only"> (finished)</span>}

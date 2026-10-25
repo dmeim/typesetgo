@@ -1,12 +1,15 @@
 import { v } from "convex/values";
-import { mutation, query, type MutationCtx } from "./_generated/server";
+import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  breakEndsAt,
   CONNECT_ARCHIVE_MS,
+  CONNECT_BREAK_GRACE_MS,
   CONNECT_MAX_PARTICIPANTS,
   DEFAULT_CONNECT_TEST,
   emptyConnectStats,
+  isBreakTest,
   validateConnectOverrides,
 } from "../src/lib/connect-types";
 import { credentialHash } from "./lib/multiplayer";
@@ -53,6 +56,34 @@ const participantArgs = { participantId: v.id("connectParticipants"), credential
 
 async function patchParticipants(ctx: MutationCtx, roomId: Id<"connectRooms">, patch: (p: Participant) => Partial<Participant>) {
   for (const participant of await listParticipants(ctx, roomId)) await ctx.db.patch(participant._id, patch(participant));
+}
+
+/** Host pacing: a running break ends on its own, so schedule the move to the next step. */
+async function scheduleBreakEnd(ctx: MutationCtx, room: Room) {
+  const test = room.tests[room.currentIndex];
+  if (room.pacing !== "host" || room.status !== "running" || !isBreakTest(test) || room.stepStartedAt === undefined) return;
+  await ctx.scheduler.runAt(breakEndsAt(test, room.stepStartedAt), internal.connect.endBreak, {
+    roomId: room._id, runVersion: room.runVersion,
+  });
+}
+
+/** Host pacing: moves everyone to `index`, keeping any typing on the step they leave as a result. */
+async function moveRoomTo(ctx: MutationCtx, room: Room, index: number) {
+  const previous = room.tests[room.currentIndex];
+  await patchParticipants(ctx, room._id, (p) => ({
+    ...clearedAttempt(),
+    stepIndex: index,
+    results: previous && !isBreakTest(previous) && hasActivity(p.stats) ? withResult(p.results, room.currentIndex, previous.id, p.stats) : p.results,
+  }));
+  const next: Room = {
+    ...room, currentIndex: index, runVersion: room.runVersion + 1,
+    status: index === room.tests.length ? "complete" : "running", stepStartedAt: Date.now(), pausedAt: undefined,
+  };
+  await ctx.db.patch(room._id, {
+    currentIndex: next.currentIndex, runVersion: next.runVersion, status: next.status,
+    stepStartedAt: next.stepStartedAt, pausedAt: undefined,
+  });
+  await scheduleBreakEnd(ctx, next);
 }
 
 async function scheduleParticipantCleanup(ctx: MutationCtx, roomId: Id<"connectRooms">, more: boolean) {
@@ -218,12 +249,22 @@ export const start = mutation({
   handler: async (ctx, args) => {
     const room = await requireHost(ctx, args.roomId, args.credential);
     if (room.status === "running") return;
+    const now = Date.now();
     if (room.status === "paused") {
-      await ctx.db.patch(room._id, { status: "running" });
+      // Break clocks freeze while paused: push every step start forward by the pause.
+      const pausedFor = room.pausedAt === undefined ? 0 : Math.max(0, now - room.pausedAt);
+      if (room.pacing === "participant" && pausedFor > 0) {
+        await patchParticipants(ctx, room._id, (p) => p.stepStartedAt === undefined ? {} : { stepStartedAt: p.stepStartedAt + pausedFor });
+      }
+      const stepStartedAt = room.stepStartedAt === undefined ? undefined : room.stepStartedAt + pausedFor;
+      await ctx.db.patch(room._id, { status: "running", pausedAt: undefined, stepStartedAt });
+      await scheduleBreakEnd(ctx, { ...room, status: "running", pausedAt: undefined, stepStartedAt });
       return;
     }
     await patchParticipants(ctx, room._id, () => clearedRun(0));
-    await ctx.db.patch(room._id, { status: "running", currentIndex: 0, runVersion: room.runVersion + 1 });
+    const next: Room = { ...room, status: "running", currentIndex: 0, runVersion: room.runVersion + 1, stepStartedAt: now, pausedAt: undefined };
+    await ctx.db.patch(room._id, { status: "running", currentIndex: 0, runVersion: next.runVersion, stepStartedAt: now, pausedAt: undefined });
+    await scheduleBreakEnd(ctx, next);
   },
 });
 
@@ -233,7 +274,7 @@ export const pause = mutation({
     const room = await requireHost(ctx, args.roomId, args.credential);
     if (room.status === "paused") return;
     if (room.status !== "running") throw new Error("Only a running room can be paused");
-    await ctx.db.patch(room._id, { status: "paused" });
+    await ctx.db.patch(room._id, { status: "paused", pausedAt: Date.now() });
   },
 });
 
@@ -243,7 +284,9 @@ export const restartTest = mutation({
     const room = await requireHost(ctx, args.roomId, args.credential);
     if (room.status !== "running" && room.status !== "paused") throw new Error("Start the room before restarting a test");
     await patchParticipants(ctx, room._id, clearedAttempt);
-    await ctx.db.patch(room._id, { status: "running", runVersion: room.runVersion + 1 });
+    const next: Room = { ...room, status: "running", runVersion: room.runVersion + 1, stepStartedAt: Date.now(), pausedAt: undefined };
+    await ctx.db.patch(room._id, { status: "running", runVersion: next.runVersion, stepStartedAt: next.stepStartedAt, pausedAt: undefined });
+    await scheduleBreakEnd(ctx, next);
   },
 });
 
@@ -254,16 +297,21 @@ export const goToTest = mutation({
     if (room.pacing !== "host") throw new Error("Participants move through the tests themselves in this room");
     if (room.status === "lobby") throw new Error("Start the room before changing tests");
     if (!Number.isInteger(args.index) || args.index < 0 || args.index > room.tests.length) throw new Error("Choose a test from the list");
-    const previous = room.tests[room.currentIndex];
-    await patchParticipants(ctx, room._id, (p) => ({
-      ...clearedAttempt(),
-      stepIndex: args.index,
-      results: previous && hasActivity(p.stats) ? withResult(p.results, room.currentIndex, previous.id, p.stats) : p.results,
-    }));
-    await ctx.db.patch(room._id, {
-      currentIndex: args.index, runVersion: room.runVersion + 1,
-      status: args.index === room.tests.length ? "complete" : "running",
-    });
+    await moveRoomTo(ctx, room, args.index);
+  },
+});
+
+/** Host pacing: ends a break when its time is up. Stale or rescheduled jobs are no-ops. */
+export const endBreak = internalMutation({
+  args: { roomId: v.id("connectRooms"), runVersion: v.number() },
+  handler: async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room || !isLiveRoom(room) || room.pacing !== "host" || room.status !== "running" || room.runVersion !== args.runVersion) return;
+    const test = room.tests[room.currentIndex];
+    if (!isBreakTest(test) || room.stepStartedAt === undefined) return;
+    // A pause and resume moved the end later; the resume scheduled its own job.
+    if (Date.now() < breakEndsAt(test, room.stepStartedAt)) return;
+    await moveRoomTo(ctx, room, room.currentIndex + 1);
   },
 });
 
@@ -272,7 +320,7 @@ export const resetRoom = mutation({
   handler: async (ctx, args) => {
     const room = await requireHost(ctx, args.roomId, args.credential);
     await patchParticipants(ctx, room._id, () => clearedRun(0));
-    await ctx.db.patch(room._id, { status: "lobby", currentIndex: 0, runVersion: room.runVersion + 1 });
+    await ctx.db.patch(room._id, { status: "lobby", currentIndex: 0, runVersion: room.runVersion + 1, stepStartedAt: undefined, pausedAt: undefined });
   },
 });
 
@@ -367,7 +415,7 @@ export const join = mutation({
       roomId: room._id, sessionId: args.sessionId, credentialHash: hash, name,
       isConnected: true, lastSeen: now, joinedAt: now,
       stepIndex: room.pacing === "host" ? room.currentIndex : 0,
-      attempt: 0, stats: emptyConnectStats(), results: [],
+      attempt: 0, stats: emptyConnectStats(), results: [], stepStartedAt: now,
     });
     return { roomId: room._id, participantId };
   },
@@ -412,7 +460,7 @@ function acceptsProgress(room: Room, participant: Participant, args: { runVersio
     participant.removedAt === undefined && participant.leftAt === undefined &&
     participant.completedAt === undefined && participant.attempt === args.attempt &&
     effectiveStep(room, participant) === args.stepIndex && args.stepIndex < room.tests.length &&
-    !participant.stats.isFinished;
+    !isBreakTest(room.tests[args.stepIndex]) && !participant.stats.isFinished;
 }
 
 export const reportProgress = mutation({
@@ -445,17 +493,22 @@ export const advance = mutation({
     const { participant, room } = await requireParticipant(ctx, args.participantId, args.credential);
     if (room.pacing !== "participant") throw new Error("The host moves everyone to the next test in this room");
     const test = room.tests[participant.stepIndex];
+    const now = Date.now();
+    // Typing steps end when finished; breaks end when their time is up (allowing for client clock drift).
+    const stepDone = isBreakTest(test)
+      ? now + CONNECT_BREAK_GRACE_MS >= breakEndsAt(test, participant.stepStartedAt ?? 0)
+      : participant.stats.isFinished;
     const ok = isLiveRoom(room) && room.status === "running" && room.runVersion === args.runVersion &&
       participant.removedAt === undefined && participant.stepIndex === args.stepIndex &&
-      participant.completedAt === undefined && participant.stats.isFinished && test !== undefined;
+      participant.completedAt === undefined && stepDone && test !== undefined;
     if (!ok) return { accepted: false, stepIndex: participant.stepIndex, completed: participant.completedAt !== undefined };
     const stepIndex = participant.stepIndex + 1;
     const completed = stepIndex >= room.tests.length;
     await ctx.db.patch(participant._id, {
       ...clearedAttempt(),
-      results: withResult(participant.results, participant.stepIndex, test.id, participant.stats),
+      results: isBreakTest(test) ? participant.results : withResult(participant.results, participant.stepIndex, test.id, participant.stats),
       stepIndex,
-      completedAt: completed ? Date.now() : undefined,
+      completedAt: completed ? now : undefined,
     });
     return { accepted: true, stepIndex, completed };
   },

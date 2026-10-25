@@ -10,7 +10,9 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
-import type { ConnectPacing, ConnectTest } from "@/lib/connect-types";
+import { breakEndsAt, isBreakTest, type ConnectPacing, type ConnectTest } from "@/lib/connect-types";
+import { useNow } from "@/hooks/useNow";
+import { formatClock } from "@/components/connect/board/board-model";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Segmented } from "./Segmented";
 import { selfPacedCounts } from "./host-utils";
@@ -20,6 +22,15 @@ const PACING_HELP: Record<ConnectPacing, string> = {
   host: "You start each test and move everyone to the next one together.",
   participant: "Everyone works through the list at their own speed after you start.",
 };
+
+/** Host pacing: the shared break moves everyone on by itself; Next test skips it early. */
+function BreakCountdown({ room }: { room: HostRoom }) {
+  const paused = room.status === "paused";
+  const now = useNow(!paused, 500);
+  const test = room.tests[room.currentIndex];
+  const endsAt = breakEndsAt(test, room.stepStartedAt ?? now, paused ? room.pausedAt : undefined, now);
+  return <span className="text-muted-foreground"> · Break, next test in {formatClock(endsAt - now)}</span>;
+}
 
 function RunSummary({ room, tests, participants, pacing }: {
   room: HostRoom;
@@ -35,6 +46,7 @@ function RunSummary({ room, tests, participants, pacing }: {
     return (
       <p className="text-sm">
         <span className="font-semibold">Test {Math.min(room.currentIndex + 1, total)} of {total}</span>
+        {isBreakTest(room.tests[room.currentIndex]) && <BreakCountdown room={room} />}
         {room.status === "paused" && <span className="text-muted-foreground"> · Paused</span>}
       </p>
     );

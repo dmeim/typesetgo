@@ -177,6 +177,9 @@ export default defineSchema({
     status: connectStatusValidator,
     currentIndex: v.number(),
     runVersion: v.number(),
+    // Host pacing: when the current step began, and when the room was paused (break clocks freeze).
+    stepStartedAt: v.optional(v.number()),
+    pausedAt: v.optional(v.number()),
     createdAt: v.number(),
     lastActiveAt: v.number(),
     expiresAt: v.number(),
@@ -205,6 +208,7 @@ export default defineSchema({
     targetText: v.optional(v.string()),
     results: v.array(connectResultValidator),
     completedAt: v.optional(v.number()),
+    stepStartedAt: v.optional(v.number()), // participant pacing: when this step began
   })
     .index("by_room", ["roomId"])
     .index("by_room_session", ["roomId", "sessionId"])

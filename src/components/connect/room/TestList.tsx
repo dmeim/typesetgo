@@ -1,4 +1,4 @@
-import { CheckIcon } from "@phosphor-icons/react";
+import { CheckIcon, CoffeeIcon } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { ConnectTest } from "@/lib/connect-types";
 import { connectTestLabels } from "@/lib/connect-settings";
@@ -45,7 +45,10 @@ export function TestList({ tests, currentIndex, animated = false, className }: T
             >
               {phase === "done" ? <CheckIcon className="size-3.5" aria-label="Done" /> : index + 1}
             </span>
-            <span className="min-w-0 flex-1 truncate font-medium">{labels[index].title}</span>
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate font-medium">
+              {test.mode === "break" && <CoffeeIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+              {labels[index].title}
+            </span>
             <span className="shrink-0 text-xs text-muted-foreground">{participantTestDetail(test)}</span>
           </motion.li>
         );

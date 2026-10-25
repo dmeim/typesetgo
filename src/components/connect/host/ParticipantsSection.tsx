@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowSquareOutIcon, CornersInIcon, CornersOutIcon, PictureInPictureIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { BoardControls } from "@/components/connect/board/BoardControls";
 import { ParticipantBoard } from "@/components/connect/board/ParticipantBoard";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
+import { useFullscreen } from "@/components/connect/use-fullscreen";
 import { useConnectBoardPrefs } from "@/hooks/useConnectBoardPrefs";
 import { toast } from "@/lib/toast-manager";
 import { cn } from "@/lib/utils";
@@ -11,16 +12,6 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import type { HostRoomActions } from "./use-host-room";
 
 type Confirmation = { kind: "reset" | "remove"; participant: HostParticipant };
-
-function useFullscreen() {
-  const [fullscreen, setFullscreen] = useState(false);
-  useEffect(() => {
-    const change = () => setFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener("fullscreenchange", change);
-    return () => document.removeEventListener("fullscreenchange", change);
-  }, []);
-  return fullscreen;
-}
 
 export function ParticipantsSection({ room, participants, actions }: {
   room: HostRoom;

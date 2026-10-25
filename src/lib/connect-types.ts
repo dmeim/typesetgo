@@ -20,8 +20,13 @@ export const CONNECT_ARCHIVE_MS = CONNECT_ARCHIVE_HOURS * HOUR_MS;
 export const CONNECT_OFFLINE_AFTER_MS = 60_000;
 export const CONNECT_PARTICIPANT_HEARTBEAT_MS = 15_000;
 export const CONNECT_HOST_HEARTBEAT_MS = 30_000;
+export const CONNECT_BREAK_MIN_SECONDS = 5;
+export const CONNECT_BREAK_MAX_SECONDS = 30 * 60;
+/** Server tolerance for client clocks running slightly ahead when a self-paced break ends. */
+export const CONNECT_BREAK_GRACE_MS = 1500;
 
-export type ConnectTestMode = "time" | "words" | "quote" | "preset";
+/** `break` is a timed pause between tests: no typing, nothing recorded. */
+export type ConnectTestMode = "time" | "words" | "quote" | "preset" | "break";
 export type ConnectDifficulty = "beginner" | "easy" | "medium" | "hard" | "expert";
 export type ConnectQuoteLength = "all" | "short" | "medium" | "long" | "xl";
 
@@ -29,7 +34,7 @@ export type ConnectQuoteLength = "all" | "short" | "medium" | "long" | "xl";
 export type ConnectTest = {
   id: string;
   mode: ConnectTestMode;
-  /** Seconds; used by `time` and by `preset` when `presetModeType` is "time". */
+  /** Seconds; used by `time`, by `break`, and by `preset` when `presetModeType` is "time". */
   duration: number;
   /** Used by `words`. */
   wordTarget: number;
@@ -103,9 +108,19 @@ export const DEFAULT_CONNECT_TEST: Omit<ConnectTest, "id"> = {
   presetModeType: "finish",
 };
 
-const MODES: readonly ConnectTestMode[] = ["time", "words", "quote", "preset"];
+export const DEFAULT_CONNECT_BREAK: Omit<ConnectTest, "id"> = { ...DEFAULT_CONNECT_TEST, mode: "break", duration: 30 };
+
+const MODES: readonly ConnectTestMode[] = ["time", "words", "quote", "preset", "break"];
 const DIFFICULTIES: readonly ConnectDifficulty[] = ["beginner", "easy", "medium", "hard", "expert"];
 const QUOTE_LENGTHS: readonly ConnectQuoteLength[] = ["all", "short", "medium", "long", "xl"];
+
+export const isBreakTest = (test: Pick<ConnectTest, "mode"> | undefined) => test?.mode === "break";
+
+/** When a break that started at `startedAt` ends, accounting for time spent paused. */
+export function breakEndsAt(test: Pick<ConnectTest, "duration">, startedAt: number, pausedAt?: number, now = Date.now()) {
+  const pausedFor = pausedAt === undefined ? 0 : Math.max(0, now - pausedAt);
+  return startedAt + test.duration * 1000 + pausedFor;
+}
 
 export const isTimedConnectTest = (test: Pick<ConnectTest, "mode" | "presetModeType">) =>
   test.mode === "time" || (test.mode === "preset" && test.presetModeType === "time");
@@ -117,6 +132,9 @@ export function validateConnectTest(test: ConnectTest, position?: number) {
   if (!MODES.includes(test.mode)) throw new Error(`${where} uses an unsupported mode`);
   if (!DIFFICULTIES.includes(test.difficulty)) throw new Error(`${where} uses an unsupported difficulty`);
   if (!QUOTE_LENGTHS.includes(test.quoteLength)) throw new Error(`${where} uses an unsupported quote length`);
+  if (test.mode === "break" && (!Number.isInteger(test.duration) || test.duration < CONNECT_BREAK_MIN_SECONDS || test.duration > CONNECT_BREAK_MAX_SECONDS)) {
+    throw new Error(`${where}: choose a break from ${CONNECT_BREAK_MIN_SECONDS} seconds to ${CONNECT_BREAK_MAX_SECONDS / 60} minutes`);
+  }
   if (isTimedConnectTest(test) && (!Number.isInteger(test.duration) || test.duration < 1 || test.duration > MAX_DURATION_SECONDS)) {
     throw new Error(`${where}: choose a whole duration from 1 to ${MAX_DURATION_SECONDS} seconds`);
   }
@@ -144,8 +162,17 @@ export function validateConnectOverrides(overrides: ConnectOverrides) {
   }
 }
 
-/** Short human description, e.g. "Time · 30s" or "Words · 25". */
+/** "45s", "2m", or "1m 30s". */
+export function formatSeconds(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+}
+
+/** Short human description, e.g. "Time · 30s" or "Words · 25"; a break is just its length, since its title names it. */
 export function describeConnectTest(test: ConnectTest) {
+  if (test.mode === "break") return formatSeconds(test.duration);
   if (test.mode === "time") return `Time · ${test.duration}s`;
   if (test.mode === "words") return `Words · ${test.wordTarget}`;
   if (test.mode === "quote") return `Quote · ${test.quoteLength === "all" ? "any length" : test.quoteLength}`;

@@ -95,6 +95,19 @@ describe("board model", () => {
     expect(progressDetail(makeRoom(), makeParticipant("a", { stats: { isFinished: true, timeElapsed: 30000 } })).label).toBe("Time's up");
   });
 
+  it("counts down breaks from the room clock under host pacing and the participant clock otherwise", () => {
+    const withBreak = [tests[0], { ...DEFAULT_CONNECT_TEST, id: "b1", mode: "break" as const, duration: 60 }, tests[1]];
+    const hostBreak = makeRoom({ tests: withBreak, currentIndex: 1, stepStartedAt: 1_000 });
+    const participant = makeParticipant("a", { stepIndex: 1, stepStartedAt: 31_000 });
+    expect(participantStatus(hostBreak, participant)).toBe("break");
+    expect(progressDetail(hostBreak, participant, 16_000)).toEqual({ percent: 25, label: "Break · 0:45 left" });
+    expect(progressDetail(makeRoom({ tests: withBreak, pacing: "participant" }), participant, 61_000)).toEqual({ percent: 50, label: "Break · 0:30 left" });
+    // A paused room freezes the countdown where the pause began.
+    const paused = makeRoom({ tests: withBreak, currentIndex: 1, status: "paused", stepStartedAt: 1_000, pausedAt: 31_000 });
+    expect(progressDetail(paused, participant, 500_000).label).toBe("Break · 0:30 left");
+    expect(progressDetail(hostBreak, participant, 999_000)).toEqual({ percent: 100, label: "Break · 0:00 left" });
+  });
+
   it("averages recorded results and shows the average once done", () => {
     const results = [
       { stepIndex: 0, testId: "t1", wpm: 40, accuracy: 90, progress: 100, wordsTyped: 20, timeElapsed: 30000, finished: true },
@@ -134,7 +147,8 @@ describe("participant board", () => {
     expect(within(summary).getByRole("heading", { name: "Test 3 of 4" })).toBeInTheDocument();
     expect(within(summary).getByText("2nd timed test · Time · 60s")).toBeInTheDocument();
     const card = screen.getByRole("article", { name: "Ana" });
-    expect(within(card).getByText("Typing")).toBeInTheDocument();
+    expect(within(card).getByText("Typing")).toHaveClass("sr-only");
+    expect(card.closest("li")).toHaveAttribute("data-status", "typing");
     expect(within(card).getByText("42")).toBeInTheDocument();
     expect(within(card).getByText("96")).toBeInTheDocument();
     expect(within(card).getByText("0:45 left")).toBeInTheDocument();
@@ -226,6 +240,7 @@ describe("pop-out board page", () => {
     expect(screen.getByText(/\/connect\/join$/)).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "Ana" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Reset|Remove|Reorder/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fullscreen" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Board settings" })).not.toBeInTheDocument();
   });
 

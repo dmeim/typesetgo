@@ -10,6 +10,8 @@ import { deriveThemeTyping, deriveThemeUI } from "@/lib/colors";
  * and each override group replaces the participant's own preference only when enabled.
  */
 export function resolveConnectSettings(test: ConnectTest, overrides: ConnectOverrides): Partial<SettingsState> {
+  // Breaks have no typing surface; callers show a countdown instead.
+  if (test.mode === "break") throw new Error("Breaks have no typing settings");
   const settings: Partial<SettingsState> = {
     mode: test.mode,
     duration: test.duration,
@@ -55,7 +57,7 @@ export function connectTestLabels(tests: ConnectTest[]) {
   const totals = new Map<string, number>();
   for (const test of tests) totals.set(test.mode, (totals.get(test.mode) ?? 0) + 1);
   const seen = new Map<string, number>();
-  const kind: Record<ConnectTest["mode"], string> = { time: "timed test", words: "word test", quote: "quote", preset: "custom text" };
+  const kind: Record<ConnectTest["mode"], string> = { time: "timed test", words: "word test", quote: "quote", preset: "custom text", break: "break" };
   return tests.map((test) => {
     const count = (seen.get(test.mode) ?? 0) + 1;
     seen.set(test.mode, count);

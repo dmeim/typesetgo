@@ -1,15 +1,17 @@
 import { useEffect, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
-import { CircleNotchIcon, LinkBreakIcon, LockIcon, ProhibitIcon } from "@phosphor-icons/react";
+import { CircleNotchIcon, CornersInIcon, CornersOutIcon, LinkBreakIcon, LockIcon, ProhibitIcon } from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { ParticipantBoard } from "@/components/connect/board/ParticipantBoard";
 import type { HostRoom } from "@/components/connect/types";
+import { useFullscreen } from "@/components/connect/use-fullscreen";
 import { useHostHeartbeat } from "@/components/connect/use-host-heartbeat";
 import { useConnectBoardPrefs } from "@/hooks/useConnectBoardPrefs";
 import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { CONNECT_ARCHIVE_HOURS } from "@/lib/connect-types";
+import { toast } from "@/lib/toast-manager";
 
 function joinHost() {
   return typeof window === "undefined" ? "/connect/join" : `${window.location.host}/connect/join`;
@@ -22,6 +24,30 @@ function Notice({ icon, title, children }: { icon: ReactNode; title: string; chi
       <h1 className="text-xl font-semibold">{title}</h1>
       {children}
     </div>
+  );
+}
+
+function FullscreenButton() {
+  const fullscreen = useFullscreen();
+  const toggle = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      toast.add({ type: "error", title: "Fullscreen isn't available in this browser" });
+    }
+  };
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+      title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+      onClick={() => void toggle()}
+    >
+      {fullscreen ? <CornersInIcon aria-hidden="true" /> : <CornersOutIcon aria-hidden="true" />}
+    </Button>
   );
 }
 
@@ -40,20 +66,23 @@ function BoardStrip({ room, live }: { room: HostRoom; live: boolean }) {
           <span className="truncate">Hosted by {room.hostName}</span>
         </p>
       </div>
-      {room.code && (
-        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <p className="min-w-0 break-all text-right text-xs leading-tight text-muted-foreground sm:text-sm">
-            Join at<br />
-            <span className="font-medium text-foreground">{joinHost()}</span>
-          </p>
-          <p
-            className="rounded-lg bg-primary/10 px-3 py-1 font-mono text-[clamp(1.75rem,5vw,3.5rem)] font-bold leading-none tracking-[0.15em] text-primary"
-            aria-label={`Room code ${room.code.split("").join(" ")}`}
-          >
-            {room.code}
-          </p>
-        </div>
-      )}
+      <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
+        {room.code && (
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <p className="min-w-0 break-all text-right text-xs leading-tight text-muted-foreground sm:text-sm">
+              Join at<br />
+              <span className="font-medium text-foreground">{joinHost()}</span>
+            </p>
+            <p
+              className="rounded-lg bg-primary/10 px-3 py-1 font-mono text-[clamp(1.75rem,5vw,3.5rem)] font-bold leading-none tracking-[0.15em] text-primary"
+              aria-label={`Room code ${room.code.split("").join(" ")}`}
+            >
+              {room.code}
+            </p>
+          </div>
+        )}
+        <FullscreenButton />
+      </div>
     </header>
   );
 }

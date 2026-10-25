@@ -28,18 +28,24 @@ The header shows Connect after Type/Race/Lessons, separated by a vertical divide
 
 ### Host panel
 
-- **Test list**: Time, Words, Quote, or Custom text tests, each with difficulty/punctuation/numbers/capitals and an optional title. Tests can be edited, duplicated, reordered and removed. Tests already reached are locked while the room runs; later tests stay editable.
+- **Test list**: Time, Words, Quote, or Custom text tests, each with difficulty/punctuation/numbers/capitals and an optional title, plus **Break** steps (5 s to 30 min, optional title). Tests can be edited, duplicated, reordered and removed. Tests already reached are locked while the room runs; later tests stay editable. A list needs at least one typing test.
+- **Breaks** (`mode: "break"`, `duration` in seconds) show everyone a countdown, then the next test starts on its own. Breaks record no result and accept no progress.
+  - Host-led: the room's `stepStartedAt` starts the clock and `ctx.scheduler.runAt` calls `internal.connect.endBreak`, which moves everyone on. Jobs carry `runVersion`, so a job from an earlier step or run does nothing. Next test skips a break early.
+  - Self-paced: each participant's `stepStartedAt` starts their own clock. When it runs out the client calls `advance`; the server accepts it once the break is over, allowing 1.5 s of clock drift (`CONNECT_BREAK_GRACE_MS`).
+  - Pausing freezes breaks: the room records `pausedAt`, and resuming shifts `stepStartedAt` (the room's, and every participant's when self-paced) by the paused time.
+  - The host's run summary shows "Break, next test in m:ss"; cards show "Break · m:ss left".
 - **Pacing** (chosen in the lobby; Reset room to change it):
   - *Host-led*: everyone is on the same test. The host starts, pauses, restarts, and moves to the previous or next test. Finished tests are greyed and the current one is highlighted.
   - *Self-paced*: after Start, each participant moves on at their own speed. The list shows how many people are on each test and how many have finished all of them.
 - **Participant settings (overrides)**: Theme (+ dark/light), Text (font, size, alignment), Ghost writer, Sounds, Keyboard (on-screen keyboard and layout). A group that is off leaves each participant's own setting in place. Changes apply live.
-- **Participants**: grid or list cards with live WPM, accuracy, progress, the participant's current test (self-paced), and online/offline/left status. Sort, card size, show-offline, drag reorder, per-participant reset and remove. **Fullscreen**, **Pop out** (`window.open` popup) and **Open in new tab** show the card-only board. Board layout preferences are stored in `localStorage` (`typesetgo_connect_board:<roomId>`) and sync between the host tab and the board through the `storage` event, so the board needs no controls of its own.
+- **Participants**: grid or list cards with live WPM, accuracy, progress, the participant's current test (self-paced), and online/offline/left status. Cards have no status badge; the progress bar shows whether someone has finished (the status stays available to screen readers and as `data-status`). In the grid, reset and remove sit in the name row. In the list, each row reads name, WPM, accuracy, progress, then actions. Sort, card size, show-offline, drag reorder, per-participant reset and remove. **Fullscreen**, **Pop out** (`window.open` popup) and **Open in new tab** show the card-only board. Board layout preferences are stored in `localStorage` (`typesetgo_connect_board:<roomId>`) and sync between the host tab and the board through the `storage` event, so the board needs no controls of its own. The board's header has its own fullscreen button for the pop-out window or tab.
 
 ### Participant view
 
 Participants get a minimal screen: room name, Leave, a "Test N of M" indicator with a segmented strip, then the typing area with stats (and the keyboard if allowed). The typing executor is `TypingPractice` in `connectMode`: settings are locked to the current test plus overrides, paste is blocked, and Escape does not end a test early.
 
 - Host-led results say "Waiting for the host to start the next test" and offer no Next button.
+- On a break, participants see the break title, a large countdown, a progress bar, and the next test's title. While the host has paused, the countdown holds.
 - Self-paced results offer **Next test**, which shows an **Up next** splash (title, details, and an animated list of done/next/remaining tests) that continues on its own after 2.5 s or on Enter. After the last test an **All done** summary lists per-test WPM/accuracy.
 - Removed, ended, and not-a-member states each have their own screen. A removed participant needs the code from the host to rejoin.
 
@@ -55,6 +61,8 @@ The old implementation could drop students or rotate codes. The rebuild avoids t
 ### Deployment order
 
 The new frontend needs the new Convex functions and tables. Deploy Convex first (`bun run convex:deploy`, an authorized live operation), then the frontend. The same release removes the pre-rebuild practice-room backend (`rooms.getByCode/setStatus/resetPractice/resume/deleteRoom`, `participants.updateStats/kick`, practice room creation and joins, and the practice capacity/reclaim pass). Cached copies of the old Connect frontend stop working once Convex is deployed and must reload.
+
+Breaks add only optional fields (`connectRooms.stepStartedAt/pausedAt`, `connectParticipants.stepStartedAt`), the `break` test mode, and the internal `connect.endBreak` mutation, so existing rows stay valid. Deploy Convex before the frontend: the old backend rejects lists that contain a break.
 
 The `rooms` and `participants` schema is unchanged, so leftover practice rows still validate on deploy. Those rooms can no longer be joined. Once they go 15 minutes without a heartbeat, the presence cron deletes them along with their participants. No other table is touched: test results, typing sessions, users, achievements, streaks and stats stay as they are.
 

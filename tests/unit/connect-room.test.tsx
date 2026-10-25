@@ -329,6 +329,47 @@ describe("self-paced advancing", () => {
   });
 });
 
+describe("breaks", () => {
+  const withBreak = [test("t1"), test("b1", { mode: "break", duration: 30 }), test("t2", { mode: "words" })];
+  beforeEach(() => saveMembership("room-1", { participantId: "p1", name: "Ada" }));
+
+  it("counts down a host-paced break without typing or advancing", async () => {
+    vi.useFakeTimers({ now: 100_000 });
+    state.view = okView({ room: { tests: withBreak, currentIndex: 1, stepStartedAt: 90_000 }, participant: { stepIndex: 1 } });
+    renderRoom();
+    await act(async () => {});
+    expect(screen.getByRole("timer")).toHaveTextContent("0:20");
+    expect(screen.getByText(/Up next:/)).toHaveTextContent("Up next: Word test");
+    expect(screen.queryByLabelText("Practice input")).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(25_000));
+    expect(screen.getByRole("timer")).toHaveTextContent("0:00");
+    expect(state.mutations["connect:advance"]).not.toHaveBeenCalled();
+    expect(state.mutations["connect:reportProgress"]).not.toHaveBeenCalled();
+  });
+
+  it("freezes while paused", async () => {
+    vi.useFakeTimers({ now: 100_000 });
+    state.view = okView({ room: { tests: withBreak, currentIndex: 1, status: "paused", stepStartedAt: 90_000, pausedAt: 95_000 }, participant: { stepIndex: 1 } });
+    renderRoom();
+    await act(async () => {});
+    expect(screen.getByRole("heading", { name: "Paused by the host" })).toBeInTheDocument();
+    expect(screen.getByRole("timer")).toHaveTextContent("0:25");
+  });
+
+  it("moves a self-paced participant on when the break ends", async () => {
+    vi.useFakeTimers({ now: 100_000 });
+    state.view = okView({ room: { tests: withBreak, pacing: "participant" }, participant: { stepIndex: 1, stepStartedAt: 95_000 } });
+    renderRoom();
+    await act(async () => {});
+    expect(screen.getByRole("timer")).toHaveTextContent("0:25");
+    await act(() => vi.advanceTimersByTimeAsync(20_000));
+    expect(state.mutations["connect:advance"]).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(5_500));
+    expect(state.mutations["connect:advance"]).toHaveBeenCalledWith({ participantId: "p1", credential: "cred-1", runVersion: 1, stepIndex: 1 });
+    expect(screen.queryByRole("heading", { name: "Up next" })).not.toBeInTheDocument();
+  });
+});
+
 describe("progress delivery", () => {
   beforeEach(() => saveMembership("room-1", { participantId: "p1", name: "Ada" }));
 

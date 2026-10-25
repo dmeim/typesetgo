@@ -19,18 +19,19 @@ Implementation details live in [Connect and Race](../features/Connect_Multiplaye
 - Signed-in hosts see their rooms on any device; guests see rooms hosted from the same browser.
 
 ## 4. Host panel
-- **Test list**: add Time, Words, Quote or Custom text tests with their options and an optional title. Edit, duplicate, reorder and remove. Up to 50 tests. Highlight the current test, grey out finished ones, and show upcoming ones normally. Tests already reached are locked while the room runs.
+- **Test list**: add Time, Words, Quote or Custom text tests with their options and an optional title, or a **Break** (5 seconds to 30 minutes) so everyone gets a pause between tests before the next one starts on its own. Edit, duplicate, reorder and remove. Up to 50 tests. Highlight the current test, grey out finished ones, and show upcoming ones normally. Tests already reached are locked while the room runs.
 - **Pacing**:
   - *Host-led*: everyone is on the same test, and the host controls start, pause, restart, previous and next.
   - *Self-paced*: participants advance on their own after the host starts. The list shows how many people are on each test.
 - **Participant settings**: per-group overrides for theme (and dark/light), text (font, size, alignment), ghost writer, sounds, and the on-screen keyboard (and layout). A group that is off leaves each participant's own preference in place.
-- **Participants**: cards with live WPM, accuracy, progress, current test (self-paced) and presence. Sort, resize, list/grid, show/hide offline, drag order, reset, remove. **Fullscreen**, **Pop out** (a small window, like a stream chat pop-out) and **Open in new tab** show only the cards. Board settings stay on the host panel and sync to the other window.
+- **Participants**: cards with live WPM, accuracy, progress, current test (self-paced) and presence. No status badge: the progress bar shows who has finished. Reset and remove sit in the card's name row (grid) or at the end of the row (list). Sort, resize, list/grid, show/hide offline, drag order, reset, remove. **Fullscreen**, **Pop out** (a small window, like a stream chat pop-out) and **Open in new tab** show only the cards. Board settings stay on the host panel and sync to the other window. The board's header has a fullscreen button.
 
 ## 5. Participant experience
 - A minimal screen: room name, Leave, a "Test N of M" indicator showing which test of the list they are on (e.g. "2nd timed test"), live stats, the typing area, and the keyboard if the host allows it. No settings controls.
 - Results:
   - Host-led: no Next button; the participant waits for the host.
   - Self-paced: **Next test** opens a short **Up next** splash with the next test's title and details and an animated list of completed, next and remaining tests.
+- Breaks show a countdown and what comes next. Host-led breaks end for everyone together; self-paced breaks start when each participant reaches them. Breaks freeze while the host has paused the room.
 - After the last self-paced test, a summary lists each test's results.
 - Participants cannot end a test early, paste text, or change the host's locked settings.
 
