@@ -1,5 +1,7 @@
 # Feature: Plan Mode (Test Playlist)
 
+> **Status (October 2026):** In Connect, Plan Mode is superseded by the host's ordered test list (see [Connect PRD](Feature_Connect_PRD.md)). The old `PlanBuilderModal` and plan components were removed with the Connect rebuild, and solo Plan Mode is not available. This document remains as product context for a possible solo playlist feature.
+
 ## 1. Overview
 "Plan Mode" is a meta-mode that allows users to construct a sequenced "playlist" of different typing test configurations. It is designed to support structured practice sessions in Single Player and structured lessons or competitions in Connect (Multiplayer) mode.
 

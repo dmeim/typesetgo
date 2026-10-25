@@ -1,0 +1,153 @@
+// Shared Connect contract: imported by Convex functions and the frontend.
+// Keep this module free of browser APIs and `@/` imports.
+import { MAX_DURATION_SECONDS, MAX_GHOST_SPEED, MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET, TEXT_SIZE_MAX, TEXT_SIZE_MIN } from "./practice-limits";
+
+export const CONNECT_CODE_LENGTH = 4;
+// No 0/O, 1/I/L so codes read cleanly off a projector.
+export const CONNECT_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+export const CONNECT_MAX_TESTS = 50;
+export const CONNECT_MAX_PARTICIPANTS = 100;
+export const CONNECT_NAME_MAX = 32;
+export const CONNECT_ROOM_NAME_MAX = 60;
+const HOUR_MS = 60 * 60_000;
+/** A live room ends after this many hours without host activity. */
+export const CONNECT_LIVE_IDLE_HOURS = 72;
+export const CONNECT_LIVE_IDLE_MS = CONNECT_LIVE_IDLE_HOURS * HOUR_MS;
+/** Ended rooms stay reopenable for this many hours, then are deleted. */
+export const CONNECT_ARCHIVE_HOURS = 48;
+export const CONNECT_ARCHIVE_MS = CONNECT_ARCHIVE_HOURS * HOUR_MS;
+/** Participants without a heartbeat for this long are shown as offline. */
+export const CONNECT_OFFLINE_AFTER_MS = 60_000;
+export const CONNECT_PARTICIPANT_HEARTBEAT_MS = 15_000;
+export const CONNECT_HOST_HEARTBEAT_MS = 30_000;
+
+export type ConnectTestMode = "time" | "words" | "quote" | "preset";
+export type ConnectDifficulty = "beginner" | "easy" | "medium" | "hard" | "expert";
+export type ConnectQuoteLength = "all" | "short" | "medium" | "long" | "xl";
+
+/** One entry in the room's ordered test list. */
+export type ConnectTest = {
+  id: string;
+  mode: ConnectTestMode;
+  /** Seconds; used by `time` and by `preset` when `presetModeType` is "time". */
+  duration: number;
+  /** Used by `words`. */
+  wordTarget: number;
+  difficulty: ConnectDifficulty;
+  punctuation: boolean;
+  numbers: boolean;
+  capitalization: boolean;
+  quoteLength: ConnectQuoteLength;
+  presetText?: string;
+  presetModeType?: "time" | "finish";
+  /** Optional host label shown in the list and to participants. */
+  title?: string;
+};
+
+export type ConnectPacing = "host" | "participant";
+
+/**
+ * Each group is applied to participants only while `enabled` is true; otherwise
+ * participants keep their own saved settings. Values are kept when disabled so
+ * toggling an override back on restores the host's previous choice.
+ */
+export type ConnectOverrides = {
+  theme?: { enabled: boolean; themeId: string; mode: "dark" | "light" };
+  typography?: { enabled: boolean; typingFontFamily: string; typingFontSize: number; textAlign: "left" | "center" | "right" | "justify" };
+  ghost?: { enabled: boolean; ghostWriterEnabled: boolean; ghostWriterSpeed: number };
+  sound?: { enabled: boolean; soundEnabled: boolean; typingSound: string; warningSound: string };
+  keyboard?: { enabled: boolean; showOnScreenKeyboard: boolean; keyboardLayout: "qwerty" | "dvorak" | "colemak" };
+};
+
+/**
+ * lobby: not started (or reset). running: participants type. paused: host froze the run.
+ * complete: host pacing advanced past the last test.
+ */
+export type ConnectRoomStatus = "lobby" | "running" | "paused" | "complete";
+
+export type ConnectStats = {
+  wpm: number;
+  accuracy: number;
+  /** 0–100 */
+  progress: number;
+  wordsTyped: number;
+  /** Milliseconds */
+  timeElapsed: number;
+  isFinished: boolean;
+};
+
+export type ConnectResult = {
+  stepIndex: number;
+  testId: string;
+  wpm: number;
+  accuracy: number;
+  progress: number;
+  wordsTyped: number;
+  timeElapsed: number;
+  finished: boolean;
+};
+
+export const emptyConnectStats = (): ConnectStats => ({
+  wpm: 0, accuracy: 0, progress: 0, wordsTyped: 0, timeElapsed: 0, isFinished: false,
+});
+
+export const DEFAULT_CONNECT_TEST: Omit<ConnectTest, "id"> = {
+  mode: "time",
+  duration: 30,
+  wordTarget: 25,
+  difficulty: "medium",
+  punctuation: false,
+  numbers: false,
+  capitalization: false,
+  quoteLength: "all",
+  presetModeType: "finish",
+};
+
+const MODES: readonly ConnectTestMode[] = ["time", "words", "quote", "preset"];
+const DIFFICULTIES: readonly ConnectDifficulty[] = ["beginner", "easy", "medium", "hard", "expert"];
+const QUOTE_LENGTHS: readonly ConnectQuoteLength[] = ["all", "short", "medium", "long", "xl"];
+
+export const isTimedConnectTest = (test: Pick<ConnectTest, "mode" | "presetModeType">) =>
+  test.mode === "time" || (test.mode === "preset" && test.presetModeType === "time");
+
+/** Throws a user-facing message for an invalid test. Shared by the host editor and the backend. */
+export function validateConnectTest(test: ConnectTest, position?: number) {
+  const where = position === undefined ? "This test" : `Test ${position + 1}`;
+  if (typeof test.id !== "string" || !test.id || test.id.length > 64) throw new Error(`${where} has an invalid id`);
+  if (!MODES.includes(test.mode)) throw new Error(`${where} uses an unsupported mode`);
+  if (!DIFFICULTIES.includes(test.difficulty)) throw new Error(`${where} uses an unsupported difficulty`);
+  if (!QUOTE_LENGTHS.includes(test.quoteLength)) throw new Error(`${where} uses an unsupported quote length`);
+  if (isTimedConnectTest(test) && (!Number.isInteger(test.duration) || test.duration < 1 || test.duration > MAX_DURATION_SECONDS)) {
+    throw new Error(`${where}: choose a whole duration from 1 to ${MAX_DURATION_SECONDS} seconds`);
+  }
+  if (test.mode === "words" && (!Number.isInteger(test.wordTarget) || test.wordTarget < 1 || test.wordTarget > MAX_WORD_TARGET)) {
+    throw new Error(`${where}: choose a whole word count from 1 to ${MAX_WORD_TARGET}`);
+  }
+  if (test.mode === "preset") {
+    if (!test.presetText?.trim()) throw new Error(`${where}: enter the text to type`);
+    if (test.presetText.length > MAX_PRESET_TEXT_LENGTH) throw new Error(`${where}: text must be at most ${MAX_PRESET_TEXT_LENGTH} characters`);
+  }
+  if (test.title !== undefined && test.title.length > 60) throw new Error(`${where}: titles must be 60 characters or fewer`);
+}
+
+export function validateConnectOverrides(overrides: ConnectOverrides) {
+  const t = overrides.typography;
+  if (t && (!Number.isFinite(t.typingFontSize) || t.typingFontSize < TEXT_SIZE_MIN || t.typingFontSize > TEXT_SIZE_MAX)) {
+    throw new Error(`Choose a text size from ${TEXT_SIZE_MIN} to ${TEXT_SIZE_MAX}`);
+  }
+  const g = overrides.ghost;
+  if (g && (!Number.isFinite(g.ghostWriterSpeed) || g.ghostWriterSpeed < 1 || g.ghostWriterSpeed > MAX_GHOST_SPEED)) {
+    throw new Error(`Choose a ghost speed from 1 to ${MAX_GHOST_SPEED} WPM`);
+  }
+  if (overrides.theme && (!overrides.theme.themeId || overrides.theme.themeId.length > 100)) {
+    throw new Error("Choose a theme");
+  }
+}
+
+/** Short human description, e.g. "Time · 30s" or "Words · 25". */
+export function describeConnectTest(test: ConnectTest) {
+  if (test.mode === "time") return `Time · ${test.duration}s`;
+  if (test.mode === "words") return `Words · ${test.wordTarget}`;
+  if (test.mode === "quote") return `Quote · ${test.quoteLength === "all" ? "any length" : test.quoteLength}`;
+  return test.presetModeType === "time" ? `Custom text · ${test.duration}s` : "Custom text";
+}

@@ -22,4 +22,10 @@ crons.interval(
   internal.multiplayerPresence.cleanup
 );
 
+crons.interval(
+  "cleanupConnect",
+  { seconds: 30 },
+  internal.connectCleanup.cleanup
+);
+
 export default crons;

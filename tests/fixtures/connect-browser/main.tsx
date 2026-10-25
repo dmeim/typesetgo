@@ -1,19 +1,20 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import Fixture from "./Fixture";
-import { ThemeProvider } from "@/context/ThemeContext";
-import { IconProvider } from "@/components/ui/icon-provider";
-import "@/index.css";
+import "./identity";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { AppAuthProvider } from "@/components/layout/AppAuthProvider";
+import { AccountProvider } from "@/components/layout/AccountProvider";
 import { NotificationProvider } from "@/lib/notification-store";
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <NotificationProvider><ThemeProvider>
-      <IconProvider>
-        <BrowserRouter>
-          <Fixture />
-        </BrowserRouter>
-      </IconProvider>
-    </ThemeProvider></NotificationProvider>
-  </React.StrictMode>,
+import App from "@/App";
+import "@/index.css";
+
+// The real App: production routes, header, theme provider and toaster, with
+// `convex/react` and Clerk replaced by local modules (see vite.config.ts).
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <AppAuthProvider enabled={false}>
+      <AccountProvider>
+        <NotificationProvider><App /></NotificationProvider>
+      </AccountProvider>
+    </AppAuthProvider>
+  </StrictMode>,
 );

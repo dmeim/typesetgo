@@ -17,7 +17,7 @@ vi.mock("convex/react", async (original) => {
     ConvexReactClient: class extends actual.ConvexReactClient {
       constructor(url: string) { super(url); fixture.clients.push(this); }
     },
-    ConvexProvider: ({ children }: { children: ReactNode }) => <div data-provider="convex">{children}</div>,
+    ConvexProviderWithAuth: ({ children }: { children: ReactNode }) => <div data-provider="convex">{children}</div>,
     useConvexAuth: () => ({ isAuthenticated: !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY, isLoading: false }),
     useMutation: () => fixture.synchronize,
   };

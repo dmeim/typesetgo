@@ -18,6 +18,8 @@ bun run lint
 bun run test:e2e
 ```
 
+On Node 26+, jsdom tests that touch `localStorage` fail because Node's experimental Web Storage shadows jsdom's. Run them with `NODE_OPTIONS=--no-experimental-webstorage bun run test:run` (CI uses Node 22 and needs no flag).
+
 `convex-test` runs backend validator, identity, schema/index, and lifecycle tests entirely in process. It is not proof of live Clerk configuration or deployed behavior.
 
 ## An isolated real backend
@@ -34,6 +36,8 @@ bun run convex:dev --env-file .env.backend-local --expect local:YOUR_DEPLOYMENT
 The first command only validates and prints the selected target. The second starts the watcher. The wrapper rejects deployment keys/self-hosted overrides, unknown options, and mismatched targets. Cloud `dev:` targets additionally require `--allow-cloud`; use that only after independently verifying the target and authorizing its writes. The flag acknowledges cloud writes; it does not prove that a cloud deployment is safe or isolated.
 
 `bun run convex:deploy` remains the raw Convex deployment command and is a separate live operation: with a normal development configuration the CLI selects the project's **production** deployment, not the named development deployment. It is not part of the test or local-start workflow. This project intentionally retains its current development database; do not use that command as an automatic migration step.
+
+For quick throwaway testing, an anonymous local backend also works: copy the repository without `.env*`, `.git`, or `node_modules` (symlink `node_modules` back), replace `convex/auth.config.ts` with `export default { providers: [] };`, and run `CONVEX_AGENT_MODE=anonymous CONVEX_DEPLOYMENT= npx convex dev --codegen disable --typecheck disable` inside the copy. It serves `http://127.0.0.1:3210`; point Vite at it with `VITE_CONVEX_URL=http://127.0.0.1:3210 VITE_CLERK_PUBLISHABLE_KEY= vite` (the `connect-local` entry in `.claude/launch.json` does this on port 5179). Auth-only features are unavailable there.
 
 ## Generated types without a deployment
 
@@ -63,5 +67,9 @@ Release order:
 3. Confirm successful deployment and the updated function argument contracts before publishing the frontend.
 4. Commit only the intended changes and push to `main`; check GitHub checks and the Cloudflare build/deployment separately.
 5. After the frontend publishes, verify authenticated saving and Connect recovery against the intended backend.
+
+### Connect rebuild
+
+The rebuilt Connect adds the `connectRooms` and `connectParticipants` tables, `convex/connect.ts`, `convex/connectCleanup.ts`, and a `cleanupConnect` cron (every 30 seconds). Deploy Convex with the same guarded steps **before** publishing the frontend; the new pages call functions an old backend does not have. Legacy practice-room functions stay deployed so cached old frontends keep working during the rollout. Rooms created with the old Connect are not migrated. See [Connect and Race](features/Connect_Multiplayer.md#deployment-order).
 
 The added `typingSessions.completedAt` and `testResults.wordTarget` schema fields are optional, so existing records do not require a backfill for this release. Historical word targets that were not stored remain unknown. Previously incorrect scores or achievement state are not automatically rewritten; an achievement/stats replay is a separate authorized maintenance operation.

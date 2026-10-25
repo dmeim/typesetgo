@@ -11,6 +11,7 @@ import {
   PaletteIcon,
   SunIcon,
   TrophyIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { useTheme } from "@/hooks/useTheme";
 import UserButton from "@/components/auth/UserButton";
@@ -33,6 +34,10 @@ const NAV_TABS = [
   { label: "Race", path: "/race", icon: FlagCheckeredIcon, enabled: false },
   { label: "Lessons", path: "/lessons", icon: GraduationCapIcon, enabled: false },
 ] as const;
+
+const CONNECT_TAB = { label: "Connect", path: "/connect", icon: UsersThreeIcon };
+
+const navLinkClass = "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-background";
 
 function HeaderAction({ label, hint = label, ...props }: ComponentProps<typeof Button> & { label: string; hint?: string }) {
   const button = <Button
@@ -133,7 +138,7 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
                 key={path}
                 to={path}
                 aria-current={location.pathname === path ? "page" : undefined}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-background"
+                className={navLinkClass}
               >
                 <Icon className="size-4" aria-hidden="true" />{label}
               </Link>
@@ -142,6 +147,14 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
                 <Icon className="size-4" aria-hidden="true" />{label}<span className="sr-only"> — coming soon</span>
               </span>
             ))}
+            <span role="separator" aria-orientation="vertical" className="mx-1 h-6 w-px self-center bg-border" />
+            <Link
+              to={CONNECT_TAB.path}
+              aria-current={location.pathname.startsWith(CONNECT_TAB.path) ? "page" : undefined}
+              className={navLinkClass}
+            >
+              <CONNECT_TAB.icon className="size-4" aria-hidden="true" />{CONNECT_TAB.label}
+            </Link>
           </div>
         </nav>
 

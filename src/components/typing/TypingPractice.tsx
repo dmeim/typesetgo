@@ -2,7 +2,7 @@ import {
   ArrowFatLineUpIcon,
   ArrowsClockwiseIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { useMutation } from "convex/react";
 import { MAX_PRESET_TEXT_LENGTH, SOLO_PREPARED_SESSION_TTL_MS } from "@/lib/practice-limits";
@@ -11,7 +11,6 @@ import { normalizePracticeSettings, type Quote, type SettingsState } from "@/lib
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
-import { getRoomThemeStyle } from "@/components/connect/room-theme";
 import { fetchWordsManifest, type WordsManifest } from "@/lib/words";
 import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
 import {
@@ -127,6 +126,10 @@ interface TypingPracticeProps {
     targetText?: string
   ) => void;
   onLeave?: () => void;
+  /** Connect: scoped room theme variables applied to the practice surface. */
+  roomThemeStyle?: CSSProperties;
+  /** Connect: actions shown on the results screen in place of Next/Repeat. */
+  connectResultsActions?: ReactNode;
   // External modal control (lifted state from Home.tsx)
   showSettings?: boolean;
   setShowSettings?: (show: boolean) => void;
@@ -144,6 +147,8 @@ export default function TypingPractice({
   initialAttempt,
   onStatsUpdate,
   onLeave,
+  roomThemeStyle,
+  connectResultsActions,
   // External state control (when used from Home.tsx)
   showSettings: externalShowSettings,
   setShowSettings: externalSetShowSettings,
@@ -387,6 +392,13 @@ export default function TypingPractice({
   useLayoutEffect(() => {
     if (sessionEpochRef.current !== sessionEpoch) resetAttemptRuntime(sessionEpoch, false);
   }, [sessionEpoch, resetAttemptRuntime]);
+
+  // Resuming a paused Connect test returns focus to the input.
+  const wasTestActiveRef = useRef(isTestActive);
+  useLayoutEffect(() => {
+    if (connectMode && isTestActive && !wasTestActiveRef.current) focusRequestedRef.current = !overlayOpenRef.current;
+    wasTestActiveRef.current = isTestActive;
+  }, [connectMode, isTestActive]);
 
   useLayoutEffect(() => {
     if (promptReady && focusRequestedRef.current && !overlayOpenRef.current && !isFinished && (!connectMode || isTestActive)) {
@@ -942,7 +954,8 @@ export default function TypingPractice({
       event.preventDefault();
       resetSession(true);
     }
-    if (event.key === "Escape" && isRunning && !isFinished) {
+    // Connect tests end on the host's terms, so participants cannot cut them short.
+    if (event.key === "Escape" && isRunning && !isFinished && !connectMode) {
       event.preventDefault();
       finishSession();
     }
@@ -1041,7 +1054,7 @@ export default function TypingPractice({
   return (
     <div
       className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300`}
-      style={{ backgroundColor: tv.ui.background, ...(connectMode ? { color: tv.ui.foreground, ...getRoomThemeStyle(settings.theme, colors) } : {}) }}
+      style={{ backgroundColor: tv.ui.background, ...(connectMode ? { color: tv.ui.foreground, ...roomThemeStyle } : {}) }}
     >
       <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
       <div className="h-4 shrink-0" />
@@ -1279,11 +1292,7 @@ export default function TypingPractice({
               onCompositionStart={(event) => { composingRef.current = true; setCompositionDraft(event.currentTarget.value); }}
               onCompositionEnd={(event) => { composingRef.current = false; setCompositionDraft(null); handleInput(event.currentTarget.value); placeCaretAtEnd(event.currentTarget); }}
               onSelect={(event) => { if (!composingRef.current) placeCaretAtEnd(event.currentTarget); }}
-              onPaste={(e) => {
-                if (!connectMode) {
-                  e.preventDefault();
-                }
-              }}
+              onPaste={(e) => e.preventDefault()}
               onKeyDown={handleKeyDown}
               onFocus={(event) => { setIsFocused(true); placeCaretAtEnd(event.currentTarget); }}
               onBlur={() => setIsFocused(false)}
@@ -1379,6 +1388,7 @@ export default function TypingPractice({
             saveResults={saveResults}
             generateTest={generateTest}
             onLeave={onLeave}
+            connectActions={connectResultsActions}
             {...{ repeatTest: () => resetSession(true), rankingStatus, isRepeated }}
           />
         )}
@@ -1387,7 +1397,7 @@ export default function TypingPractice({
 
       <div ref={bottomLayoutRef} className={`shrink-0 w-full flex flex-col items-center ${settings.showOnScreenKeyboard && !isFinished && isRunning ? "" : settings.showOnScreenKeyboard && !isFinished ? "pt-2" : "pt-10 md:pt-12"}`}>
         {/* Instructions */}
-        {!isRunning && !isFinished && (
+        {!connectMode && !isRunning && !isFinished && (
           <div
             className="text-center text-muted-foreground transition-opacity duration-300"
             style={{ fontSize: `${settings.helpFontSize}rem`, opacity: uiOpacity }}

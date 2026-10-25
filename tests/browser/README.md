@@ -8,6 +8,7 @@ bun run test:e2e
 bun run test:e2e practice
 bun run test:e2e fonts
 bun run test:e2e profiles race
+bun run test:e2e connect
 ```
 
 The `fonts` suite (included in the default run) requires a current `dist` build. It checks the real built CSS and static font files with bootstrap scripts removed, so the production asset check never starts Clerk/Convex. It uses a separate strict loopback preview port, 4318. Other suites do not require a build.
@@ -21,8 +22,7 @@ The central runner executes suites sequentially and exits unsuccessfully when a 
 | `practice` | Real Home, header, practice engine/results/dialogs/themes, TypingArea, and toast/history delivery | Local auth/Convex replacements; allowlisted simulated ranked calls, delayed preferences, and controlled public datasets |
 | `fonts` | Real Home/font picker in fresh contexts; all 20 webfonts, 27 settings choices, built CSS/font/license paths | Reuses the practice fixture; blocks foreign origins including Google Fonts/CDNFonts; verifies successful FontFace loads and actual rendered custom-font glyphs, plus all shipped subset/weight/style combinations in the build |
 | `profiles` | Real profile/history/chart, leaderboard, achievement and notification dialogs | Synthetic owner/visitor/anonymous, legacy metrics, loading/empty/missing and failed actions |
-| `connect` | Real Host, Join membership UI, plans, cards, fullscreen and settings | Local room store; typing executor replaced to isolate dashboard behavior |
-| `connect-session` | Real Join and TypingPractice | Local versioned room store; timed preset, Stop, new Start and reset, with no solo-session writes |
+| `connect` | Real App routes and header: Connect landing (Host/Join cards, code lookup, recent rooms), host panel (test list states, editor, pacing, overrides, participants board, fullscreen/pop-out), participant room (lobby, real TypingPractice, host- and self-paced results, Up next splash, summary, removed/ended) and the pop-out board, plus 360px overflow checks | In-memory `convex/connect.ts` stand-in seeded per scenario (`?fixture=`); host actions from "another tab" are simulated through `window.__connectFixture`; Clerk disabled |
 | `race` | Real lobby/active/results, race course, avatar picker and TypingArea | Local membership/run/input snapshots, delayed and rejected actions, reconnect and reactive echoes |
 
 Fixtures bind to loopback and replace remote service modules. They require no `.env`, Clerk account, or Convex deployment. The repository's Convex development deployment serves the live app and must not be used for these tests. Browser requests outside the fixture are blocked. This is UI and mocked-contract acceptance, not proof of real authentication or network behavior.
@@ -31,7 +31,7 @@ The Practice fixture serves explicit local manifest responses and an in-memory t
 
 Backend boundaries additionally have `convex-test` suites under `tests/unit/*contract*`: they execute registered validators, schema/index behavior and authenticated identities without a remote deployment. Mock-runtime acceptance does not establish production auth configuration. The bootstrap unit test exercises the production provider wiring with transport mocked.
 
-Vite dependency discovery uses each actual fixture entry (not the production root HTML). The real Connect suite waits for fixture readiness and attaches console, page and request failures even when an intermediate assertion fails.
+Vite dependency discovery uses each actual fixture entry (not the production root HTML). The Connect fixture (`tests/fixtures/connect-browser/`, port 4319) renders the real `App` and replaces only `convex/react` and `@clerk/clerk-react`. Its mock store mirrors the server's view projections and the mutation transitions the scenarios need; unmocked queries or mutations throw. It serves in-memory word/quote/theme/sound manifests because the generated public manifests are gitignored. Seeds live in `mock-convex.ts`; add a seed there rather than branching inside the spec.
 
 ## Browser choice and evidence
 

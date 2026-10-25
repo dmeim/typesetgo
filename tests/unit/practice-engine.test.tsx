@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { CSSProperties } from "react";
 import TypingPractice from "@/components/typing/TypingPractice";
 import type { SettingsState } from "@/lib/typing-constants";
 import { DEFAULT_SETTINGS } from "@/lib/storage-utils";
@@ -426,6 +427,40 @@ describe("preference hydration and Connect boundaries", () => {
   });
 });
 
+describe("paste blocking", () => {
+  it.each([false, true])("blocks paste into the typing input (connect: %s)", async (connectMode) => {
+    setLocal();
+    const { container } = render(connectMode
+      ? <TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat dog" }} />
+      : <TypingPractice />);
+    await waitFor(() => expect(promptWords(container)).not.toBe(""));
+    const input = screen.getByRole("textbox", { name: "Typing practice" });
+    const allowed = fireEvent.paste(input, { clipboardData: { getData: () => "cat dog" } });
+    expect(allowed).toBe(false);
+  });
+
+  it("hides solo instructions in Connect and keeps them in solo practice", async () => {
+    setLocal();
+    const solo = render(<TypingPractice />);
+    await waitFor(() => expect(promptWords(solo.container)).not.toBe(""));
+    expect(screen.getByText(/to repeat/)).toBeInTheDocument();
+    solo.unmount();
+    const room = render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat dog" }} />);
+    await waitFor(() => expect(promptWords(room.container)).toBe("cat dog"));
+    expect(screen.queryByText(/to repeat/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "zen", exact: true })).not.toBeInTheDocument();
+  });
+
+  it("renders supplied Connect result actions instead of Next and Repeat", async () => {
+    render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat" }}
+      connectResultsActions={<p>Waiting for the host</p>} />);
+    fireEvent.change(await screen.findByRole("textbox", { name: "Typing practice" }), { target: { value: "cat" } });
+    expect(await screen.findByText("Waiting for the host")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Next Test/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Repeat Test/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("Connect attempt recovery", () => {
   it("restores input, prompt, and elapsed milliseconds before reporting any progress", async () => {
     const onStatsUpdate = vi.fn();
@@ -556,9 +591,9 @@ describe("reachable custom text and room palettes", () => {
   });
 
   it("scopes room colors without modifying personal theme storage or root styles", async () => {
-    const roomTheme = { cursor: "#ffff00", ghostCursor: "#00ffff", defaultText: "#ff00ff", upcomingText: "#ff00ff", correctText: "#ffffff", incorrectText: "#ff0000", backgroundColor: "#000000", surfaceColor: "#111111", buttonUnselected: "#ffff00", buttonSelected: "#00ffff" };
+    const roomThemeStyle = { "--background": "#000000", "--theme-typing-default": "#ff00ff", "--theme-typing-cursor": "#ffff00" } as CSSProperties;
     const rootStyle = document.documentElement.style.cssText;
-    const { container } = render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat dog", theme: roomTheme }} />);
+    const { container } = render(<TypingPractice connectMode lockedSettings={{ mode: "preset", presetText: "cat dog" }} roomThemeStyle={roomThemeStyle} />);
     await waitFor(() => expect(promptWords(container)).toBe("cat dog"));
     const scope = container.firstElementChild as HTMLElement;
     expect(scope.style.getPropertyValue("--background")).toBe("#000000");

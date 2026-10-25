@@ -1,65 +1,44 @@
 # Feature: Connect (Multiplayer/Classroom)
 
 ## 1. Overview
-"Connect" is a multiplayer feature that allows a Host to create a room (via a code) and control the typing experience for multiple joined Users. This is ideal for classrooms, competitions, or synchronized practice.
+Connect lets a host (usually a teacher) run a room of typists from a single code. The host builds an ordered list of tests, chooses whether the room moves together or each person moves at their own pace, optionally enforces display settings, and watches every participant's live stats on cards that can be shown full screen or in a separate window.
 
-## 2. Architecture & Routing
-*   **Routes**:
-    *   `/connect`: The landing page (Host/Join).
-    *   `/connect/host`: The Host's command center.
-    *   `/connect/[code]`: The Joiner's active room view.
-*   **Room Management** (Note: Terminology is "Room", not "Session"):
-    *   Unique alphanumeric room codes (e.g., `TR4X9`).
-    *   Real-time state synchronization (WebSockets or similar).
+Implementation details live in [Connect and Race](../features/Connect_Multiplayer.md).
 
-## 3. User Flows
+## 2. Entry and routing
+- The header shows **Connect** after Type, Race and Lessons, separated from them by a vertical divider.
+- `/connect` has two cards:
+  - **Host a room**: host name, optional room name, Create room. Below it, **Recent rooms** from the last 48 hours, with Resume (live) or Reopen (ended).
+  - **Join a room**: participant name and a 4-character code. `/connect/join?code=XXXX` pre-fills the code and previews the room.
+- `/connect/host/:roomId` is the host panel, `/connect/host/:roomId/board` the card-only board, and `/connect/room/:roomId` the participant view.
 
-### 3.1. Entry Point
-*   **Connect Button**: Located in the top row of the main UI. Redirects to `/connect`.
-*   **Connect Page** (`/connect`):
-    *   **Host Card**: "Start Hosting" button -> Redirects to `/connect/host`.
-    *   **Join Card**: Input field for code -> Redirects to `/connect/[code]`.
+## 3. Rooms and codes
+- Codes are 4 characters, letters and digits, without ambiguous characters. A code never changes while its room is live.
+- A room stays live until the host ends it or 72 hours pass without host activity. Participants alone never keep a room alive or end it.
+- Ended rooms are archived for 48 hours, then deleted. Reopening restores the name, tests, pacing and overrides with a **new code** and an empty participant list, so a teacher can set up a lesson once and reuse it across class periods and days.
+- Signed-in hosts see their rooms on any device; guests see rooms hosted from the same browser.
 
-### 3.2. Host Experience (`/connect/host`)
-*   **Admin Panel**:
-    *   **Settings Control**: Host has exclusive control over all test settings:
-        *   Mode (Time, Words, Quote, Preset).
-        *   Difficulty / Language.
-        *   Theme / Styling (Host can enforce a theme or allow user override - *Requirement: Host sets style options*).
-        *   **Preset Mode**: Host can paste/load text for all users.
-    *   **User Management**:
-        *   List of connected users.
-        *   **Actions**:
-            *   **Reset User**: Reset a specific user's progress/test to the start.
-            *   **Kick User** (Optional but recommended).
-    *   **Live Dashboard**:
-        *   Real-time stats for each user: Speed (WPM), Accuracy, Progress (%), Time Left.
-*   **Flow Control**:
-    *   Host starts the test (synchronized start) or allows async start.
+## 4. Host panel
+- **Test list**: add Time, Words, Quote or Custom text tests with their options and an optional title. Edit, duplicate, reorder and remove. Up to 50 tests. Highlight the current test, grey out finished ones, and show upcoming ones normally. Tests already reached are locked while the room runs.
+- **Pacing**:
+  - *Host-led*: everyone is on the same test, and the host controls start, pause, restart, previous and next.
+  - *Self-paced*: participants advance on their own after the host starts. The list shows how many people are on each test.
+- **Participant settings**: per-group overrides for theme (and dark/light), text (font, size, alignment), ghost writer, sounds, and the on-screen keyboard (and layout). A group that is off leaves each participant's own preference in place.
+- **Participants**: cards with live WPM, accuracy, progress, current test (self-paced) and presence. Sort, resize, list/grid, show/hide offline, drag order, reset, remove. **Fullscreen**, **Pop out** (a small window, like a stream chat pop-out) and **Open in new tab** show only the cards. Board settings stay on the host panel and sync to the other window.
 
-### 3.3. Joiner Experience (`/connect/[code]`)
-*   **Onboarding**:
-    *   Enter Name OR "Skip" (generates random name like "Anonymous Axolotl").
-*   **Waiting Room**:
-    *   "Waiting for host to start..." or "Waiting for next round...".
-    *   View current settings (Read-only).
-*   **The Test**:
-    *   Standard typing interface.
-    *   **Locked Settings**: Users cannot change mode, difficulty, or text.
-    *   **Live Feedback**: Standard local feedback + potential leaderboard position.
-    *   **Leave Room**: Button to disconnect and redirect to the main site.
+## 5. Participant experience
+- A minimal screen: room name, Leave, a "Test N of M" indicator showing which test of the list they are on (e.g. "2nd timed test"), live stats, the typing area, and the keyboard if the host allows it. No settings controls.
+- Results:
+  - Host-led: no Next button; the participant waits for the host.
+  - Self-paced: **Next test** opens a short **Up next** splash with the next test's title and details and an animated list of completed, next and remaining tests.
+- After the last self-paced test, a summary lists each test's results.
+- Participants cannot end a test early, paste text, or change the host's locked settings.
 
-## 4. Data & State
-*   **Host State**:
-    *   Master source of truth for Settings.
-    *   Aggregates all User Stats.
-*   **User State**:
-    *   Sends: Current WPM, Accuracy, Progress, Name.
-    *   Receives: Test Content, Settings, Start/Stop signals, Reset signals.
+## 6. Reliability requirements
+- Students must not be dropped or see codes change unexpectedly. Inactivity only marks a participant offline; refreshing or returning to the tab rejoins the same seat.
+- Progress from an earlier run, test or reset must never overwrite current results.
+- Removed participants see that the host removed them and can rejoin with the code.
 
-## 5. Technical Considerations
-*   **Latency**: Ensure "Start" signal is as synchronized as possible.
-*   **Resilience**: Users MUST be able to refresh and rejoin the same room automatically.
-*   **Infrastructure**:
-    *   Hosted on many VPSs in containers.
-    *   **Self-Contained State**: Synchronization (WebSockets) must be handled within the container instance. No external coordination database. Users connect to the specific container instance.
+## 7. Out of scope (for now)
+- Assignments, gradebook export and class rosters (see [Teacher Tools](Teacher_Tools_PRD.md)).
+- Anti-cheat beyond paste blocking and server-validated stats.

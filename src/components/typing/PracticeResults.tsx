@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   ArrowClockwiseIcon,
   ArrowFatRightIcon,
@@ -58,6 +58,8 @@ interface PracticeResultsProps {
   saveResults: () => void;
   generateTest: () => void;
   onLeave?: () => void;
+  /** Connect: room-specific actions (waiting message or Next test). */
+  connectActions?: ReactNode;
   repeatTest?: () => void;
   rankingStatus?: "pending" | "ranked" | "unranked";
   isRepeated?: boolean;
@@ -79,6 +81,7 @@ export default function PracticeResults({
   saveResults,
   generateTest,
   onLeave,
+  connectActions,
   repeatTest,
   rankingStatus,
   isRepeated,
@@ -94,7 +97,9 @@ export default function PracticeResults({
     saved: "Saved",
     error: "Error - Try Again",
   }[saveState];
-  const resultsInfo = lastResultIsValid === false
+  const resultsInfo = connectMode
+    ? "Your result is shared with the host."
+    : lastResultIsValid === false
     ? "This test could not be verified and cannot be saved."
     : isRepeated || rankingStatus === "unranked"
       ? "This practice can be saved to your history, but will not appear on leaderboards."
@@ -494,6 +499,7 @@ export default function PracticeResults({
               </button>
             </div>
           )}
+          {connectMode && connectActions}
           {connectMode && onLeave && (
             <button
               type="button"

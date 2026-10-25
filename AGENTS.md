@@ -52,14 +52,14 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | Path | Purpose |
 |------|---------|
 | `src/pages/` | Route-level pages (`Home`, `Connect`, `Race`, `Leaderboard`, `Lessons`, legal/info pages) |
-| `src/components/` | Feature components organized by domain (`typing/`, `race/`, `connect/`, `auth/`, `plan/`, `settings/`, `stats/`, `layout/`) |
+| `src/components/` | Feature components organized by domain (`typing/`, `race/`, `connect/`, `auth/`, `settings/`, `stats/`, `layout/`) |
 | `src/components/ui/` | Shadcn/Radix-style UI primitives |
 | `src/hooks/` | Custom hooks (`useTheme`, `useSoundPreview`, `useAnimatedCounter`, `useSessionId`) |
 | `src/lib/` | Utilities, adapters, constants, stores, content loaders |
 | `src/context/` | React context providers |
 | `src/types/` | TypeScript domain types |
-| `convex/schema.ts` | Database schema (15 tables) + indexes |
-| `convex/*.ts` | Convex queries/mutations/actions for users, results, rooms, participants, races, achievements, streaks, stats, cleanup, migrations |
+| `convex/schema.ts` | Database schema (17 tables) + indexes |
+| `convex/*.ts` | Convex queries/mutations/actions for users, results, Connect (`connect.ts`, `connectCleanup.ts`), Race rooms/participants, achievements, streaks, stats, cleanup, migrations |
 | `convex/lib/` | Convex-side shared helpers/constants |
 | `public/themes/` | Theme JSON files (startup manifest and browsing catalog generated) |
 | `public/words/` | Word lists (manifest generated) |
@@ -80,10 +80,10 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/` | Home/main typing practice |
 | `/leaderboard` | Leaderboard |
 | `/user/:userId` | User stats profile |
-| `/connect` | Multiplayer hub |
-| `/connect/host` | Create a room |
-| `/connect/host/:roomId` | Resume the owned room |
-| `/connect/join` | Join a room |
+| `/connect`, `/connect/join` | Connect landing: host a room (plus recent rooms) or join with a code |
+| `/connect/host/:roomId` | Host panel for an owned room |
+| `/connect/host/:roomId/board` | Card-only participant board (pop-out window or second tab) |
+| `/connect/room/:roomId` | Participant view |
 | `/race` | Race creation/selection |
 | `/race/lobby/:lobbyId` | Race lobby |
 | `/race/:raceId` | Active race |
@@ -95,7 +95,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 
 ## Provider Stack (`src/main.tsx`)
 
-optional `ClerkProvider` -> `ConvexClerkProvider` (or anonymous `ConvexProvider`) -> `AppAuthProvider` -> `AccountProvider` -> `NotificationProvider` -> `App`. App owns `ThemeProvider`, `IconProvider`, `MotionConfig reducedMotion="user"`, lazy `RouterProvider`, and themed `Toaster`.
+optional `ClerkProvider` -> `ConvexClerkProvider` (or anonymous `ConvexProviderWithAuth` with a fixed signed-out state) -> `AppAuthProvider` -> `AccountProvider` -> `NotificationProvider` -> `App`. App owns `ThemeProvider`, `IconProvider`, `MotionConfig reducedMotion="user"`, lazy `RouterProvider`, and themed `Toaster`.
 
 Notes:
 - `VITE_CONVEX_URL` is required for the Convex client.

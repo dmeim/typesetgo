@@ -3,6 +3,14 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { activityCalendarValidator } from "./lib/activityCalendar";
 import { achievementStateValidator } from "./lib/achievementEvaluator";
+import {
+  connectOverridesValidator,
+  connectPacingValidator,
+  connectResultValidator,
+  connectStatsValidator,
+  connectStatusValidator,
+  connectTestValidator,
+} from "./lib/connect";
 
 export default defineSchema({
   // Users for authentication
@@ -154,6 +162,52 @@ export default defineSchema({
   })
     .index("by_room", ["roomId"])
     .index("by_session", ["sessionId"])
+    .index("by_presence", ["isConnected", "lastSeen"]),
+
+  // Connect classroom rooms (separate from Race's rooms table so no live migration is needed)
+  connectRooms: defineTable({
+    code: v.optional(v.string()), // live rooms only
+    name: v.string(),
+    hostName: v.string(),
+    hostCredentialHash: v.string(),
+    ownerClerkId: v.optional(v.string()),
+    tests: v.array(connectTestValidator),
+    pacing: connectPacingValidator,
+    overrides: connectOverridesValidator,
+    status: connectStatusValidator,
+    currentIndex: v.number(),
+    runVersion: v.number(),
+    createdAt: v.number(),
+    lastActiveAt: v.number(),
+    expiresAt: v.number(),
+    endedAt: v.optional(v.number()),
+  })
+    .index("by_code", ["code"])
+    .index("by_host_hash", ["hostCredentialHash"])
+    .index("by_owner", ["ownerClerkId"])
+    // Leading endedAt lets cleanup scan live rooms (endedAt undefined) by expiry and ended rooms by age.
+    .index("by_ended_expires", ["endedAt", "expiresAt"]),
+
+  connectParticipants: defineTable({
+    roomId: v.id("connectRooms"),
+    sessionId: v.string(),
+    credentialHash: v.string(),
+    name: v.string(),
+    isConnected: v.boolean(),
+    lastSeen: v.number(),
+    joinedAt: v.number(),
+    leftAt: v.optional(v.number()),
+    removedAt: v.optional(v.number()),
+    stepIndex: v.number(),
+    attempt: v.number(),
+    stats: connectStatsValidator,
+    typedText: v.optional(v.string()),
+    targetText: v.optional(v.string()),
+    results: v.array(connectResultValidator),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_room", ["roomId"])
+    .index("by_room_session", ["roomId", "sessionId"])
     .index("by_presence", ["isConnected", "lastSeen"]),
 
   // User preferences for syncing settings across devices

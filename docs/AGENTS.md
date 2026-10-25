@@ -66,7 +66,7 @@ Start with `bun run dev:fixture` (isolated UI on port 4317). For a real backend 
 - **Lint:** `bun run lint`
 - **Unit tests (watch):** `bun run test`
 - **Unit tests (single run):** `bun run test:run`
-- **E2E test command:** `bun run test:e2e` (all isolated browser suites), or append `practice`, `fonts`, `profiles`, `connect`, `connect-session`, or `race`. Build first for `fonts` (included in the default run); see the browser guide for fixture environment values.
+- **E2E test command:** `bun run test:e2e` (all isolated browser suites), or append `practice`, `fonts`, `profiles`, `connect`, or `race`. Build first for `fonts` (included in the default run); see the browser guide for fixture environment values.
 - **Convex dev:** `bun run convex:dev --env-file PATH --expect local:NAME` (explicit target required)
 - **Convex deploy:** `bun run convex:deploy`
 - **Preview production build:** `bun run preview`
@@ -154,7 +154,7 @@ typesetgo/
 ### Bootstrap/provider stack (`src/main.tsx`)
 Provider order is:
 1. `StrictMode`.
-2. When configured, `ClerkProvider` and `ConvexClerkProvider`; otherwise anonymous `ConvexProvider`.
+2. When configured, `ClerkProvider` and `ConvexClerkProvider`; otherwise `ConvexProviderWithAuth` with a fixed signed-out auth state (account code calls `useConvexAuth`, which needs an auth-aware provider even without Clerk).
 3. `AppAuthProvider`, exposing safe `useAppAuth` availability and guarded account actions.
 4. `AccountProvider`, owning authenticated account synchronization and readiness, then account-scoped `NotificationProvider`.
 5. `App`: `ThemeProvider` → `IconProvider` → `MotionConfig reducedMotion="user"` → `RouterProvider` and themed `Toaster`.
@@ -174,7 +174,7 @@ Important behavior:
 - `tests/unit/foundations-toasts.test.tsx` covers delivery/history behavior; the practice browser suite includes `tests/browser/practice/toasts.mjs` for themes, keyboard focus, modal feedback, scrolling, and timer behavior.
 
 ### Routes (`src/components/layout/app-routes.ts`)
-Lazy route modules cover Home, leaderboard/profile, Connect host/join, race lobby/active/results, lessons, admin, and legal/info pages. `RouteRecovery.tsx` supplies loading, route error, and not-found recovery. Race/Lessons navigation remains disabled; route existence does not mean an unfinished feature is enabled.
+Lazy route modules cover Home, leaderboard/profile, Connect landing/host/room/board, race lobby/active/results, lessons, admin, and legal/info pages. `RouteRecovery.tsx` supplies loading, route error, and not-found recovery. Race/Lessons navigation remains disabled; route existence does not mean an unfinished feature is enabled.
 
 Use React Router links and hooks. Avoid alternate navigation systems. Header now participates in normal page flow; do not reintroduce fixed-header clearance spacers.
 
@@ -186,8 +186,10 @@ Primary schema tables in `convex/schema.ts` include:
 - `users`
 - `testResults`
 - `typingSessions`
-- `rooms`
-- `participants`
+- `rooms` (Race and legacy practice rooms)
+- `participants` (Race and legacy practice rooms)
+- `connectRooms` (Connect rooms: code, test list, pacing, overrides, live/archive lifecycle)
+- `connectParticipants` (Connect members: presence, current test, stats, results)
 - `userPreferences`
 - `userAchievements`
 - `userStreaks`
@@ -288,7 +290,7 @@ When implementing non-trivial changes:
 - Typed preference adapters: `src/lib/practice-preferences.ts`; backend validators: `convex/schema.ts` and function arguments
 - Theme/sound/content helpers: `src/lib/*`
 - Convex schema: `convex/schema.ts`
-- Convex features: files like `convex/rooms.ts`, `convex/participants.ts`, `convex/raceResults.ts`
+- Convex features: files like `convex/connect.ts` and `convex/connectCleanup.ts` (Connect; see [Connect and Race](features/Connect_Multiplayer.md)), `convex/rooms.ts`, `convex/participants.ts`, `convex/raceResults.ts`
 - Build/test configs:
   - `vite.config.ts`
   - `vitest.config.ts`

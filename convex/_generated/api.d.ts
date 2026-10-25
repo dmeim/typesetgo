@@ -8,9 +8,16 @@
  * @module
  */
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
 import type * as achievementThresholds from "../achievementThresholds.js";
 import type * as achievements from "../achievements.js";
 import type * as admin from "../admin.js";
+import type * as connect from "../connect.js";
+import type * as connectCleanup from "../connectCleanup.js";
 import type * as crons from "../crons.js";
 import type * as lib_achievementEvaluator from "../lib/achievementEvaluator.js";
 import type * as lib_achievementGate from "../lib/achievementGate.js";
@@ -18,6 +25,7 @@ import type * as lib_activityCalendar from "../lib/activityCalendar.js";
 import type * as lib_antiCheatConstants from "../lib/antiCheatConstants.js";
 import type * as lib_burst from "../lib/burst.js";
 import type * as lib_computeStats from "../lib/computeStats.js";
+import type * as lib_connect from "../lib/connect.js";
 import type * as lib_consumeRateLimit from "../lib/consumeRateLimit.js";
 import type * as lib_crypto from "../lib/crypto.js";
 import type * as lib_finalizeLength from "../lib/finalizeLength.js";
@@ -44,16 +52,20 @@ import type * as testResults from "../testResults.js";
 import type * as typingSessions from "../typingSessions.js";
 import type * as users from "../users.js";
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
-
+/**
+ * A utility for referencing Convex functions in your app's API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
 declare const fullApi: ApiFromModules<{
   achievementThresholds: typeof achievementThresholds;
   achievements: typeof achievements;
   admin: typeof admin;
+  connect: typeof connect;
+  connectCleanup: typeof connectCleanup;
   crons: typeof crons;
   "lib/achievementEvaluator": typeof lib_achievementEvaluator;
   "lib/achievementGate": typeof lib_achievementGate;
@@ -61,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   "lib/antiCheatConstants": typeof lib_antiCheatConstants;
   "lib/burst": typeof lib_burst;
   "lib/computeStats": typeof lib_computeStats;
+  "lib/connect": typeof lib_connect;
   "lib/consumeRateLimit": typeof lib_consumeRateLimit;
   "lib/crypto": typeof lib_crypto;
   "lib/finalizeLength": typeof lib_finalizeLength;
@@ -87,31 +100,11 @@ declare const fullApi: ApiFromModules<{
   typingSessions: typeof typingSessions;
   users: typeof users;
 }>;
-
-/**
- * A utility for referencing Convex functions in your app's public API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = api.myModule.myFunction;
- * ```
- */
 export declare const api: FilterApi<
   typeof fullApi,
   FunctionReference<any, "public">
 >;
-
-/**
- * A utility for referencing Convex functions in your app's internal API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = internal.myModule.myFunction;
- * ```
- */
 export declare const internal: FilterApi<
   typeof fullApi,
   FunctionReference<any, "internal">
 >;
-
-export declare const components: {};

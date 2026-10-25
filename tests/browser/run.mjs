@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 // Tailwind's automatic source scan must see the repository even when invoked
 // through an absolute runner path from another working directory.
 process.chdir(root);
-const available = ["practice", "fonts", "profiles", "connect", "connect-session", "race"];
+const available = ["practice", "fonts", "profiles", "connect", "race"];
 const selected = process.argv.slice(2);
 const suites = selected.length ? selected : available;
 for (const name of suites) {
@@ -98,7 +98,7 @@ try {
       await run(process.execPath, ["tests/browser/profiles/check.mjs"], 300_000);
     } else {
       const config = suite === "race" ? "tests/fixtures/race/playwright.config.ts"
-        : "tests/fixtures/connect-browser/playwright" + (suite === "connect-session" ? ".real" : "") + ".config.ts";
+        : "tests/fixtures/connect-browser/playwright.config.ts";
       await run(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", config]);
     }
   }

@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { AppAuthProvider } from "@/components/layout/AppAuthProvider";
 import { AccountProvider } from "@/components/layout/AccountProvider";
@@ -23,6 +23,10 @@ if (!CLERK_PUBLISHABLE_KEY) {
   console.warn("Missing VITE_CLERK_PUBLISHABLE_KEY. Auth features will be disabled.");
 }
 
+// Account code reads `useConvexAuth`, which requires an auth-aware provider even when signed out.
+const anonymousAuth = { isLoading: false, isAuthenticated: false, fetchAccessToken: async () => null };
+const useAnonymousAuth = () => anonymousAuth;
+
 const appTree = (
   <AppAuthProvider enabled={Boolean(CLERK_PUBLISHABLE_KEY)}>
     <AccountProvider>
@@ -38,7 +42,7 @@ createRoot(document.getElementById("root")!).render(
         <ConvexClerkProvider client={convex}>{appTree}</ConvexClerkProvider>
       </ClerkProvider>
     ) : (
-      <ConvexProvider client={convex}>{appTree}</ConvexProvider>
+      <ConvexProviderWithAuth client={convex} useAuth={useAnonymousAuth}>{appTree}</ConvexProviderWithAuth>
     )}
   </StrictMode>
 );
