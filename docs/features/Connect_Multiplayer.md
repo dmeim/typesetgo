@@ -54,7 +54,9 @@ The old implementation could drop students or rotate codes. The rebuild avoids t
 
 ### Deployment order
 
-The new frontend needs the new Convex functions and tables. Deploy Convex first (`bun run convex:deploy`, an authorized live operation), then the frontend. The legacy practice-room functions in `convex/rooms.ts` and `convex/participants.ts` (`rooms.getByCode/setStatus/resetPractice/resume/deleteRoom`, `participants.updateStats/kick`) are no longer called by the app but are kept so cached copies of the old frontend keep working during the rollout. They can be removed in a later release.
+The new frontend needs the new Convex functions and tables. Deploy Convex first (`bun run convex:deploy`, an authorized live operation), then the frontend. The same release removes the pre-rebuild practice-room backend (`rooms.getByCode/setStatus/resetPractice/resume/deleteRoom`, `participants.updateStats/kick`, practice room creation and joins, and the practice capacity/reclaim pass). Cached copies of the old Connect frontend stop working once Convex is deployed and must reload.
+
+The `rooms` and `participants` schema is unchanged, so leftover practice rows still validate on deploy. Those rooms can no longer be joined. Once they go 15 minutes without a heartbeat, the presence cron deletes them along with their participants. No other table is touched: test results, typing sessions, users, achievements, streaks and stats stay as they are.
 
 ## Race ownership and presence
 
@@ -62,7 +64,7 @@ The new frontend needs the new Convex functions and tables. Deploy Convex first 
 
 Presence heartbeats update `lastSeen` and extend room retention. Scheduled cleanup applies disconnect behavior after 75 seconds without participant activity (including reconnect grace), checks race completion, and transfers a vanished Race host to an eligible connected participant. If the host left a waiting race alone, the next racer to join becomes host. Rooms expire after 15 minutes without heartbeat renewal and their associated data is removed in bounded room batches. Explicit Leave and End room remain available; browser unload is not the sole cleanup mechanism.
 
-Legacy practice rooms (the pre-rebuild Connect, still in `convex/rooms.ts`) cap stored memberships at 64, including a 30-second reservation after disconnect for reconnection. After that reservation, disconnected practice memberships and their attempt snapshots can be reclaimed. At the cap, joining performs presence cleanup and reclaims eligible departures before deciding the room is full. An abandoned practice membership's disconnect time is the end of its 75-second presence timeout, rather than the time a delayed cleanup happens to run. Disconnected records without a stored disconnect timestamp use that same conservative last-seen timeout before their reconnect reservation can expire. Background reclamation uses indexed pages of 100 records, continuing past preserved race rows so those rows cannot block practice cleanup. Connected/recently active participants and fresh reconnect reservations are not evicted. Race memberships and result snapshots are not reclaimed for capacity; their existing room expiry lifecycle is unchanged.
+`convex/rooms.ts` and `convex/participants.ts` now serve Race only: `rooms.create` always makes a race room, and `participants.join` and `resetStats` reject any other room type. A race room holds at most 64 memberships, and a disconnected racer can rejoin a running race within 30 seconds. Memberships are not reclaimed for capacity; they and the race result snapshot are removed when the room expires.
 
 Legacy rooms without a credential cannot be safely claimed. They are treated as expired and the user creates a new room. Clearing browser storage similarly loses ownership; public record IDs cannot recover it.
 
@@ -74,5 +76,5 @@ Legacy rooms without a credential cannot be safely claimed. They are treated as 
 
 - `tests/unit/connect-contract.test.ts` (`convex-test`): codes, credentials and forged callers, host liveness and 72-hour idle end, archive/reopen with a new code, pacing, locked tests, stale-attempt rejection, offline marking without removal, and cleanup batches.
 - `tests/unit/connect-landing.test.tsx`, `connect-host-panel.test.tsx`, `connect-room.test.tsx`, `connect-board.test.tsx`: landing/join/recent rooms, host panel controls, the participant view (host-led waiting, self-paced splash, summary, removed/ended), and board cards.
-- Registered multiplayer contract tests still cover Race and the legacy room functions.
+- `tests/unit/multiplayer-contract.test.ts` (`convex-test`) and `multiplayer-backend.test.ts`: Race credentials and forged callers, host transfer, finishes and snapshots, expiry cleanup, and rejection of leftover practice rooms.
 - Browser suites `connect` and `race` run against local mocks; see [browser acceptance](../../tests/browser/README.md). These tests never contact the live deployment.

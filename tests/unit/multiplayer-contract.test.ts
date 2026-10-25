@@ -10,17 +10,17 @@ const host = "a".repeat(64);
 const guest = "b".repeat(64);
 const attacker = "c".repeat(64);
 afterEach(() => vi.useRealTimers());
-async function setup(gameMode: "practice" | "race" = "race") {
+async function setup() {
   const t = convexTest(schema, modules);
-  const room = await t.mutation(api.rooms.create, { hostSessionId: "host", hostName: "Host", gameMode, credential: host });
+  const room = await t.mutation(api.rooms.create, { hostSessionId: "host", hostName: "Host", gameMode: "race", credential: host });
   const member = await t.mutation(api.participants.join, { roomCode: room.code, sessionId: "host", name: "Host", credential: host });
   const other = await t.mutation(api.participants.join, { roomCode: room.code, sessionId: "guest", name: "Guest", credential: guest });
   return { t, room, member, other };
 }
 
 describe("multiplayer credentials through registered Convex validators/schema", () => {
-  it("rejects oversized Connect preset text before storing room settings", async () => {
-    const { t, room } = await setup("practice");
+  it("rejects oversized preset text before storing room settings", async () => {
+    const { t, room } = await setup();
     await expect(t.mutation(api.rooms.updateSettings, { roomId: room.roomId, credential: host,
       settings: { presetText: "x".repeat(MAX_PRESET_TEXT_LENGTH + 1) } })).rejects.toThrow(/Preset text/);
     await expect(t.mutation(api.rooms.updateSettings, { roomId: room.roomId, credential: host,
@@ -45,14 +45,13 @@ describe("multiplayer credentials through registered Convex validators/schema", 
     const { t, room, member } = await setup();
     const unjoinedRoom = await t.mutation(api.rooms.create, { hostSessionId: "not-joined", hostName: "New host", gameMode: "race", credential: host });
     await expect(t.mutation(api.participants.join, { roomCode: unjoinedRoom.code, sessionId: "not-joined", name: "Squatter", credential: attacker })).rejects.toThrow("Only the room host");
-    const publicRoom = await t.query(api.rooms.getByCode, { code: room.code });
+    const publicRoom = await t.query(api.rooms.getById, { roomId: room.roomId });
     const publicMember = await t.query(api.participants.getBySession, { roomId: room.roomId, sessionId: "host" });
     expect(publicRoom).not.toHaveProperty("hostCredentialHash");
     expect(publicMember).not.toHaveProperty("credentialHash");
     expect(member.room).not.toHaveProperty("hostCredentialHash");
     for (const participant of await t.query(api.participants.listByRoom, { roomId: room.roomId })) expect(participant).not.toHaveProperty("credentialHash");
     await expect(t.mutation(api.participants.join, { roomCode: room.code, sessionId: "host", name: "Stolen", credential: attacker })).rejects.toThrow();
-    await expect(t.withIdentity({ subject: "other-account" }).mutation(api.rooms.deleteRoom, { roomId: room.roomId, credential: attacker })).rejects.toThrow();
     await t.mutation(api.participants.setName, { participantId: member.participantId, credential: host, name: "Renamed" });
     expect((await t.query(api.participants.getBySession, { roomId: room.roomId, sessionId: "host" }))?.name).toBe("Renamed");
   });
@@ -65,12 +64,10 @@ describe("multiplayer credentials through registered Convex validators/schema", 
     const calls: [FunctionReference<"mutation">, Record<string, unknown>][] = [
       [api.rooms.create, { hostName: "Fake", hostSessionId: "host" }],
       [api.participants.join, { roomCode: room.code, sessionId: "host", name: "Fake" }],
-      [api.rooms.resume, { roomId }], [api.rooms.deleteRoom, { roomId }],
-      [api.rooms.updateSettings, { roomId, settings: {} }], [api.rooms.setStatus, { roomId, status: "active" }],
-      [api.rooms.resetPractice, { roomId }], [api.rooms.setRaceText, { roomId }], [api.rooms.startRace, { roomId }],
+      [api.rooms.updateSettings, { roomId, settings: {} }], [api.rooms.setRaceText, { roomId }], [api.rooms.startRace, { roomId }],
       [api.rooms.endRace, { roomId }], [api.rooms.resetForNewRace, { roomId }],
-      [api.participants.updateStats, { participantId, stats }], [api.participants.updateProgress, { participantId, stats, typedProgress: 0 }],
-      [api.participants.recordFinish, { participantId, finishTime: 0 }], [api.participants.kick, { participantId }],
+      [api.participants.updateProgress, { participantId, stats, typedProgress: 0 }],
+      [api.participants.recordFinish, { participantId, finishTime: 0 }],
       [api.participants.resetStats, { participantId }], [api.participants.disconnect, { participantId }],
       [api.participants.setReady, { participantId }], [api.participants.setNotReady, { participantId }],
       [api.participants.setEmoji, { participantId, emoji: "x" }], [api.participants.setName, { participantId, name: "Fake" }],
@@ -80,7 +77,6 @@ describe("multiplayer credentials through registered Convex validators/schema", 
       await expect(t.mutation(reference, args)).rejects.toThrow();
       if (getFunctionName(reference) !== "rooms:create") await expect(t.mutation(reference, { ...args, credential: attacker })).rejects.toThrow();
     }
-    await expect(t.mutation(api.participants.kick, { participantId, credential: guest })).rejects.toThrow();
   });
 
   it("denies legacy rooms, expired rooms and cross-room heartbeat ownership", async () => {
@@ -88,10 +84,17 @@ describe("multiplayer credentials through registered Convex validators/schema", 
     const second = await t.mutation(api.rooms.create, { hostSessionId: "other", hostName: "Other", credential: guest });
     await expect(t.mutation(api.multiplayerPresence.heartbeat, { roomId: second.roomId, participantId: member.participantId, credential: host })).rejects.toThrow();
     await t.run(async (ctx) => { await ctx.db.patch(room.roomId, { hostCredentialHash: undefined }); });
-    await expect(t.mutation(api.rooms.resume, { roomId: room.roomId, credential: host })).rejects.toThrow("expired");
+    await expect(t.mutation(api.rooms.updateSettings, { roomId: room.roomId, settings: {}, credential: host })).rejects.toThrow("expired");
     expect(await t.query(api.rooms.getById, { roomId: room.roomId })).toBeNull();
     await t.run(async (ctx) => { await ctx.db.patch(second.roomId, { expiresAt: Date.now() - 1 }); });
     await expect(t.mutation(api.participants.join, { roomCode: second.code, sessionId: "new", name: "New", credential: attacker })).rejects.toThrow("expired");
+  });
+
+  it("refuses to admit members to leftover legacy practice rooms", async () => {
+    const { t, room, member } = await setup();
+    await t.run(async (ctx) => { await ctx.db.patch(room.roomId, { gameMode: "practice" }); });
+    await expect(t.mutation(api.participants.join, { roomCode: room.code, sessionId: "new", name: "New", credential: attacker })).rejects.toThrow("different game mode");
+    await expect(t.mutation(api.participants.resetStats, { participantId: member.participantId, credential: host })).rejects.toThrow("not a race");
   });
 
   it("transfers a vanished host after grace and preserves only the successor's authority", async () => {

@@ -1,7 +1,7 @@
 // convex/participants.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { acceptsAttempt, checkParticipant, checkRoomHost, compareRaceFinish, credentialHash, disconnectMember, publicParticipant, publicRoom, requireLiveRoom, resetParticipantAttempt, validateParticipantStats, PRESENCE_TIMEOUT_MS, REJOIN_RETENTION_MS, reclaimPracticeMemberships } from "./lib/multiplayer";
+import { acceptsAttempt, checkParticipant, compareRaceFinish, credentialHash, disconnectMember, publicParticipant, publicRoom, requireLiveRoom, resetParticipantAttempt, validateParticipantStats, REJOIN_RETENTION_MS } from "./lib/multiplayer";
 
 const statsValidator = v.object({
   wpm: v.number(), accuracy: v.number(), progress: v.number(),
@@ -24,7 +24,7 @@ export const join = mutation({
     credential: v.string(),
     name: v.string(),
     emoji: v.optional(v.string()),
-    gameMode: v.optional(v.union(v.literal("practice"), v.literal("race"), v.literal("lesson"))),
+    gameMode: v.optional(v.literal("race")),
   },
   handler: async (ctx, args) => {
     const room = await ctx.db
@@ -34,9 +34,8 @@ export const join = mutation({
 
     requireLiveRoom(room);
 
-    if (args.gameMode && (room.gameMode ?? "practice") !== args.gameMode) {
-      throw new Error("This room uses a different game mode");
-    }
+    // Legacy practice rooms have no client left; only races accept members here.
+    if (room.gameMode !== "race") throw new Error("This room uses a different game mode");
     const hash = await credentialHash(args.credential);
     if (args.sessionId === room.hostId && room.hostCredentialHash !== hash) {
       throw new Error("Only the room host can claim this player identity");
@@ -59,7 +58,7 @@ export const join = mutation({
         existing.disconnectedAt === undefined ||
         now - existing.disconnectedAt < REJOIN_RETENTION_MS;
 
-      if (room.gameMode === "race" && room.status === "active" && !canRejoin) {
+      if (room.status === "active" && !canRejoin) {
         throw new Error("The rejoin window has ended. Join the next race.");
       }
       await ctx.db.patch(existing._id, {
@@ -78,27 +77,10 @@ export const join = mutation({
     }
 
     const now = Date.now();
-    const isRace = room.gameMode === "race";
-    if (isRace && room.status === "active") {
+    if (room.status === "active") {
       throw new Error("This race has already started. Join the next race.");
     }
-
-    if (members.length >= 64) {
-      if ((room.gameMode ?? "practice") === "practice") {
-        // Run the same presence transition here rather than waiting for the cron.
-        for (const member of members) {
-          if (member.isConnected && member.lastSeen < now - PRESENCE_TIMEOUT_MS) {
-            await disconnectMember(ctx, member, member.lastSeen + PRESENCE_TIMEOUT_MS);
-          }
-        }
-        const current = await ctx.db.query("participants")
-          .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
-        const reclaimed = await reclaimPracticeMemberships(ctx, room, current, now);
-        if (current.length - reclaimed >= 64) throw new Error("This room is full");
-      } else {
-        throw new Error("This room is full");
-      }
-    }
+    if (members.length >= 64) throw new Error("This room is full");
     const participantId = await ctx.db.insert("participants", {
       roomId: room._id,
       sessionId: args.sessionId,
@@ -114,9 +96,8 @@ export const join = mutation({
         timeElapsed: 0,
         isFinished: false,
       },
-      // Race-specific fields
       isReady: false,
-      emoji: isRace ? args.emoji || getRandomEmoji() : undefined,
+      emoji: args.emoji || getRandomEmoji(),
       typedProgress: 0,
       joinedAt: now,
       lastSeen: now,
@@ -124,41 +105,13 @@ export const join = mutation({
 
     // A room whose only host has disconnected can be recovered by its next racer.
     const host = members.find((member) => member.sessionId === room.hostId);
-    if (isRace && room.status === "waiting" && host && !host.isConnected) {
+    if (room.status === "waiting" && host && !host.isConnected) {
       await ctx.db.patch(room._id, {
         hostId: args.sessionId, hostName: name, hostCredentialHash: hash,
       });
     }
 
     return { participantId, isReconnect: false, room: publicRoom(await ctx.db.get(room._id)) };
-  },
-});
-
-export const updateStats = mutation({
-  args: {
-    participantId: v.id("participants"),
-    credential: v.string(),
-    stats: statsValidator,
-    runVersion: v.optional(v.number()),
-    resetVersion: v.optional(v.number()),
-    typedText: v.optional(v.string()),
-    targetText: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const participant = await ctx.db.get(args.participantId);
-    await checkParticipant(ctx, participant, args.credential);
-    if (!participant) return;
-    const room = await ctx.db.get(participant.roomId);
-    if (room?.gameMode === "race" || !acceptsAttempt(room, participant, args)) return;
-    // A finished attempt is immutable until an explicit host reset/new run.
-    if (participant.stats.isFinished) return;
-    validateParticipantStats(args.stats);
-    await ctx.db.patch(args.participantId, {
-      stats: args.stats,
-      typedText: args.typedText,
-      targetText: args.targetText,
-      lastSeen: Date.now(),
-    });
   },
 });
 
@@ -172,19 +125,6 @@ export const listByRoom = query({
   },
 });
 
-export const kick = mutation({
-  args: { participantId: v.id("participants"), credential: v.string() },
-  handler: async (ctx, args) => {
-    const participant = await ctx.db.get(args.participantId);
-    if (!participant) throw new Error("Participant not found");
-    const room = await ctx.db.get(participant.roomId);
-    requireLiveRoom(room);
-    await checkRoomHost(room, args.credential);
-    await disconnectMember(ctx, participant);
-    await ctx.db.delete(args.participantId);
-  },
-});
-
 export const resetStats = mutation({
   args: { participantId: v.id("participants"), credential: v.string() },
   handler: async (ctx, args) => {
@@ -193,10 +133,8 @@ export const resetStats = mutation({
     if (!participant) throw new Error("Participant not found");
     const room = await ctx.db.get(participant.roomId);
     if (!room) throw new Error("Room not found");
-    if (room.gameMode !== "race" && participant.stats.isFinished) {
-      await checkRoomHost(room, args.credential);
-    }
-    if (room.gameMode === "race" && (room.raceEndTime !== undefined || participant.finishTime !== undefined)) {
+    if (room.gameMode !== "race") throw new Error("Room is not a race");
+    if (room.raceEndTime !== undefined || participant.finishTime !== undefined) {
       throw new Error("A completed race attempt cannot be restarted");
     }
     await resetParticipantAttempt(ctx, participant);

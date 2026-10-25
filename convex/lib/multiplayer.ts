@@ -1,4 +1,3 @@
-import { MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_PRESET_TEXT_LENGTH, MAX_GHOST_SPEED, TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "../../src/lib/practice-limits";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
@@ -99,24 +98,6 @@ export async function disconnectMember(ctx: MutationCtx, participant: Doc<"parti
   await finishRaceIfReady(ctx, room);
 }
 
-/** Reclaim only departed practice memberships after their reconnect reservation. */
-export async function reclaimPracticeMemberships(
-  ctx: MutationCtx,
-  room: Doc<"rooms">,
-  members: Doc<"participants">[],
-  now: number,
-) {
-  if ((room.gameMode ?? "practice") !== "practice") return 0;
-  let reclaimed = 0;
-  for (const member of members) {
-    const disconnectedAt = member.disconnectedAt ?? member.lastSeen + PRESENCE_TIMEOUT_MS;
-    if (member.isConnected || disconnectedAt > now - REJOIN_RETENTION_MS) continue;
-    await ctx.db.delete(member._id);
-    reclaimed++;
-  }
-  return reclaimed;
-}
-
 /** Persist the current race snapshot in the same transaction that ends the race. */
 export async function saveRaceSnapshot(ctx: MutationCtx, room: Doc<"rooms">) {
   const existing = await ctx.db.query("raceResults")
@@ -142,21 +123,18 @@ export async function saveRaceSnapshot(ctx: MutationCtx, room: Doc<"rooms">) {
   });
 }
 
-export type AttemptVersion = { runVersion?: number; resetVersion?: number; raceStartTime?: number };
+export type AttemptVersion = { resetVersion?: number; raceStartTime?: number };
 
-/** Guards delayed client emissions after stop, reset, departure, or another run. */
+/** Guards delayed race emissions after reset, departure, or another race. */
 export function acceptsAttempt(
   room: Doc<"rooms"> | null,
   participant: Doc<"participants">,
   version: AttemptVersion,
 ) {
   if (!room || room.status !== "active" || !participant.isConnected) return false;
-  if ((participant.resetVersion ?? 0) !== (version.resetVersion ?? 0)) return false;
-  if (room.gameMode === "race") {
-    return room.raceEndTime === undefined && room.raceStartTime !== undefined &&
-      room.raceStartTime <= Date.now() && version.raceStartTime === room.raceStartTime;
-  }
-  return (room.runVersion ?? 0) === (version.runVersion ?? 0);
+  if (room.gameMode !== "race" || (participant.resetVersion ?? 0) !== (version.resetVersion ?? 0)) return false;
+  return room.raceEndTime === undefined && room.raceStartTime !== undefined &&
+    room.raceStartTime <= Date.now() && version.raceStartTime === room.raceStartTime;
 }
 
 export function validateParticipantStats(stats: Doc<"participants">["stats"]) {
@@ -164,46 +142,6 @@ export function validateParticipantStats(stats: Doc<"participants">["stats"]) {
     if (!Number.isFinite(value) || value < 0) throw new Error("Invalid participant progress");
   }
   if (stats.accuracy > 100 || stats.progress > 100) throw new Error("Invalid participant progress");
-}
-
-/** Resolve host-led plans before validating the configuration of the selected attempt. */
-export function validatePracticeSettings(settings: Doc<"rooms">["settings"]) {
-  let selected = settings;
-  if (settings.mode === "plan") {
-    const plan: unknown = settings.plan;
-    const index = settings.planIndex ?? 0;
-    if (!Array.isArray(plan) || !plan.length || !Number.isInteger(index) || index < 0 || index >= plan.length) {
-      throw new Error("Choose a valid plan step before starting");
-    }
-    const item = plan[index] as { mode?: unknown; settings?: unknown } | null;
-    if (!item || typeof item.mode !== "string" || item.mode === "plan" ||
-      !item.settings || typeof item.settings !== "object") {
-      throw new Error("This plan step is not supported");
-    }
-    selected = { ...settings, ...item.settings, mode: item.mode, typingFontSize: settings.typingFontSize };
-  }
-  if (!["time", "words", "quote", "zen", "preset"].includes(selected.mode)) {
-    throw new Error("Choose a supported test mode");
-  }
-  const timed = selected.mode === "time" || (selected.mode === "preset" && selected.presetModeType === "time");
-  if (timed && (!Number.isInteger(selected.duration) || selected.duration < 1 || selected.duration > MAX_DURATION_SECONDS)) {
-    throw new Error(`Choose a whole duration from 1 to ${MAX_DURATION_SECONDS} seconds`);
-  }
-  if (selected.mode === "words" && (!Number.isInteger(selected.wordTarget) || selected.wordTarget <= 0 || selected.wordTarget > MAX_WORD_TARGET)) {
-    throw new Error(`Choose a whole word count from 1 to ${MAX_WORD_TARGET}`);
-  }
-  if (!Number.isFinite(selected.typingFontSize) || selected.typingFontSize < TEXT_SIZE_MIN || selected.typingFontSize > TEXT_SIZE_MAX) {
-    throw new Error(`Choose a text size from ${TEXT_SIZE_MIN} to ${TEXT_SIZE_MAX} rem`);
-  }
-  if (!Number.isFinite(selected.ghostWriterSpeed) || selected.ghostWriterSpeed < 1 || selected.ghostWriterSpeed > MAX_GHOST_SPEED) {
-    throw new Error(`Choose a ghost speed from 1 to ${MAX_GHOST_SPEED} WPM`);
-  }
-  if (selected.mode === "preset" && !selected.presetText?.trim()) {
-    throw new Error("Enter preset text before starting");
-  }
-  if (selected.mode === "preset" && selected.presetText && selected.presetText.length > MAX_PRESET_TEXT_LENGTH) {
-    throw new Error(`Preset text must be at most ${MAX_PRESET_TEXT_LENGTH} characters`);
-  }
 }
 
 export async function resetParticipantAttempt(ctx: MutationCtx, participant: Doc<"participants">) {

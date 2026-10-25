@@ -3,7 +3,7 @@ import { mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { generateRaceText } from "./lib/raceWords";
-import { checkRoomHost, checkRoomMember, credentialHash, publicRoom, ROOM_RETENTION_MS, finishRaceIfReady, resetParticipantAttempt, validatePracticeSettings } from "./lib/multiplayer";
+import { checkRoomHost, checkRoomMember, credentialHash, publicRoom, ROOM_RETENTION_MS, finishRaceIfReady, resetParticipantAttempt } from "./lib/multiplayer";
 import { MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET } from "../src/lib/practice-limits";
 
 const RACE_DIFFICULTIES = ["beginner", "easy", "medium", "hard", "expert"];
@@ -40,16 +40,14 @@ export const create = mutation({
     hostName: v.string(),
     hostSessionId: v.string(),
     credential: v.string(),
-    gameMode: v.optional(
-      v.union(v.literal("practice"), v.literal("race"), v.literal("lesson"))
-    ),
+    // Race is the only room type created here; Connect classrooms live in convex/connect.ts.
+    gameMode: v.optional(v.literal("race")),
   },
   handler: async (ctx, args) => {
     const hash = await credentialHash(args.credential);
     let code = generateRoomCode();
     while (await ctx.db.query("rooms").withIndex("by_code", (q) => q.eq("code", code)).first()) code = generateRoomCode();
     const now = Date.now();
-    const gameMode = args.gameMode || "practice";
 
     const roomId = await ctx.db.insert("rooms", {
       code,
@@ -58,12 +56,12 @@ export const create = mutation({
       hostName: args.hostName,
       status: "waiting",
       runVersion: 0,
-      gameMode,
+      gameMode: "race",
       settings: {
         mode: "time",
         duration: 30,
-        wordTarget: gameMode === "race" ? 10 : 25,
-        difficulty: gameMode === "race" ? "beginner" : "medium",
+        wordTarget: 10,
+        difficulty: "beginner",
         punctuation: false,
         numbers: false,
         capitalization: false,
@@ -85,16 +83,6 @@ export const create = mutation({
   },
 });
 
-export const getByCode = query({
-  args: { code: v.string() },
-  handler: async (ctx, args) => {
-    return publicRoom(await ctx.db
-      .query("rooms")
-      .withIndex("by_code", (q) => q.eq("code", args.code))
-      .first());
-  },
-});
-
 export const updateSettings = mutation({
   args: {
     roomId: v.id("rooms"),
@@ -113,68 +101,6 @@ export const updateSettings = mutation({
     await ctx.db.patch(args.roomId, {
       settings,
     });
-  },
-});
-
-export const setStatus = mutation({
-  args: {
-    roomId: v.id("rooms"),
-    status: v.union(v.literal("waiting"), v.literal("active")),
-    credential: v.string(),
-    hostSessionId: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const room = await ctx.db.get(args.roomId);
-    if (!room) throw new Error("Room not found");
-    await checkRoomHost(room, args.credential);
-    if (room.gameMode === "race") throw new Error("Use race controls for this room");
-    if (args.status === room.status) return;
-    if (args.status === "waiting") {
-      await ctx.db.patch(room._id, { status: "waiting" });
-      return;
-    }
-    validatePracticeSettings(room.settings);
-    const participants = await ctx.db.query("participants")
-      .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
-    for (const participant of participants) await resetParticipantAttempt(ctx, participant);
-    await ctx.db.patch(room._id, { status: "active", runVersion: (room.runVersion ?? 0) + 1 });
-  },
-});
-
-// Reset all attempts atomically so no participant can report into a half-reset room.
-export const resetPractice = mutation({
-  args: { roomId: v.id("rooms"), credential: v.string(), hostSessionId: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const room = await ctx.db.get(args.roomId);
-    if (!room) throw new Error("Room not found");
-    await checkRoomHost(room, args.credential);
-    if (room.gameMode === "race") throw new Error("Use race controls for this room");
-    const participants = await ctx.db.query("participants")
-      .withIndex("by_room", (q) => q.eq("roomId", room._id)).collect();
-    for (const participant of participants) await resetParticipantAttempt(ctx, participant);
-    await ctx.db.patch(room._id, { status: "waiting", runVersion: (room.runVersion ?? 0) + 1 });
-  },
-});
-
-export const deleteRoom = mutation({
-  args: { roomId: v.id("rooms"), credential: v.string() },
-  handler: async (ctx, args) => {
-    const room = await ctx.db.get(args.roomId);
-    if (!room) return;
-    await checkRoomHost(room, args.credential);
-    // Delete all participants first
-    const participants = await ctx.db
-      .query("participants")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect();
-
-    for (const p of participants) {
-      await ctx.db.delete(p._id);
-    }
-
-    const results = await ctx.db.query("raceResults").withIndex("by_race", (q) => q.eq("raceId", room._id)).collect();
-    for (const result of results) await ctx.db.delete(result._id);
-    await ctx.db.delete(args.roomId);
   },
 });
 
@@ -326,18 +252,5 @@ export const resetForNewRace = mutation({
       await resetParticipantAttempt(ctx, p);
       await ctx.db.patch(p._id, { isReady: false });
     }
-  },
-});
-
-// Host recovery requires the same private capability that created the room.
-export const resume = mutation({
-  args: { roomId: v.string(), credential: v.string() },
-  handler: async (ctx, args) => {
-    const id = ctx.db.normalizeId("rooms", args.roomId);
-    const room = id ? await ctx.db.get(id) : null;
-    if (!room) throw new Error("This room is no longer available");
-    await checkRoomHost(room, args.credential);
-    await ctx.db.patch(room._id, { expiresAt: Date.now() + ROOM_RETENTION_MS });
-    return { roomId: room._id, code: room.code };
   },
 });
