@@ -59,16 +59,17 @@ await withFixtureBrowser(async browser => {
     name: "Test results"
   })).toBeVisible();
   await p.getByRole("button", {
-    name: "1 Incorrect",
+    name: "1 mistake",
     exact: true
   }).tap();
-  await expect(p.getByText("Incorrect Words", {
+  await expect(p.getByRole("group", {
+    name: "Mistakes",
     exact: true
   })).toBeVisible();
   expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await p.keyboard.press("Escape");
   await expect(p.getByRole("button", {
-    name: "1 Incorrect",
+    name: "1 mistake",
     exact: true
   })).toBeFocused();
   console.log("touch worddetails + longcontent + Escapefocus PASS");

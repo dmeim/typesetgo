@@ -395,12 +395,44 @@ describe("accessible practice dialogs and results", () => {
 
   it("opens result word details by button activation and explains unranked repeats", () => {
     render(<PracticeResults {...resultsProps()} isRepeated rankingStatus="unranked" />);
-    fireEvent.click(screen.getByRole("button", { name: "1 Incorrect" }));
-    expect(screen.getByText("dig")).toBeVisible();
-    expect(screen.getByText("dog")).toBeVisible();
+    const chip = screen.getByRole("button", { name: "1 mistake" });
+    fireEvent.click(chip);
+    const details = screen.getByRole("group", { name: "Mistakes" });
+    expect(within(details).getByLabelText("typed dig, expected dog")).toBeInTheDocument();
+    fireEvent.keyDown(details, { key: "Escape" });
+    expect(chip).toHaveFocus();
+    expect(chip).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText(/will not appear on leaderboards/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "About these results" }));
     expect(screen.getByText(/will not appear on leaderboards/)).toBeVisible();
+  });
+});
+
+describe("results comparison and timeline", () => {
+  const timeline = [
+    { second: 1, wpm: 30, accuracy: 100, errors: 0, mistake: false },
+    { second: 2, wpm: 45, accuracy: 90, errors: 1, mistake: true },
+    { second: 3, wpm: 50, accuracy: 93.3, errors: 1, mistake: false },
+  ];
+
+  it("compares a signed-in result with recent tests and describes the graph", () => {
+    render(<PracticeResults {...resultsProps()} timeline={timeline}
+      comparison={{ tests: 12, averageWpm: 40, bestWpm: 60, averageAccuracy: 95, bestAccuracy: 99 }} />);
+    expect(screen.getByText("+2 faster than your average")).toBeInTheDocument();
+    expect(screen.getByText("+3% more accurate than your average")).toBeInTheDocument();
+    expect(screen.getAllByText("last 12 tests")).toHaveLength(2);
+    expect(screen.getByRole("img", { name: /Speed ranged from 30 to 50 words per minute; accuracy ended at 93.3%. Mistakes at 2s\./ })).toBeInTheDocument();
+  });
+
+  it("celebrates a new best and hides comparison and graph without history", () => {
+    const { rerender } = render(<PracticeResults {...resultsProps()} timeline={timeline}
+      comparison={{ tests: 3, averageWpm: 30, bestWpm: 40, averageAccuracy: 99, bestAccuracy: 100 }} />);
+    expect(screen.getByText("New best!")).toBeInTheDocument();
+    expect(screen.getByText("-1% less accurate than your average")).toBeInTheDocument();
+    rerender(<PracticeResults {...resultsProps()} timeline={timeline.slice(0, 1)} comparison={null} />);
+    expect(screen.queryByText(/than your average/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Speed and accuracy/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Words Per Minute")).toBeInTheDocument();
   });
 });
 

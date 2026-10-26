@@ -191,6 +191,41 @@ export const getUserResults = query({
   },
 });
 
+const COMPARISON_WINDOW = 50;
+
+// Average and best over the player's most recent valid results, for the results screen.
+// The client snapshots this when a test ends, before that test is saved.
+export const getResultComparison = query({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireIdentity(ctx, args.clerkId);
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+    if (!user) return null;
+
+    const recent = await ctx.db
+      .query("testResults")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(COMPARISON_WINDOW);
+    const valid = recent.filter((result) => result.isValid !== false);
+    if (valid.length === 0) return null;
+
+    const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+    return {
+      tests: valid.length,
+      averageWpm: Math.round(sum(valid.map((result) => result.wpm)) / valid.length),
+      bestWpm: Math.round(Math.max(...valid.map((result) => result.wpm))),
+      averageAccuracy: Math.round(sum(valid.map((result) => result.accuracy)) / valid.length * 10) / 10,
+      bestAccuracy: Math.round(Math.max(...valid.map((result) => result.accuracy)) * 10) / 10,
+    };
+  },
+});
+
 // Get aggregated stats for a user
 // Uses userStatsCache for aggregates (efficient), fetches results only for history
 // Note: Aggregates only use valid results

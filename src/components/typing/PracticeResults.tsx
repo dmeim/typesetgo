@@ -2,41 +2,30 @@ import { useEffect, useRef, type ReactNode } from "react";
 import {
   ArrowClockwiseIcon,
   ArrowFatRightIcon,
-  ArrowRightIcon,
   CheckCircleIcon,
   CircleNotchIcon,
   FloppyDiskIcon,
   SignOutIcon,
-  SpeedometerIcon,
-  TargetIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "framer-motion";
-import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import type { Quote, SettingsState } from "@/lib/typing-constants";
+import type { TimelineSample } from "@/lib/result-timeline";
 import { tv } from "@/lib/theme-vars";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import PracticeResultsInfo from "@/components/typing/PracticeResultsInfo";
+import { ResultChips } from "@/components/typing/ResultChips";
+import { ResultStatCard, type ResultComparison } from "@/components/typing/ResultStatCard";
+import { ResultTimelineGraph } from "@/components/typing/ResultTimelineGraph";
+import { describePracticeLength, MODIFIER_OPTIONS, selectedModeOption, usesWordOptions } from "@/components/typing/practice-settings-meta";
 
-// Animated counter display for WPM
-function AnimatedWpmDisplay({ value, color }: { value: number; color: string }) {
-  const animated = useAnimatedCounter(value, 1000, 200);
-  return (
-    <div className="text-6xl md:text-8xl font-black tabular-nums leading-none tracking-tight" style={{ color }}>
-      {animated}
-    </div>
-  );
-}
-
-// Animated counter display for Accuracy
-function AnimatedAccuracyDisplay({ value, color }: { value: number; color: string }) {
-  const animated = useAnimatedCounter(value, 1000, 300);
-  return (
-    <div className="text-6xl md:text-8xl font-black tabular-nums leading-none tracking-tight" style={{ color }}>
-      {animated}
-      <span className="text-2xl md:text-4xl align-top ml-1 opacity-50">%</span>
-    </div>
-  );
+function describeTest(settings: SettingsState) {
+  const mode = selectedModeOption(settings, false);
+  const parts: (string | null)[] = [mode, describePracticeLength(settings, mode)];
+  if (usesWordOptions(mode)) {
+    parts.push(settings.difficulty);
+    for (const { key, label } of MODIFIER_OPTIONS) if (settings[key]) parts.push(label);
+  }
+  return parts.filter(Boolean).join(" · ");
 }
 
 interface PracticeResultsProps {
@@ -63,6 +52,10 @@ interface PracticeResultsProps {
   repeatTest?: () => void;
   rankingStatus?: "pending" | "ranked" | "unranked";
   isRepeated?: boolean;
+  /** Per-second speed and accuracy; the graph needs at least two samples. */
+  timeline?: TimelineSample[];
+  /** Recent average and best, captured before this result was saved. */
+  comparison?: ResultComparison | null;
 }
 
 export default function PracticeResults({
@@ -85,6 +78,8 @@ export default function PracticeResults({
   repeatTest,
   rankingStatus,
   isRepeated,
+  timeline = [],
+  comparison = null,
 }: PracticeResultsProps) {
   const reducedMotion = useReducedMotion();
   const advancementBlocked = advanceDisabled || saveState === "saving";
@@ -106,6 +101,11 @@ export default function PracticeResults({
       : rankingStatus === "pending"
         ? "Waiting for verification…"
         : "Review your words per minute, accuracy, and typing details below.";
+  const roundedWpm = Math.round(wpm);
+  const roundedAccuracy = Math.round(accuracy);
+  const wpmCeiling = Math.max(40, Math.ceil(Math.max(roundedWpm, comparison?.bestWpm ?? 0, comparison?.averageWpm ?? 0) / 20) * 20);
+  // Accuracy bars start just below the lowest value so small differences stay visible.
+  const accuracyFloor = Math.max(0, Math.min(80, Math.floor(Math.min(roundedAccuracy, comparison?.averageAccuracy ?? 100) / 10) * 10 - 10));
   useEffect(() => {
     // Completion moves focus to the result summary, unless a modal currently owns it.
     if (!document.querySelector('[role="dialog"]')) resultsRef.current?.focus({ preventScroll: true });
@@ -141,256 +141,52 @@ export default function PracticeResults({
         }}
       >
         <PracticeResultsInfo>{resultsInfo}</PracticeResultsInfo>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {/* WPM */}
-          <motion.div
-            className="relative overflow-hidden rounded-2xl p-6 md:p-10 flex flex-col items-center justify-center group transition-colors"
-            style={{
-              backgroundColor: tv.ui.card,
-              borderWidth: 1,
-              borderColor: tv.border.subtle,
-            }}
-            initial={reducedMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
-          >
-            <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: tv.ui.mutedForeground }}>
-              Words Per Minute
-            </div>
-            <AnimatedWpmDisplay value={Math.round(wpm)} color={tv.ui.primary} />
-            <div
-              className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
-              style={{ color: tv.ui.foreground }}
-            >
-              <SpeedometerIcon size={120} weight="regular" aria-hidden="true" />
-            </div>
-          </motion.div>
-
-          {/* Accuracy */}
-          <motion.div
-            className="relative overflow-hidden rounded-2xl p-6 md:p-10 flex flex-col items-center justify-center group transition-colors"
-            style={{
-              backgroundColor: tv.ui.card,
-              borderWidth: 1,
-              borderColor: tv.border.subtle,
-            }}
-            initial={reducedMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.2,
-              delay: 0,
-              ease: "easeOut",
-            }}
-          >
-            <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: tv.ui.mutedForeground }}>
-              Accuracy
-            </div>
-            <AnimatedAccuracyDisplay value={Math.round(accuracy)} color={tv.ui.primary} />
-            <div
-              className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
-              style={{ color: tv.ui.foreground }}
-            >
-              <TargetIcon size={120} weight="regular" aria-hidden="true" />
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Secondary Stats - Grouped by Words and Characters */}
         <motion.div
-          className="flex flex-col md:flex-row gap-4 mb-12"
-          initial={reducedMotion ? false : { opacity: 0 }}
+          className="mb-8 flex flex-col gap-4"
+          initial={reducedMotion ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.2,
-            delay: 0,
-            ease: "easeOut",
-          }}
+          transition={{ duration: reducedMotion ? 0 : 0.25, ease: "easeOut" }}
         >
-          {/* Words Group */}
-          <div
-            className="flex-1 rounded-xl p-4"
-            style={{
-              backgroundColor: tv.ui.card,
-              borderWidth: 1,
-              borderColor: tv.border.subtle,
-            }}
-          >
-            <div
-              className="text-xs font-semibold uppercase tracking-wide text-center mb-3"
-              style={{ color: tv.ui.mutedForeground }}
-            >
-              Words
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {/* Correct Words with Hover */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex flex-col items-center rounded p-1 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    <div className="text-3xl font-bold mb-1" style={{ color: tv.ui.success }}>
-                      {wordResults.correctWords.length}
-                    </div>
-                    <div
-                      className="text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: tv.ui.mutedForeground }}
-                    >
-                      Correct
-                    </div>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-56 p-0"
-                  style={{
-                    backgroundColor: tv.ui.card,
-                    borderColor: tv.border.subtle,
-                  }}
-                >
-                  <div
-                    className="p-3"
-                    style={{
-                      borderBottomWidth: 1,
-                      borderColor: tv.border.subtle,
-                    }}
-                  >
-                    <div className="text-sm font-semibold" style={{ color: tv.ui.foreground }}>
-                      Correct Words
-                    </div>
-                    <div className="text-xs" style={{ color: tv.ui.mutedForeground }}>
-                      {wordResults.correctWords.length} words
-                    </div>
-                  </div>
-                  <div className="max-h-32 overflow-y-auto">
-                    {wordResults.correctWords.length > 0 ? (
-                      <div className="p-2 flex flex-wrap gap-1.5">
-                        {wordResults.correctWords.map((word, idx) => (
-                          <span
-                            key={idx}
-                            className="max-w-full break-all px-2 py-0.5 text-xs rounded-md font-mono"
-                            style={{
-                              backgroundColor: tv.ui.secondary,
-                              color: tv.ui.primary,
-                            }}
-                          >
-                            {word}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-3 text-center text-sm" style={{ color: tv.ui.mutedForeground }}>
-                        No correct words
-                      </div>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* Incorrect Words with Hover */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex flex-col items-center rounded p-1 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    <div className="text-3xl font-bold mb-1" style={{ color: tv.ui.destructive }}>
-                      {wordResults.incorrectWords.length}
-                    </div>
-                    <div
-                      className="text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: tv.ui.mutedForeground }}
-                    >
-                      Incorrect
-                    </div>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-64 p-0"
-                  style={{
-                    backgroundColor: tv.ui.card,
-                    borderColor: tv.border.subtle,
-                  }}
-                >
-                  <div
-                    className="p-3"
-                    style={{
-                      borderBottomWidth: 1,
-                      borderColor: tv.border.subtle,
-                    }}
-                  >
-                    <div className="text-sm font-semibold" style={{ color: tv.ui.foreground }}>
-                      Incorrect Words
-                    </div>
-                    <div className="text-xs" style={{ color: tv.ui.mutedForeground }}>
-                      {wordResults.incorrectWords.length} mistakes
-                    </div>
-                  </div>
-                  <div className="max-h-40 overflow-y-auto">
-                    {wordResults.incorrectWords.length > 0 ? (
-                      <div className="p-2 space-y-1.5">
-                        {wordResults.incorrectWords.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="flex flex-wrap items-center gap-2 break-all px-2 py-1 rounded text-xs font-mono"
-                            style={{ backgroundColor: tv.ui.card }}
-                          >
-                            <span style={{ color: tv.ui.destructive }}>{item.typed}</span>
-                            <ArrowRightIcon className="size-3 shrink-0" style={{ color: tv.ui.mutedForeground }} aria-hidden="true" />
-                            <span
-                              style={{
-                                color: tv.ui.primary,
-                              }}
-                            >
-                              {item.expected}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-3 text-center text-sm" style={{ color: tv.ui.mutedForeground }}>
-                        No mistakes - perfect!
-                      </div>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <ResultStatCard
+              label="Words Per Minute"
+              value={roundedWpm}
+              average={comparison?.averageWpm}
+              best={comparison?.bestWpm}
+              tests={comparison?.tests}
+              floor={0}
+              ceiling={wpmCeiling}
+              tone="text-primary"
+              bar="bg-primary"
+              better="faster"
+              worse="slower"
+              delay={0.2}
+            />
+            <ResultStatCard
+              label="Accuracy"
+              value={roundedAccuracy}
+              suffix="%"
+              average={comparison?.averageAccuracy}
+              best={comparison?.bestAccuracy}
+              tests={comparison?.tests}
+              floor={accuracyFloor}
+              ceiling={100}
+              tone="text-(--accent-emphasis)"
+              bar="bg-(--accent-emphasis)"
+              better="more accurate"
+              worse="less accurate"
+              delay={0.3}
+              mirrored
+            />
           </div>
-
-          {/* Characters Group */}
-          <div
-            className="flex-1 rounded-xl p-4"
-            style={{
-              backgroundColor: tv.ui.card,
-              borderWidth: 1,
-              borderColor: tv.border.subtle,
-            }}
-          >
-            <div
-              className="text-xs font-semibold uppercase tracking-wide text-center mb-3"
-              style={{ color: tv.ui.mutedForeground }}
-            >
-              Characters
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold mb-1" style={{ color: tv.ui.foreground }}>
-                  {stats.missed}
-                </div>
-                <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.ui.mutedForeground }}>
-                  Missed
-                </div>
-              </div>
-              <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold mb-1" style={{ color: tv.ui.foreground }}>
-                  {stats.extra}
-                </div>
-                <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: tv.ui.mutedForeground }}>
-                  Extra
-                </div>
-              </div>
-            </div>
-          </div>
+          {timeline.length >= 2 && <ResultTimelineGraph samples={timeline} />}
+          <ResultChips
+            correctWords={wordResults.correctWords}
+            incorrectWords={wordResults.incorrectWords}
+            stats={stats}
+            testLabel={describeTest(settings)}
+            durationMs={duration}
+          />
         </motion.div>
 
         {/* Quote Attribution */}

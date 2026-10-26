@@ -3,7 +3,7 @@ import {
   ArrowsClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { MAX_PRESET_TEXT_LENGTH, SOLO_PREPARED_SESSION_TTL_MS } from "@/lib/practice-limits";
 import { toast } from "@/lib/toast-manager";
 import { normalizePracticeSettings, type Quote, type SettingsState } from "@/lib/typing-constants";
@@ -21,6 +21,7 @@ import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useAccount } from "@/components/layout/useAccount";
 import { getLocalCalendarFields } from "@/lib/activity-calendar";
 import { calculateAccuracy, calculateWpm } from "@/lib/typing-metrics";
+import { finishTimeline, recordTimelineSecond, type TimelineReading, type TimelineSample } from "@/lib/result-timeline";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { PROGRESS_CHAR_THRESHOLD, PROGRESS_INTERVAL_MS } from "../../../convex/lib/antiCheatConstants";
@@ -34,6 +35,7 @@ import { usePracticeDataset } from "./usePracticeDataset";
 import { useTypingScroll } from "./useTypingScroll";
 import PracticeText from "./PracticeText";
 import PracticeResults from "./PracticeResults";
+import type { ResultComparison } from "./ResultStatCard";
 import PracticeCountDialog from "./PracticeCountDialog";
 import PracticePresetDialog from "./PracticePresetDialog";
 import PracticeControls from "./PracticeControls";
@@ -123,6 +125,11 @@ interface TypingPracticeProps {
   setShowThemeModal?: (show: boolean) => void;
   // Callback to notify parent of typing state changes
   onTypingStateChange?: (isTyping: boolean) => void;
+}
+
+function readTimeline(typed: string, reference: string, elapsedMs: number): TimelineReading {
+  const { correct, incorrect, missed, extra } = computeStats(typed, reference);
+  return { elapsedMs, typedLength: typed.length, correct, errors: incorrect + missed + extra };
 }
 
 export default function TypingPractice({
@@ -248,6 +255,10 @@ export default function TypingPractice({
   const [lastResultIsValid, setLastResultIsValid] = useState<boolean | null>(null);
   const [lastResultInvalidReason, setLastResultInvalidReason] = useState<string | undefined>(undefined);
   const [savedMetrics, setSavedMetrics] = useState<{ wpm: number; accuracy: number; duration: number } | null>(null);
+  // Per-second samples build up in a ref while typing and are published once the test ends.
+  const timelineRef = useRef<TimelineSample[]>([]);
+  const [timeline, setTimeline] = useState<TimelineSample[]>([]);
+  const [comparison, setComparison] = useState<ResultComparison | null>(null);
   const pendingResultRef = useRef<{
     attemptEpoch: number;
     completedAt: number;
@@ -300,6 +311,9 @@ export default function TypingPractice({
   const sessionEpochRef = useRef(0);
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const userRef = useRef(user);
+  const recentResults = useQuery(api.testResults.getResultComparison, !connectMode && isSignedIn && user ? { clerkId: user.id } : "skip");
+  const comparisonRef = useRef<ResultComparison | null | undefined>(recentResults);
+  useLayoutEffect(() => { comparisonRef.current = recentResults; }, [recentResults]);
   const connectModeRef = useRef(connectMode);
   const settingsRef = useRef(settings);
   const isFinishedRef = useRef(isFinished);
@@ -356,6 +370,7 @@ export default function TypingPractice({
     isRunningRef.current = false;
     typedTextRef.current = "";
     elapsedMsRef.current = 0;
+    timelineRef.current = [];
     focusRequestedRef.current = !overlayOpenRef.current;
     resetClock();
     if (previousSessionId) void cancelSessionMutation({ sessionId: previousSessionId }).catch(() => {});
@@ -373,6 +388,8 @@ export default function TypingPractice({
     setLastResultIsValid(null);
     setLastResultInvalidReason(undefined);
     setSavedMetrics(null);
+    setTimeline([]);
+    setComparison(null);
   }, []);
 
   useLayoutEffect(() => {
@@ -405,6 +422,13 @@ export default function TypingPractice({
   }, [typedText]);
   const accuracy = calculateAccuracy(stats.correct, typedText.length);
   const wpm = calculateWpm(typedText.length, elapsedMs);
+
+  useEffect(() => {
+    if (!isRunning || isFinished) return;
+    timelineRef.current = recordTimelineSecond(timelineRef.current, {
+      elapsedMs, typedLength: typedText.length, correct: stats.correct, errors: stats.incorrect + stats.missed + stats.extra,
+    });
+  }, [isRunning, isFinished, elapsedMs, typedText.length, stats]);
 
   const timeRemaining =
     isTimedPractice(settings) ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
@@ -481,6 +505,9 @@ export default function TypingPractice({
     completedAtRef.current = Date.now();
     pauseClock();
     elapsedMsRef.current = readElapsed();
+    setTimeline(finishTimeline(timelineRef.current, readTimeline(typedTextRef.current, wordsRef.current, elapsedMsRef.current)));
+    // Captured before saving, so this test is compared with earlier ones only.
+    setComparison(comparisonRef.current ?? null);
     const sessionId = sessionIdRef.current;
     if (!connectModeRef.current && sessionId) {
       completionProgressRef.current = recordProgressMutation({ sessionId, typedLength: typedTextRef.current.length, completed: true })
@@ -1207,7 +1234,7 @@ export default function TypingPractice({
             generateTest={generateTest}
             onLeave={onLeave}
             connectActions={connectResultsActions}
-            {...{ repeatTest: () => resetSession(true), rankingStatus, isRepeated }}
+            {...{ repeatTest: () => resetSession(true), rankingStatus, isRepeated, timeline, comparison }}
           />
         )}
         </div>

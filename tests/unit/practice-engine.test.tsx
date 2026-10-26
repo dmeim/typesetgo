@@ -34,7 +34,7 @@ vi.mock("@/lib/quotes", () => ({ fetchQuotes: (...args: unknown[]) => mocks.quot
 vi.mock("@/lib/sounds", () => ({ fetchSoundManifest: async () => ({ typing: {}, warning: {}, error: {} }), getRandomSoundUrl: () => null }));
 vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
-  return { useQuery: (_reference: unknown, args: unknown) => { mocks.queryArgs = args; return args === "skip" ? undefined : mocks.preferences; }, useMutation: (reference: Parameters<typeof getFunctionName>[0]) => mocks.mutations[getFunctionName(reference)] };
+  return { useQuery: (reference: Parameters<typeof getFunctionName>[0], args: unknown) => { if (getFunctionName(reference) !== "preferences:getPreferences") return args === "skip" ? undefined : null; mocks.queryArgs = args; return args === "skip" ? undefined : mocks.preferences; }, useMutation: (reference: Parameters<typeof getFunctionName>[0]) => mocks.mutations[getFunctionName(reference)] };
 });
 function deferred<T>() {
   let resolve!: (value: T) => void;

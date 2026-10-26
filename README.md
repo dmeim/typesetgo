@@ -64,7 +64,7 @@ A modern, open-source typing practice platform with a clean, distraction-free in
   <tr>
     <td width="40%" valign="top">
       <h3>Results</h3>
-      <p>After each test, see your Words Per Minute, accuracy percentage, correct and incorrect word counts, and missed or extra characters. Save your results to track progress or jump straight into the next test.</p>
+      <p>After each test, see your Words Per Minute and accuracy compared with your recent average and best, a second-by-second graph of speed and accuracy with mistakes marked, and chips that open your correct words, mistakes, and character counts. Save your results to track progress or jump straight into the next test.</p>
     </td>
     <td width="60%">
       <img src="public/assets/showcase-results.png" alt="Test results screen" />
