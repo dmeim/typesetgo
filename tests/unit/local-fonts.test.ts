@@ -18,17 +18,32 @@ css.walkAtRules("font-face", (rule) => {
 
 describe("local webfont loading contract", () => {
   it("retains the downloadable catalog and required weights/styles", () => {
-    // Weights requested by index.html before self-hosting; OpenDyslexic also
-    // supplies real regular/bold italic faces from its upstream distribution.
+    // Google weights served for each family (index.html's original request plus
+    // later catalog additions); OpenDyslexic also supplies real italic faces.
     const required: Record<string, number[]> = {
-      "Atkinson Hyperlegible": [400, 700], "Fira Code": [400, 500, 600, 700],
-      "IBM Plex Mono": [400, 500, 600, 700], Inconsolata: [400, 500, 600, 700],
-      Inter: [400, 500, 600, 700], "JetBrains Mono": [400, 500, 600, 700],
-      Lato: [400, 700], Lexend: [300, 400, 500, 600, 700], Lora: [400, 500, 600, 700],
-      Merriweather: [400, 700], Montserrat: [400, 500, 600, 700], Nunito: [400, 500, 600, 700],
-      "Open Sans": [400, 500, 600, 700], "Playfair Display": [400, 500, 600, 700],
-      Poppins: [400, 500, 600, 700], Roboto: [400, 500, 700], "Roboto Mono": [400, 500, 600, 700],
-      "Source Code Pro": [400, 500, 600, 700], "Space Mono": [400, 700], OpenDyslexic: [400, 700],
+      Andika: [400, 700], "Anonymous Pro": [400, 700], "Atkinson Hyperlegible": [400, 700],
+      "Atkinson Hyperlegible Mono": [400, 500, 600, 700], "Atkinson Hyperlegible Next": [400, 500, 600, 700],
+      Barlow: [400, 500, 600, 700], Bitter: [400, 500, 600, 700], "Comic Neue": [400, 700],
+      "Courier Prime": [400, 700], "Crimson Pro": [400, 500, 600, 700], "DM Mono": [400, 500],
+      "DM Sans": [400, 500, 600, 700], "EB Garamond": [400, 500, 600, 700], Figtree: [400, 500, 600, 700],
+      "Fira Code": [400, 500, 600, 700], "Fira Mono": [400, 500, 700], "Fira Sans": [400, 500, 600, 700],
+      Fredoka: [400, 500, 600, 700], Geist: [400, 500, 600, 700], "Geist Mono": [400, 500, 600, 700],
+      "IBM Plex Mono": [400, 500, 600, 700], "IBM Plex Sans": [400, 500, 600, 700],
+      Inconsolata: [400, 500, 600, 700], Inter: [400, 500, 600, 700], "JetBrains Mono": [400, 500, 600, 700],
+      Karla: [400, 500, 600, 700], Lato: [400, 700], Lexend: [300, 400, 500, 600, 700],
+      "Libre Baskerville": [400, 500, 600, 700], Literata: [400, 500, 600, 700], Lora: [400, 500, 600, 700],
+      Manrope: [400, 500, 600, 700], "Martian Mono": [400, 500, 600, 700], Merriweather: [400, 700],
+      Montserrat: [400, 500, 600, 700], Mulish: [400, 500, 600, 700], "Noto Sans": [400, 500, 600, 700],
+      "Noto Sans Mono": [400, 500, 600, 700], "Noto Serif": [400, 500, 600, 700], Nunito: [400, 500, 600, 700],
+      "Nunito Sans": [400, 500, 600, 700], "Open Sans": [400, 500, 600, 700], Outfit: [400, 500, 600, 700],
+      "Overpass Mono": [400, 500, 600, 700], "PT Mono": [400], "PT Sans": [400, 700], "PT Serif": [400, 700],
+      "Playfair Display": [400, 500, 600, 700], "Playpen Sans": [400, 500, 600, 700],
+      "Plus Jakarta Sans": [400, 500, 600, 700], Poppins: [400, 500, 600, 700], Quicksand: [400, 500, 600, 700],
+      Raleway: [400, 500, 600, 700], "Readex Pro": [400, 500, 600, 700], "Red Hat Mono": [400, 500, 600, 700],
+      Roboto: [400, 500, 700], "Roboto Mono": [400, 500, 600, 700], Rubik: [400, 500, 600, 700],
+      "Source Code Pro": [400, 500, 600, 700], "Source Sans 3": [400, 500, 600, 700],
+      "Source Serif 4": [400, 500, 600, 700], "Space Mono": [400, 700], "Victor Mono": [400, 500, 600, 700],
+      "Work Sans": [400, 500, 600, 700], OpenDyslexic: [400, 700],
     };
     expect(catalog.fonts.map((font) => font.family).sort()).toEqual(Object.keys(required).sort());
     expect(catalog.fonts.map((font) => font.key).sort()).toEqual(

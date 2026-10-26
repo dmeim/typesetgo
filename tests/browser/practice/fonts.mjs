@@ -6,6 +6,8 @@ import { expectLoadedFace, expectRenderedFont } from "../font-assertions.mjs";
 
 const { fonts } = JSON.parse(await readFile(new URL("../../../public/fonts/catalog.json", import.meta.url), "utf8"));
 const representative = "café naïve façade résumé 0123456789!?";
+// Courier New, Arial, Verdana, Trebuchet MS, Comic Sans, Georgia and Times New Roman.
+const systemFonts = 7;
 
 async function prepare(page, key = "jetbrains-mono", mode = "dark") {
   await page.addInitScript(({ key, mode }) => {
@@ -51,7 +53,7 @@ await withFixtureBrowser(async (browser) => {
     if (font.key === "jetbrains-mono") console.log("Cold default font requests:", requests.map((url) => new URL(url).pathname));
     await context.close();
   }
-  console.log("All 20 stored selections render custom font glyphs in fresh contexts; only selected/UI fonts fetched PASS");
+  console.log(`All ${fonts.length} stored selections render custom font glyphs in fresh contexts; only selected/UI fonts fetched PASS`);
 
   for (const width of [390, 1280]) {
     for (const mode of ["dark", "light"]) {
@@ -66,7 +68,7 @@ await withFixtureBrowser(async (browser) => {
       const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
       await expectWithinViewport(page, dialog);
       await page.getByRole("combobox", { name: "Typing Font", exact: true }).click();
-      await expect(page.getByRole("option")).toHaveCount(27);
+      await expect(page.getByRole("option")).toHaveCount(fonts.length + systemFonts);
       const option = page.getByRole("option", { name: "OpenDyslexic", exact: true });
       await expectLoadedFace(page, "OpenDyslexic", 400, "normal", representative);
       await option.focus();
@@ -90,5 +92,5 @@ await withFixtureBrowser(async (browser) => {
       await context.close();
     }
   }
-  console.log("27-choice picker, OpenDyslexic preview/selection/persistence, wide/narrow and light/dark PASS");
+  console.log(`${fonts.length + systemFonts}-choice picker, OpenDyslexic preview/selection/persistence, wide/narrow and light/dark PASS`);
 });
