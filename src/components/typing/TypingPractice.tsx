@@ -3,13 +3,11 @@ import {
   ArrowsClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { motion } from "framer-motion";
 import { useMutation } from "convex/react";
 import { MAX_PRESET_TEXT_LENGTH, SOLO_PREPARED_SESSION_TTL_MS } from "@/lib/practice-limits";
 import { toast } from "@/lib/toast-manager";
 import { normalizePracticeSettings, type Quote, type SettingsState } from "@/lib/typing-constants";
 import { fetchSoundManifest, getRandomSoundUrl, type SoundManifest } from "@/lib/sounds";
-import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
 import { fetchWordsManifest, type WordsManifest } from "@/lib/words";
 import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
@@ -19,7 +17,6 @@ import {
 } from "@/lib/storage-utils";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
-import { Progress } from "@/components/ui/progress";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useAccount } from "@/components/layout/useAccount";
 import { getLocalCalendarFields } from "@/lib/activity-calendar";
@@ -40,6 +37,7 @@ import PracticeResults from "./PracticeResults";
 import PracticeCountDialog from "./PracticeCountDialog";
 import PracticePresetDialog from "./PracticePresetDialog";
 import PracticeControls from "./PracticeControls";
+import { PracticeLiveStats } from "./PracticeLiveStats";
 import PracticeQuickSettingsDialog from "./PracticeQuickSettingsDialog";
 import PracticeSettingsDialog from "./PracticeSettingsDialog";
 import PracticeThemePicker from "./PracticeThemePicker";
@@ -91,20 +89,6 @@ const createPromptRandom = (seed: number) => {
     value = (Math.imul(value, 1664525) + 1013904223) >>> 0;
     return value / 4294967296;
   };
-};
-
-const formatTime = (seconds: number) => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-  if (m > 0) {
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  }
-  return `${s}s`;
 };
 
 interface TypingPracticeProps {
@@ -161,7 +145,6 @@ export default function TypingPractice({
 }: TypingPracticeProps) {
   const { isSignedIn, user, openSignIn, status: authStatus } = useAppAuth();
   const { ensureAccount, status: accountStatus } = useAccount();
-  const { colors } = useTheme();
   // --- State ---
   const [localSettings, setSettings] = useState<SettingsState>(() => {
     const restored = normalizePracticeSettings({ ...DEFAULT_SETTINGS, ...loadSettings(), presetText: "",
@@ -422,10 +405,6 @@ export default function TypingPractice({
   }, [typedText]);
   const accuracy = calculateAccuracy(stats.correct, typedText.length);
   const wpm = calculateWpm(typedText.length, elapsedMs);
-  const zenProgressGradient = useMemo(
-    () => `linear-gradient(120deg, ${colors.interactive.secondary.DEFAULT} 0%, ${colors.interactive.accent.DEFAULT} 25%, ${colors.interactive.primary.DEFAULT} 50%, ${colors.interactive.accent.DEFAULT} 75%, ${colors.interactive.secondary.DEFAULT} 100%)`,
-    [colors]
-  );
 
   const timeRemaining =
     isTimedPractice(settings) ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
@@ -1076,186 +1055,18 @@ export default function TypingPractice({
         setShowQuickSettings={setShowQuickSettings}
       />
 
-      {/* Live Stats Widget - Unified 2-row layout */}
-      {isRunning && !isFinished && (() => {
-        const kb = settings.showOnScreenKeyboard;
-        const pillCls = "flex items-baseline gap-2 px-3 py-1.5 md:px-6 md:py-3 backdrop-blur-md rounded-full shadow-lg min-w-[70px] md:min-w-[100px] justify-center";
-        const numCls = "text-xl md:text-3xl font-bold tabular-nums leading-none";
-        const labelCls = "text-[10px] md:text-xs font-semibold uppercase tracking-wider";
-        const subNumCls = "text-lg md:text-xl font-semibold tabular-nums leading-none";
-        const dividerCls = "text-sm font-medium";
-        return (
-        <div
-          className={`shrink-0 w-full flex flex-col items-center gap-2 select-none transition-opacity duration-300 ${kb ? "pb-8" : "pb-2"}`}
-        >
-          {/* Row 1: WPM + Mode-specific stat + Accuracy - hidden in kid mode */}
-          {!isKidMode && (
-            <div className="flex gap-2 md:gap-3">
-              {/* WPM Pill */}
-              <div
-                className={pillCls}
-                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-              >
-                <span className={numCls} style={{ color: tv.ui.secondaryEmphasis }}>
-                  {Math.round(wpm)}
-                </span>
-                <span className={labelCls} style={{ color: tv.ui.mutedForeground }}>wpm</span>
-              </div>
-
-              {/* Time Mode: Countdown Timer */}
-              {isTimedPractice(settings) && (
-                <div
-                  className={pillCls}
-                  style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-                >
-                  <span
-                    className={numCls}
-                    style={{ color: timeRemaining < 10 ? tv.ui.destructive : tv.ui.foreground }}
-                  >
-                    {formatTime(timeRemaining)}
-                  </span>
-                </div>
-              )}
-
-              {/* Words Mode: Word Counter */}
-              {settings.mode === "words" && (
-                <div
-                  className={pillCls}
-                  style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-                >
-                  <span className={numCls} style={{ color: tv.ui.foreground }}>
-                    {Math.min(typedWordCount, settings.wordTarget === 0 ? Infinity : settings.wordTarget)}
-                  </span>
-                  {settings.wordTarget > 0 && (
-                    <>
-                      <span className={dividerCls} style={{ color: tv.ui.mutedForeground }}>/</span>
-                      <span className={subNumCls} style={{ color: tv.ui.mutedForeground }}>
-                        {settings.wordTarget}
-                      </span>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Zen Mode: Count-up Timer */}
-              {settings.mode === "zen" && (
-                <>
-                  <div
-                    className={pillCls}
-                    style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-                  >
-                    <span className={numCls} style={{ color: tv.ui.foreground }}>
-                      {formatTime(Math.floor(elapsedMs / 1000))}
-                    </span>
-                  </div>
-
-                  <div
-                    className={pillCls}
-                    style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-                  >
-                    <span className={numCls} style={{ color: tv.ui.foreground }}>
-                      {typedWordCount}
-                    </span>
-                    <span className={dividerCls} style={{ color: tv.ui.mutedForeground }}>/</span>
-                    <span className={subNumCls} style={{ color: tv.ui.mutedForeground }}>
-                      {"\u221E"}
-                    </span>
-                  </div>
-                </>
-              )}
-
-              {/* Accuracy Pill */}
-              <div
-                className={pillCls}
-                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-              >
-                <span className={numCls} style={{ color: tv.ui.secondaryEmphasis }}>
-                  {Math.round(accuracy)}%
-                </span>
-                <span className={labelCls} style={{ color: tv.ui.mutedForeground }}>acc</span>
-              </div>
-            </div>
-          )}
-
-          {/* Row 2: Progress Bar - shown in time/words/zen modes, hidden in kid mode */}
-          {(isTimedPractice(settings) || settings.mode === "words" || settings.mode === "zen") && !isKidMode && (
-            <div className={`flex ${kb ? "gap-1.5" : "gap-2 md:gap-3"} items-center`}>
-              <div
-                className={kb ? "w-48 px-2.5 py-1.5 backdrop-blur-md rounded-full shadow-lg" : "w-56 md:w-80 px-3 py-2.5 md:px-4 md:py-4 backdrop-blur-md rounded-full shadow-lg"}
-                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-              >
-                {settings.mode === "zen" ? (
-                  <div
-                    className={`relative ${kb ? "h-1.5" : "h-2 md:h-2.5"} w-full overflow-hidden rounded-full`}
-                    style={{ backgroundColor: tv.border.subtle }}
-                  >
-                    <motion.div
-                      className="absolute inset-0 w-[200%]"
-                      animate={{ x: ["0%", "-50%"] }}
-                      transition={{
-                        duration: 2,
-                        ease: "linear",
-                        repeat: Infinity,
-                      }}
-                      style={{
-                        backgroundImage: zenProgressGradient,
-                        backgroundSize: "50% 100%",
-                        backgroundPosition: "0% 50%",
-                        backgroundRepeat: "repeat-x",
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <Progress
-                    value={
-                      settings.mode === "time"
-                        ? settings.duration > 0 ? (timeRemaining / settings.duration) * 100 : 0
-                        : settings.wordTarget > 0
-                          ? Math.min((typedWordCount / settings.wordTarget) * 100, 100)
-                          : 0
-                    }
-                    className={kb ? "h-1.5" : "h-2 md:h-2.5"}
-                    style={{ backgroundColor: tv.border.subtle }}
-                    indicatorStyle={{
-                      backgroundColor: isTimedPractice(settings) && timeRemaining < 10
-                        ? tv.ui.destructive
-                        : tv.ui.success,
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Kid Mode: Count-up Timer + Infinite Word Counter */}
-          {isKidMode && (
-            <div className={`flex ${kb ? "gap-1.5" : "gap-2 md:gap-3"}`}>
-              <div
-                className={pillCls}
-                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-              >
-                <span className={numCls} style={{ color: tv.ui.foreground }}>
-                  {formatTime(Math.floor(elapsedMs / 1000))}
-                </span>
-              </div>
-
-              <div
-                className={pillCls}
-                style={{ backgroundColor: tv.ui.card, borderWidth: 1, borderColor: tv.border.subtle }}
-              >
-                <span className={numCls} style={{ color: tv.ui.foreground }}>
-                  {typedWordCount}
-                </span>
-                <span className={dividerCls} style={{ color: tv.ui.mutedForeground }}>/</span>
-                <span className={subNumCls} style={{ color: tv.ui.mutedForeground }}>
-                  {"\u221E"}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-        );
-      })()}
+      {isRunning && !isFinished && (
+        <PracticeLiveStats
+          settings={settings}
+          isKidMode={isKidMode}
+          wpm={wpm}
+          accuracy={accuracy}
+          elapsedMs={elapsedMs}
+          timeRemaining={timeRemaining}
+          typedWordCount={typedWordCount}
+          keyboardVisible={settings.showOnScreenKeyboard}
+        />
+      )}
       </div>
 
       {/* Flexible spacer - balances content vertically */}
