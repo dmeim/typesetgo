@@ -1,14 +1,18 @@
+import { lazy, Suspense, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRightIcon, ChartLineUpIcon, ClockIcon, FlameIcon, GaugeIcon, SignInIcon, TargetIcon, TextAaIcon, TextTIcon, TrophyIcon, type Icon,
 } from "@phosphor-icons/react";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { formatDuration } from "@/components/stats/profile-presentation";
+import type { StatCardType } from "@/components/stats/UserStatsChartModal";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { toast } from "@/lib/toast-manager";
 import { Sparkline } from "./MockCharts";
 import { LAB_SPRING } from "./lab-settings";
-import { MOCK_STATS, MOCK_USER } from "./mock-profile";
+import { MOCK_CHART_RESULTS, MOCK_STATS, MOCK_USER } from "./mock-profile";
+
+const UserStatsChartModal = lazy(() => import("@/components/stats/UserStatsChartModal"));
 
 const ease = "transition-[padding,opacity] duration-300";
 
@@ -75,6 +79,7 @@ export function SignInButton({ collapsed, fade }: { collapsed: boolean; fade: st
 }
 
 interface StatCard {
+  type: StatCardType;
   label: string;
   value: number;
   format: (value: number) => string;
@@ -84,15 +89,15 @@ interface StatCard {
 }
 
 const CARDS: StatCard[] = [
-  { label: "Best WPM", value: MOCK_STATS.bestWpm, format: String, Icon: TrophyIcon, note: "Quote · yesterday" },
-  { label: "Average WPM", value: MOCK_STATS.averageWpm, format: String, Icon: GaugeIcon, trend: MOCK_STATS.trend, note: "+17 since March" },
-  { label: "Average accuracy", value: MOCK_STATS.averageAccuracy, format: (value) => `${value}%`, Icon: TargetIcon, trend: MOCK_STATS.accuracyTrend, note: "Up 5% since March" },
-  { label: "Typing time", value: MOCK_STATS.totalTimeTyped, format: formatDuration, Icon: ClockIcon, note: `${MOCK_STATS.totalTests} tests` },
-  { label: "Words typed", value: MOCK_STATS.totalWordsTyped, format: (value) => value.toLocaleString(), Icon: TextAaIcon, note: "Correct words, all time" },
-  { label: "Characters", value: MOCK_STATS.totalCharactersTyped, format: (value) => value.toLocaleString(), Icon: TextTIcon, note: "Estimated as words × 5" },
+  { type: "bestWpm", label: "Best WPM", value: MOCK_STATS.bestWpm, format: String, Icon: TrophyIcon, note: "Quote · yesterday" },
+  { type: "avgWpm", label: "Average WPM", value: MOCK_STATS.averageWpm, format: String, Icon: GaugeIcon, trend: MOCK_STATS.trend, note: "+17 since March" },
+  { type: "avgAccuracy", label: "Average accuracy", value: MOCK_STATS.averageAccuracy, format: (value) => `${value}%`, Icon: TargetIcon, trend: MOCK_STATS.accuracyTrend, note: "Up 5% since March" },
+  { type: "typingTime", label: "Typing time", value: MOCK_STATS.totalTimeTyped, format: formatDuration, Icon: ClockIcon, note: `${MOCK_STATS.totalTests} tests` },
+  { type: "wordsTyped", label: "Words typed", value: MOCK_STATS.totalWordsTyped, format: (value) => value.toLocaleString(), Icon: TextAaIcon, note: "Correct words, all time" },
+  { type: "characters", label: "Characters", value: MOCK_STATS.totalCharactersTyped, format: (value) => value.toLocaleString(), Icon: TextTIcon, note: "Estimated as words × 5" },
 ];
 
-function StatTile({ card, index }: { card: StatCard; index: number }) {
+function StatTile({ card, index, onOpen }: { card: StatCard; index: number; onOpen: () => void }) {
   const counted = useAnimatedCounter(card.label === "Average accuracy" ? card.value * 10 : card.value, 1000, index * 60);
   const shown = card.label === "Average accuracy" ? counted / 10 : counted;
   const { Icon } = card;
@@ -102,7 +107,7 @@ function StatTile({ card, index }: { card: StatCard; index: number }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...LAB_SPRING, delay: index * 0.04 }}
-      onClick={() => toast.add({ type: "info", title: `${card.label} chart`, description: "Opens the same recent-tests chart as today’s stats page." })}
+      onClick={onOpen}
       aria-haspopup="dialog"
       aria-label={`${card.label}: ${card.format(card.value)}. View chart`}
       className="group flex min-w-0 flex-col gap-3 rounded-3xl border border-border bg-card p-5 text-left hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-ring motion-safe:transition-[transform,border-color] motion-safe:hover:-translate-y-0.5"
@@ -120,6 +125,7 @@ function StatTile({ card, index }: { card: StatCard; index: number }) {
 
 /** Stats tab: the header and lifetime cards from today’s profile page. */
 export function StatsPanel() {
+  const [chart, setChart] = useState<StatCard | null>(null);
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-wrap items-center gap-5 rounded-3xl border border-border bg-card p-6">
@@ -140,9 +146,14 @@ export function StatsPanel() {
       <section aria-labelledby="lab-lifetime" className="flex flex-col gap-3">
         <h3 id="lab-lifetime" className="px-1 text-xs uppercase tracking-wider text-muted-foreground">Lifetime stats</h3>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {CARDS.map((card, index) => <StatTile key={card.label} card={card} index={index} />)}
+          {CARDS.map((card, index) => <StatTile key={card.label} card={card} index={index} onOpen={() => setChart(card)} />)}
         </div>
       </section>
+      {chart && (
+        <Suspense fallback={<p role="status" className="py-6 text-center text-sm text-muted-foreground">Loading chart…</p>}>
+          <UserStatsChartModal isOpen onClose={() => setChart(null)} cardType={chart.type} cardValue={chart.format(chart.value)} allResults={MOCK_CHART_RESULTS} />
+        </Suspense>
+      )}
     </div>
   );
 }

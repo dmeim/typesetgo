@@ -110,3 +110,90 @@ export function earnedPhrase(timestamp: number) {
 }
 
 export const clock = (timestamp: number) => new Date(timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+/** About two months of tests for the Stats chart dialog, trending up like MOCK_STATS.trend. */
+export const MOCK_CHART_RESULTS = Array.from({ length: 64 }, (_, index) => {
+  const wobble = Math.sin(index * 1.7) * 6 + Math.cos(index * 0.6) * 3;
+  const invalid = index % 17 === 5;
+  return {
+    wpm: Math.round(42 + index * 0.5 + wobble),
+    accuracy: Math.round((90 + index * 0.09 + Math.sin(index) * 2.2) * 10) / 10,
+    duration: index % 3 === 0 ? 60_000 : 30_000,
+    wordCount: Math.round((42 + index * 0.5) * (index % 3 === 0 ? 1 : 0.5)),
+    verification: (invalid ? "invalid" : "verified") as ResultVerification,
+    createdAt: now - (63 - index) * DAY + (index % 5) * 3_600_000,
+  };
+});
+
+export interface LadderStep {
+  achievement: Achievement;
+  earned: boolean;
+  earnedAt?: number;
+}
+
+export interface Ladder {
+  title: string;
+  /** A progressive group has one measured value; a one-time badge shows its category instead. */
+  current?: { value: number; unit: string; label: string };
+  steps: LadderStep[];
+}
+
+const GROUP_PROGRESS: Record<string, Ladder["current"]> = {
+  speed: { value: MOCK_STATS.bestWpm, unit: "WPM", label: "Best speed" },
+  streak: { value: MOCK_USER.bestStreak, unit: "days", label: "Longest streak" },
+  words: { value: MOCK_STATS.totalWordsTyped, unit: "words", label: "Correct words" },
+};
+const ONE_TIME_EARNED = new Set(["special-first-test", "special-night-owl", "special-early-bird"]);
+
+/** Every level behind one achievement card, as the detail dialog shows them. */
+export function ladderFor(item: MockAchievement): Ladder {
+  const group = item.achievement.progressiveGroup;
+  const current = group ? GROUP_PROGRESS[group] : undefined;
+  const pool = group
+    ? ALL_ACHIEVEMENTS.filter((achievement) => achievement.progressiveGroup === group)
+    : ALL_ACHIEVEMENTS.filter((achievement) => achievement.category === item.achievement.category);
+  const earned = pool.map((achievement) => current ? (achievement.target ?? 0) <= current.value : ONE_TIME_EARNED.has(achievement.id));
+  const earnedCount = earned.filter(Boolean).length;
+  let order = 0;
+  return {
+    title: item.category,
+    current,
+    steps: pool.map((achievement, index) => ({
+      achievement,
+      earned: earned[index],
+      earnedAt: earned[index] ? now - (earnedCount - order++) * 2.5 * DAY : undefined,
+    })),
+  };
+}
+
+/** Names for the five achievement detail window mockups, in order. */
+export const DETAIL_STYLES = ["Tier tabs", "Journey path", "Level meter", "Card deck", "Checklist"];
+
+export const LADDER_TIERS = ["copper", "silver", "gold", "diamond", "emerald"] as const;
+
+export interface TierSummary {
+  tier: (typeof LADDER_TIERS)[number];
+  steps: LadderStep[];
+  earned: number;
+}
+
+/** Levels split by tier; tiers a ladder never uses (most one-time categories) are left out. */
+export function tiersOf(ladder: Ladder): TierSummary[] {
+  return LADDER_TIERS
+    .map((tier) => {
+      const steps = ladder.steps.filter((step) => step.achievement.tier === tier);
+      return { tier, steps, earned: steps.filter((step) => step.earned).length };
+    })
+    .filter((summary) => summary.steps.length > 0);
+}
+
+/** The first level still to earn, or undefined once everything is unlocked. */
+export const nextStep = (ladder: Ladder) => ladder.steps.find((step) => !step.earned);
+export const earnedCount = (ladder: Ladder) => ladder.steps.filter((step) => step.earned).length;
+
+/** How far the measured value is from a level's target, e.g. "6,598 words to go". */
+export function toGo(ladder: Ladder, step: LadderStep) {
+  if (!ladder.current || step.achievement.target === undefined) return "Not yet";
+  const gap = step.achievement.target - ladder.current.value;
+  return `${gap.toLocaleString()} ${ladder.current.unit} to go`;
+}

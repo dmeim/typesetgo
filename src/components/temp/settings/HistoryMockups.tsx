@@ -10,7 +10,7 @@ import { Ring, Sparkline, StylePicker } from "./MockCharts";
 import { LAB_SPRING } from "./lab-settings";
 import { MOCK_RESULTS, MOCK_STATS, clock, relativeDay, type MockResult } from "./mock-profile";
 
-const STYLES = ["Table", "Score cards", "Day timeline", "Expandable rows", "Tiles + filter"];
+const STYLES = ["Table", "Score cards", "Day timeline", "Expandable rows", "Tiles + filter", "Timeline + rows"];
 const details = (result: MockResult) => toast.add({ type: "info", title: `${result.wpm} WPM test`, description: "Opens the test details, as today." });
 const seconds = (result: MockResult) => `${Math.round(result.duration / 1000)}s`;
 const errors = (result: MockResult) => (result.wordsIncorrect ?? 0) + (result.charsMissed ?? 0) + (result.charsExtra ?? 0);
@@ -160,6 +160,33 @@ function DayTimeline() {
   );
 }
 
+/** The full breakdown a row opens into (shared by #4 and #6). */
+function ResultDetail({ result }: { result: MockResult }) {
+  return (
+    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={LAB_SPRING}>
+      <div className="grid gap-4 border-t border-border p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-2">
+          <span className="text-xs text-muted-foreground">Speed during the test</span>
+          <Sparkline values={result.timeline} className="h-24 w-full" />
+        </div>
+        <dl className="grid grid-cols-2 gap-2 text-sm">
+          {([["Words right", result.wordsCorrect], ["Words wrong", result.wordsIncorrect], ["Letters missed", result.charsMissed], ["Extra letters", result.charsExtra], ["Length", seconds(result)]] as const).map(([label, value]) => (
+            <div key={label} className="rounded-xl bg-muted/50 px-3 py-2"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="font-semibold tabular-nums">{value}</dd></div>
+          ))}
+          <div className="rounded-xl bg-muted/50 px-3 py-2"><dt className="text-xs text-muted-foreground">Status</dt><dd><ResultValidity verification={result.verification} /></dd></div>
+        </dl>
+        <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
+          {result.invalidReason ? <span className="text-xs text-destructive">Not counted: {result.invalidReason.toLowerCase()}</span> : <Delta wpm={result.wpm} />}
+          <span className="flex gap-2">
+            <button type="button" className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-accent"><ShareNetworkIcon className="size-3.5" aria-hidden="true" />Share</button>
+            <button type="button" className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"><TrashIcon className="size-3.5" aria-hidden="true" />Delete</button>
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 /** 4 · Expandable rows: compact list; a row opens in place to show the full breakdown. */
 function ExpandableRows() {
   const [open, setOpen] = useState<string | null>(MOCK_RESULTS[0]._id);
@@ -182,33 +209,64 @@ function ExpandableRows() {
               </motion.button>
               <AnimatePresence initial={false}>
                 {expanded && (
-                  <motion.div key="detail" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={LAB_SPRING}>
-                    <div className="grid gap-4 border-t border-border p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-                      <div className="flex flex-col gap-2">
-                        <span className="text-xs text-muted-foreground">Speed during the test</span>
-                        <Sparkline values={result.timeline} className="h-24 w-full" />
-                      </div>
-                      <dl className="grid grid-cols-2 gap-2 text-sm">
-                        {([["Words right", result.wordsCorrect], ["Words wrong", result.wordsIncorrect], ["Letters missed", result.charsMissed], ["Extra letters", result.charsExtra], ["Length", seconds(result)]] as const).map(([label, value]) => (
-                          <div key={label} className="rounded-xl bg-muted/50 px-3 py-2"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="font-semibold tabular-nums">{value}</dd></div>
-                        ))}
-                        <div className="rounded-xl bg-muted/50 px-3 py-2"><dt className="text-xs text-muted-foreground">Status</dt><dd><ResultValidity verification={result.verification} /></dd></div>
-                      </dl>
-                      <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
-                        {result.invalidReason ? <span className="text-xs text-destructive">Not counted: {result.invalidReason.toLowerCase()}</span> : <Delta wpm={result.wpm} />}
-                        <span className="flex gap-2">
-                          <button type="button" className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-accent"><ShareNetworkIcon className="size-3.5" aria-hidden="true" />Share</button>
-                          <button type="button" className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"><TrashIcon className="size-3.5" aria-hidden="true" />Delete</button>
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
+                  <ResultDetail key="detail" result={result} />
                 )}
               </AnimatePresence>
             </motion.li>
           );
         })}
       </ul>
+    </LayoutGroup>
+  );
+}
+
+/** 6 · Timeline + rows: grouped by day on a timeline; any row opens in place for the full breakdown. */
+function TimelineRows() {
+  const [open, setOpen] = useState<string | null>(MOCK_RESULTS[0]._id);
+  const days = MOCK_RESULTS.reduce<Record<string, MockResult[]>>((groups, result) => {
+    (groups[relativeDay(result.createdAt)] ??= []).push(result);
+    return groups;
+  }, {});
+  return (
+    <LayoutGroup>
+      <div className="flex flex-col gap-6">
+        {Object.entries(days).map(([day, results]) => (
+          <motion.section layout="position" transition={LAB_SPRING} key={day} className="flex flex-col gap-3">
+            <h3 className="flex items-baseline gap-3 px-1"><span className="text-lg font-bold">{day}</span><span className="text-xs text-muted-foreground">{results.length} {results.length === 1 ? "test" : "tests"} · best {Math.max(...results.map((result) => result.wpm))} WPM</span></h3>
+            <ol className="relative ml-3 flex flex-col gap-2 border-l-2 border-border pl-6">
+              {results.map((result) => {
+                const expanded = open === result._id;
+                const invalid = result.verification === "invalid";
+                return (
+                  <motion.li layout transition={LAB_SPRING} key={result._id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="relative">
+                    <motion.span layout="position" aria-hidden="true" className={`absolute -left-[2.3rem] top-3.5 flex size-7 items-center justify-center rounded-full border-4 border-background ${invalid ? "bg-destructive text-background" : expanded ? "bg-primary text-primary-foreground ring-4 ring-primary/25" : "bg-primary text-primary-foreground"}`}>
+                      <ModeGlyph mode={result.mode} className="size-3.5" />
+                    </motion.span>
+                    <div className={`overflow-hidden rounded-2xl border bg-card ${expanded ? "border-primary/40 shadow-lg" : "border-border"}`}>
+                      <motion.button layout="position" type="button" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : result._id)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent/40 sm:gap-4 focus-visible:outline-2 focus-visible:outline-ring">
+                        <span className="flex min-w-0 flex-1 flex-col gap-1">
+                          <span className="truncate text-sm font-semibold">{getTestTypeLabels(result).join(" · ")}</span>
+                          <span className="flex items-center gap-3 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
+                            {clock(result.createdAt)}
+                            {result.personalBest ? <PersonalBest /> : invalid ? <ResultValidity verification={result.verification} /> : <span className="hidden sm:inline"><Delta wpm={result.wpm} /></span>}
+                          </span>
+                        </span>
+                        <span className="flex items-baseline gap-1.5"><strong className="text-2xl tabular-nums text-primary">{result.wpm}</strong><span className="hidden text-xs text-muted-foreground sm:inline">wpm</span></span>
+                        <span className="w-10 text-right text-sm tabular-nums text-muted-foreground">{Math.round(result.accuracy)}%</span>
+                        <motion.span animate={{ rotate: expanded ? 180 : 0 }} transition={LAB_SPRING}><CaretDownIcon className="size-4 text-muted-foreground" aria-hidden="true" /></motion.span>
+                      </motion.button>
+                      <AnimatePresence initial={false}>
+                        {expanded && <ResultDetail key="detail" result={result} />}
+                      </AnimatePresence>
+                    </div>
+                  </motion.li>
+                );
+              })}
+            </ol>
+          </motion.section>
+        ))}
+      </div>
     </LayoutGroup>
   );
 }
@@ -251,11 +309,11 @@ function TilesWithFilter() {
   );
 }
 
-const VARIANTS = [Table, ScoreCards, DayTimeline, ExpandableRows, TilesWithFilter];
+const VARIANTS = [Table, ScoreCards, DayTimeline, ExpandableRows, TilesWithFilter, TimelineRows];
 
 /** History tab: saved tests with five candidate layouts to compare. */
 export function HistoryPanel() {
-  const [style, setStyle] = useState(0);
+  const [style, setStyle] = useState(STYLES.length - 1);
   const Variant = VARIANTS[style];
   return (
     <div className="flex flex-col gap-6">
