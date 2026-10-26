@@ -4,9 +4,9 @@ import { CaretLeftIcon, CaretRightIcon, MagnifyingGlassIcon, SidebarSimpleIcon, 
 import ThemeSitePreview from "@/components/typing/ThemeSitePreview";
 import { getTypingFontOption } from "@/lib/typing-fonts";
 import { AccountCard, SignInButton, StatsPanel } from "./AccountPanels";
-import { AchievementsPanel } from "./AchievementMockups";
+import { AchievementsPanel } from "./AchievementsPanel";
 import { FontGallery } from "./FontGallery";
-import { HistoryPanel } from "./HistoryMockups";
+import { HistoryPanel } from "./HistoryPanel";
 import { KeyboardPanel, LabSwitch, SoundPanel, TypingPanel } from "./LabControls";
 import { RealTextPreview } from "./RealTextPreview";
 import { ThemeGallery } from "./ThemeGallery";

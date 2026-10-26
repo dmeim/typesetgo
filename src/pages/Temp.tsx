@@ -7,7 +7,7 @@ import { SettingsPillDemo } from "@/components/temp/SettingsPillDemo";
 import { ResultsDemo } from "@/components/temp/ResultsDemo";
 
 const SETTINGS_MOCKUPS: [number, string, string][] = [
-  [1, "Split view", "Your stats, history and achievements plus every setting in one place, with live previews. Six achievement and six history styles, plus five achievement detail windows, to compare."],
+  [1, "Split view", "Your stats, history and achievements plus every setting in one place, with live previews. History is a day timeline with rows that open; achievements are collector cards that open a journey of every level."],
   [3, "Studio", "A big live preview beside tabbed controls. Kept for reference."],
 ];
 

@@ -46,26 +46,3 @@ export function Ring({ value, size = 44, stroke = 5, color = "var(--primary)", t
     </span>
   );
 }
-
-/** Numbered style switcher for comparing mockups in place. */
-export function StylePicker({ value, onChange, names, label }: { value: number; onChange: (value: number) => void; names: string[]; label: string }) {
-  const id = useId();
-  return (
-    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1 rounded-2xl bg-muted/60 p-1">
-      {names.map((name, index) => (
-        <button
-          key={name}
-          type="button"
-          role="radio"
-          aria-checked={value === index}
-          onClick={() => onChange(index)}
-          className={`relative flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring ${value === index ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          {value === index && <motion.span layoutId={`style-${id}`} transition={{ type: "spring", stiffness: 460, damping: 38 }} className="absolute inset-0 rounded-xl bg-card shadow-sm" />}
-          <span className="relative flex size-5 items-center justify-center rounded-full bg-muted text-[0.7rem] font-bold tabular-nums">{index + 1}</span>
-          <span className="relative whitespace-nowrap">{name}</span>
-        </button>
-      ))}
-    </div>
-  );
-}

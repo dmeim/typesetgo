@@ -166,9 +166,6 @@ export function ladderFor(item: MockAchievement): Ladder {
   };
 }
 
-/** Names for the five achievement detail window mockups, in order. */
-export const DETAIL_STYLES = ["Tier tabs", "Journey path", "Level meter", "Card deck", "Checklist"];
-
 export const LADDER_TIERS = ["copper", "silver", "gold", "diamond", "emerald"] as const;
 
 export interface TierSummary {
