@@ -1,5 +1,7 @@
 // Shared state shape and section metadata for the /temp-settings mockups. Nothing here is persisted.
-import { KeyboardIcon, LightningIcon, PaletteIcon, SpeakerHighIcon, TextAaIcon, type Icon } from "@phosphor-icons/react";
+import {
+  ChartLineUpIcon, ClockCounterClockwiseIcon, KeyboardIcon, LightningIcon, PaletteIcon, SpeakerHighIcon, TextAaIcon, TrophyIcon, type Icon,
+} from "@phosphor-icons/react";
 import { DEFAULT_SETTINGS } from "@/lib/storage-utils";
 import type { SettingsState } from "@/lib/typing-constants";
 
@@ -13,9 +15,11 @@ export const INITIAL_LAB_SETTINGS: LabSettings = {
 };
 
 export type SectionId = "theme" | "text" | "typing" | "sound" | "keyboard";
+export type AccountSectionId = "stats" | "history" | "achievements";
+export type PaneId = SectionId | AccountSectionId;
 
-export interface SectionMeta {
-  id: SectionId;
+export interface SectionMeta<T extends PaneId = PaneId> {
+  id: T;
   title: string;
   description: string;
   Icon: Icon;
@@ -23,12 +27,19 @@ export interface SectionMeta {
   tile: string;
 }
 
-export const SECTIONS: SectionMeta[] = [
+export const SECTIONS: SectionMeta<SectionId>[] = [
   { id: "theme", title: "Theme", description: "Colours for the whole site, with light and dark versions.", Icon: PaletteIcon, tile: "bg-(--accent-emphasis) text-background" },
   { id: "text", title: "Text", description: "The font, size and alignment of the words you type.", Icon: TextAaIcon, tile: "bg-primary text-primary-foreground" },
   { id: "typing", title: "Typing", description: "How many lines you see, and a ghost racer to chase.", Icon: LightningIcon, tile: "bg-warning text-background" },
   { id: "sound", title: "Sound", description: "Clicks while you type and a warning before time runs out.", Icon: SpeakerHighIcon, tile: "bg-success text-background" },
   { id: "keyboard", title: "Keyboard", description: "An on-screen keyboard that shows the next key to press.", Icon: KeyboardIcon, tile: "bg-destructive text-background" },
+];
+
+/** Split view only: the signed-in player's own pages, above the settings. */
+export const ACCOUNT_SECTIONS: SectionMeta<AccountSectionId>[] = [
+  { id: "stats", title: "Stats", description: "Your lifetime numbers at a glance.", Icon: ChartLineUpIcon, tile: "bg-primary text-primary-foreground" },
+  { id: "history", title: "History", description: "Every saved test, newest first.", Icon: ClockCounterClockwiseIcon, tile: "bg-muted-foreground text-background" },
+  { id: "achievements", title: "Achievements", description: "Badges you have earned and the next ones to chase.", Icon: TrophyIcon, tile: "bg-[#E8B931] text-black" },
 ];
 
 export const LAB_SPRING = { type: "spring", stiffness: 460, damping: 38, mass: 0.85 } as const;

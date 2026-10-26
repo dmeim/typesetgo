@@ -7,7 +7,7 @@ import { SettingsPillDemo } from "@/components/temp/SettingsPillDemo";
 import { ResultsDemo } from "@/components/temp/ResultsDemo";
 
 const SETTINGS_MOCKUPS: [number, string, string][] = [
-  [1, "Split view", "Sections on the left; theme and font galleries with a live preview that stays put."],
+  [1, "Split view", "Your stats, history and achievements plus every setting in one place, with live previews. Five achievement and five history styles to compare."],
   [3, "Studio", "A big live preview beside tabbed controls. Kept for reference."],
 ];
 

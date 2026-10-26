@@ -1,40 +1,56 @@
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CaretLeftIcon, CaretRightIcon, MagnifyingGlassIcon, SidebarSimpleIcon, UserIcon, XIcon } from "@phosphor-icons/react";
+import { CaretLeftIcon, CaretRightIcon, MagnifyingGlassIcon, SidebarSimpleIcon, XIcon } from "@phosphor-icons/react";
 import ThemeSitePreview from "@/components/typing/ThemeSitePreview";
 import { getTypingFontOption } from "@/lib/typing-fonts";
+import { AccountCard, SignInButton, StatsPanel } from "./AccountPanels";
+import { AchievementsPanel } from "./AchievementMockups";
 import { FontGallery } from "./FontGallery";
-import { KeyboardPanel, SoundPanel, TypingPanel } from "./LabControls";
+import { HistoryPanel } from "./HistoryMockups";
+import { KeyboardPanel, LabSwitch, SoundPanel, TypingPanel } from "./LabControls";
 import { RealTextPreview } from "./RealTextPreview";
 import { ThemeGallery } from "./ThemeGallery";
-import { LAB_SPRING, SECTIONS, SETTING_INDEX, type SectionId, type SectionMeta } from "./lab-settings";
+import { ACCOUNT_SECTIONS, LAB_SPRING, SECTIONS, SETTING_INDEX, type PaneId, type SectionId, type SectionMeta } from "./lab-settings";
+import { MOCK_ACHIEVEMENT_TOTALS, MOCK_STATS } from "./mock-profile";
 import { useThemeCatalog, useThemeColors, type LabState } from "./useLabSettings";
 
-const GROUPS: SectionId[][] = [["theme"], ["text", "typing"], ["sound", "keyboard"]];
-const sectionById = (id: SectionId) => SECTIONS.find((section) => section.id === id) as SectionMeta;
+const SETTING_GROUPS: SectionId[][] = [["theme"], ["text", "typing"], ["sound", "keyboard"]];
+const ACCOUNT_GROUP: PaneId[] = ACCOUNT_SECTIONS.map((section) => section.id);
+const sectionById = (id: PaneId) => [...SECTIONS, ...ACCOUNT_SECTIONS].find((section) => section.id === id) as SectionMeta;
+const isSettingsPane = (id: PaneId): id is SectionId => SECTIONS.some((section) => section.id === id);
 
-/** Mockup 1: iPadOS-style split view. Sections on the left, the chosen section on the right. */
+/** Mockup 1: iPadOS-style split view. Your account pages and every setting on the left, the chosen one on the right. */
 export function SplitViewSettings({ lab }: { lab: LabState }) {
-  const [active, setActive] = useState<SectionId>("theme");
+  const [active, setActive] = useState<PaneId>("theme");
   const [mobileDetail, setMobileDetail] = useState(false);
   const [query, setQuery] = useState("");
   // Desktop only: the sidebar folds into an icon rail; phones keep the list/detail flow.
   const [collapsed, setCollapsed] = useState(false);
+  // Mockup only: the fixture cannot sign in, so the account tabs use mock data behind this switch.
+  const [signedIn, setSignedIn] = useState(true);
   const fade = collapsed ? "md:pointer-events-none md:opacity-0" : "";
   const themes = useThemeCatalog();
   const themeEntry = themes?.find((theme) => theme.id === lab.theme.themeId);
   const { settings } = lab;
 
-  const summary: Record<SectionId, string> = {
+  const summary: Record<PaneId, string> = {
+    stats: `${MOCK_STATS.bestWpm} best`,
+    history: `${MOCK_STATS.totalTests} tests`,
+    achievements: `${MOCK_ACHIEVEMENT_TOTALS.earned} / ${MOCK_ACHIEVEMENT_TOTALS.total}`,
     theme: themeEntry?.name ?? "…",
     text: `${getTypingFontOption(settings.typingFontFamily).label} · ${settings.typingFontSize}rem`,
     typing: settings.ghostWriterEnabled ? "Ghost on" : `${settings.linePreview} lines`,
     sound: settings.soundEnabled ? "On" : "Off",
     keyboard: settings.showOnScreenKeyboard ? settings.keyboardLayout.toUpperCase() : "Off",
   };
+  const groups: PaneId[][] = signedIn ? [ACCOUNT_GROUP, ...SETTING_GROUPS] : SETTING_GROUPS;
   const needle = query.trim().toLowerCase();
   const matches = needle ? SETTING_INDEX.filter((entry) => `${entry.label} ${entry.keywords}`.toLowerCase().includes(needle)) : [];
-  const open = (id: SectionId) => { setActive(id); setMobileDetail(true); };
+  const open = (id: PaneId) => { setActive(id); setMobileDetail(true); };
+  const setSignedInPreview = (next: boolean) => {
+    setSignedIn(next);
+    if (!next && !isSettingsPane(active)) setActive("theme");
+  };
 
   return (
     <div className="flex min-h-[100dvh]">
@@ -75,15 +91,13 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
             </motion.div>
           ) : (
             <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-5">
-              <div className={`flex items-center gap-3 rounded-2xl bg-card py-3 transition-[padding] duration-300 ${collapsed ? "px-3 md:px-0" : "px-3"}`} title={collapsed ? "Guest" : undefined}>
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><UserIcon className="size-6" aria-hidden="true" /></span>
-                <span className={`flex flex-col transition-opacity duration-200 ${fade}`}>
-                  <span className="font-semibold">Guest</span>
-                  <span className="text-xs text-muted-foreground">Sign in to keep your settings on every device</span>
-                </span>
-              </div>
-              {GROUPS.map((group, groupIndex) => (
-                <div key={groupIndex} className="flex flex-col gap-0.5">
+              <AnimatePresence mode="popLayout" initial={false}>
+                {signedIn
+                  ? <AccountCard key="account" collapsed={collapsed} fade={fade} selected={active === "stats"} onOpen={() => open("stats")} />
+                  : <SignInButton key="sign-in" collapsed={collapsed} fade={fade} />}
+              </AnimatePresence>
+              {groups.map((group) => (
+                <motion.div layout transition={LAB_SPRING} key={group.join("-")} className="flex flex-col gap-0.5">
                   {group.map((id) => {
                     const section = sectionById(id);
                     const selected = active === id;
@@ -106,8 +120,15 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
                       </button>
                     );
                   })}
-                </div>
+                </motion.div>
               ))}
+              <div className={`flex items-center justify-between gap-3 rounded-xl border border-dashed border-border px-3 py-2.5 transition-opacity duration-200 ${fade}`}>
+                <span className="flex flex-col whitespace-nowrap">
+                  <span className="text-xs font-semibold">Preview signed in</span>
+                  <span className="text-[0.7rem] text-muted-foreground">Mockup only · mock data</span>
+                </span>
+                <LabSwitch label="Preview signed in" checked={signedIn} onChange={setSignedInPreview} />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -128,9 +149,12 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
                 transition={{ duration: 0.22, ease: "easeOut" }}
                 className="flex flex-col gap-6"
               >
+                {active === "stats" && <StatsPanel />}
+                {active === "history" && <HistoryPanel />}
+                {active === "achievements" && <AchievementsPanel />}
                 {active === "theme" && <ThemeGallery lab={lab} />}
                 {active === "text" && <FontGallery settings={settings} update={lab.update} />}
-                {active !== "theme" && active !== "text" && (
+                {(active === "typing" || active === "sound" || active === "keyboard") && (
                   <div className="flex max-w-3xl flex-col gap-6">
                     <Hero section={sectionById(active)} />
                     {active === "typing" && <TypingPanel settings={settings} update={lab.update} />}
@@ -141,7 +165,7 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
               </motion.div>
             </AnimatePresence>
           </div>
-          <PreviewColumn lab={lab} active={active} themeName={themeEntry?.name ?? "Theme"} />
+          {isSettingsPane(active) && <PreviewColumn lab={lab} active={active} themeName={themeEntry?.name ?? "Theme"} />}
         </div>
       </main>
     </div>
