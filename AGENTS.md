@@ -93,6 +93,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/admin` | Review route; requires Clerk sign-in and the server-side admin password |
 | `/temp` | UI Lab: interactive mockups for upcoming UI changes (`src/components/temp/`); local state only |
 | `/temp-settings1`, `/temp-settings3` | Full-page settings and themes mockups (split view with account stats/history/achievements tabs, studio) (`src/components/temp/settings/`); local state and mock profile data only |
+| `/temp-leaderboard1`–`/temp-leaderboard5` | Leaderboard page mockups (arena, three boards, spotlight, race track, standings) (`src/components/temp/leaderboard/`); mock players only |
 | Other paths | Themed not-found recovery |
 
 ## Provider Stack (`src/main.tsx`)

@@ -11,6 +11,14 @@ const SETTINGS_MOCKUPS: [number, string, string][] = [
   [3, "Studio", "A big live preview beside tabbed controls. Kept for reference."],
 ];
 
+const LEADERBOARD_MOCKUPS: [number, string, string][] = [
+  [1, "Arena", "One big podium; switching period morphs players between places."],
+  [2, "Three boards", "Today, 7 days and all time side by side; hover a player to find them on every board."],
+  [3, "Spotlight", "The leader in a spotlight, period cards with reset timers, and who to chase next."],
+  [4, "Race track", "Everyone in a lane, positioned by speed, racing to the finish line."],
+  [5, "Standings", "Your rank in every period beside a searchable, dense table."],
+];
+
 export default function Temp() {
   return (
     <div className="min-h-[100dvh] bg-background px-4 py-12 font-mono text-foreground transition-colors duration-300">
@@ -45,6 +53,17 @@ export default function Temp() {
             <div className="grid gap-3 sm:grid-cols-2">
               {SETTINGS_MOCKUPS.map(([number, name, summary]) => (
                 <Link key={name} to={`/temp-settings${number}`} className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-primary">
+                  <span className="text-xs text-muted-foreground">{String(number).padStart(2, "0")}</span>
+                  <span className="font-semibold">{name}</span>
+                  <span className="text-xs text-muted-foreground">{summary}</span>
+                </Link>
+              ))}
+            </div>
+          </Section>
+          <Section id="leaderboard-page" title="Leaderboard page" summary="Five takes on the leaderboard, each keeping the top-three podium and the Today, 7 days and All time boards.">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {LEADERBOARD_MOCKUPS.map(([number, name, summary]) => (
+                <Link key={name} to={`/temp-leaderboard${number}`} className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-primary">
                   <span className="text-xs text-muted-foreground">{String(number).padStart(2, "0")}</span>
                   <span className="font-semibold">{name}</span>
                   <span className="text-xs text-muted-foreground">{summary}</span>
