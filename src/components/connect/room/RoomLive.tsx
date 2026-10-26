@@ -3,8 +3,9 @@ import { useMutation } from "convex/react";
 import { HourglassMediumIcon, PauseCircleIcon } from "@phosphor-icons/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { isBreakTest, isWaitingForNextTest, type ConnectOverrides, type ConnectTest } from "@/lib/connect-types";
-import { connectAttemptKey, connectThemeStyle, effectiveStep, resolveConnectSettings } from "@/lib/connect-settings";
+import { isBreakTest, isWaitingForNextTest, stepAfterResults, type ConnectOverrides, type ConnectTest } from "@/lib/connect-types";
+import { connectTestLabels } from "@/lib/connect-settings";
+import { connectAttemptKey, connectThemeMode, connectThemeStyle, effectiveStep, resolveConnectSettings } from "@/lib/connect-settings";
 import { useConnectThemeColors } from "@/hooks/useConnectThemeColors";
 import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import TypingPractice from "@/components/typing/TypingPractice";
@@ -43,8 +44,8 @@ function useLockedSettings(test: ConnectTest | undefined, overrides: ConnectOver
 export function RoomLive({ roomId, participantId, room, participant, reconnecting, leaving, leaveError, onLeave }: RoomLiveProps) {
   const credential = useMultiplayerCredential();
   const advanceMutation = useMutation(api.connect.advance);
-  const themeColors = useConnectThemeColors(room.overrides.theme);
-  const themeStyle = useMemo(() => connectThemeStyle(themeColors), [themeColors]);
+  const roomTheme = useConnectThemeColors(room.overrides.theme);
+  const themeStyle = useMemo(() => connectThemeStyle(roomTheme), [roomTheme]);
   const [isTyping, setIsTyping] = useState(false);
   const [splashStep, setSplashStep] = useState<number | null>(null);
   const [advancing, setAdvancing] = useState(false);
@@ -61,40 +62,52 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
   const progress = useConnectProgress(participantId, attemptKey,
     { runVersion: room.runVersion, stepIndex: step, attempt: participant.attempt }, isRunning && !leaving && !onBreak && !waiting);
 
-  const advance = useCallback(async () => {
+  // `manual`: the participant chose to move on. Countdowns ending retry quietly until the server agrees.
+  const advance = useCallback(async (manual: boolean) => {
     if (advancing) return;
     setAdvancing(true);
     setAdvanceError(undefined);
-    // An ending break is retried quietly until the server agrees its time is up.
-    const fromBreak = isBreakTest(room.tests[step]);
     try {
       const result = await advanceMutation({
         participantId: participantId as Id<"connectParticipants">, credential, runVersion: room.runVersion, stepIndex: step,
       });
       if (!result.accepted) {
-        if (!fromBreak) setAdvanceError("Couldn't move on yet. Try again in a moment.");
-      } else if (!result.completed && !fromBreak && !isBreakTest(room.tests[result.stepIndex])) {
-        // Breaks already preview the next test, so the splash only introduces tests reached from results.
+        if (manual) setAdvanceError("Couldn't move on yet. Try again in a moment.");
+      } else if (manual && !result.completed && !isBreakTest(room.tests[result.stepIndex])) {
+        // Countdowns already name the next test, so the splash only introduces one chosen early.
         setSplashStep(result.stepIndex);
       }
     } catch (error) {
       console.warn("Connect advance failed", { participantId, step, error });
-      if (!fromBreak) setAdvanceError(readableError(error));
+      if (manual) setAdvanceError(readableError(error));
     } finally {
       setAdvancing(false);
     }
   }, [advancing, advanceMutation, participantId, credential, room.runVersion, room.tests, step]);
 
   const continueFromSplash = useCallback(() => setSplashStep(null), []);
+  const labels = connectTestLabels(room.tests);
+  const breakAfter = isBreakTest(room.tests[step + 1]);
+  // Host pacing: the room ended the test (its clock ran out). Self-paced: this participant finished it.
+  const resultsFrom = room.pacing === "host"
+    ? room.stepEndedAt
+    : participant.stats.isFinished && progress.finalDelivered ? participant.finishedAt : undefined;
+  const testEnded = room.pacing === "host" && !onBreak && room.stepEndedAt !== undefined;
   const resultsActions = (
     <RoomResultsActions
       pacing={room.pacing}
-      isLastTest={step >= room.tests.length - 1}
+      tests={room.tests}
+      index={step}
+      endedAt={resultsFrom}
+      pausedAt={room.status === "paused" ? room.pausedAt : undefined}
+      paused={room.status === "paused"}
+      nextTitle={labels[stepAfterResults(room.tests, step)]?.title}
+      breakTitle={breakAfter ? labels[step + 1].title : undefined}
       resultDelivered={progress.finalDelivered}
       syncFailed={progress.failed}
       advancing={advancing}
       advanceError={advanceError}
-      onAdvance={() => void advance()}
+      onAdvance={(manual) => void advance(manual)}
       onRetrySync={() => void progress.retry()}
     />
   );
@@ -132,7 +145,7 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
           startedAt={room.pacing === "host" ? room.stepStartedAt : participant.stepStartedAt}
           pausedAt={room.status === "paused" ? room.pausedAt : undefined}
           paused={room.status === "paused"}
-          onExpire={room.pacing === "participant" && !leaving ? () => void advance() : undefined}
+          onExpire={room.pacing === "participant" && !leaving ? () => void advance(false) : undefined}
         />
       </main>
     );
@@ -150,6 +163,7 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
             fitToParentHeight
             lockedSettings={lockedSettings}
             isTestActive={isRunning && !leaving}
+            forceFinish={testEnded}
             roomThemeStyle={themeStyle}
             initialAttempt={participant.targetText ? {
               typedText: participant.typedText ?? "",
@@ -174,7 +188,7 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
   }
 
   return (
-    <RoomPage style={themeStyle}>
+    <RoomPage style={themeStyle} themeMode={connectThemeMode(roomTheme)}>
       <RoomTopBar roomName={room.name} participantName={participant.name} dimmed={isTyping && !onBreak && !waiting && room.status !== "lobby" && splashStep === null && !allDone}
         leaving={leaving} reconnecting={reconnecting} onLeave={onLeave} />
       {leaveError && <p role="alert" className="shrink-0 px-4 py-2 text-center text-sm text-destructive">{leaveError}</p>}

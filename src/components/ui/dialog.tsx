@@ -6,6 +6,7 @@ import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state
 
 import { cn } from "@/lib/utils"
 import { overlayMotion, overlaySurface } from "./overlay-styles"
+import { usePortalContainer } from "./portal-container"
 
 const DialogTriggerCount = React.createContext<React.RefObject<number> | null>(null);
 
@@ -36,7 +37,7 @@ function DialogTrigger({
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  return <DialogPrimitive.Portal data-slot="dialog-portal" container={usePortalContainer()} {...props} />
 }
 
 function DialogClose({

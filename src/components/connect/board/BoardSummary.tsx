@@ -69,7 +69,7 @@ export function BoardSummary({ room, participants, labels, className }: {
           <div className="flex items-center gap-[0.4em]">
             <dt className="sr-only">Finished</dt>
             <dd className="flex items-center gap-[0.4em]">
-              <CheckCircleIcon className="size-[1em] text-[var(--theme-status-success)]" aria-hidden="true" />
+              <CheckCircleIcon className="size-[1em] text-success" aria-hidden="true" />
               <span><span className="font-semibold tabular-nums">{hostPaced ? counts.finished : counts.done}</span> {hostPaced ? "finished" : "all done"}</span>
             </dd>
           </div>

@@ -9,6 +9,7 @@ import {
   useOverlayState,
 } from "./overlay-state";
 import { overlayMotion, overlaySurface } from "./overlay-styles";
+import { usePortalContainer } from "./portal-container"
 
 function AlertDialog({
   ...props
@@ -38,7 +39,7 @@ function AlertDialogPortal({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
   return (
-    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
+    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" container={usePortalContainer()} {...props} />
   );
 }
 

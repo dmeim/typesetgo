@@ -14,7 +14,7 @@ import type {
   ThemeVariantDefinition,
 } from "@/types/theme";
 import { fetchTheme, fetchThemeManifest, getDefaultTheme } from "@/lib/themes";
-import { deriveThemeTyping, deriveThemeUI } from "@/lib/colors";
+import { themeCSSVariables } from "@/lib/theme-css";
 import { ThemeContext, type ThemeContextValue, type ThemeSelectionOptions } from "@/context/theme-context";
 
 // Storage keys
@@ -39,66 +39,7 @@ function applyThemeCSS(colors: ThemeColors, mode: ThemeMode): void {
   root.classList.toggle("dark", mode === "dark");
   root.dataset.themeMode = mode;
   root.style.colorScheme = mode;
-  const ui = deriveThemeUI(colors);
-  const typing = deriveThemeTyping(colors, ui);
-  for (const [role, value] of Object.entries(ui)) {
-    root.style.setProperty(`--${role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, value);
-  }
-
-  // Surfaces
-  root.style.setProperty("--theme-bg-base", colors.bg.base);
-  root.style.setProperty("--theme-bg-surface", colors.bg.surface);
-  root.style.setProperty("--theme-bg-elevated", colors.bg.elevated);
-  root.style.setProperty("--theme-bg-overlay", colors.bg.overlay);
-
-  // Text
-  root.style.setProperty("--theme-text-primary", colors.text.primary);
-  root.style.setProperty("--theme-text-secondary", colors.text.secondary);
-  root.style.setProperty("--theme-text-muted", colors.text.muted);
-  root.style.setProperty("--theme-text-inverse", colors.text.inverse);
-
-  // Interactive - Primary
-  root.style.setProperty("--theme-interactive-primary", colors.interactive.primary.DEFAULT);
-  root.style.setProperty("--theme-interactive-primary-muted", colors.interactive.primary.muted);
-  root.style.setProperty("--theme-interactive-primary-subtle", colors.interactive.primary.subtle);
-
-  // Interactive - Secondary
-  root.style.setProperty("--theme-interactive-secondary", colors.interactive.secondary.DEFAULT);
-  root.style.setProperty("--theme-interactive-secondary-muted", colors.interactive.secondary.muted);
-  root.style.setProperty("--theme-interactive-secondary-subtle", colors.interactive.secondary.subtle);
-
-  // Interactive - Accent
-  root.style.setProperty("--theme-interactive-accent", colors.interactive.accent.DEFAULT);
-  root.style.setProperty("--theme-interactive-accent-muted", colors.interactive.accent.muted);
-  root.style.setProperty("--theme-interactive-accent-subtle", colors.interactive.accent.subtle);
-
-  // Status - Success
-  root.style.setProperty("--theme-status-success", colors.status.success.DEFAULT);
-  root.style.setProperty("--theme-status-success-muted", colors.status.success.muted);
-  root.style.setProperty("--theme-status-success-subtle", colors.status.success.subtle);
-
-  // Status - Error
-  root.style.setProperty("--theme-status-error", colors.status.error.DEFAULT);
-  root.style.setProperty("--theme-status-error-muted", colors.status.error.muted);
-  root.style.setProperty("--theme-status-error-subtle", colors.status.error.subtle);
-
-  // Status - Warning
-  root.style.setProperty("--theme-status-warning", colors.status.warning.DEFAULT);
-  root.style.setProperty("--theme-status-warning-muted", colors.status.warning.muted);
-  root.style.setProperty("--theme-status-warning-subtle", colors.status.warning.subtle);
-
-  // Borders
-  root.style.setProperty("--theme-border-default", colors.border.default);
-  root.style.setProperty("--theme-border-subtle", colors.border.subtle);
-  root.style.setProperty("--theme-border-focus", colors.border.focus);
-
-  // Typing
-  root.style.setProperty("--theme-typing-cursor", typing.cursor);
-  root.style.setProperty("--theme-typing-cursor-ghost", typing.cursorGhost);
-  root.style.setProperty("--theme-typing-correct", typing.correct);
-  root.style.setProperty("--theme-typing-incorrect", typing.incorrect);
-  root.style.setProperty("--theme-typing-upcoming", typing.upcoming);
-  root.style.setProperty("--theme-typing-default", typing.default);
+  for (const [name, value] of Object.entries(themeCSSVariables(colors))) root.style.setProperty(name, value);
 }
 
 type ActiveTheme = {

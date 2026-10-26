@@ -21,7 +21,7 @@ export function LandingCard({ title, description, icon, highlighted, children, l
       )}
     >
       <header className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground" aria-hidden="true">
           {icon}
         </span>
         <div className="min-w-0 space-y-1">

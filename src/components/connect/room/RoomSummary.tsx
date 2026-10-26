@@ -24,11 +24,11 @@ export function RoomSummary({ tests, results, name }: { tests: ConnectTest[]; re
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-border bg-card p-4 text-center">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Average WPM</div>
-          <div className="text-4xl font-black tabular-nums text-primary">{averageWpm ?? "—"}</div>
+          <div className="text-4xl font-black tabular-nums text-secondary-emphasis">{averageWpm ?? "—"}</div>
         </div>
         <div className="rounded-xl border border-border bg-card p-4 text-center">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Average accuracy</div>
-          <div className="text-4xl font-black tabular-nums text-primary">{averageAccuracy === null ? "—" : `${averageAccuracy}%`}</div>
+          <div className="text-4xl font-black tabular-nums text-secondary-emphasis">{averageAccuracy === null ? "—" : `${averageAccuracy}%`}</div>
         </div>
       </div>
       <ol className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card" aria-label="Your results">

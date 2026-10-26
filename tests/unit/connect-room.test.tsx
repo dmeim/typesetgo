@@ -16,6 +16,7 @@ type FixtureProps = {
   initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean };
   onStatsUpdate: (stats: ConnectStats, typedText?: string, targetText?: string) => void;
   connectResultsActions?: ReactNode;
+  forceFinish?: boolean;
 };
 
 const state = vi.hoisted(() => ({
@@ -265,14 +266,45 @@ describe("room states", () => {
     expect(state.props.lockedSettings).toMatchObject({ duration: 300 });
   });
 
-  it.each([[0, "Waiting for the host to start the next test"], [2, "That was the last test"]])(
-    "waits for the host after finishing test %i under host pacing", async (currentIndex, message) => {
-      state.showResults = true;
-      state.view = okView({ room: { currentIndex } });
-      renderRoom();
-      expect(await screen.findByText(message)).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /Next test/ })).not.toBeInTheDocument();
-    });
+  it("waits for everyone under host pacing, then counts down to the next test", async () => {
+    vi.useFakeTimers({ now: 100_000 });
+    state.showResults = true;
+    state.view = okView();
+    const view = renderRoom();
+    await act(async () => {});
+    expect(screen.getByText("Waiting for everyone to finish")).toBeInTheDocument();
+    expect(state.props.forceFinish).toBe(false);
+    expect(screen.queryByRole("button", { name: /Next test/ })).not.toBeInTheDocument();
+    // The room clock ended the test: results show at once, counting down to the next test.
+    state.view = okView({ room: { stepEndedAt: 97_000 } });
+    view.rerender(
+      <MemoryRouter initialEntries={["/connect/room/room-1"]}>
+        <Routes><Route path="/connect/room/:roomId" element={<ConnectRoom />} /></Routes>
+      </MemoryRouter>,
+    );
+    await act(async () => {});
+    expect(state.props.forceFinish).toBe(true);
+    expect(screen.getByRole("timer")).toHaveTextContent("Next: 2nd timed test in 0:07");
+    expect(state.mutations["connect:advance"]).not.toHaveBeenCalled();
+  });
+
+  it("plays a following break on the results screen and says when the lesson ends", async () => {
+    vi.useFakeTimers({ now: 100_000 });
+    state.showResults = true;
+    const withBreak = [test("t1"), test("b1", { mode: "break", duration: 60, title: "Stretch" }), test("t2", { mode: "words" })];
+    state.view = okView({ room: { tests: withBreak, stepEndedAt: 90_000 } });
+    const view = renderRoom();
+    await act(async () => {});
+    expect(screen.getByRole("timer")).toHaveTextContent("Stretch · Next: Word test in 0:50");
+    state.view = okView({ room: { currentIndex: 2, stepEndedAt: 95_000 } });
+    view.rerender(
+      <MemoryRouter initialEntries={["/connect/room/room-1"]}>
+        <Routes><Route path="/connect/room/:roomId" element={<ConnectRoom />} /></Routes>
+      </MemoryRouter>,
+    );
+    await act(async () => {});
+    expect(screen.getByRole("timer")).toHaveTextContent("Finishing in 0:05");
+  });
 
   it("summarises every result when the room is complete", async () => {
     state.view = okView({ room: { status: "complete", currentIndex: 3 }, participant: { results: [
@@ -312,6 +344,29 @@ describe("self-paced advancing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     expect(await screen.findByLabelText("Practice input")).toBeInTheDocument();
     expect(state.props.lockedSettings).toMatchObject({ duration: 300 });
+  });
+
+  it("moves on by itself when the results countdown ends", async () => {
+    vi.useFakeTimers({ now: 100_000 });
+    state.showResults = true;
+    state.view = okView({ room: { pacing: "participant" } });
+    const view = renderRoom();
+    await act(async () => {});
+    await act(async () => state.props.onStatsUpdate(stats({ isFinished: true, progress: 100 }), "cat", "cat"));
+    state.view = okView({ room: { pacing: "participant" }, participant: { stats: stats({ isFinished: true }), finishedAt: 100_000 } });
+    view.rerender(
+      <MemoryRouter initialEntries={["/connect/room/room-1"]}>
+        <Routes><Route path="/connect/room/:roomId" element={<ConnectRoom />} /></Routes>
+      </MemoryRouter>,
+    );
+    await act(async () => {});
+    expect(screen.getByRole("timer")).toHaveTextContent("Next: 2nd timed test in 0:10");
+    await act(() => vi.advanceTimersByTimeAsync(9_000));
+    expect(state.mutations["connect:advance"]).not.toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(1_500));
+    expect(state.mutations["connect:advance"]).toHaveBeenCalledWith({ participantId: "p1", credential: "cred-1", runVersion: 1, stepIndex: 0 });
+    // Moving on by itself skips the Up next splash: the countdown already named the next test.
+    expect(screen.queryByRole("heading", { name: "Up next" })).not.toBeInTheDocument();
   });
 
   it("continues from the splash automatically", async () => {

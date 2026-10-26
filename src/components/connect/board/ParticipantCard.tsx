@@ -35,7 +35,7 @@ export interface ParticipantCardProps {
 function PresenceDot({ online }: { online: boolean }) {
   return (
     <span
-      className={cn("size-[0.55em] shrink-0 rounded-full", online ? "bg-[var(--theme-status-success)]" : "border border-muted-foreground/60")}
+      className={cn("size-[0.55em] shrink-0 rounded-full", online ? "bg-success" : "border border-muted-foreground")}
       role="img"
       aria-label={online ? "Online" : "Offline"}
     />
@@ -45,7 +45,7 @@ function PresenceDot({ online }: { online: boolean }) {
 function Stat({ value, unit, large, title }: { value: number; unit: string; large?: boolean; title?: string }) {
   return (
     <div className="flex min-w-0 items-baseline gap-[0.25em]" title={title}>
-      <span className={cn("font-mono font-bold leading-none tabular-nums", large ? "text-[2.4em]" : "text-[1.35em] text-foreground/85")}>
+      <span className={cn("font-mono font-bold leading-none tabular-nums", large ? "text-[2.4em]" : "text-[1.35em]")}>
         {Math.round(value)}
       </span>
       <span className="text-[0.75em] text-muted-foreground">{unit}</span>
@@ -133,7 +133,7 @@ export function ParticipantCard({ room, participant, labels, layout, now, sortab
         className="h-[0.4em] w-full overflow-hidden rounded-full bg-foreground/15"
       >
         <div
-          className={cn("h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none", finishedLook ? "bg-[var(--theme-status-success)]" : "bg-primary")}
+          className={cn("h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none", finishedLook ? "bg-success" : "bg-primary")}
           style={{ width: `${progress.percent}%` }}
         />
       </div>
@@ -159,9 +159,10 @@ export function ParticipantCard({ room, participant, labels, layout, now, sortab
       data-status={status}
       data-away={away || undefined}
       className={cn(
-        "min-w-0 rounded-[0.75em] border border-border bg-card text-card-foreground shadow-xs transition-opacity",
-        away && "opacity-55",
-        finishedLook && !away && "border-[var(--theme-status-success-muted)]",
+        "min-w-0 rounded-[0.75em] border border-border bg-card text-card-foreground shadow-xs transition-colors",
+        // Away cards recede with opaque muted roles rather than opacity, which would drop text contrast.
+        away && "border-dashed bg-muted text-muted-foreground",
+        finishedLook && !away && "border-success",
         isDragging && "relative z-10 shadow-lg ring-2 ring-ring",
       )}
     >

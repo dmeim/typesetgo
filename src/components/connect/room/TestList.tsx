@@ -32,8 +32,8 @@ export function TestList({ tests, currentIndex, animated = false, className }: T
             transition={{ duration: 0.25, delay: animate ? 0.15 + index * 0.06 : 0, ease: "easeOut" }}
             className={cn(
               "flex items-center gap-3 rounded-lg border px-3 py-2 text-sm",
-              phase === "current" && "border-primary bg-primary/10 text-foreground",
-              phase === "done" && "border-transparent bg-muted/50 text-muted-foreground",
+              phase === "current" && "border-primary bg-accent text-accent-foreground",
+              phase === "done" && "border-transparent bg-muted text-muted-foreground",
               phase === "upcoming" && "border-border bg-card text-foreground",
             )}
           >

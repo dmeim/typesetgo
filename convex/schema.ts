@@ -180,6 +180,7 @@ export default defineSchema({
     // Host pacing: when the current step began, and when the room was paused (break clocks freeze).
     stepStartedAt: v.optional(v.number()),
     pausedAt: v.optional(v.number()),
+    stepEndedAt: v.optional(v.number()), // host pacing: when the current test ended and results began
     createdAt: v.number(),
     lastActiveAt: v.number(),
     expiresAt: v.number(),
@@ -210,6 +211,7 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
     stepStartedAt: v.optional(v.number()), // participant pacing: when this step began
     lateForRun: v.optional(v.number()), // host pacing: joined mid-test during this run, so sits it out
+    finishedAt: v.optional(v.number()), // when the current test was finished, which starts the results countdown
   })
     .index("by_room", ["roomId"])
     .index("by_room_session", ["roomId", "sessionId"])

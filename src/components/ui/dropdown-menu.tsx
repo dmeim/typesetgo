@@ -6,6 +6,7 @@ import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state
 
 import { cn } from "@/lib/utils"
 import { overlayMotion, overlaySurface, overlayWidth } from "./overlay-styles"
+import { usePortalContainer } from "./portal-container"
 
 function DropdownMenu({
   ...props
@@ -18,7 +19,7 @@ function DropdownMenuPortal({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
   return (
-    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" container={usePortalContainer()} {...props} />
   )
 }
 
@@ -42,7 +43,7 @@ function DropdownMenuContent({
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   useOverlayEscape(onEscapeKeyDown);
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={usePortalContainer()}>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}

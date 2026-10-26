@@ -49,7 +49,7 @@ export function BreakScreen({ tests, index, startedAt, pausedAt, paused, onExpir
         <h2 id="break-title" className="text-2xl font-semibold">{paused ? "Paused by the host" : labels[index]?.title ?? "Break"}</h2>
         <p className="text-muted-foreground">{paused ? "The countdown continues when the host resumes." : expired ? "Starting…" : "Take a breather. The next test starts on its own."}</p>
       </div>
-      <p className="font-mono text-6xl font-bold tabular-nums text-primary" role="timer" aria-label={`${formatClock(remaining)} left in the break`}>
+      <p className="font-mono text-6xl font-bold tabular-nums text-secondary-emphasis" role="timer" aria-label={`${formatClock(remaining)} left in the break`}>
         {formatClock(remaining)}
       </p>
       <div className="h-1.5 w-48 overflow-hidden rounded-full bg-foreground/15" aria-hidden="true">

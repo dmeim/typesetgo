@@ -6,6 +6,7 @@ import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state
 
 import { cn } from "@/lib/utils"
 import { overlayMotion, overlaySurface, overlayWidth } from "./overlay-styles"
+import { usePortalContainer } from "./portal-container"
 
 function Select({
   ...props
@@ -63,7 +64,7 @@ function SelectContent({
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
   useOverlayEscape(onEscapeKeyDown);
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={usePortalContainer()}>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(

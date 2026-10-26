@@ -5,6 +5,7 @@ import { OverlayScope, useOverlayEscape, useOverlayState } from "./overlay-state
 
 import { cn } from "@/lib/utils"
 import { overlayMotion, overlaySurface, overlayWidth } from "./overlay-styles"
+import { usePortalContainer } from "./portal-container"
 
 function Popover({
   ...props
@@ -29,7 +30,7 @@ function PopoverContent({
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   useOverlayEscape(onEscapeKeyDown);
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={usePortalContainer()}>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}

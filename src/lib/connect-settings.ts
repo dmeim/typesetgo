@@ -2,8 +2,9 @@ import type { CSSProperties } from "react";
 import type { ConnectOverrides, ConnectPacing, ConnectTest } from "@/lib/connect-types";
 import { describeConnectTest } from "@/lib/connect-types";
 import type { SettingsState } from "@/lib/typing-constants";
-import type { ThemeColors } from "@/types/theme";
-import { deriveThemeTyping, deriveThemeUI } from "@/lib/colors";
+import type { ThemeMode } from "@/types/theme";
+import { themeCSSVariables } from "@/lib/theme-css";
+import type { ConnectRoomTheme } from "@/hooks/useConnectThemeColors";
 
 /**
  * Settings a participant's executor must use: the test itself is always locked,
@@ -79,13 +80,10 @@ function capitalize(value: string) {
 }
 
 /** Scoped CSS variables so a room theme never changes the participant's saved theme. */
-export function connectThemeStyle(colors: ThemeColors | null | undefined): CSSProperties {
-  if (!colors) return {};
-  const ui = deriveThemeUI(colors);
-  const typing = deriveThemeTyping(colors, ui);
-  const cssName = (role: string) => role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-  return Object.fromEntries([
-    ...Object.entries(ui).map(([role, value]) => [`--${cssName(role)}`, value]),
-    ...Object.entries(typing).map(([role, value]) => [`--theme-typing-${cssName(role)}`, value]),
-  ]) as CSSProperties;
+export function connectThemeStyle(theme: ConnectRoomTheme | null | undefined): CSSProperties {
+  if (!theme) return {};
+  return { ...themeCSSVariables(theme.colors), colorScheme: theme.mode } as CSSProperties;
 }
+
+/** The room theme's light/dark mode, scoped like its colors; undefined follows the participant. */
+export const connectThemeMode = (theme: ConnectRoomTheme | null | undefined): ThemeMode | undefined => theme?.mode;

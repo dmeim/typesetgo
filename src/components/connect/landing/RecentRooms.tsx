@@ -36,7 +36,7 @@ function RoomRow({ room, now, pending, disabled, onOpen }: {
         <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
           {room.live ? (
             <>
-              <span className="inline-flex items-center gap-1 font-medium text-[var(--theme-status-success)]">
+              <span className="inline-flex items-center gap-1 font-medium text-success">
                 <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
                 Live
               </span>

@@ -10,7 +10,17 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
-import { breakEndsAt, isBreakTest, type ConnectPacing, type ConnectTest } from "@/lib/connect-types";
+import {
+  breakEndsAt,
+  isBreakTest,
+  isTimedConnectTest,
+  isWaitingForNextTest,
+  resultsEndAt,
+  stepAfterResults,
+  timedTestEndsAt,
+  type ConnectPacing,
+  type ConnectTest,
+} from "@/lib/connect-types";
 import { useNow } from "@/hooks/useNow";
 import { formatClock } from "@/components/connect/board/board-model";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -19,17 +29,37 @@ import { selfPacedCounts } from "./host-utils";
 import type { HostRoomActions } from "./use-host-room";
 
 const PACING_HELP: Record<ConnectPacing, string> = {
-  host: "You start each test and move everyone to the next one together.",
+  host: "Everyone moves through the list together, on its own once you start. Next and Previous still move everyone whenever you like.",
   participant: "Everyone works through the list at their own speed after you start.",
 };
 
-/** Host pacing: the shared break moves everyone on by itself; Next test skips it early. */
-function BreakCountdown({ room }: { room: HostRoom }) {
+/** Host pacing: what the room is waiting on before it moves on by itself. */
+function StepCountdown({ room, participants }: { room: HostRoom; participants: HostParticipant[] }) {
   const paused = room.status === "paused";
   const now = useNow(!paused, 500);
-  const test = room.tests[room.currentIndex];
-  const endsAt = breakEndsAt(test, room.stepStartedAt ?? now, paused ? room.pausedAt : undefined, now);
-  return <span className="text-muted-foreground"> · Break, next test in {formatClock(endsAt - now)}</span>;
+  const index = room.currentIndex;
+  const test = room.tests[index];
+  const pausedAt = paused ? room.pausedAt : undefined;
+  if (!test) return null;
+  const left = (endsAt: number) => formatClock(endsAt - now);
+  const startedAt = room.stepStartedAt ?? now;
+  let text: string;
+  if (isBreakTest(test)) {
+    text = `Break, next test in ${left(breakEndsAt(test, startedAt, pausedAt, now))}`;
+  } else if (room.stepEndedAt !== undefined) {
+    const endsAt = left(resultsEndAt(room.tests, index, room.stepEndedAt, pausedAt, now));
+    const last = stepAfterResults(room.tests, index) >= room.tests.length;
+    text = isBreakTest(room.tests[index + 1])
+      ? `Break, ${last ? "finishing" : "next test"} in ${endsAt}`
+      : `Results, ${last ? "finishing" : "next test"} in ${endsAt}`;
+  } else if (isTimedConnectTest(test)) {
+    text = `Ends in ${left(timedTestEndsAt(test, startedAt, pausedAt, now))}`;
+  } else {
+    const taking = participants.filter((p) =>
+      p.removedAt === undefined && p.leftAt === undefined && p.isConnected && !isWaitingForNextTest(room, p));
+    text = `${taking.filter((p) => p.stats.isFinished).length} of ${taking.length} finished`;
+  }
+  return <span className="text-muted-foreground"> · {text}</span>;
 }
 
 function RunSummary({ room, tests, participants, pacing }: {
@@ -46,7 +76,7 @@ function RunSummary({ room, tests, participants, pacing }: {
     return (
       <p className="text-sm">
         <span className="font-semibold">Test {Math.min(room.currentIndex + 1, total)} of {total}</span>
-        {isBreakTest(room.tests[room.currentIndex]) && <BreakCountdown room={room} />}
+        <StepCountdown room={room} participants={participants} />
         {room.status === "paused" && <span className="text-muted-foreground"> · Paused</span>}
       </p>
     );

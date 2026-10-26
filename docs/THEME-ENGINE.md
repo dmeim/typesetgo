@@ -100,9 +100,15 @@ Use [`tv.ui`](../src/lib/theme-vars.ts) or the matching Tailwind semantic utilit
 | A library requiring literal colors | `deriveThemeUI(colors)` or `deriveThemeTyping(colors)` |
 | Original palette artwork / editing | Raw `colors` from `useTheme()` |
 
+Tailwind maps the derived status and emphasis roles too: `text-success`, `bg-success-surface`, `text-warning`, `bg-warning-surface`, `text-secondary-emphasis`.
+
 SVG and Recharts strokes can consume CSS variables; they do not need raw JSON colors. The remaining raw `tv.text`, `tv.interactive` and `tv.status` groups are palette accessors, not safe UI defaults. A brand's black or white accent can legitimately match its background: the Celestia Ludenberg dark palette has a near-black secondary accent, so using it directly for WPM made that stat disappear.
 
 Do not append hex alpha suffixes to CSS variable strings (`var(--primary)80` is invalid CSS). Prefer the derived surfaces for panels containing text. If introducing a new translucent surface, check its composited foreground/background pair. Theme previews and the picker's current-color details use the same derivation as the live UI.
+
+### Scoped themes
+
+A subtree can carry its own theme, as the Connect participant room does for a host override. Apply `themeCSSVariables(colors)` (`src/lib/theme-css.ts`, the same map the provider writes to `:root`) plus `color-scheme` as an inline style, add a `dark` or `light` class so `dark:` variants follow the subtree (the variant opts out under `.light`), and provide `PortalContainerContext` (`src/components/ui/portal-container.ts`) so overlays portal inside it. Components inside must read CSS variables, not `useTheme().colors`, or they show the page theme.
 
 ### Regression checks
 

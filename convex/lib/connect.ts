@@ -170,6 +170,7 @@ export function participantRoom(room: Room) {
     _id: room._id, code: room.code, name: room.name, hostName: room.hostName, status: room.status,
     pacing: room.pacing, currentIndex: room.currentIndex, runVersion: room.runVersion,
     tests: room.tests, overrides: room.overrides, stepStartedAt: room.stepStartedAt, pausedAt: room.pausedAt,
+    stepEndedAt: room.stepEndedAt,
   };
 }
 
@@ -179,7 +180,7 @@ export function participantSelf(participant: Participant) {
     stepIndex: participant.stepIndex, attempt: participant.attempt, stats: participant.stats,
     typedText: participant.typedText, targetText: participant.targetText,
     results: participant.results, completedAt: participant.completedAt, stepStartedAt: participant.stepStartedAt,
-    lateForRun: participant.lateForRun,
+    lateForRun: participant.lateForRun, finishedAt: participant.finishedAt,
   };
 }
 
@@ -187,7 +188,9 @@ export const effectiveStep = (room: Room, participant: Participant) =>
   room.pacing === "host" ? room.currentIndex : participant.stepIndex;
 
 // Every (re)start of a step restarts its clock, which self-paced breaks count down from.
-export const clearedAttempt = () => ({ stats: emptyConnectStats(), typedText: undefined, targetText: undefined, stepStartedAt: Date.now() });
+export const clearedAttempt = () => ({
+  stats: emptyConnectStats(), typedText: undefined, targetText: undefined, stepStartedAt: Date.now(), finishedAt: undefined,
+});
 
 export const clearedRun = (stepIndex = 0) => ({
   ...clearedAttempt(), results: [] as ConnectResult[], stepIndex, completedAt: undefined,

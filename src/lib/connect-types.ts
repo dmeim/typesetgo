@@ -20,10 +20,14 @@ export const CONNECT_ARCHIVE_MS = CONNECT_ARCHIVE_HOURS * HOUR_MS;
 export const CONNECT_OFFLINE_AFTER_MS = 60_000;
 export const CONNECT_PARTICIPANT_HEARTBEAT_MS = 15_000;
 export const CONNECT_HOST_HEARTBEAT_MS = 30_000;
-export const CONNECT_BREAK_MIN_SECONDS = 5;
+export const CONNECT_BREAK_MIN_SECONDS = 10;
 export const CONNECT_BREAK_MAX_SECONDS = 30 * 60;
-/** Server tolerance for client clocks running slightly ahead when a self-paced break ends. */
+/** Server tolerance for client clocks running slightly ahead when a self-paced countdown ends. */
 export const CONNECT_BREAK_GRACE_MS = 1500;
+/** How long results stay up before the room moves on (a following break replaces this, never shorter). */
+export const CONNECT_RESULTS_MS = CONNECT_BREAK_MIN_SECONDS * 1000;
+/** Host pacing: a timed test ends this long after its duration, so students who start a little late still finish. */
+export const CONNECT_TIMED_GRACE_MS = 5000;
 
 /** `break` is a timed pause between tests: no typing, nothing recorded. */
 export type ConnectTestMode = "time" | "words" | "quote" | "preset" | "break";
@@ -128,10 +132,32 @@ export function isWaitingForNextTest(
     participant.lateForRun === room.runVersion;
 }
 
+const pausedFor = (pausedAt: number | undefined, now: number) => pausedAt === undefined ? 0 : Math.max(0, now - pausedAt);
+const breakMs = (test: Pick<ConnectTest, "duration">) => Math.max(test.duration, CONNECT_BREAK_MIN_SECONDS) * 1000;
+
 /** When a break that started at `startedAt` ends, accounting for time spent paused. */
 export function breakEndsAt(test: Pick<ConnectTest, "duration">, startedAt: number, pausedAt?: number, now = Date.now()) {
-  const pausedFor = pausedAt === undefined ? 0 : Math.max(0, now - pausedAt);
-  return startedAt + test.duration * 1000 + pausedFor;
+  return startedAt + breakMs(test) + pausedFor(pausedAt, now);
+}
+
+/** Results time after test `index`: a following break plays on the results screen instead. */
+export function resultsMs(tests: Pick<ConnectTest, "mode" | "duration">[], index: number) {
+  const next = tests[index + 1];
+  return next && isBreakTest(next) ? breakMs(next) : CONNECT_RESULTS_MS;
+}
+
+/** The step after test `index`'s results, skipping a following break that played during them. */
+export const stepAfterResults = (tests: Pick<ConnectTest, "mode">[], index: number) =>
+  index + (isBreakTest(tests[index + 1]) ? 2 : 1);
+
+/** When results that began at `endedAt` give way to the next step, accounting for time spent paused. */
+export function resultsEndAt(tests: Pick<ConnectTest, "mode" | "duration">[], index: number, endedAt: number, pausedAt?: number, now = Date.now()) {
+  return endedAt + resultsMs(tests, index) + pausedFor(pausedAt, now);
+}
+
+/** Host pacing: when a timed test ends for the whole room. */
+export function timedTestEndsAt(test: Pick<ConnectTest, "duration">, startedAt: number, pausedAt?: number, now = Date.now()) {
+  return startedAt + test.duration * 1000 + CONNECT_TIMED_GRACE_MS + pausedFor(pausedAt, now);
 }
 
 export const isTimedConnectTest = (test: Pick<ConnectTest, "mode" | "presetModeType">) =>

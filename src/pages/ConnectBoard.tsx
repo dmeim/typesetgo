@@ -58,7 +58,7 @@ function BoardStrip({ room, live }: { room: HostRoom; live: boolean }) {
         <h1 className="truncate text-lg font-semibold leading-tight sm:text-xl" title={room.name}>{room.name}</h1>
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground sm:text-sm">
           <span
-            className={live ? "size-2 rounded-full bg-[var(--theme-status-success)]" : "size-2 animate-pulse rounded-full bg-muted-foreground"}
+            className={live ? "size-2 rounded-full bg-success" : "size-2 animate-pulse rounded-full bg-muted-foreground"}
             aria-hidden="true"
           />
           <span>{live ? "Live" : "Connecting…"}</span>
@@ -74,7 +74,7 @@ function BoardStrip({ room, live }: { room: HostRoom; live: boolean }) {
               <span className="font-medium text-foreground">{joinHost()}</span>
             </p>
             <p
-              className="rounded-lg bg-primary/10 px-3 py-1 font-mono text-[clamp(1.75rem,5vw,3.5rem)] font-bold leading-none tracking-[0.15em] text-primary"
+              className="rounded-lg border border-border bg-background px-3 py-1 font-mono text-[clamp(1.75rem,5vw,3.5rem)] font-bold leading-none tracking-[0.15em] text-primary"
               aria-label={`Room code ${room.code.split("").join(" ")}`}
             >
               {room.code}

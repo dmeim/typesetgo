@@ -6,7 +6,6 @@ import { computeStats, sanitizeTypingInput, getInputPosition, getNextTypingKey,
 import PracticeText from "./PracticeText";
 import { useTypingScroll } from "./useTypingScroll";
 import { usePracticeClock } from "./usePracticeClock";
-import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
 import { DEFAULT_SETTINGS, loadSettings } from "@/lib/storage-utils";
@@ -98,9 +97,6 @@ export default function TypingArea({
   showOnScreenKeyboard: showOnScreenKeyboardProp,
   keyboardLayout: keyboardLayoutProp,
 }: TypingAreaProps) {
-  // Theme
-  const { colors } = useTheme();
-
   const { resolvedFontFamily, showOnScreenKeyboard, keyboardLayout } = useMemo(() => {
     const stored = loadSettings();
     return {
@@ -378,7 +374,7 @@ export default function TypingArea({
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 pointer-events-none z-0"
             style={{
               height: `${fontSize * 1.2}rem`,
-              backgroundColor: `${colors.typing.cursor}20`,
+              backgroundColor: "color-mix(in srgb, var(--theme-typing-cursor) 12.5%, transparent)",
             }}
           />
         </div>
@@ -407,7 +403,7 @@ export default function TypingArea({
           {!isFocused && isActive && !isFinished && (
             <div
               className="absolute inset-0 flex items-center justify-center backdrop-blur-sm cursor-pointer"
-              style={{ backgroundColor: `${colors.bg.base}80` }}
+              style={{ backgroundColor: "color-mix(in srgb, var(--theme-bg-base) 50%, transparent)" }}
             >
               <p
                 className="text-lg font-medium"

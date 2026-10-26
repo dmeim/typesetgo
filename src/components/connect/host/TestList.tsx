@@ -17,8 +17,8 @@ import { cn } from "@/lib/utils";
 import { hostPacedTestState, lockedThrough, selfPacedCounts, type TestState } from "./host-utils";
 
 const STATE_STYLES: Record<TestState, string> = {
-  current: "border-primary bg-primary/10 ring-2 ring-primary",
-  done: "border-border bg-muted/40 text-muted-foreground",
+  current: "border-primary bg-accent text-accent-foreground ring-2 ring-primary",
+  done: "border-border bg-muted text-muted-foreground",
   upcoming: "border-border bg-background",
 };
 

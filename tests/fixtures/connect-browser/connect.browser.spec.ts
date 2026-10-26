@@ -195,7 +195,7 @@ test.describe("participant room", () => {
     await expect(typingInput(page)).toBeEnabled();
   });
 
-  test("host-paced test: typing works, Escape does not end it, results wait for the host", async ({ page }) => {
+  test("host-paced test: typing works, Escape does not end it, results wait for everyone", async ({ page }) => {
     await page.goto("/connect/room/room-live?fixture=room-host");
     await expect(page.getByText("Test 1 of 4")).toBeVisible();
     await typeIntoTest(page, "the cat");
@@ -208,7 +208,7 @@ test.describe("participant room", () => {
     await typingInput(page).focus();
     await page.keyboard.type(" sat", { delay: 30 });
     await expect(results).toBeVisible();
-    await expect(page.getByRole("status").filter({ hasText: "Waiting for the host to start the next test" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Waiting for everyone to finish" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Next test" })).toHaveCount(0);
     await expect.poll(async () => (await callsNamed(page, "connect:reportProgress")).some((args) => (args.stats as { isFinished: boolean }).isFinished)).toBe(true);
   });
@@ -219,7 +219,7 @@ test.describe("participant room", () => {
     await typeIntoTest(page, "the cat sat");
     const next = page.getByRole("button", { name: "Next test" });
     await expect(next).toBeEnabled();
-    await expect(page.getByText("Waiting for the host to start the next test")).toHaveCount(0);
+    await expect(page.getByText("Waiting for everyone to finish")).toHaveCount(0);
     await next.click();
 
     await expect(page.getByRole("heading", { name: "Up next" })).toBeVisible();

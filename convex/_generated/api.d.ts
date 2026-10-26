@@ -26,6 +26,7 @@ import type * as lib_antiCheatConstants from "../lib/antiCheatConstants.js";
 import type * as lib_burst from "../lib/burst.js";
 import type * as lib_computeStats from "../lib/computeStats.js";
 import type * as lib_connect from "../lib/connect.js";
+import type * as lib_connectFlow from "../lib/connectFlow.js";
 import type * as lib_consumeRateLimit from "../lib/consumeRateLimit.js";
 import type * as lib_crypto from "../lib/crypto.js";
 import type * as lib_finalizeLength from "../lib/finalizeLength.js";
@@ -74,6 +75,7 @@ declare const fullApi: ApiFromModules<{
   "lib/burst": typeof lib_burst;
   "lib/computeStats": typeof lib_computeStats;
   "lib/connect": typeof lib_connect;
+  "lib/connectFlow": typeof lib_connectFlow;
   "lib/consumeRateLimit": typeof lib_consumeRateLimit;
   "lib/crypto": typeof lib_crypto;
   "lib/finalizeLength": typeof lib_finalizeLength;

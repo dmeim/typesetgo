@@ -222,6 +222,28 @@ describe("run controls", () => {
     expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
   });
 
+  it("shows what a host-led room is waiting on before it moves on by itself", () => {
+    vi.useFakeTimers({ now: 100_000 });
+    const pause: ConnectTest = { ...timed, id: "b1", mode: "break", duration: 60 };
+    setView({ status: "running", tests: [timed, words, pause, quote], currentIndex: 0, stepStartedAt: 90_000 });
+    renderHost();
+    expect(screen.getByText(/Ends in 0:25/)).toBeInTheDocument();
+    cleanup();
+    setView({ status: "running", tests: [timed, words, pause, quote], currentIndex: 1, stepStartedAt: 90_000 },
+      [participant("a", 1, { stats: { wpm: 40, accuracy: 95, progress: 100, wordsTyped: 50, timeElapsed: 9000, isFinished: true } }), participant("b", 1)]);
+    renderHost();
+    expect(screen.getByText(/1 of 2 finished/)).toBeInTheDocument();
+    cleanup();
+    setView({ status: "running", tests: [timed, words, pause, quote], currentIndex: 1, stepStartedAt: 80_000, stepEndedAt: 95_000 });
+    renderHost();
+    expect(screen.getByText(/Break, next test in 0:55/)).toBeInTheDocument();
+    cleanup();
+    setView({ status: "running", tests: [timed, words, pause, quote], currentIndex: 3, stepStartedAt: 80_000, stepEndedAt: 95_000 });
+    renderHost();
+    expect(screen.getByText(/Results, finishing in 0:05/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
   it("pauses, restarts, and moves between tests while running", async () => {
     setView({ status: "running", currentIndex: 0 });
     renderHost();

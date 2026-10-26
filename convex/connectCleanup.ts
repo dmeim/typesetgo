@@ -3,6 +3,7 @@ import { internalMutation, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { CONNECT_ARCHIVE_MS, CONNECT_OFFLINE_AFTER_MS } from "../src/lib/connect-types";
 import { CONNECT_PARTICIPANT_BATCH, deleteParticipantBatch, endRoomData } from "./lib/connect";
+import { endRoomStepIfAllFinished } from "./lib/connectFlow";
 
 const ROOM_BATCH = 20;
 
@@ -11,6 +12,11 @@ async function markOffline(ctx: MutationCtx, now: number) {
     .withIndex("by_presence", (q) => q.eq("isConnected", true).lt("lastSeen", now - CONNECT_OFFLINE_AFTER_MS))
     .take(CONNECT_PARTICIPANT_BATCH);
   for (const participant of stale) await ctx.db.patch(participant._id, { isConnected: false });
+  // Someone going offline no longer holds up a host-paced test that everyone else has finished.
+  for (const roomId of new Set(stale.map((participant) => participant.roomId))) {
+    const room = await ctx.db.get(roomId);
+    if (room) await endRoomStepIfAllFinished(ctx, room);
+  }
   return stale.length === CONNECT_PARTICIPANT_BATCH;
 }
 

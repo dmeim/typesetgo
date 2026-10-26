@@ -36,7 +36,7 @@ function CodePreview({ code }: { code: string }) {
   }
   return (
     <p className="flex min-h-5 min-w-0 items-center gap-2 text-sm" aria-live="polite">
-      <CheckCircleIcon weight="fill" className="size-4 shrink-0 text-[var(--theme-status-success)]" aria-hidden="true" />
+      <CheckCircleIcon weight="fill" className="size-4 shrink-0 text-success" aria-hidden="true" />
       <span className="min-w-0">
         Joining <strong className="font-semibold [overflow-wrap:anywhere]">{room.name}</strong>
         <span className="text-muted-foreground"> hosted by </span>
@@ -126,7 +126,7 @@ export function JoinRoomCard({ initialCode = "", focusName = false, highlighted 
             maxLength={CONNECT_CODE_LENGTH}
             placeholder="ABCD"
             aria-describedby={`${id}-preview`}
-            className={cn("h-14 text-center font-mono text-3xl font-semibold uppercase tracking-[0.5em] indent-[0.5em] md:text-3xl", "placeholder:text-muted-foreground/40")}
+            className={cn("h-14 text-center font-mono text-3xl font-semibold uppercase tracking-[0.5em] indent-[0.5em] md:text-3xl", "placeholder:text-muted-foreground")}
             onChange={(event) => setCode(sanitizeCode(event.target.value))}
           />
           <div id={`${id}-preview`}><CodePreview code={code} /></div>

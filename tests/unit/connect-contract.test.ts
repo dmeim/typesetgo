@@ -473,14 +473,14 @@ describe("Connect runs", () => {
   it("rejects a list made only of breaks and ignores progress during a break", async () => {
     const { t, hostArgs } = await setup();
     await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [pause("b1")] })).rejects.toThrow(/at least one typing test/);
-    await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [pause("b1", 2), test("t1")] })).rejects.toThrow(/break from 5 seconds/);
+    await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [pause("b1", 5), test("t1")] })).rejects.toThrow(/break from 10 seconds/);
     const { report } = await running("host", [pause("b1"), test("t1")]);
     expect(await report()).toEqual({ accepted: false });
   });
 
   it("ends a host-paced break on schedule without recording a result", async () => {
     vi.useFakeTimers();
-    const { t, roomId, hostArgs, participantId, report } = await running("host", [test("t1"), pause("b1"), test("t2")]);
+    const { t, roomId, hostArgs, participantId, report } = await running("host", [test("t1"), pause("b1"), test("t2", { mode: "words" })]);
     await report({ stats: stats({ progress: 40, timeElapsed: 2000, wpm: 50, accuracy: 96 }) });
     await t.mutation(api.connect.goToTest, { ...hostArgs, index: 1 });
     const onBreak = (await hostView(t, roomId)).room;
@@ -492,35 +492,116 @@ describe("Connect runs", () => {
     vi.advanceTimersByTime(10_000);
     await t.mutation(api.connect.start, hostArgs);
     expect((await hostView(t, roomId)).room.stepStartedAt).toBe(onBreak.stepStartedAt! + 10_000);
-    await t.mutation(internal.connect.endBreak, { roomId, runVersion: 2 });
+    await t.mutation(internal.connect.tick, { roomId, runVersion: 2 });
     expect((await hostView(t, roomId)).room.currentIndex).toBe(1);
 
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect((await hostView(t, roomId)).room).toMatchObject({ currentIndex: 2, runVersion: 3, status: "running" });
     expect((await participantRow(t, participantId))?.results.map((r) => r.testId)).toEqual(["t1"]);
 
-    // A stale job from an earlier run never moves the room.
+    // A stale job from an earlier run never moves the room; jobs scheduled before `tick` existed still work.
     await t.mutation(internal.connect.endBreak, { roomId, runVersion: 2 });
     expect((await hostView(t, roomId)).room.currentIndex).toBe(2);
   });
 
-  it("lets a self-paced participant leave a break only when its time is up", async () => {
+  it("runs a host-paced lesson on its own: timed tests on the clock, others when everyone finishes", async () => {
     vi.useFakeTimers();
-    const { t, hostArgs, participantId, report } = await running("participant", [test("t1"), pause("b1", 10), test("t2")]);
-    const advance = (stepIndex: number) => t.mutation(api.connect.advance, { participantId, credential: guest, runVersion: 1, stepIndex });
-    await report({ stats: stats({ progress: 100, timeElapsed: 1000, wpm: 60, accuracy: 99, isFinished: true }) });
-    expect(await advance(0)).toMatchObject({ accepted: true, stepIndex: 1 });
-    expect(await report({ stepIndex: 1 })).toEqual({ accepted: false });
+    const ctx = await setup();
+    const { t, roomId, code, hostArgs } = ctx;
+    await t.mutation(api.connect.setTests, { ...hostArgs, tests: [test("t1"), pause("b1", 20), test("t2", { mode: "words" }), test("t3", { mode: "words" })] });
+    const ana = await join(t, code);
+    const ben = await join(t, code, "ben", second, "Ben");
+    await t.mutation(api.connect.start, hostArgs);
+    const room = async () => (await hostView(t, roomId)).room;
+    const tick = async (ms: number) => { vi.advanceTimersByTime(ms); await t.finishInProgressScheduledFunctions(); };
+    const report = (participantId: Id<"connectParticipants">, credential: string, runVersion: number, stepIndex: number, overrides: Partial<ConnectStats> = {}) =>
+      t.mutation(api.connect.reportProgress, { participantId, credential, runVersion, stepIndex, attempt: 0, stats: stats(overrides) });
 
+    // Timed test: the room clock ends it 5s after its 30s, even for Ben, who never finished.
+    await report(ana.participantId, guest, 1, 0, { progress: 50, timeElapsed: 20_000, wpm: 40 });
+    await tick(34_000);
+    expect((await room()).stepEndedAt).toBeUndefined();
+    await tick(1_000);
+    const ended = await room();
+    expect(ended).toMatchObject({ currentIndex: 0, runVersion: 1, stepEndedAt: Date.now() });
+    // A final snapshot arriving during results still counts.
+    expect(await report(ana.participantId, guest, 1, 0, { progress: 100, timeElapsed: 30_000, wpm: 42, isFinished: true })).toEqual({ accepted: true });
+
+    // The following 20s break plays during results; a 5s pause pushes it back by 5s.
+    await tick(10_000);
+    await t.mutation(api.connect.pause, hostArgs);
     vi.advanceTimersByTime(5_000);
-    expect(await advance(1)).toMatchObject({ accepted: false, stepIndex: 1 });
+    await t.mutation(api.connect.start, hostArgs);
+    expect((await room()).stepEndedAt).toBe(ended.stepEndedAt! + 5_000);
+    await tick(9_000);
+    expect((await room()).currentIndex).toBe(0);
+    await tick(1_000);
+    // The break was skipped: it already ran on the results screen.
+    expect(await room()).toMatchObject({ currentIndex: 2, runVersion: 2 });
+    expect((await room()).stepEndedAt).toBeUndefined();
+    expect((await participantRow(t, ana.participantId))?.results).toMatchObject([{ testId: "t1", wpm: 42, finished: true }]);
+
+    // Untimed test: waits for everyone, and someone leaving stops holding it up.
+    await report(ana.participantId, guest, 2, 2, { progress: 100, timeElapsed: 9_000, isFinished: true });
+    await tick(60_000);
+    expect((await room()).stepEndedAt).toBeUndefined();
+    await t.mutation(api.connect.leave, { participantId: ben.participantId, credential: second });
+    expect((await room()).stepEndedAt).toBe(Date.now());
+    await tick(10_000);
+    expect(await room()).toMatchObject({ currentIndex: 3, runVersion: 3 });
+
+    // The last test's results end the lesson.
+    await report(ana.participantId, guest, 3, 3, { progress: 100, timeElapsed: 8_000, isFinished: true });
+    await tick(10_000);
+    expect(await room()).toMatchObject({ status: "complete", currentIndex: 4 });
+    expect((await participantRow(t, ana.participantId))?.results.map((r) => r.testId)).toEqual(["t1", "t2", "t3"]);
+  });
+
+  it("waits for someone to come back before ending an untimed test with no one else taking it", async () => {
+    const { t, roomId, hostArgs, participantId } = await running("host", [test("t1", { mode: "words" }), test("t2", { mode: "words" })]);
+    await t.mutation(api.connect.removeParticipant, { ...hostArgs, participantId });
+    expect((await hostView(t, roomId)).room.stepEndedAt).toBeUndefined();
+  });
+
+  it("gives self-paced participants results time, then a following break, before the next test", async () => {
+    vi.useFakeTimers();
+    const { t, hostArgs, participantId, report } = await running("participant", [test("t1"), pause("b1", 20), test("t2"), test("t3")]);
+    const advance = (stepIndex: number) => t.mutation(api.connect.advance, { participantId, credential: guest, runVersion: 1, stepIndex });
+    await report({ stats: stats({ progress: 100, timeElapsed: 30_000, wpm: 60, accuracy: 99, isFinished: true }) });
+    const finishedAt = (await participantRow(t, participantId))?.finishedAt;
+    expect(finishedAt).toBe(Date.now());
+    // A following break must run its course, and pausing freezes it.
+    expect(await advance(0)).toMatchObject({ accepted: false, stepIndex: 0 });
+    vi.advanceTimersByTime(10_000);
     await t.mutation(api.connect.pause, hostArgs);
     vi.advanceTimersByTime(60_000);
     await t.mutation(api.connect.start, hostArgs);
-    expect(await advance(1)).toMatchObject({ accepted: false, stepIndex: 1 });
+    expect((await participantRow(t, participantId))?.finishedAt).toBe(finishedAt! + 60_000);
+    vi.advanceTimersByTime(5_000);
+    expect(await advance(0)).toMatchObject({ accepted: false, stepIndex: 0 });
     vi.advanceTimersByTime(5_000 - CONNECT_BREAK_GRACE_MS);
-    expect(await advance(1)).toEqual({ accepted: true, stepIndex: 2, completed: false });
+    expect(await advance(0)).toEqual({ accepted: true, stepIndex: 2, completed: false });
     expect((await participantRow(t, participantId))?.results.map((r) => r.testId)).toEqual(["t1"]);
+
+    // Without a break after it, a finished test can move on straight away.
+    await report({ stepIndex: 2, stats: stats({ progress: 100, timeElapsed: 1000, isFinished: true }) });
+    expect(await advance(2)).toEqual({ accepted: true, stepIndex: 3, completed: false });
+  });
+
+  it("lets a self-paced participant leave a standalone break only when its time is up", async () => {
+    vi.useFakeTimers();
+    const { t, hostArgs, participantId, report } = await running("participant", [pause("b1", 10), test("t1")]);
+    const advance = (stepIndex: number) => t.mutation(api.connect.advance, { participantId, credential: guest, runVersion: 1, stepIndex });
+    expect(await report()).toEqual({ accepted: false });
+    vi.advanceTimersByTime(5_000);
+    expect(await advance(0)).toMatchObject({ accepted: false, stepIndex: 0 });
+    await t.mutation(api.connect.pause, hostArgs);
+    vi.advanceTimersByTime(60_000);
+    await t.mutation(api.connect.start, hostArgs);
+    expect(await advance(0)).toMatchObject({ accepted: false, stepIndex: 0 });
+    vi.advanceTimersByTime(5_000 - CONNECT_BREAK_GRACE_MS);
+    expect(await advance(0)).toEqual({ accepted: true, stepIndex: 1, completed: false });
+    expect((await participantRow(t, participantId))?.results).toEqual([]);
   });
 });
 

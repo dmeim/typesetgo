@@ -19,9 +19,9 @@ Implementation details live in [Connect and Race](../features/Connect_Multiplaye
 - Signed-in hosts see their rooms on any device; guests see rooms hosted from the same browser.
 
 ## 4. Host panel
-- **Test list**: add Time, Words, Quote or Custom text tests with their options and an optional title, or a **Break** (5 seconds to 30 minutes) so everyone gets a pause between tests before the next one starts on its own. Edit, duplicate, reorder and remove. Up to 50 tests. Highlight the current test, grey out finished ones, and show upcoming ones normally. Tests already reached are locked while the room runs.
+- **Test list**: add Time, Words, Quote or Custom text tests with their options and an optional title, or a **Break** (10 seconds to 30 minutes) so everyone gets a pause between tests before the next one starts on its own. Edit, duplicate, reorder and remove. Up to 50 tests. Highlight the current test, grey out finished ones, and show upcoming ones normally. Tests already reached are locked while the room runs.
 - **Pacing**:
-  - *Host-led*: everyone is on the same test, and the host controls start, pause, restart, previous and next.
+  - *Host-led*: everyone is on the same test. After Start the lesson runs itself: timed tests end on the room clock (a few seconds of grace for late starters), other tests once everyone has finished, then results (or the following break) show for at least 10 seconds before the next part. The host can still pause, restart, or jump previous/next at any time.
   - *Self-paced*: participants advance on their own after the host starts. The list shows how many people are on each test.
 - **Late arrivals**: in a host-led room, a student who joins partway through a test waits and starts with everyone on the next test (or when the host restarts the current one). Their card says "Joins next test", and the host can let them start the current test right away. Arriving during a break or in a self-paced room starts them straight away.
 - **Participant settings**: per-group overrides for theme (and dark/light), text (font, size, alignment), ghost writer, sounds, and the on-screen keyboard (and layout). A group that is off leaves each participant's own preference in place.
@@ -30,17 +30,21 @@ Implementation details live in [Connect and Race](../features/Connect_Multiplaye
 ## 5. Participant experience
 - A minimal screen: room name, Leave, a "Test N of M" indicator showing which test of the list they are on (e.g. "2nd timed test"), live stats, the typing area, and the keyboard if the host allows it. No settings controls.
 - Results:
-  - Host-led: no Next button; the participant waits for the host.
-  - Self-paced: **Next test** opens a short **Up next** splash with the next test's title and details and an animated list of completed, next and remaining tests.
+  - Host-led: no Next button; students who finish early wait for everyone, then the results countdown runs.
+  - Self-paced: the results countdown moves on by itself; **Next test** (or Enter) skips plain results and opens a short **Up next** splash with the next test's title and details and an animated list of completed, next and remaining tests.
+- Results count down to the next part. A break right after a test plays on the results screen (at least 10 seconds), so students read their results while they rest. Self-paced students can skip plain results with Enter, but not a break.
 - Breaks show a countdown and what comes next. Host-led breaks end for everyone together; self-paced breaks start when each participant reaches them. Breaks freeze while the host has paused the room.
 - After the last self-paced test, a summary lists each test's results.
 - Participants cannot end a test early, paste text, or change the host's locked settings.
 
-## 6. Reliability requirements
+## 6. Theming
+- Connect screens use the app's semantic theme roles (no raw palette or opacity-dimmed text). A host theme override applies to everything in the participant room, including its light/dark mode and any popovers or dialogs opened there.
+
+## 7. Reliability requirements
 - Students must not be dropped or see codes change unexpectedly. Inactivity only marks a participant offline; refreshing or returning to the tab rejoins the same seat.
 - Progress from an earlier run, test or reset must never overwrite current results.
 - Removed participants see that the host removed them and can rejoin with the code.
 
-## 7. Out of scope (for now)
+## 8. Out of scope (for now)
 - Assignments, gradebook export and class rosters (see [Teacher Tools](Teacher_Tools_PRD.md)).
 - Anti-cheat beyond paste blocking and server-validated stats.

@@ -112,6 +112,8 @@ interface TypingPracticeProps {
   fitToParentHeight?: boolean;
   lockedSettings?: Partial<SettingsState>;
   isTestActive?: boolean;
+  /** Connect: the room ended this test (its clock ran out), so show results now. */
+  forceFinish?: boolean;
   initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean };
   onStatsUpdate?: (
     stats: {
@@ -144,6 +146,7 @@ export default function TypingPractice({
   fitToParentHeight = false,
   lockedSettings,
   isTestActive = true,
+  forceFinish = false,
   initialAttempt,
   onStatsUpdate,
   onLeave,
@@ -510,6 +513,10 @@ export default function TypingPractice({
 
   const finishSessionRef = useRef(finishSession);
   useEffect(() => { finishSessionRef.current = finishSession; }, [finishSession]);
+
+  useEffect(() => {
+    if (connectMode && forceFinish) finishSessionRef.current();
+  }, [connectMode, forceFinish]);
 
   const playClickSound = useCallback(() => {
     if (!settings.soundEnabled || !settings.typingSound || !soundManifest) return;
