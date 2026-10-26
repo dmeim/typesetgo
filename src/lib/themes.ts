@@ -226,70 +226,8 @@ async function loadTheme(themeName: string, priority: ThemeRequestPriority): Pro
 
 // Group themes by category
 export function groupThemesByCategory<T extends Pick<ThemeDefinition, "id" | "name" | "category">>(themes: T[]): { category: ThemeCategory; displayName: string; themes: T[] }[] {
-  const groups: Record<ThemeCategory, T[]> = {
-    // Featured
-    default: [],
-    // Technical/Developer
-    editor: [],
-    brand: [],
-    // Productivity/Utility
-    productivity: [],
-    utility: [],
-    // Design/Visual
-    aesthetic: [],
-    "color-theory": [],
-    // Animals
-    animals: [],
-    // Nature/Environment
-    nature: [],
-    seasons: [],
-    biomes: [],
-    plants: [],
-    weather: [],
-    space: [],
-    time: [],
-    // Era/Culture
-    retro: [],
-    cultural: [],
-    books: [],
-    mythology: [],
-    cities: [],
-    subject: [],
-    // Entertainment/Media
-    gaming: [],
-    movies: [],
-    "tv-shows": [],
-    anime: [],
-    // Lifestyle
-    music: [],
-    "music-bands": [],
-    "music-artists": [],
-    sports: [],
-    "sports-teams": [],
-    "sports-teams-football": [],
-    "sports-teams-basketball": [],
-    "sports-teams-baseball": [],
-    "sports-teams-soccer": [],
-    "sports-teams-hockey": [],
-    "sports-teams-college-football": [],
-    "sports-teams-college-basketball": [],
-    "sports-teams-college-baseball": [],
-    "sports-teams-college-soccer": [],
-    "sports-teams-college-hockey": [],
-    food: [],
-    fun: [],
-    holiday: [],
-    // Collections/Misc
-    zodiac: [],
-    gemstones: [],
-    instruments: [],
-    dance: [],
-    vehicles: [],
-    comics: [],
-    "historical-era": [],
-    emotions: [],
-    textiles: [],
-  };
+  // Keyed from CATEGORY_CONFIG so a new category cannot be missed here.
+  const groups = Object.fromEntries(Object.keys(CATEGORY_CONFIG).map((category) => [category, [] as T[]])) as Record<ThemeCategory, T[]>;
 
   // Group themes
   for (const theme of themes) {

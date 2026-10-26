@@ -62,6 +62,15 @@ A theme may optionally include a `"light"` key with a full `ThemeColors` object.
 3. Collections can instead define a `variants` object and `defaultVariant`; see [theme variants](THEME-VARIANTS-IMPLEMENTATION.md).
 4. If the theme name needs special capitalization (e.g. `"GitHub"` not `"Github"`), add an entry in `THEME_DISPLAY_NAMES` in `src/lib/theme-catalog.ts`.
 
+For multi-variant themes, author a compact spec (about 15 colors per mode: `bg`, `surface`, `elevated`, `text`, `textSecondary`, `primary`, `secondary`, `accent`, status colors, `cursor`, `cursorGhost`, `upcoming`) and expand it. The expander fills the opacity tiers, borders and typing copies with the catalog conventions. Then check the result:
+
+```bash
+bun scripts/expand-theme.ts my-theme.spec.json public/themes/my-theme.json
+bun scripts/check-theme.ts public/themes/my-theme.json --category editor
+```
+
+`check-theme.ts` fails on schema or convention errors, a dark palette with a light background (or the reverse), and any derivation guarantee from [`theme-audit.ts`](../src/lib/theme-audit.ts) (layer separation, distinct roles, readable mistakes). Its warnings name authored colors the runtime contrast fixes visibly changed, with the displayed color as a suggestion. The spec format is documented at the top of `scripts/expand-theme.ts`.
+
 ## How Colors Reach Components
 
 ### 1. ThemeProvider loads the theme
@@ -70,7 +79,12 @@ On mount, `ThemeProvider` reads the stored theme id from `localStorage`, fetches
 
 ### 2. Derive colors for their actual use
 
-[`deriveThemeUI()`](../src/lib/colors.ts) derives opaque UI surfaces, text, accents and status colors. It moves a color toward black or white only when needed for contrast, leaving the source JSON and context `colors` unchanged. Mid-tone UI surfaces are also adjusted when necessary so they can share readable foregrounds. The page background retains the original palette color.
+[`deriveThemeUI()`](../src/lib/colors.ts) derives opaque UI surfaces, text, accents and status colors, leaving the source JSON and context `colors` unchanged. The page background retains the original palette color.
+
+- **Contrast fixes keep the color.** When a color fails its floor, only its OKLCH lightness moves, as far as needed; hue and chroma are kept (chroma shrinks only where sRGB cannot display it). Blending toward white or black, which the derivation used before October 2026, washed brand colors into pastels and could collapse distinct roles into the same near-white.
+- **Surfaces form a ladder.** Each derived surface keeps a minimum separation from the layers it sits on or beside (`SURFACE_STEPS`): card from page, popover from page and card, and muted, secondary, accent and status surfaces from card, page and popover. Card and popover step in the direction the palette authored (a sunken dark card stays darker). Inner surfaces and borders step toward the readable ink: lighter on dark palettes, darker on light ones. A card already at white or black on its authored side stops at the edge if it keeps a quarter of the step (`EDGE_SHARE`), so white cards on off-white pages stay white and rely on their now-visible borders. Muted is its own step, never the card color.
+- **Confusable roles stay distinct.** `ROLE_DISTANCE` sets the minimum OKLab distance between destructive and primary (red-branded palettes) and between mistakes and typed or untyped exercise text. Untyped text only ever recedes toward the page.
+- Mid-tone UI surfaces are adjusted when necessary so they can share readable foregrounds.
 
 [`ThemeProvider`](../src/context/ThemeProvider.tsx) applies the derived UI values as `--background`, `--foreground`, `--secondary-emphasis`, etc. on `:root` whenever the theme, variant or mode changes. `deriveThemeTyping()` supplies the `--theme-typing-*` variables used by `PracticeText`.
 
@@ -78,10 +92,11 @@ On mount, `ThemeProvider` reads the stored theme id from `localStorage`, fetches
 |------|----------------|---------------------|
 | UI text, accent text, status text | 4.5:1 | Page, card, popover, secondary/accent and status surfaces |
 | Input outlines, focus rings | 3:1 | The same UI surfaces |
-| Correct/incorrect exercise text | 4.5:1 | Page, card, popover |
+| Correct exercise text | 4.5:1 | Page, card, popover |
+| Incorrect exercise text | 4.5:1, or 3:1 (large text) only when needed to differ from typed/untyped text | Page, card, popover |
 | Untyped/upcoming exercise text, carets | 3:1 | Page, card, popover |
 
-The exercise floor retains a subdued untyped state for the large typing display; it is not a guarantee of 4.5:1 for small custom exercise fonts. Decorative borders, disabled controls, animation fades and arbitrary user-customized room colors are outside these guarantees. Avoid adding opacity to essential text after derivation.
+The exercise floor retains a subdued untyped state for the large typing display; it is not a guarantee of 4.5:1 for small custom exercise fonts. Decorative borders keep the `SURFACE_STEPS.border` separation rather than a text contrast floor. Disabled controls, animation fades and arbitrary user-customized room colors are outside these guarantees. Avoid adding opacity to essential text after derivation.
 
 ### 3. Components consume the matching roles
 
@@ -114,7 +129,9 @@ A subtree can carry its own theme, as the Connect participant room does for a ho
 
 [`foundations-theme-colors.test.ts`](../tests/unit/foundations-theme-colors.test.ts) reads every source JSON, including every variant and both supported modes, and checks UI pairs and typing roles without mutating the raw palette. The September 2026 audit covered 1,557 files / 9,912 palettes; 533 raw secondary accents were below 1.5:1 against the page background.
 
-Run `bun run test:run tests/unit/foundations-theme-colors.test.ts tests/unit/foundations-theme-selection.test.tsx` after changing derivation or palettes. `bun run test:e2e practice` also checks the actual rendered WPM, accuracy, labels, exercise text and carets in Celestia dark/light, Houston Dynamo's dark away kit and Bubblegum light. See the [isolated browser guide](../tests/browser/README.md) for fixture boundaries. Extend the pair checks when adding a new semantic surface or foreground role.
+[`theme-palette-audit.test.ts`](../tests/unit/theme-palette-audit.test.ts) runs the same catalog through the surface ladder and role-distance checks. Its `KNOWN_RESIDUALS` list names the few palettes whose source colors leave no room for a guarantee (mid-tone Windows 95/XP, Brutalist's light "dark" palette, and two exercise palettes). Fix those in JSON and delete their entries; any new failure or newly passing palette fails the test.
+
+Run `bun run test:run tests/unit/foundations-theme-colors.test.ts tests/unit/theme-palette-audit.test.ts tests/unit/foundations-theme-selection.test.tsx` after changing derivation or palettes. On Node 26+, prefix unit runs with `NODE_OPTIONS=--no-experimental-webstorage` so jsdom's `localStorage` is not shadowed by Node's. `bun run test:e2e practice` also checks the actual rendered WPM, accuracy, labels, exercise text and carets in Celestia dark/light, Houston Dynamo's dark away kit and Bubblegum light. See the [isolated browser guide](../tests/browser/README.md) for fixture boundaries. Extend the pair checks when adding a new semantic surface or foreground role.
 
 ## Key Files
 
@@ -155,5 +172,7 @@ Run `bun run test:run tests/unit/foundations-theme-colors.test.ts tests/unit/fou
 ## Categories
 
 Themes are organized into categories (gaming, anime, books, editor, nature, sports, sports-teams, etc.). Category display order and names are defined in `CATEGORY_CONFIG` in `src/lib/theme-catalog.ts`. The theme picker UI groups and sorts themes by category.
+
+Product themes use `iphone` (one theme per generation; variants are each model's finishes, labeled like `15 Pro — Natural Titanium`) and `mac` (one theme per Mac line; variants labeled with the finish and introduction year). `f1` holds one theme per constructor on the current grid; its variants are the team's full-time race drivers since 2000 (or since the constructor began), labeled with their years, plus a `default` current livery.
 
 `Sports` is reserved for general sport-name themes such as `football`, `basketball`, `hockey`, and `soccer`. Team/franchise themes belong in `Sports Teams` (`sports-teams`) so future team additions do not clutter the general sports list. Sports-team variants should represent visually distinct jersey eras, home/away uniforms, alternates, throwbacks, City Connect/reverse-retro designs, or named kits.

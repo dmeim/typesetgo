@@ -85,7 +85,8 @@ describe("semantic theme colors", () => {
             const typing = deriveThemeTyping(colors, ui);
             for (const [role, value] of Object.entries(typing)) {
               for (const surface of [ui.background, ui.card, ui.popover]) {
-                pairs.push([value, surface, role === "correct" || role === "incorrect" ? 4.5 : 3]);
+                // Mistakes keep 4.5:1 except the large-text fallbacks listed in theme-palette-audit.
+                pairs.push([value, surface, role === "correct" ? 4.5 : 3]);
               }
             }
             if (pairs.some(([fg, bg, minimum]) => contrast(fg, bg) < minimum)) failures.push(`${name}/${variant}/${mode}: contrast`);

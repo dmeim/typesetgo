@@ -18,12 +18,12 @@
   <a href="src/"><img src="https://img.shields.io/badge/stack-React%2019%20%C2%B7%20Vite%20%C2%B7%20TS%20%C2%B7%20Convex%20%C2%B7%20Tailwind%20v4-61dafb" alt="Stack" /></a>
 </p>
 
-A modern, open-source typing practice platform with a clean, distraction-free interface. Multiple test modes, 1300+ themes, sound packs, real-time statistics, and deep customization — all powered by a real-time **Convex** backend with optional **Clerk** authentication.
+A modern, open-source typing practice platform with a clean, distraction-free interface. Multiple test modes, 1600+ themes, sound packs, real-time statistics, and deep customization — all powered by a real-time **Convex** backend with optional **Clerk** authentication.
 
 ## Highlights
 
 - **Multiple modes** — Time, Words, Quotes (Short–XL), Zen, and Preset text
-- **1300+ themes** — Light, dark, and seasonal themes with live preview
+- **1600+ themes** — Light, dark, and seasonal themes with live preview
 - **Ghost Writer** — Race a ghost cursor set to your target WPM
 - **Deep statistics** — Real-time WPM, accuracy, raw vs. net speed, consistency charts
 - **Sound packs** — Mechanical keyboard sounds (typewriter, creamy, robo, and more)
