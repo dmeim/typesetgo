@@ -116,6 +116,18 @@ const QUOTE_LENGTHS: readonly ConnectQuoteLength[] = ["all", "short", "medium", 
 
 export const isBreakTest = (test: Pick<ConnectTest, "mode"> | undefined) => test?.mode === "break";
 
+/**
+ * Host pacing: someone who joins partway through a test sits it out. `lateForRun` is the run they
+ * joined during; the next start (next, previous or restarted test) changes the run and lets them in.
+ */
+export function isWaitingForNextTest(
+  room: { pacing: ConnectPacing; status: ConnectRoomStatus; runVersion: number },
+  participant: { lateForRun?: number },
+) {
+  return room.pacing === "host" && (room.status === "running" || room.status === "paused") &&
+    participant.lateForRun === room.runVersion;
+}
+
 /** When a break that started at `startedAt` ends, accounting for time spent paused. */
 export function breakEndsAt(test: Pick<ConnectTest, "duration">, startedAt: number, pausedAt?: number, now = Date.now()) {
   const pausedFor = pausedAt === undefined ? 0 : Math.max(0, now - pausedAt);

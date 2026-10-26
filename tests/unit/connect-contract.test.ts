@@ -425,6 +425,51 @@ describe("Connect runs", () => {
 
   const pause = (id: string, duration = 30): ConnectTest => test(id, { mode: "break", duration });
 
+  it("holds someone who joins mid-test under host pacing until the next test starts", async () => {
+    const { t, roomId, code, hostArgs } = await running("host", [test("t1"), pause("b1"), test("t2"), test("t3")]);
+    const late = await join(t, code, "late", second, "Late");
+    const lateReport = (runVersion: number, stepIndex: number) => t.mutation(api.connect.reportProgress, {
+      participantId: late.participantId, credential: second, runVersion, stepIndex, attempt: 0,
+      stats: stats({ progress: 10, timeElapsed: 1000 }),
+    });
+    expect(await participantRow(t, late.participantId)).toMatchObject({ lateForRun: 1 });
+    expect(await lateReport(1, 0)).toEqual({ accepted: false });
+    // Pausing and resuming keeps the same run, so they keep waiting.
+    await t.mutation(api.connect.pause, hostArgs);
+    await t.mutation(api.connect.start, hostArgs);
+    expect(await lateReport(1, 0)).toEqual({ accepted: false });
+
+    // Arriving during a break is not late: everyone starts the next test together anyway.
+    await t.mutation(api.connect.goToTest, { ...hostArgs, index: 1 });
+    const onBreak = await join(t, code, "break", attacker, "Breaker");
+    expect((await participantRow(t, onBreak.participantId))?.lateForRun).toBeUndefined();
+
+    await t.mutation(api.connect.goToTest, { ...hostArgs, index: 2 });
+    expect((await hostView(t, roomId)).room.runVersion).toBe(3);
+    expect(await lateReport(3, 2)).toEqual({ accepted: true });
+    expect((await participantRow(t, late.participantId))?.results).toEqual([]);
+
+    // Removed and back mid-test is late again; a host reset lets them start now.
+    await t.mutation(api.connect.removeParticipant, { ...hostArgs, participantId: late.participantId });
+    await join(t, code, "late", second, "Late");
+    const back = await participantRow(t, late.participantId);
+    expect(back).toMatchObject({ lateForRun: 3, attempt: 1, stats: emptyConnectStats() });
+    await t.mutation(api.connect.resetParticipant, { ...hostArgs, participantId: late.participantId });
+    expect(await t.mutation(api.connect.reportProgress, {
+      participantId: late.participantId, credential: second, runVersion: 3, stepIndex: 2, attempt: 2, stats: stats({ progress: 5 }),
+    })).toEqual({ accepted: true });
+  });
+
+  it("starts late joiners right away in the lobby and in self-paced rooms", async () => {
+    const lobby = await setup();
+    const early = await join(lobby.t, lobby.code);
+    expect((await participantRow(lobby.t, early.participantId))?.lateForRun).toBeUndefined();
+    const own = await running("participant");
+    const late = await join(own.t, own.code, "late", second, "Late");
+    expect(await participantRow(own.t, late.participantId)).toMatchObject({ stepIndex: 0 });
+    expect((await participantRow(own.t, late.participantId))?.lateForRun).toBeUndefined();
+  });
+
   it("rejects a list made only of breaks and ignores progress during a break", async () => {
     const { t, hostArgs } = await setup();
     await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [pause("b1")] })).rejects.toThrow(/at least one typing test/);

@@ -179,6 +179,7 @@ export function participantSelf(participant: Participant) {
     stepIndex: participant.stepIndex, attempt: participant.attempt, stats: participant.stats,
     typedText: participant.typedText, targetText: participant.targetText,
     results: participant.results, completedAt: participant.completedAt, stepStartedAt: participant.stepStartedAt,
+    lateForRun: participant.lateForRun,
   };
 }
 

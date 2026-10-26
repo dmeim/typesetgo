@@ -209,6 +209,7 @@ export default defineSchema({
     results: v.array(connectResultValidator),
     completedAt: v.optional(v.number()),
     stepStartedAt: v.optional(v.number()), // participant pacing: when this step began
+    lateForRun: v.optional(v.number()), // host pacing: joined mid-test during this run, so sits it out
   })
     .index("by_room", ["roomId"])
     .index("by_room_session", ["roomId", "sessionId"])

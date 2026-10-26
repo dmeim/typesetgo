@@ -23,6 +23,7 @@ Implementation details live in [Connect and Race](../features/Connect_Multiplaye
 - **Pacing**:
   - *Host-led*: everyone is on the same test, and the host controls start, pause, restart, previous and next.
   - *Self-paced*: participants advance on their own after the host starts. The list shows how many people are on each test.
+- **Late arrivals**: in a host-led room, a student who joins partway through a test waits and starts with everyone on the next test (or when the host restarts the current one). Their card says "Joins next test", and the host can let them start the current test right away. Arriving during a break or in a self-paced room starts them straight away.
 - **Participant settings**: per-group overrides for theme (and dark/light), text (font, size, alignment), ghost writer, sounds, and the on-screen keyboard (and layout). A group that is off leaves each participant's own preference in place.
 - **Participants**: cards with live WPM, accuracy, progress, current test (self-paced) and presence. No status badge: the progress bar shows who has finished. Reset and remove sit in the card's name row (grid) or at the end of the row (list). Sort, resize, list/grid, show/hide offline, drag order, reset, remove. **Fullscreen**, **Pop out** (a small window, like a stream chat pop-out) and **Open in new tab** show only the cards. Board settings stay on the host panel and sync to the other window. The board's header has a fullscreen button.
 

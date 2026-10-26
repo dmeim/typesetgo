@@ -6,6 +6,7 @@ import { ParticipantBoard } from "@/components/connect/board/ParticipantBoard";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
 import { useFullscreen } from "@/components/connect/use-fullscreen";
 import { useConnectBoardPrefs } from "@/hooks/useConnectBoardPrefs";
+import { isWaitingForNextTest } from "@/lib/connect-types";
 import { toast } from "@/lib/toast-manager";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -103,9 +104,16 @@ export function ParticipantsSection({ room, participants, actions }: {
       <ConfirmDialog
         open={confirming && confirmation?.kind === "reset"}
         onOpenChange={setConfirming}
-        title={`Reset ${confirmation?.participant.name ?? "participant"}?`}
-        description="Their current attempt is cleared and they start this test again. Earlier results are kept."
-        confirmLabel="Reset attempt"
+        {...(confirmation && isWaitingForNextTest(room, confirmation.participant) ? {
+          title: `Let ${confirmation.participant.name} start now?`,
+          description: "They joined partway through this test and are waiting for the next one. Starting now lets them type this test from the beginning.",
+          confirmLabel: "Start now",
+          destructive: false,
+        } : {
+          title: `Reset ${confirmation?.participant.name ?? "participant"}?`,
+          description: "Their current attempt is cleared and they start this test again. Earlier results are kept.",
+          confirmLabel: "Reset attempt",
+        })}
         onConfirm={() => { if (confirmation) void actions.resetParticipant(confirmation.participant._id); }}
       />
       <ConfirmDialog

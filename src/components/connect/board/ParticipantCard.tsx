@@ -57,12 +57,12 @@ function ordinalPosition(index: number, total: number) {
   return `Test ${Math.min(index + 1, total)} of ${total}`;
 }
 
-function Actions({ participant, onReset, onRemove }: Pick<ParticipantCardProps, "participant" | "onReset" | "onRemove">) {
+function Actions({ participant, late, onReset, onRemove }: Pick<ParticipantCardProps, "participant" | "onReset" | "onRemove"> & { late: boolean }) {
   if (!onReset && !onRemove) return null;
   return (
     <div className="flex shrink-0 items-center gap-1">
       {onReset && (
-        <Button variant="ghost" size="icon-sm" aria-label={`Reset ${participant.name}`} title="Reset this attempt" onClick={() => onReset(participant)}>
+        <Button variant="ghost" size="icon-sm" aria-label={`Reset ${participant.name}`} title={late ? "Let them start this test now" : "Reset this attempt"} onClick={() => onReset(participant)}>
           <ArrowClockwiseIcon aria-hidden="true" />
         </Button>
       )}
@@ -169,7 +169,7 @@ export function ParticipantCard({ room, participant, labels, layout, now, sortab
         <article className="flex h-full flex-col gap-[0.75em] p-[0.9em]" aria-label={participant.name}>
           <div className="-my-[0.2em] -mr-[0.35em] flex min-h-[2em] items-center justify-between gap-[0.5em]">
             {identity}
-            <Actions participant={participant} onReset={onReset} onRemove={onRemove} />
+            <Actions participant={participant} late={status === "late"} onReset={onReset} onRemove={onRemove} />
           </div>
           <div className="flex items-end justify-between gap-[0.75em]">
             <Stat value={stats.wpm} unit={stats.isAverage ? "avg wpm" : "wpm"} large title={statTitle} />
@@ -191,7 +191,7 @@ export function ParticipantCard({ room, participant, labels, layout, now, sortab
             {progressBar}
             {position}
           </div>
-          <Actions participant={participant} onReset={onReset} onRemove={onRemove} />
+          <Actions participant={participant} late={status === "late"} onReset={onReset} onRemove={onRemove} />
         </article>
       )}
     </li>

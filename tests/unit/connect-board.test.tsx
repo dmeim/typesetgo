@@ -95,6 +95,14 @@ describe("board model", () => {
     expect(progressDetail(makeRoom(), makeParticipant("a", { stats: { isFinished: true, timeElapsed: 30000 } })).label).toBe("Time's up");
   });
 
+  it("marks someone who joined mid-test as joining the next test", () => {
+    const late = makeParticipant("a", { lateForRun: 1 });
+    expect(participantStatus(makeRoom(), late)).toBe("late");
+    expect(progressDetail(makeRoom(), late)).toEqual({ percent: 0, label: "Joins next test" });
+    expect(participantStatus(makeRoom({ status: "paused" }), late)).toBe("late");
+    expect(participantStatus(makeRoom({ runVersion: 2, currentIndex: 1 }), late)).toBe("waiting");
+  });
+
   it("counts down breaks from the room clock under host pacing and the participant clock otherwise", () => {
     const withBreak = [tests[0], { ...DEFAULT_CONNECT_TEST, id: "b1", mode: "break" as const, duration: 60 }, tests[1]];
     const hostBreak = makeRoom({ tests: withBreak, currentIndex: 1, stepStartedAt: 1_000 });

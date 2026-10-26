@@ -329,6 +329,25 @@ describe("self-paced advancing", () => {
   });
 });
 
+describe("joining late", () => {
+  beforeEach(() => saveMembership("room-1", { participantId: "p1", name: "Ada" }));
+
+  it("waits for the next test without typing, then starts with everyone", async () => {
+    state.view = okView({ participant: { lateForRun: 1 } });
+    const view = renderRoom();
+    expect(await screen.findByRole("heading", { name: "You'll start with the next test" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Practice input")).not.toBeInTheDocument();
+    expect(state.mutations["connect:reportProgress"]).not.toHaveBeenCalled();
+    state.view = okView({ room: { currentIndex: 1, runVersion: 2 }, participant: { lateForRun: 1 } });
+    view.rerender(
+      <MemoryRouter initialEntries={["/connect/room/room-1"]}>
+        <Routes><Route path="/connect/room/:roomId" element={<ConnectRoom />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByLabelText("Practice input")).toBeInTheDocument();
+  });
+});
+
 describe("breaks", () => {
   const withBreak = [test("t1"), test("b1", { mode: "break", duration: 30 }), test("t2", { mode: "words" })];
   beforeEach(() => saveMembership("room-1", { participantId: "p1", name: "Ada" }));

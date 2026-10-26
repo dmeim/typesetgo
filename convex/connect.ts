@@ -10,6 +10,7 @@ import {
   DEFAULT_CONNECT_TEST,
   emptyConnectStats,
   isBreakTest,
+  isWaitingForNextTest,
   validateConnectOverrides,
 } from "../src/lib/connect-types";
 import { credentialHash } from "./lib/multiplayer";
@@ -329,7 +330,8 @@ export const resetParticipant = mutation({
   handler: async (ctx, args) => {
     const room = await requireHost(ctx, args.roomId, args.credential);
     const participant = await requireRoomParticipant(ctx, room, args.participantId);
-    await ctx.db.patch(participant._id, { ...clearedAttempt(), attempt: participant.attempt + 1 });
+    // Resetting also lets someone who joined late start the current test now.
+    await ctx.db.patch(participant._id, { ...clearedAttempt(), attempt: participant.attempt + 1, lateForRun: undefined });
   },
 });
 
@@ -400,6 +402,10 @@ export const join = mutation({
       : null;
     const now = Date.now();
     if (!room || !isLiveRoom(room, now)) throw connectError("not_found", "No open room uses that code");
+    // Arriving partway through a host-paced test means waiting for the next one; a break can be joined as is.
+    const midTest = room.pacing === "host" && (room.status === "running" || room.status === "paused") &&
+      !isBreakTest(room.tests[room.currentIndex]);
+    const lateForRun = midTest ? room.runVersion : undefined;
     const existing = await ctx.db.query("connectParticipants")
       .withIndex("by_room_session", (q) => q.eq("roomId", room._id).eq("sessionId", args.sessionId)).first();
     if (existing) {
@@ -407,7 +413,11 @@ export const join = mutation({
       if (existing.removedAt !== undefined && await countActive(ctx, room._id) >= CONNECT_MAX_PARTICIPANTS) {
         throw connectError("full", "This room is full");
       }
-      await ctx.db.patch(existing._id, { name, isConnected: true, lastSeen: now, removedAt: undefined, leftAt: undefined });
+      await ctx.db.patch(existing._id, {
+        name, isConnected: true, lastSeen: now, removedAt: undefined, leftAt: undefined,
+        // Coming back mid-test after removal is a late arrival; reconnecting an existing seat keeps its place.
+        ...(existing.removedAt !== undefined && midTest && { lateForRun, ...clearedAttempt(), attempt: existing.attempt + 1 }),
+      });
       return { roomId: room._id, participantId: existing._id };
     }
     if (await countActive(ctx, room._id) >= CONNECT_MAX_PARTICIPANTS) throw connectError("full", "This room is full");
@@ -415,7 +425,7 @@ export const join = mutation({
       roomId: room._id, sessionId: args.sessionId, credentialHash: hash, name,
       isConnected: true, lastSeen: now, joinedAt: now,
       stepIndex: room.pacing === "host" ? room.currentIndex : 0,
-      attempt: 0, stats: emptyConnectStats(), results: [], stepStartedAt: now,
+      attempt: 0, stats: emptyConnectStats(), results: [], stepStartedAt: now, lateForRun,
     });
     return { roomId: room._id, participantId };
   },
@@ -460,7 +470,7 @@ function acceptsProgress(room: Room, participant: Participant, args: { runVersio
     participant.removedAt === undefined && participant.leftAt === undefined &&
     participant.completedAt === undefined && participant.attempt === args.attempt &&
     effectiveStep(room, participant) === args.stepIndex && args.stepIndex < room.tests.length &&
-    !isBreakTest(room.tests[args.stepIndex]) && !participant.stats.isFinished;
+    !isBreakTest(room.tests[args.stepIndex]) && !participant.stats.isFinished && !isWaitingForNextTest(room, participant);
 }
 
 export const reportProgress = mutation({

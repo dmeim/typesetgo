@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 import { HourglassMediumIcon, PauseCircleIcon } from "@phosphor-icons/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { isBreakTest, type ConnectOverrides, type ConnectTest } from "@/lib/connect-types";
+import { isBreakTest, isWaitingForNextTest, type ConnectOverrides, type ConnectTest } from "@/lib/connect-types";
 import { connectAttemptKey, connectThemeStyle, effectiveStep, resolveConnectSettings } from "@/lib/connect-settings";
 import { useConnectThemeColors } from "@/hooks/useConnectThemeColors";
 import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
@@ -16,6 +16,7 @@ import { UpNextSplash } from "./UpNextSplash";
 import { RoomSummary } from "./RoomSummary";
 import { RoomResultsActions } from "./RoomResultsActions";
 import { BreakScreen } from "./BreakScreen";
+import { LateJoinScreen } from "./LateJoinScreen";
 import { useConnectProgress } from "./use-connect-progress";
 import { readableError } from "@/components/connect/connect-errors";
 
@@ -52,12 +53,13 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
   const step = effectiveStep(room.pacing, room.currentIndex, participant.stepIndex);
   const test = room.tests[step];
   const onBreak = isBreakTest(test);
-  const lockedSettings = useLockedSettings(onBreak ? undefined : test, room.overrides);
+  const waiting = isWaitingForNextTest(room, participant);
+  const lockedSettings = useLockedSettings(onBreak || waiting ? undefined : test, room.overrides);
   const attemptKey = connectAttemptKey(roomId, room.runVersion, step, participant.attempt);
   const isRunning = room.status === "running";
   const allDone = room.status === "complete" || participant.completedAt !== undefined || (room.status !== "lobby" && !test);
   const progress = useConnectProgress(participantId, attemptKey,
-    { runVersion: room.runVersion, stepIndex: step, attempt: participant.attempt }, isRunning && !leaving && !onBreak);
+    { runVersion: room.runVersion, stepIndex: step, attempt: participant.attempt }, isRunning && !leaving && !onBreak && !waiting);
 
   const advance = useCallback(async () => {
     if (advancing) return;
@@ -113,6 +115,12 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
     );
   } else if (allDone) {
     body = <main className="flex-1 overflow-y-auto"><RoomSummary tests={room.tests} results={participant.results} name={participant.name} /></main>;
+  } else if (waiting) {
+    body = (
+      <main className="flex flex-1 flex-col items-center overflow-y-auto px-4 py-10">
+        <LateJoinScreen tests={room.tests} index={step} name={participant.name} />
+      </main>
+    );
   } else if (onBreak) {
     body = (
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -167,7 +175,7 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
 
   return (
     <RoomPage style={themeStyle}>
-      <RoomTopBar roomName={room.name} participantName={participant.name} dimmed={isTyping && !onBreak && room.status !== "lobby" && splashStep === null && !allDone}
+      <RoomTopBar roomName={room.name} participantName={participant.name} dimmed={isTyping && !onBreak && !waiting && room.status !== "lobby" && splashStep === null && !allDone}
         leaving={leaving} reconnecting={reconnecting} onLeave={onLeave} />
       {leaveError && <p role="alert" className="shrink-0 px-4 py-2 text-center text-sm text-destructive">{leaveError}</p>}
       {body}

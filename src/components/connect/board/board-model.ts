@@ -1,6 +1,6 @@
 import type { BoardPrefs } from "@/hooks/useConnectBoardPrefs";
 import type { ConnectPacing, ConnectResult, ConnectRoomStatus, ConnectStats, ConnectTest } from "@/lib/connect-types";
-import { breakEndsAt, isBreakTest, isTimedConnectTest } from "@/lib/connect-types";
+import { breakEndsAt, isBreakTest, isTimedConnectTest, isWaitingForNextTest } from "@/lib/connect-types";
 import { effectiveStep } from "@/lib/connect-settings";
 
 /** The parts of a room the board derives participant state from. */
@@ -8,6 +8,7 @@ export type BoardRoom = {
   pacing: ConnectPacing;
   status: ConnectRoomStatus;
   currentIndex: number;
+  runVersion: number;
   tests: ConnectTest[];
   stepStartedAt?: number;
   pausedAt?: number;
@@ -25,12 +26,14 @@ export type BoardParticipant = {
   results: ConnectResult[];
   completedAt?: number;
   stepStartedAt?: number;
+  lateForRun?: number;
 };
 
-export type BoardStatus = "waiting" | "typing" | "finished" | "break" | "done" | "paused" | "offline" | "left";
+export type BoardStatus = "waiting" | "late" | "typing" | "finished" | "break" | "done" | "paused" | "offline" | "left";
 
 export const BOARD_STATUS_LABELS: Record<BoardStatus, string> = {
   waiting: "Waiting",
+  late: "Joins next test",
   typing: "Typing",
   finished: "Finished test",
   break: "On a break",
@@ -74,6 +77,7 @@ export function participantStatus(room: BoardRoom, participant: BoardParticipant
   if (!participant.isConnected) return "offline";
   if (room.status === "lobby") return "waiting";
   if (isAllDone(room, participant)) return "done";
+  if (isWaitingForNextTest(room, participant)) return "late";
   if (room.status === "paused") return "paused";
   if (onBreak(room, participant)) return "break";
   if (participant.stats.isFinished) return "finished";
@@ -100,6 +104,7 @@ const clamp = (value: number) => Math.max(0, Math.min(100, Number.isFinite(value
 export function progressDetail(room: BoardRoom, participant: BoardParticipant, now = Date.now()): ProgressDetail {
   if (room.status === "lobby") return { percent: 0, label: "Not started" };
   if (isAllDone(room, participant)) return { percent: 100, label: "All tests done" };
+  if (isWaitingForNextTest(room, participant)) return { percent: 0, label: "Joins next test" };
   const test = room.tests[effectiveTestIndex(room, participant)];
   if (isBreakTest(test)) {
     const remaining = breakRemaining(room, participant, now);
