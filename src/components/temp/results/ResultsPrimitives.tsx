@@ -18,6 +18,15 @@ export function CountUp({ value, delay = 0, suffix = "", className = "" }: { val
   return <span className={`tabular-nums ${className}`}>{shown}{suffix}</span>;
 }
 
+export function StatTile({ label, value, suffix = "", tone = "text-foreground" }: { label: string; value: number; suffix?: string; tone?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <CountUp value={value} suffix={suffix} className={`text-2xl font-bold sm:text-3xl ${tone}`} />
+      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
 /** Shows a word letter by letter: wrong letters in red, missed letters dotted, extra letters struck. */
 export function WordDiff({ word, className = "" }: { word: WordAttempt; className?: string }) {
   return (

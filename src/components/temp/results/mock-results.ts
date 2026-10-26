@@ -36,6 +36,12 @@ export const MOCK_SUMMARY = {
 // Per-second speed and errors are not tracked today; mockups that use them would need new data.
 export const MOCK_HISTORY = [12, 31, 44, 52, 55, 57, 60, 61, 58, 54, 56, 59, 62, 63, 61, 57, 55, 58, 60, 62, 64, 63, 60, 59, 57, 58, 60, 61, 59, 58];
 export const MOCK_ERROR_SECONDS = [4, 11, 19, 26];
+// Running accuracy: about five letters a second, two wrong letters per mistake.
+export const MOCK_ACCURACY_HISTORY = MOCK_HISTORY.map((_, second) => {
+  const typed = (second + 1) * 5;
+  const mistakes = MOCK_ERROR_SECONDS.filter((errorSecond) => errorSecond <= second).length;
+  return Math.round(((typed - mistakes * 2) / typed) * 1000) / 10;
+});
 
 export function isCorrect(word: WordAttempt) {
   return word.expected === word.typed;

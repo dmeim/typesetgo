@@ -5,6 +5,7 @@ import { ArrowClockwiseIcon, ArrowLeftIcon, FlaskIcon } from "@phosphor-icons/re
 import { LiveStatsDemo } from "@/components/temp/LiveStatsDemo";
 import { SettingsPillDemo } from "@/components/temp/SettingsPillDemo";
 import { BentoResults } from "@/components/temp/results/BentoResults";
+import { DualAxisGraphResults } from "@/components/temp/results/DualAxisGraphResults";
 import { MorphingHeroResults } from "@/components/temp/results/MorphingHeroResults";
 import { ReportCardResults } from "@/components/temp/results/ReportCardResults";
 import { SpeedGraphResults } from "@/components/temp/results/SpeedGraphResults";
@@ -54,6 +55,13 @@ const RESULTS_MOCKUPS: ResultsMockup[] = [
     notes: ["Everything visible at once, still organized", "Each tile has its own small interaction", "Densest of the five"],
     Component: BentoResults,
   },
+  {
+    id: "dual-axis-graph",
+    title: "Speed and accuracy graph",
+    summary: "Mockup 3 with accuracy on a second axis: speed is the solid line on the left scale, accuracy the dashed line on the right. Mistakes are marked on both lines, and the summary sentence is replaced by the morphing chips from mockup 1.",
+    notes: ["Shows where accuracy dipped and why", "Chips keep word details one tap away", "Needs per-second speed, accuracy and error tracking"],
+    Component: DualAxisGraphResults,
+  },
 ];
 
 export default function Temp() {
@@ -89,7 +97,7 @@ export default function Temp() {
 
         <h2 className="mb-1 mt-12 text-xl font-semibold">Results page</h2>
         <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
-          Five takes on the screen after a test, using the same fake 30-second attempt with four mistakes.
+          Takes on the screen after a test, using the same fake 30-second attempt with four mistakes.
         </p>
         <div className="flex flex-col gap-8">
           {RESULTS_MOCKUPS.map((mockup, index) => (

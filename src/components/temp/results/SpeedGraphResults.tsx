@@ -1,6 +1,6 @@
 import { useState, type PointerEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CountUp, ResultActions } from "./ResultsPrimitives";
+import { ResultActions, StatTile } from "./ResultsPrimitives";
 import { MOCK_CHARACTERS, MOCK_ERROR_SECONDS, MOCK_HISTORY, MOCK_MISTAKES, MOCK_SUMMARY } from "./mock-results";
 
 const WIDTH = 640;
@@ -25,10 +25,10 @@ export function SpeedGraphResults() {
   return (
     <div className="flex w-full max-w-3xl flex-col items-center gap-6">
       <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
-        <Tile label="wpm" value={MOCK_SUMMARY.wpm} tone="text-primary" />
-        <Tile label="accuracy" value={MOCK_SUMMARY.accuracy} suffix="%" />
-        <Tile label="raw wpm" value={MOCK_SUMMARY.rawWpm} />
-        <Tile label="mistakes" value={MOCK_MISTAKES.length} tone="text-destructive" />
+        <StatTile label="wpm" value={MOCK_SUMMARY.wpm} tone="text-primary" />
+        <StatTile label="accuracy" value={MOCK_SUMMARY.accuracy} suffix="%" />
+        <StatTile label="raw wpm" value={MOCK_SUMMARY.rawWpm} />
+        <StatTile label="mistakes" value={MOCK_MISTAKES.length} tone="text-destructive" />
       </div>
 
       <div className="relative w-full rounded-xl border border-border bg-card p-3">
@@ -77,15 +77,6 @@ export function SpeedGraphResults() {
         {MOCK_CHARACTERS.correct} letters right, {MOCK_CHARACTERS.incorrect} wrong, {MOCK_CHARACTERS.missed} missed, {MOCK_CHARACTERS.extra} extra
       </p>
       <ResultActions compact />
-    </div>
-  );
-}
-
-function Tile({ label, value, suffix = "", tone = "text-foreground" }: { label: string; value: number; suffix?: string; tone?: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card px-4 py-3">
-      <CountUp value={value} suffix={suffix} className={`text-3xl font-bold ${tone}`} />
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }
