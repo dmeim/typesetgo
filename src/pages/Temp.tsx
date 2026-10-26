@@ -58,8 +58,8 @@ const RESULTS_MOCKUPS: ResultsMockup[] = [
   {
     id: "dual-axis-graph",
     title: "Speed and accuracy graph",
-    summary: "Mockup 3 with accuracy on a second axis: speed is the solid line on the left scale, accuracy the dashed line on the right. Mistakes are marked on both lines, and the summary sentence is replaced by the morphing chips from mockup 1.",
-    notes: ["Shows where accuracy dipped and why", "Chips keep word details one tap away", "Needs per-second speed, accuracy and error tracking"],
+    summary: "Mockup 3 with accuracy on a second axis: speed is the solid line on the left scale, accuracy the dashed line on the right. Mistakes are marked on both lines. Speed and accuracy cards compare this test with your average and best, and the morphing chips from mockup 1 replace the summary sentence.",
+    notes: ["Shows where accuracy dipped and why", "Chips keep word details one tap away", "Needs per-second tracking and account history"],
     Component: DualAxisGraphResults,
   },
 ];

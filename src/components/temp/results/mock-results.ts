@@ -31,6 +31,8 @@ export const MOCK_SUMMARY = {
   settingsLabel: "time · 30s · beginner",
   personalBest: 64,
   recentAverage: 52,
+  bestAccuracy: 97,
+  averageAccuracy: 91,
 };
 
 // Per-second speed and errors are not tracked today; mockups that use them would need new data.

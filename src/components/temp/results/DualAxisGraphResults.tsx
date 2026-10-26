@@ -1,7 +1,7 @@
 import { useState, type PointerEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ResultChips } from "./ResultChips";
-import { ResultActions, StatTile } from "./ResultsPrimitives";
+import { CountUp, ResultActions } from "./ResultsPrimitives";
 import { MOCK_ACCURACY_HISTORY, MOCK_ERROR_SECONDS, MOCK_HISTORY, MOCK_SUMMARY } from "./mock-results";
 
 const WIDTH = 640;
@@ -23,6 +23,32 @@ const WPM_LINE = path(MOCK_HISTORY, yWpm);
 const ACC_LINE = path(MOCK_ACCURACY_HISTORY, yAcc);
 const WPM_AREA = `${WPM_LINE} L${x(MOCK_HISTORY.length - 1)},${HEIGHT - BOTTOM} L${x(0)},${HEIGHT - BOTTOM} Z`;
 
+interface CompareCardProps {
+  label: string;
+  value: number;
+  average: number;
+  best: number;
+  suffix: string;
+  /** Lowest value on the bar scale, so small differences stay visible. */
+  floor: number;
+  ceiling: number;
+  tone: string;
+  bar: string;
+  better: string;
+  worse: string;
+  mirrored?: boolean;
+}
+
+const WPM_CARD: CompareCardProps = {
+  label: "wpm", value: MOCK_SUMMARY.wpm, average: MOCK_SUMMARY.recentAverage, best: MOCK_SUMMARY.personalBest,
+  suffix: "", floor: 0, ceiling: MAX_WPM, tone: "text-primary", bar: "bg-primary", better: "faster", worse: "slower",
+};
+
+const ACCURACY_CARD: CompareCardProps = {
+  label: "accuracy", value: MOCK_SUMMARY.accuracy, average: MOCK_SUMMARY.averageAccuracy, best: MOCK_SUMMARY.bestAccuracy,
+  suffix: "%", floor: 80, ceiling: 100, tone: "text-(--accent-emphasis)", bar: "bg-(--accent-emphasis)", better: "more accurate", worse: "less accurate", mirrored: true,
+};
+
 /** Mockup 6: the speed graph with accuracy on a second axis, and the morphing chips in place of the summary sentence. */
 export function DualAxisGraphResults() {
   const [scrub, setScrub] = useState<number | null>(null);
@@ -34,10 +60,9 @@ export function DualAxisGraphResults() {
 
   return (
     <div className="flex w-full max-w-3xl flex-col items-center gap-6">
-      <div className="grid w-full grid-cols-3 gap-3">
-        <StatTile label="wpm" value={MOCK_SUMMARY.wpm} tone="text-primary" />
-        <StatTile label="accuracy" value={MOCK_SUMMARY.accuracy} suffix="%" tone="text-(--accent-emphasis)" />
-        <StatTile label="raw wpm" value={MOCK_SUMMARY.rawWpm} />
+      <div className="grid w-full gap-3 sm:grid-cols-2">
+        <CompareCard {...WPM_CARD} />
+        <CompareCard {...ACCURACY_CARD} />
       </div>
 
       <div className="relative w-full rounded-xl border border-border bg-card p-3">
@@ -109,6 +134,40 @@ export function DualAxisGraphResults() {
 
       <ResultChips />
       <ResultActions compact />
+    </div>
+  );
+}
+
+/** A headline stat with today, average and best bars. The mirrored card reads from the right edge. */
+function CompareCard({ label, value, average, best, suffix, floor, ceiling, tone, bar, better, worse, mirrored = false }: CompareCardProps) {
+  const delta = value - average;
+  const rows = [
+    { name: "today", amount: value, fill: bar },
+    { name: "average", amount: average, fill: "bg-muted-foreground/50" },
+    { name: "best", amount: best, fill: "bg-warning/70" },
+  ];
+  const width = (amount: number) => `${((amount - floor) / (ceiling - floor)) * 100}%`;
+
+  return (
+    <div className={`flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 ${mirrored ? "items-end text-right" : ""}`}>
+      <div>
+        <CountUp value={value} suffix={suffix} className={`text-3xl font-bold ${tone}`} />
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      </div>
+      <div className="flex w-full flex-col gap-1.5">
+        {rows.map((row, index) => (
+          <div key={row.name} className={`flex items-center gap-2 text-xs ${mirrored ? "flex-row-reverse" : ""}`}>
+            <span className={`w-14 shrink-0 text-muted-foreground ${mirrored ? "text-right" : ""}`}>{row.name}</span>
+            <div className={`flex h-2 flex-1 overflow-hidden rounded-full bg-muted ${mirrored ? "justify-end" : ""}`}>
+              <motion.div className={`h-full rounded-full ${row.fill}`} initial={{ width: 0 }} animate={{ width: width(row.amount) }} transition={{ type: "spring", stiffness: 120, damping: 20, delay: 0.3 + index * 0.1 }} />
+            </div>
+            <span className={`w-9 shrink-0 tabular-nums ${mirrored ? "text-left" : "text-right"}`}>{row.amount}{suffix}</span>
+          </div>
+        ))}
+      </div>
+      <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className={`text-xs ${delta >= 0 ? "text-success" : "text-destructive"}`}>
+        {delta === 0 ? "Same as your average" : `${delta > 0 ? "+" : ""}${delta}${suffix} ${delta > 0 ? better : worse} than your average`}
+      </motion.p>
     </div>
   );
 }
