@@ -49,3 +49,11 @@ export const SETTING_INDEX: { id: string; section: SectionId; label: string; key
   { id: "keyboard", section: "keyboard", label: "On-screen keyboard", keywords: "keys guide hands" },
   { id: "layout", section: "keyboard", label: "Keyboard layout", keywords: "qwerty dvorak colemak" },
 ];
+
+/** Typing fonts grouped the way typing-fonts.ts orders them. */
+export const FONT_GROUPS: { title: string; values: string[] }[] = [
+  { title: "Monospace", values: ["jetbrains-mono", "roboto-mono", "source-code-pro", "fira-code", "ibm-plex-mono", "inconsolata", "space-mono", "courier-new"] },
+  { title: "Sans-serif", values: ["arial", "roboto", "open-sans", "lato", "inter", "nunito", "montserrat", "poppins", "verdana", "trebuchet-ms", "comic-sans"] },
+  { title: "Serif", values: ["georgia", "merriweather", "lora", "playfair-display", "times-new-roman"] },
+  { title: "Easy to read", values: ["lexend", "atkinson-hyperlegible", "opendyslexic"] },
+];

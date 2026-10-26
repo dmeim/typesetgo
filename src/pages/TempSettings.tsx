@@ -2,34 +2,29 @@ import { useState, type ComponentType } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeftIcon } from "@phosphor-icons/react";
-import { GallerySettings } from "@/components/temp/settings/GallerySettings";
 import { SplitViewSettings } from "@/components/temp/settings/SplitViewSettings";
-import { SpotlightSettings } from "@/components/temp/settings/SpotlightSettings";
 import { StudioSettings } from "@/components/temp/settings/StudioSettings";
-import { TileHubSettings } from "@/components/temp/settings/TileHubSettings";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { useLabSettings, type LabState } from "@/components/temp/settings/useLabSettings";
 
-const MOCKUPS: { name: string; Component: ComponentType<{ lab: LabState }> }[] = [
-  { name: "Split view", Component: SplitViewSettings },
-  { name: "Tile hub", Component: TileHubSettings },
-  { name: "Studio", Component: StudioSettings },
-  { name: "Gallery", Component: GallerySettings },
-  { name: "Spotlight", Component: SpotlightSettings },
+// Numbers stay as first published so /temp-settings1 and /temp-settings3 links keep working.
+const MOCKUPS: { number: number; name: string; Component: ComponentType<{ lab: LabState }> }[] = [
+  { number: 1, name: "Split view", Component: SplitViewSettings },
+  { number: 3, name: "Studio", Component: StudioSettings },
 ];
 
 // /temp-settings1 in the app, ?temp-settings=1 in the local fixture.
 function initialMockup() {
   const fromPath = /^\/temp-settings(\d)$/.exec(location.pathname)?.[1];
   const value = Number(fromPath ?? new URLSearchParams(location.search).get("temp-settings") ?? 1);
-  return Math.min(MOCKUPS.length, Math.max(1, value || 1));
+  return MOCKUPS.some((entry) => entry.number === value) ? value : 1;
 }
 
 /** Full-page settings mockups. All state is local; the site's saved settings and theme never change. */
 export default function TempSettings() {
   const [mockup, setMockup] = useState(initialMockup);
   const lab = useLabSettings();
-  const { Component } = MOCKUPS[mockup - 1];
+  const { Component } = MOCKUPS.find((entry) => entry.number === mockup) ?? MOCKUPS[0];
   const choose = (next: number) => {
     setMockup(next);
     const url = location.pathname.startsWith("/temp-settings") ? `/temp-settings${next}` : `/?temp-settings=${next}`;
@@ -44,16 +39,16 @@ export default function TempSettings() {
         <Link to="/temp" className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground">
           <ArrowLeftIcon className="size-3.5" aria-hidden="true" />UI Lab
         </Link>
-        {MOCKUPS.map((entry, index) => (
+        {MOCKUPS.map((entry) => (
           <button
             key={entry.name}
             type="button"
-            aria-current={mockup === index + 1 ? "page" : undefined}
-            onClick={() => choose(index + 1)}
-            className={`relative rounded-full px-3 py-1.5 ${mockup === index + 1 ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            aria-current={mockup === entry.number ? "page" : undefined}
+            onClick={() => choose(entry.number)}
+            className={`relative rounded-full px-3 py-1.5 ${mockup === entry.number ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            {mockup === index + 1 && <motion.span layoutId="settings-mockup-tab" transition={LAB_SPRING} className="absolute inset-0 rounded-full bg-primary" />}
-            <span className="relative">{index + 1}<span className="hidden sm:inline"> {entry.name}</span></span>
+            {mockup === entry.number && <motion.span layoutId="settings-mockup-tab" transition={LAB_SPRING} className="absolute inset-0 rounded-full bg-primary" />}
+            <span className="relative">{entry.number}<span className="hidden sm:inline"> {entry.name}</span></span>
           </button>
         ))}
       </nav>
