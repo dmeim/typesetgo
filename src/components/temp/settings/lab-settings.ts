@@ -52,8 +52,22 @@ export const SETTING_INDEX: { id: string; section: SectionId; label: string; key
 
 /** Typing fonts grouped the way typing-fonts.ts orders them. */
 export const FONT_GROUPS: { title: string; values: string[] }[] = [
-  { title: "Monospace", values: ["jetbrains-mono", "roboto-mono", "source-code-pro", "fira-code", "ibm-plex-mono", "inconsolata", "space-mono", "courier-new"] },
-  { title: "Sans-serif", values: ["arial", "roboto", "open-sans", "lato", "inter", "nunito", "montserrat", "poppins", "verdana", "trebuchet-ms", "comic-sans"] },
-  { title: "Serif", values: ["georgia", "merriweather", "lora", "playfair-display", "times-new-roman"] },
-  { title: "Easy to read", values: ["lexend", "atkinson-hyperlegible", "opendyslexic"] },
+  { title: "Monospace", values: [
+    "jetbrains-mono", "roboto-mono", "source-code-pro", "fira-code", "fira-mono", "ibm-plex-mono", "inconsolata", "space-mono",
+    "noto-sans-mono", "red-hat-mono", "dm-mono", "overpass-mono", "geist-mono", "victor-mono", "martian-mono", "anonymous-pro",
+    "pt-mono", "courier-prime", "courier-new",
+  ] },
+  { title: "Sans-serif", values: [
+    "arial", "roboto", "open-sans", "noto-sans", "lato", "inter", "nunito", "nunito-sans", "montserrat", "poppins", "raleway",
+    "rubik", "work-sans", "fira-sans", "source-sans-3", "ibm-plex-sans", "pt-sans", "dm-sans", "quicksand", "mulish", "barlow",
+    "manrope", "karla", "outfit", "plus-jakarta-sans", "figtree", "geist", "verdana", "trebuchet-ms", "comic-sans",
+  ] },
+  { title: "Serif", values: [
+    "georgia", "merriweather", "lora", "noto-serif", "pt-serif", "source-serif-4", "literata", "bitter", "libre-baskerville",
+    "eb-garamond", "crimson-pro", "playfair-display", "times-new-roman",
+  ] },
+  { title: "Easy to read", values: [
+    "lexend", "readex-pro", "atkinson-hyperlegible", "atkinson-hyperlegible-next", "atkinson-hyperlegible-mono", "andika",
+    "playpen-sans", "comic-neue", "fredoka", "opendyslexic",
+  ] },
 ];

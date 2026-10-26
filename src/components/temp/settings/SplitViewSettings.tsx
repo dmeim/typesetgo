@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CaretLeftIcon, CaretRightIcon, MagnifyingGlassIcon, UserIcon, XIcon } from "@phosphor-icons/react";
+import { CaretLeftIcon, CaretRightIcon, MagnifyingGlassIcon, SidebarSimpleIcon, UserIcon, XIcon } from "@phosphor-icons/react";
 import ThemeSitePreview from "@/components/typing/ThemeSitePreview";
 import { getTypingFontOption } from "@/lib/typing-fonts";
 import { FontGallery } from "./FontGallery";
@@ -18,6 +18,9 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
   const [active, setActive] = useState<SectionId>("theme");
   const [mobileDetail, setMobileDetail] = useState(false);
   const [query, setQuery] = useState("");
+  // Desktop only: the sidebar folds into an icon rail; phones keep the list/detail flow.
+  const [collapsed, setCollapsed] = useState(false);
+  const fade = collapsed ? "md:pointer-events-none md:opacity-0" : "";
   const themes = useThemeCatalog();
   const themeEntry = themes?.find((theme) => theme.id === lab.theme.themeId);
   const { settings } = lab;
@@ -35,11 +38,23 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
 
   return (
     <div className="flex min-h-[100dvh]">
-      <aside className={`w-full shrink-0 flex-col gap-5 border-r border-border bg-card/40 px-4 pb-28 pt-6 md:sticky md:top-0 md:flex md:h-[100dvh] md:w-72 md:overflow-y-auto ${mobileDetail ? "hidden" : "flex"}`}>
-        <h1 className="px-2 text-3xl font-bold">Settings</h1>
-        <label className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-sm text-muted-foreground focus-within:outline-2 focus-within:outline-ring">
+      <aside className={`w-full shrink-0 flex-col gap-5 overflow-x-hidden border-r border-border bg-card/40 pb-28 pt-6 transition-[width,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:sticky md:top-0 md:flex md:h-[100dvh] md:overflow-y-auto ${collapsed ? "px-4 md:w-[4.75rem] md:px-3" : "px-4 md:w-72"} ${mobileDetail ? "hidden" : "flex"}`}>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCollapsed((value) => !value)}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden size-12 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:flex"
+          >
+            <SidebarSimpleIcon className="size-5" aria-hidden="true" />
+          </button>
+          <h1 className={`whitespace-nowrap px-2 text-3xl font-bold transition-opacity duration-200 md:px-0 ${fade}`}>Settings</h1>
+        </div>
+        <label className={`flex items-center gap-2 rounded-xl bg-muted/60 py-2 text-sm text-muted-foreground transition-[padding] duration-300 focus-within:outline-2 focus-within:outline-ring ${collapsed ? "px-3 md:px-[1.0625rem]" : "px-3"}`}>
           <MagnifyingGlassIcon className="size-4 shrink-0" aria-hidden="true" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" aria-label="Search settings" className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} onFocus={() => setCollapsed(false)} placeholder="Search" aria-label="Search settings" className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground" />
           {query && <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><XIcon className="size-3.5" aria-hidden="true" /></button>}
         </label>
 
@@ -60,9 +75,9 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
             </motion.div>
           ) : (
             <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-5">
-              <div className="flex items-center gap-3 rounded-2xl bg-card px-3 py-3">
-                <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"><UserIcon className="size-6" aria-hidden="true" /></span>
-                <span className="flex flex-col">
+              <div className={`flex items-center gap-3 rounded-2xl bg-card py-3 transition-[padding] duration-300 ${collapsed ? "px-3 md:px-0" : "px-3"}`} title={collapsed ? "Guest" : undefined}>
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><UserIcon className="size-6" aria-hidden="true" /></span>
+                <span className={`flex flex-col transition-opacity duration-200 ${fade}`}>
                   <span className="font-semibold">Guest</span>
                   <span className="text-xs text-muted-foreground">Sign in to keep your settings on every device</span>
                 </span>
@@ -78,12 +93,15 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
                         type="button"
                         aria-current={selected ? "page" : undefined}
                         onClick={() => open(id)}
-                        className="relative flex items-center gap-3 rounded-xl px-2 py-2 text-left focus-visible:outline-2 focus-visible:outline-ring"
+                        title={collapsed ? section.title : undefined}
+                        className={`relative flex items-center gap-3 rounded-xl py-2 text-left transition-[padding] duration-300 focus-visible:outline-2 focus-visible:outline-ring ${collapsed ? "px-2 md:px-2.5" : "px-2"}`}
                       >
                         {selected && <motion.span layoutId="split-active" transition={LAB_SPRING} className="absolute inset-0 hidden rounded-xl bg-accent md:block" />}
                         <IconTile section={section} />
-                        <span className="relative flex-1 text-sm">{section.title}</span>
-                        <motion.span key={summary[id]} initial={{ opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }} className="relative max-w-28 truncate text-xs text-muted-foreground">{summary[id]}</motion.span>
+                        <span className={`relative flex flex-1 items-center gap-3 whitespace-nowrap transition-opacity duration-200 ${fade}`}>
+                          <span className="flex-1 text-sm">{section.title}</span>
+                          <motion.span key={summary[id]} initial={{ opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }} className="max-w-28 truncate text-xs text-muted-foreground">{summary[id]}</motion.span>
+                        </span>
                         <CaretRightIcon className="relative size-3.5 text-muted-foreground md:hidden" aria-hidden="true" />
                       </button>
                     );
