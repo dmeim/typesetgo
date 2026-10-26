@@ -6,6 +6,14 @@ import { LiveStatsDemo } from "@/components/temp/LiveStatsDemo";
 import { SettingsPillDemo } from "@/components/temp/SettingsPillDemo";
 import { ResultsDemo } from "@/components/temp/ResultsDemo";
 
+const SETTINGS_MOCKUPS: [string, string][] = [
+  ["Split view", "iPad-style sections on the left, details on the right."],
+  ["Tile hub", "Summary tiles with quick switches that morph open."],
+  ["Studio", "A big live preview beside tabbed controls."],
+  ["Gallery", "One scrolling page that starts with the theme gallery."],
+  ["Spotlight", "Search first, with one-tap quick changes."],
+];
+
 export default function Temp() {
   return (
     <div className="min-h-[100dvh] bg-background px-4 py-12 font-mono text-foreground transition-colors duration-300">
@@ -36,6 +44,17 @@ export default function Temp() {
             </Stage>
           </Section>
           <ResultsSection />
+          <Section id="settings-page" title="Settings page" summary="Five full-page takes on one combined settings and themes page. Each opens on its own page with a switcher at the bottom.">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {SETTINGS_MOCKUPS.map(([name, summary], index) => (
+                <Link key={name} to={`/temp-settings${index + 1}`} className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-primary">
+                  <span className="text-xs text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="font-semibold">{name}</span>
+                  <span className="text-xs text-muted-foreground">{summary}</span>
+                </Link>
+              ))}
+            </div>
+          </Section>
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ bun install --frozen-lockfile
 bun run dev:fixture
 ```
 
-Open `http://127.0.0.1:4317`. This serves the real Home/practice UI with local data and mocked auth/Convex transport. It does not save to an account. Open `http://127.0.0.1:4317/?temp` for the `/temp` UI Lab mockups. Other fixture routes and suites are described in [browser acceptance](../tests/browser/README.md).
+Open `http://127.0.0.1:4317`. This serves the real Home/practice UI with local data and mocked auth/Convex transport. It does not save to an account. Open `http://127.0.0.1:4317/?temp` for the `/temp` UI Lab mockups. Open `http://127.0.0.1:4317/?temp-settings=1` (1–5) for the `/temp-settingsN` settings page mockups. Other fixture routes and suites are described in [browser acceptance](../tests/browser/README.md).
 
 ```sh
 VITE_CONVEX_URL=https://fixture.invalid VITE_CLERK_PUBLISHABLE_KEY= bun run build

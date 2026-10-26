@@ -8,6 +8,7 @@ import { AppAuthContext, unavailableAuth } from "@/components/layout/useAppAuth"
 import type { AppAuth, AppAuthUser } from "@/components/layout/useAppAuth";
 import Home from "@/pages/Home";
 import Temp from "@/pages/Temp";
+import TempSettings from "@/pages/TempSettings";
 import AreaFixture from "./AreaFixture";
 import { AccountProvider } from "@/components/layout/AccountProvider";
 import ToastFixture from "./ToastFixture";
@@ -36,7 +37,7 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <ThemeProvider>
           <IconProvider>
-            {query.has("toasts") ? <ToastFixture /> : query.has("area") ? <AreaFixture /> : query.has("temp") ? <Temp /> : <Home />}
+            {query.has("toasts") ? <ToastFixture /> : query.has("area") ? <AreaFixture /> : query.has("temp") ? <Temp /> : query.has("temp-settings") ? <TempSettings /> : <Home />}
             <Toaster />
           </IconProvider>
         </ThemeProvider>
