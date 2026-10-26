@@ -1,5 +1,10 @@
 import { withFixtureBrowser, artifactPath, routeFixtureRequests, fixtureOrigin } from "../runtime.mjs";
 import { expect } from "@playwright/test";
+// Home settings live behind the collapsed summary pill.
+async function openTestSettings(page) {
+  const trigger = page.getByRole("button", { name: /^Test settings/ });
+  if (await trigger.isVisible()) await trigger.click();
+}
 await withFixtureBrowser(async browser => {
   const page = await browser.newPage({
     viewport: {
@@ -58,6 +63,7 @@ await withFixtureBrowser(async browser => {
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   console.log("header tabs stay page-centered from 320 to 1920px without overlapping side controls PASS");
+  await openTestSettings(page);
   await page.getByRole("radio", {
     name: "words",
     exact: true
@@ -155,6 +161,7 @@ await withFixtureBrowser(async browser => {
     exact: true
   }).click();
   await expect(input).toBeEnabled();
+  await openTestSettings(page);
   await page.getByRole("radio", {
     name: "quote",
     exact: true

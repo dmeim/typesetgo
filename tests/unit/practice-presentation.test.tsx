@@ -120,6 +120,7 @@ describe("practice presentation command boundaries", () => {
     if (variant === "desktop") {
       render(<PracticeControls {...props} connectMode={false} isRunning={false} isFinished={false}
         isCompactMode={false} uiOpacity={1} setShowQuickSettings={vi.fn()} />);
+      fireEvent.click(screen.getByRole("button", { name: /^Test settings/ }));
     } else {
       render(<PracticeQuickSettingsDialog {...props} showQuickSettings setShowQuickSettings={vi.fn()}
         linePreview={3} setLinePreview={vi.fn()} maxWordsPerLine={7} setMaxWordsPerLine={vi.fn()} />);
@@ -144,6 +145,7 @@ describe("practice presentation command boundaries", () => {
           setShowQuickSettings={vi.fn()}
         />,
       );
+      fireEvent.click(screen.getByRole("button", { name: /^Test settings/ }));
     } else {
       render(
         <PracticeQuickSettingsDialog

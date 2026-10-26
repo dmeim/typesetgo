@@ -1,12 +1,11 @@
-import { AtIcon, HashIcon, InfinityIcon, PencilSimpleIcon, SlidersHorizontalIcon, TextAaIcon } from "@phosphor-icons/react";
-import { Toggle } from "@/components/ui/toggle";
+import { SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SettingsState } from "@/lib/typing-constants";
 import type { WordsManifest } from "@/lib/words";
 import type { QuotesManifest } from "@/lib/quotes";
 import { tv } from "@/lib/theme-vars";
-import { MODE_SELECTOR_OPTIONS, TIME_PRESETS, WORD_PRESETS, type ModeSelectorOption } from "./practice-config";
+import type { ModeSelectorOption } from "./practice-config";
+import { PracticeSettingsPill } from "./PracticeSettingsPill";
 
 export interface PracticeConfigurationProps {
   settings: SettingsState;
@@ -32,24 +31,15 @@ interface PracticeControlsProps extends PracticeConfigurationProps {
 }
 
 export default function PracticeControls({
-  settings,
-  updateSettings,
-  generateTest,
-  isKidMode,
-  handleModeSelect,
-  wordsManifest,
-  quotesManifest,
-  openCustomCountModal,
-  openPresetInput,
-  isCustomDurationSelected,
-  isCustomWordTargetSelected,
   connectMode,
   isRunning,
   isFinished,
   isCompactMode,
   uiOpacity,
   setShowQuickSettings,
+  ...configuration
 }: PracticeControlsProps) {
+  const { settings } = configuration;
   return (
     <>
       {/* Settings Controls */}
@@ -79,268 +69,7 @@ export default function PracticeControls({
             </Button>
           )}
 
-          {/* Row 1: Mode | Modifiers (hidden in compact mode) */}
-          {!isCompactMode && (
-            <div className="flex flex-wrap items-center justify-center gap-3 text-muted-foreground">
-              {/* Test Modes */}
-              <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
-                Mode
-              </span>
-              <ToggleGroup type="single" value={isKidMode ? "kid" : settings.mode} aria-label="Mode" spacing={1} className="flex flex-wrap justify-center rounded-lg p-1" style={{ backgroundColor: tv.ui.card }}>
-                {MODE_SELECTOR_OPTIONS.map((m) => {
-                  const isModeActive = m === "kid" ? isKidMode : !isKidMode && settings.mode === m;
-                  return (
-                    <ToggleGroupItem
-                      value={String(m)}
-                      key={m}
-                      type="button"
-                      onClick={() => handleModeSelect(m)}
-                      className={`px-3 py-1 rounded transition ${isModeActive ? "font-medium bg-accent" : "hover:text-foreground"}`}
-                      style={{
-                        color: isModeActive ? tv.ui.primary : undefined,
-                      }}
-                    >
-                      {m}
-                    </ToggleGroupItem>
-                  );
-                })}
-              </ToggleGroup>
-
-              {!isKidMode && (
-                <>
-                  <div className="w-px h-4 bg-muted"></div>
-
-                  {/* Modifiers: Caps, Punctuation & Numbers */}
-                  <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
-                    Modifiers
-                  </span>
-                  <div className="flex gap-4 rounded-lg px-3 py-1.5" style={{ backgroundColor: tv.ui.card }}>
-                    <Toggle
-                      type="button"
-                      pressed={settings.capitalization}
-                      onPressedChange={(pressed) => updateSettings({ capitalization: pressed })}
-                      className={`flex items-center gap-2 transition ${settings.capitalization ? "" : "hover:text-foreground"}`}
-                      style={{
-                        color: settings.capitalization ? tv.ui.primary : undefined,
-                      }}
-                      disabled={settings.mode === "quote" || settings.mode === "preset"}
-                      title={settings.mode === "quote" || settings.mode === "preset" ? "Not available for quotes or custom text" : "Toggle capitalization"}
-                    >
-                      <TextAaIcon className="size-4 shrink-0" aria-hidden="true" />
-                      <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>caps</span>
-                    </Toggle>
-                    <Toggle
-                      type="button"
-                      pressed={settings.punctuation}
-                      onPressedChange={(pressed) => updateSettings({ punctuation: pressed })}
-                      className={`flex items-center gap-2 transition ${settings.punctuation ? "" : "hover:text-foreground"}`}
-                      style={{
-                        color: settings.punctuation ? tv.ui.primary : undefined,
-                      }}
-                      disabled={settings.mode === "quote" || settings.mode === "preset"}
-                      title={settings.mode === "quote" || settings.mode === "preset" ? "Not available for quotes or custom text" : "Toggle punctuation"}
-                    >
-                      <AtIcon className="size-4 shrink-0" aria-hidden="true" />
-                      <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>punctuation</span>
-                    </Toggle>
-                    <Toggle
-                      type="button"
-                      pressed={settings.numbers}
-                      onPressedChange={(pressed) => updateSettings({ numbers: pressed })}
-                      className={`flex items-center gap-2 transition ${settings.numbers ? "" : "hover:text-foreground"}`}
-                      style={{
-                        color: settings.numbers ? tv.ui.primary : undefined,
-                      }}
-                      disabled={settings.mode === "quote" || settings.mode === "preset"}
-                      title={settings.mode === "quote" || settings.mode === "preset" ? "Not available for quotes or custom text" : "Toggle numbers"}
-                    >
-                      <HashIcon className="size-4 shrink-0" aria-hidden="true" />
-                      <span style={{ opacity: settings.mode === "quote" ? 0.5 : 1 }}>numbers</span>
-                    </Toggle>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Row 3: Time/Word Count/Quote Length + Difficulty with labels (hidden in compact mode or kid mode) */}
-          {!isCompactMode && !isKidMode && (
-            <div className="flex flex-wrap items-center justify-center gap-3 text-muted-foreground">
-              {/* Time Duration */}
-              {settings.mode === "time" && (
-                <>
-                  <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
-                    Duration
-                  </span>
-                  <ToggleGroup type="single" value={String(settings.duration)} aria-label="Duration" spacing={1}
-                    className="flex flex-wrap justify-center rounded-lg p-1"
-                    style={{ backgroundColor: tv.ui.card }}
-                  >
-                    {TIME_PRESETS.map((d) => (
-                      <ToggleGroupItem
-                        value={String(d)}
-                        key={d}
-                        type="button"
-                        onClick={() => {
-                          if (settings.duration === d) generateTest();
-                          else updateSettings({ duration: d });
-                        }}
-                        className={`px-3 py-1 rounded transition ${settings.duration === d ? "font-medium bg-accent" : "hover:text-foreground"}`}
-                        style={{
-                          color: settings.duration === d ? tv.ui.primary : undefined,
-                        }}
-                      >
-                        {d}s
-                      </ToggleGroupItem>
-                    ))}
-                    <Button
-                      variant="ghost"
-                      type="button"
-                      onClick={openCustomCountModal}
-                      className={`px-3 py-1 rounded transition ${isCustomDurationSelected ? "font-medium bg-accent" : "hover:text-foreground"}`}
-                      style={{
-                        color: isCustomDurationSelected ? tv.ui.primary : undefined,
-                      }}
-                    >
-                      <SlidersHorizontalIcon className="size-4 shrink-0" aria-hidden="true" />
-                      custom
-                    </Button>
-                  </ToggleGroup>
-                </>
-              )}
-
-              {/* Word Count */}
-              {settings.mode === "words" && (
-                <>
-                  <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
-                    Word Count
-                  </span>
-                  <ToggleGroup type="single" value={String(settings.wordTarget)} aria-label="Word Count" spacing={1}
-                    className="flex flex-wrap justify-center rounded-lg p-1"
-                    style={{ backgroundColor: tv.ui.card }}
-                  >
-                    {WORD_PRESETS.map((w) => (
-                      <ToggleGroupItem
-                        value={String(w)}
-                        key={w}
-                        type="button"
-                        onClick={() => {
-                          if (settings.wordTarget === w) generateTest();
-                          else updateSettings({ wordTarget: w });
-                        }}
-                        className={`px-3 py-1 rounded transition ${settings.wordTarget === w ? "font-medium bg-accent" : "hover:text-foreground"}`}
-                        style={{
-                          color: settings.wordTarget === w ? tv.ui.primary : undefined,
-                        }}
-                      >
-                        {w}
-                      </ToggleGroupItem>
-                    ))}
-                    <Button
-                      variant="ghost"
-                      type="button"
-                      onClick={openCustomCountModal}
-                      className={`px-3 py-1 rounded transition ${isCustomWordTargetSelected ? "font-medium bg-accent" : "hover:text-foreground"}`}
-                      style={{
-                        color: isCustomWordTargetSelected ? tv.ui.primary : undefined,
-                      }}
-                    >
-                      <SlidersHorizontalIcon className="size-4 shrink-0" aria-hidden="true" />
-                      custom
-                    </Button>
-                  </ToggleGroup>
-                </>
-              )}
-
-              {/* Quote Length */}
-              {settings.mode === "quote" && quotesManifest && (
-                <>
-                  <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
-                    Quote Length
-                  </span>
-                  <ToggleGroup type="single" value={settings.quoteLength} aria-label="Quote Length" spacing={1}
-                    className="flex flex-wrap justify-center rounded-lg p-1"
-                    style={{ backgroundColor: tv.ui.card }}
-                  >
-                    {["all", ...quotesManifest.lengths].map((l) => (
-                      <ToggleGroupItem
-                        value={String(l)}
-                        key={l}
-                        type="button"
-                        onClick={() => {
-                          if (settings.quoteLength === l) generateTest();
-                          else
-                            updateSettings({
-                              quoteLength: l as typeof settings.quoteLength,
-                            });
-                        }}
-                        className={`px-3 py-1 rounded transition ${settings.quoteLength === l ? "font-medium bg-accent" : "hover:text-foreground"}`}
-                        style={{
-                          color: settings.quoteLength === l ? tv.ui.primary : undefined,
-                        }}
-                      >
-                        {l}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                </>
-              )}
-
-              {settings.mode === "preset" && openPresetInput && (
-                <Button type="button" variant="ghost" onClick={openPresetInput}>
-                  <PencilSimpleIcon className="size-4 shrink-0" aria-hidden="true" />
-                  Edit custom text
-                </Button>
-              )}
-
-              {/* Zen mode - show infinity symbol */}
-              {settings.mode === "zen" && (
-                <>
-                  <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
-                    Duration
-                  </span>
-                  <div className="flex rounded-lg px-4 py-1.5" style={{ backgroundColor: tv.ui.card }}>
-                    <InfinityIcon className="size-5" style={{ color: tv.ui.primary }} aria-label="Unlimited" role="img" />
-                  </div>
-                </>
-              )}
-
-              {/* Difficulty (shown for time, words, zen modes) */}
-              {settings.mode !== "quote" && settings.mode !== "preset" && wordsManifest && (
-                <>
-                  <div className="w-px h-4 bg-muted"></div>
-                  <span className="text-sm font-medium" style={{ color: tv.ui.mutedForeground }}>
-                    Difficulty
-                  </span>
-                  <ToggleGroup type="single" value={settings.difficulty} aria-label="Difficulty" spacing={1}
-                    className="flex flex-wrap justify-center rounded-lg p-1"
-                    style={{ backgroundColor: tv.ui.card }}
-                  >
-                    {wordsManifest.difficulties.map((d) => (
-                      <ToggleGroupItem
-                        value={String(d)}
-                        key={d}
-                        type="button"
-                        onClick={() => {
-                          if (settings.difficulty === d) generateTest();
-                          else
-                            updateSettings({
-                              difficulty: d as typeof settings.difficulty,
-                            });
-                        }}
-                        className={`px-3 py-1 rounded transition ${settings.difficulty === d ? "font-medium bg-accent" : "hover:text-foreground"}`}
-                        style={{
-                          color: settings.difficulty === d ? tv.ui.primary : undefined,
-                        }}
-                      >
-                        {d}
-                      </ToggleGroupItem>
-                    ))}
-                  </ToggleGroup>
-                </>
-              )}
-            </div>
-          )}
+          {!isCompactMode && <PracticeSettingsPill {...configuration} />}
         </div>
       )}
     </>

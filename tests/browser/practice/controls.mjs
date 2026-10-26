@@ -35,6 +35,8 @@ await withFixtureBrowser(async (browser) => {
       await expect(opener).toBeFocused();
       if (width === 390) {
         await page.getByRole("button", { name: "Quick Settings", exact: true }).click();
+      } else {
+        await page.getByRole("button", { name: /^Test settings/ }).click();
       }
       const counts = page.getByRole("radiogroup", { name: "Word Count", exact: true });
       const wordCount = counts.getByRole("radio", { name: "25", exact: true });
