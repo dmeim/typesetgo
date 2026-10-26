@@ -1,0 +1,131 @@
+{
+  "category": "motorsport",
+  "defaultVariant": "2004-r5",
+  "variants": {
+    "2004-r5": {
+      "label": "2004 — R5 British Racing Green",
+      "dark": {
+        "bg": {
+          "base": "#03110c",
+          "surface": "#121f1b",
+          "elevated": "#212e29",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#ebeeed",
+          "secondary": "#a5aca9",
+          "muted": "rgba(165, 172, 169, 0.6)",
+          "inverse": "#ffffff"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#2fa36b",
+            "muted": "rgba(47, 163, 107, 0.3)",
+            "subtle": "rgba(47, 163, 107, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#d4a72c",
+            "muted": "rgba(212, 167, 44, 0.3)",
+            "subtle": "rgba(212, 167, 44, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#ffffff",
+            "muted": "rgba(255, 255, 255, 0.3)",
+            "subtle": "rgba(255, 255, 255, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#3ddc84",
+            "muted": "rgba(61, 220, 132, 0.3)",
+            "subtle": "rgba(61, 220, 132, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#ff6b5b",
+            "muted": "rgba(255, 107, 91, 0.3)",
+            "subtle": "rgba(255, 107, 91, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#f5b301",
+            "muted": "rgba(245, 179, 1, 0.3)",
+            "subtle": "rgba(245, 179, 1, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(165, 172, 169, 0.3)",
+          "subtle": "rgba(165, 172, 169, 0.15)",
+          "focus": "#2fa36b"
+        },
+        "typing": {
+          "cursor": "#2fa36b",
+          "cursorGhost": "#195a3c",
+          "correct": "#ebeeed",
+          "incorrect": "#ff6b5b",
+          "upcoming": "#838b88",
+          "default": "#838b88"
+        }
+      },
+      "light": {
+        "bg": {
+          "base": "#e6e9e8",
+          "surface": "#f5f6f6",
+          "elevated": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#010403",
+          "secondary": "#515453",
+          "muted": "rgba(81, 84, 83, 0.6)",
+          "inverse": "#000000"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#007145",
+            "muted": "rgba(0, 113, 69, 0.2)",
+            "subtle": "rgba(0, 113, 69, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#7c5e00",
+            "muted": "rgba(124, 94, 0, 0.2)",
+            "subtle": "rgba(124, 94, 0, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#626262",
+            "muted": "rgba(98, 98, 98, 0.2)",
+            "subtle": "rgba(98, 98, 98, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#1e7d46",
+            "muted": "rgba(30, 125, 70, 0.2)",
+            "subtle": "rgba(30, 125, 70, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#b3261e",
+            "muted": "rgba(179, 38, 30, 0.2)",
+            "subtle": "rgba(179, 38, 30, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#9a5b00",
+            "muted": "rgba(154, 91, 0, 0.2)",
+            "subtle": "rgba(154, 91, 0, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(81, 84, 83, 0.2)",
+          "subtle": "rgba(81, 84, 83, 0.1)",
+          "focus": "#007145"
+        },
+        "typing": {
+          "cursor": "#27895a",
+          "cursorGhost": "#87b9a1",
+          "correct": "#010403",
+          "incorrect": "#b3261e",
+          "upcoming": "#747776",
+          "default": "#747776"
+        }
+      }
+    }
+  }
+}

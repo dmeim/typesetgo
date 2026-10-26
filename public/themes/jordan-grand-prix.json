@@ -1,0 +1,131 @@
+{
+  "category": "motorsport",
+  "defaultVariant": "1991-jordan-191",
+  "variants": {
+    "1991-jordan-191": {
+      "label": "1991 — Jordan 191",
+      "dark": {
+        "bg": {
+          "base": "#051b10",
+          "surface": "#14291e",
+          "elevated": "#23362d",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#ebefed",
+          "secondary": "#a6afab",
+          "muted": "rgba(166, 175, 171, 0.6)",
+          "inverse": "#ffffff"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#2fa35f",
+            "muted": "rgba(47, 163, 95, 0.3)",
+            "subtle": "rgba(47, 163, 95, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#65a4f7",
+            "muted": "rgba(101, 164, 247, 0.3)",
+            "subtle": "rgba(101, 164, 247, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#f2f2e8",
+            "muted": "rgba(242, 242, 232, 0.3)",
+            "subtle": "rgba(242, 242, 232, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#3ddc84",
+            "muted": "rgba(61, 220, 132, 0.3)",
+            "subtle": "rgba(61, 220, 132, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#ff6b5b",
+            "muted": "rgba(255, 107, 91, 0.3)",
+            "subtle": "rgba(255, 107, 91, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#f5b301",
+            "muted": "rgba(245, 179, 1, 0.3)",
+            "subtle": "rgba(245, 179, 1, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(166, 175, 171, 0.3)",
+          "subtle": "rgba(166, 175, 171, 0.15)",
+          "focus": "#2fa35f"
+        },
+        "typing": {
+          "cursor": "#2fa35f",
+          "cursorGhost": "#1a5f38",
+          "correct": "#ebefed",
+          "incorrect": "#ff6b5b",
+          "upcoming": "#84908a",
+          "default": "#84908a"
+        }
+      },
+      "light": {
+        "bg": {
+          "base": "#e7ece9",
+          "surface": "#f5f7f6",
+          "elevated": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#010604",
+          "secondary": "#525754",
+          "muted": "rgba(82, 87, 84, 0.6)",
+          "inverse": "#000000"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#00733c",
+            "muted": "rgba(0, 115, 60, 0.2)",
+            "subtle": "rgba(0, 115, 60, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#1f5fb0",
+            "muted": "rgba(31, 95, 176, 0.2)",
+            "subtle": "rgba(31, 95, 176, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#64645f",
+            "muted": "rgba(100, 100, 95, 0.2)",
+            "subtle": "rgba(100, 100, 95, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#1e7d46",
+            "muted": "rgba(30, 125, 70, 0.2)",
+            "subtle": "rgba(30, 125, 70, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#b3261e",
+            "muted": "rgba(179, 38, 30, 0.2)",
+            "subtle": "rgba(179, 38, 30, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#9a5b00",
+            "muted": "rgba(154, 91, 0, 0.2)",
+            "subtle": "rgba(154, 91, 0, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(82, 87, 84, 0.2)",
+          "subtle": "rgba(82, 87, 84, 0.1)",
+          "focus": "#00733c"
+        },
+        "typing": {
+          "cursor": "#288c52",
+          "cursorGhost": "#88bc9e",
+          "correct": "#010604",
+          "incorrect": "#b3261e",
+          "upcoming": "#747977",
+          "default": "#747977"
+        }
+      }
+    }
+  }
+}

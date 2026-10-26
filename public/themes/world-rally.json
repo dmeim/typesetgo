@@ -1,0 +1,506 @@
+{
+  "category": "motorsport",
+  "defaultVariant": "1975-stratos-alitalia",
+  "variants": {
+    "1975-stratos-alitalia": {
+      "label": "1975 — Stratos Alitalia",
+      "dark": {
+        "bg": {
+          "base": "#050d1b",
+          "surface": "#141c29",
+          "elevated": "#232a36",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#ebedef",
+          "secondary": "#a6aaaf",
+          "muted": "rgba(166, 170, 175, 0.6)",
+          "inverse": "#ffffff"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#6598ff",
+            "muted": "rgba(101, 152, 255, 0.3)",
+            "subtle": "rgba(101, 152, 255, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#ffffff",
+            "muted": "rgba(255, 255, 255, 0.3)",
+            "subtle": "rgba(255, 255, 255, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#ff695c",
+            "muted": "rgba(255, 105, 92, 0.3)",
+            "subtle": "rgba(255, 105, 92, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#3ddc84",
+            "muted": "rgba(61, 220, 132, 0.3)",
+            "subtle": "rgba(61, 220, 132, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#ff6b5b",
+            "muted": "rgba(255, 107, 91, 0.3)",
+            "subtle": "rgba(255, 107, 91, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#f5b301",
+            "muted": "rgba(245, 179, 1, 0.3)",
+            "subtle": "rgba(245, 179, 1, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(166, 170, 175, 0.3)",
+          "subtle": "rgba(166, 170, 175, 0.15)",
+          "focus": "#6598ff"
+        },
+        "typing": {
+          "cursor": "#3766ca",
+          "cursorGhost": "#1e3a73",
+          "correct": "#ebedef",
+          "incorrect": "#ff6b5b",
+          "upcoming": "#848890",
+          "default": "#848890"
+        }
+      },
+      "light": {
+        "bg": {
+          "base": "#e7e8ec",
+          "surface": "#f5f6f7",
+          "elevated": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#010306",
+          "secondary": "#525357",
+          "muted": "rgba(82, 83, 87, 0.6)",
+          "inverse": "#000000"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#2a5cc7",
+            "muted": "rgba(42, 92, 199, 0.2)",
+            "subtle": "rgba(42, 92, 199, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#626262",
+            "muted": "rgba(98, 98, 98, 0.2)",
+            "subtle": "rgba(98, 98, 98, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#c8000d",
+            "muted": "rgba(200, 0, 13, 0.2)",
+            "subtle": "rgba(200, 0, 13, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#1e7d46",
+            "muted": "rgba(30, 125, 70, 0.2)",
+            "subtle": "rgba(30, 125, 70, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#b3261e",
+            "muted": "rgba(179, 38, 30, 0.2)",
+            "subtle": "rgba(179, 38, 30, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#9a5b00",
+            "muted": "rgba(154, 91, 0, 0.2)",
+            "subtle": "rgba(154, 91, 0, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(82, 83, 87, 0.2)",
+          "subtle": "rgba(82, 83, 87, 0.1)",
+          "focus": "#2a5cc7"
+        },
+        "typing": {
+          "cursor": "#2a5cc7",
+          "cursorGhost": "#89a2da",
+          "correct": "#010306",
+          "incorrect": "#b3261e",
+          "upcoming": "#747679",
+          "default": "#747679"
+        }
+      }
+    },
+    "1984-audi-sport-quattro": {
+      "label": "1984 — Audi Sport quattro",
+      "dark": {
+        "bg": {
+          "base": "#0d0606",
+          "surface": "#1c1515",
+          "elevated": "#2a2424",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#edecec",
+          "secondary": "#aaa7a7",
+          "muted": "rgba(170, 167, 167, 0.6)",
+          "inverse": "#ffffff"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#ff5d55",
+            "muted": "rgba(255, 93, 85, 0.3)",
+            "subtle": "rgba(255, 93, 85, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#ffffff",
+            "muted": "rgba(255, 255, 255, 0.3)",
+            "subtle": "rgba(255, 255, 255, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#9aa3ad",
+            "muted": "rgba(154, 163, 173, 0.3)",
+            "subtle": "rgba(154, 163, 173, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#3ddc84",
+            "muted": "rgba(61, 220, 132, 0.3)",
+            "subtle": "rgba(61, 220, 132, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#ff9182",
+            "muted": "rgba(255, 145, 130, 0.3)",
+            "subtle": "rgba(255, 145, 130, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#f5b301",
+            "muted": "rgba(245, 179, 1, 0.3)",
+            "subtle": "rgba(245, 179, 1, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(170, 167, 167, 0.3)",
+          "subtle": "rgba(170, 167, 167, 0.15)",
+          "focus": "#ff5d55"
+        },
+        "typing": {
+          "cursor": "#d0021b",
+          "cursorGhost": "#6f0411",
+          "correct": "#edecec",
+          "incorrect": "#ff9182",
+          "upcoming": "#888585",
+          "default": "#888585"
+        }
+      },
+      "light": {
+        "bg": {
+          "base": "#e9e7e7",
+          "surface": "#f6f5f5",
+          "elevated": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#030101",
+          "secondary": "#545252",
+          "muted": "rgba(84, 82, 82, 0.6)",
+          "inverse": "#000000"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#d0021b",
+            "muted": "rgba(208, 2, 27, 0.2)",
+            "subtle": "rgba(208, 2, 27, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#616161",
+            "muted": "rgba(97, 97, 97, 0.2)",
+            "subtle": "rgba(97, 97, 97, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#5c626a",
+            "muted": "rgba(92, 98, 106, 0.2)",
+            "subtle": "rgba(92, 98, 106, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#1e7d46",
+            "muted": "rgba(30, 125, 70, 0.2)",
+            "subtle": "rgba(30, 125, 70, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#980003",
+            "muted": "rgba(152, 0, 3, 0.2)",
+            "subtle": "rgba(152, 0, 3, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#9a5b00",
+            "muted": "rgba(154, 91, 0, 0.2)",
+            "subtle": "rgba(154, 91, 0, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(84, 82, 82, 0.2)",
+          "subtle": "rgba(84, 82, 82, 0.1)",
+          "focus": "#d0021b"
+        },
+        "typing": {
+          "cursor": "#d0021b",
+          "cursorGhost": "#dd7581",
+          "correct": "#030101",
+          "incorrect": "#980003",
+          "upcoming": "#767474",
+          "default": "#767474"
+        }
+      }
+    },
+    "2008-subaru-wrx-sti": {
+      "label": "2008 — Subaru WRX STI",
+      "dark": {
+        "bg": {
+          "base": "#050c17",
+          "surface": "#141b25",
+          "elevated": "#232933",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#ebedef",
+          "secondary": "#a6a9ae",
+          "muted": "rgba(166, 169, 174, 0.6)",
+          "inverse": "#ffffff"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#6b9ae3",
+            "muted": "rgba(107, 154, 227, 0.3)",
+            "subtle": "rgba(107, 154, 227, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#d4a017",
+            "muted": "rgba(212, 160, 23, 0.3)",
+            "subtle": "rgba(212, 160, 23, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#ffffff",
+            "muted": "rgba(255, 255, 255, 0.3)",
+            "subtle": "rgba(255, 255, 255, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#3ddc84",
+            "muted": "rgba(61, 220, 132, 0.3)",
+            "subtle": "rgba(61, 220, 132, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#ff6b5b",
+            "muted": "rgba(255, 107, 91, 0.3)",
+            "subtle": "rgba(255, 107, 91, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#f5b301",
+            "muted": "rgba(245, 179, 1, 0.3)",
+            "subtle": "rgba(245, 179, 1, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(166, 169, 174, 0.3)",
+          "subtle": "rgba(166, 169, 174, 0.15)",
+          "focus": "#6b9ae3"
+        },
+        "typing": {
+          "cursor": "#3c68ad",
+          "cursorGhost": "#213a62",
+          "correct": "#ebedef",
+          "incorrect": "#ff6b5b",
+          "upcoming": "#84888e",
+          "default": "#84888e"
+        }
+      },
+      "light": {
+        "bg": {
+          "base": "#e7e8eb",
+          "surface": "#f5f6f7",
+          "elevated": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#010305",
+          "secondary": "#525356",
+          "muted": "rgba(82, 83, 86, 0.6)",
+          "inverse": "#000000"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#1c4fa0",
+            "muted": "rgba(28, 79, 160, 0.2)",
+            "subtle": "rgba(28, 79, 160, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#7d5d00",
+            "muted": "rgba(125, 93, 0, 0.2)",
+            "subtle": "rgba(125, 93, 0, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#626262",
+            "muted": "rgba(98, 98, 98, 0.2)",
+            "subtle": "rgba(98, 98, 98, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#1e7d46",
+            "muted": "rgba(30, 125, 70, 0.2)",
+            "subtle": "rgba(30, 125, 70, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#b3261e",
+            "muted": "rgba(179, 38, 30, 0.2)",
+            "subtle": "rgba(179, 38, 30, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#9a5b00",
+            "muted": "rgba(154, 91, 0, 0.2)",
+            "subtle": "rgba(154, 91, 0, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(82, 83, 86, 0.2)",
+          "subtle": "rgba(82, 83, 86, 0.1)",
+          "focus": "#1c4fa0"
+        },
+        "typing": {
+          "cursor": "#1c4fa0",
+          "cursorGhost": "#829cc6",
+          "correct": "#010305",
+          "incorrect": "#b3261e",
+          "upcoming": "#747678",
+          "default": "#747678"
+        }
+      }
+    },
+    "2020-toyota-gr-yaris": {
+      "label": "2020 — Toyota GR Yaris Rally",
+      "dark": {
+        "bg": {
+          "base": "#070b0e",
+          "surface": "#161a1c",
+          "elevated": "#25282b",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#eceded",
+          "secondary": "#a7a9aa",
+          "muted": "rgba(167, 169, 170, 0.6)",
+          "inverse": "#ffffff"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#ff6459",
+            "muted": "rgba(255, 100, 89, 0.3)",
+            "subtle": "rgba(255, 100, 89, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#ffffff",
+            "muted": "rgba(255, 255, 255, 0.3)",
+            "subtle": "rgba(255, 255, 255, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#9aa3ad",
+            "muted": "rgba(154, 163, 173, 0.3)",
+            "subtle": "rgba(154, 163, 173, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#3ddc84",
+            "muted": "rgba(61, 220, 132, 0.3)",
+            "subtle": "rgba(61, 220, 132, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#ff9687",
+            "muted": "rgba(255, 150, 135, 0.3)",
+            "subtle": "rgba(255, 150, 135, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#f5b301",
+            "muted": "rgba(245, 179, 1, 0.3)",
+            "subtle": "rgba(245, 179, 1, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(167, 169, 170, 0.3)",
+          "subtle": "rgba(167, 169, 170, 0.15)",
+          "focus": "#ff6459"
+        },
+        "typing": {
+          "cursor": "#eb0a1e",
+          "cursorGhost": "#790b16",
+          "correct": "#eceded",
+          "incorrect": "#ff9687",
+          "upcoming": "#858789",
+          "default": "#858789"
+        }
+      },
+      "light": {
+        "bg": {
+          "base": "#e7e8e9",
+          "surface": "#f5f6f6",
+          "elevated": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#020203",
+          "secondary": "#525254",
+          "muted": "rgba(82, 82, 84, 0.6)",
+          "inverse": "#000000"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#c60015",
+            "muted": "rgba(198, 0, 21, 0.2)",
+            "subtle": "rgba(198, 0, 21, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#616161",
+            "muted": "rgba(97, 97, 97, 0.2)",
+            "subtle": "rgba(97, 97, 97, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#5b626a",
+            "muted": "rgba(91, 98, 106, 0.2)",
+            "subtle": "rgba(91, 98, 106, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#1e7d46",
+            "muted": "rgba(30, 125, 70, 0.2)",
+            "subtle": "rgba(30, 125, 70, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#980003",
+            "muted": "rgba(152, 0, 3, 0.2)",
+            "subtle": "rgba(152, 0, 3, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#9a5b00",
+            "muted": "rgba(154, 91, 0, 0.2)",
+            "subtle": "rgba(154, 91, 0, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(82, 82, 84, 0.2)",
+          "subtle": "rgba(82, 82, 84, 0.1)",
+          "focus": "#c60015"
+        },
+        "typing": {
+          "cursor": "#eb0a1e",
+          "cursorGhost": "#e97984",
+          "correct": "#020203",
+          "incorrect": "#980003",
+          "upcoming": "#757576",
+          "default": "#757576"
+        }
+      }
+    }
+  }
+}

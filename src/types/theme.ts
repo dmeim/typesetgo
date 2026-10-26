@@ -61,7 +61,25 @@ export type ThemeCategory =
   | "comics"
   | "historical-era"
   | "emotions"
-  | "textiles";
+  | "textiles"
+  | "keyboards"
+  | "transit"
+  | "school"
+  | "painters"
+  | "consoles"
+  | "ipod"
+  | "operating-systems"
+  | "pigments"
+  | "motorsport"
+  | "landmarks"
+  | "esports"
+  | "sports-teams-premier-league"
+  | "sports-teams-la-liga"
+  | "sports-teams-serie-a"
+  | "sports-teams-bundesliga"
+  | "sports-teams-wnba"
+  | "sports-teams-nwsl"
+  | "sports-teams-national-soccer";
 
 // Color scale with opacity variants (all manually specified in JSON)
 export type ColorScale = {

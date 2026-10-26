@@ -1,0 +1,131 @@
+{
+  "category": "motorsport",
+  "defaultVariant": "1992-lotus-107",
+  "variants": {
+    "1992-lotus-107": {
+      "label": "1992 — Lotus 107",
+      "dark": {
+        "bg": {
+          "base": "#05170f",
+          "surface": "#14251d",
+          "elevated": "#23332c",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#ecefed",
+          "secondary": "#a7aeaa",
+          "muted": "rgba(167, 174, 170, 0.6)",
+          "inverse": "#ffffff"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#f5d10a",
+            "muted": "rgba(245, 209, 10, 0.3)",
+            "subtle": "rgba(245, 209, 10, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#48b073",
+            "muted": "rgba(72, 176, 115, 0.3)",
+            "subtle": "rgba(72, 176, 115, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#ffe680",
+            "muted": "rgba(255, 230, 128, 0.3)",
+            "subtle": "rgba(255, 230, 128, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#3ddc84",
+            "muted": "rgba(61, 220, 132, 0.3)",
+            "subtle": "rgba(61, 220, 132, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#ff6b5b",
+            "muted": "rgba(255, 107, 91, 0.3)",
+            "subtle": "rgba(255, 107, 91, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#f5b301",
+            "muted": "rgba(245, 179, 1, 0.3)",
+            "subtle": "rgba(245, 179, 1, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(167, 174, 170, 0.3)",
+          "subtle": "rgba(167, 174, 170, 0.15)",
+          "focus": "#f5d10a"
+        },
+        "typing": {
+          "cursor": "#f5d10a",
+          "cursorGhost": "#7d740d",
+          "correct": "#ecefed",
+          "incorrect": "#ff6b5b",
+          "upcoming": "#848e89",
+          "default": "#848e89"
+        }
+      },
+      "light": {
+        "bg": {
+          "base": "#e7ebe9",
+          "surface": "#f5f7f6",
+          "elevated": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#010503",
+          "secondary": "#525654",
+          "muted": "rgba(82, 86, 84, 0.6)",
+          "inverse": "#000000"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#746200",
+            "muted": "rgba(116, 98, 0, 0.2)",
+            "subtle": "rgba(116, 98, 0, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#00723f",
+            "muted": "rgba(0, 114, 63, 0.2)",
+            "subtle": "rgba(0, 114, 63, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#716327",
+            "muted": "rgba(113, 99, 39, 0.2)",
+            "subtle": "rgba(113, 99, 39, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#1e7d46",
+            "muted": "rgba(30, 125, 70, 0.2)",
+            "subtle": "rgba(30, 125, 70, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#b3261e",
+            "muted": "rgba(179, 38, 30, 0.2)",
+            "subtle": "rgba(179, 38, 30, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#9a5b00",
+            "muted": "rgba(154, 91, 0, 0.2)",
+            "subtle": "rgba(154, 91, 0, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(82, 86, 84, 0.2)",
+          "subtle": "rgba(82, 86, 84, 0.1)",
+          "focus": "#746200"
+        },
+        "typing": {
+          "cursor": "#8e7906",
+          "cursorGhost": "#bbb278",
+          "correct": "#010503",
+          "incorrect": "#b3261e",
+          "upcoming": "#747876",
+          "default": "#747876"
+        }
+      }
+    }
+  }
+}

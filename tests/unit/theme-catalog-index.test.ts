@@ -17,8 +17,8 @@ describe("theme browsing index", () => {
     const directory = path.resolve("public/themes");
     const ids = readdirSync(directory).filter((name) => name.endsWith(".json") && !["manifest.json", "catalog.json"].includes(name));
     const entries = ids.map((file) => createThemeCatalogEntry(file.slice(0, -5), JSON.parse(readFileSync(path.join(directory, file), "utf8"))));
-    expect(entries.length).toBeGreaterThan(1500);
-    expect(entries.reduce((count, entry) => count + entry.variants.length, 0)).toBeGreaterThan(4900);
+    expect(entries.length).toBeGreaterThan(2200);
+    expect(entries.reduce((count, entry) => count + entry.variants.length, 0)).toBeGreaterThan(7800);
     expect(entries.find((entry) => entry.id === "github")?.name).toBe("GitHub");
     for (const entry of entries) {
       expect(entry.variants.some((variant) => variant.id === entry.defaultVariantId)).toBe(true);
@@ -28,10 +28,11 @@ describe("theme browsing index", () => {
         expect(typeof variant.light).toBe("boolean");
       }
     }
-    // Size guards detect accidentally reintroducing palette data, not network latency.
+    // Size guards detect accidentally reintroducing palette data (~4 KB per variant), not network latency.
+    // Metadata costs ~150 bytes per variant; raise these with the catalog, keeping them far below palette scale.
     const json = JSON.stringify({ version: 1, themes: entries });
-    expect(Buffer.byteLength(json)).toBeLessThan(1_000_000);
-    expect(gzipSync(json).length).toBeLessThan(200_000);
+    expect(Buffer.byteLength(json)).toBeLessThan(1_500_000);
+    expect(gzipSync(json).length).toBeLessThan(330_000);
     // Legacy catalogs include an empty variant ID (Mob Psycho 100's “???%”).
     // Metadata must preserve the same variant identifiers as the palette loader.
     vi.resetModules();

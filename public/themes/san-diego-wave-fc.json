@@ -1,0 +1,131 @@
+{
+  "category": "sports-teams-nwsl",
+  "defaultVariant": "2026-balboa-park-blue-pink",
+  "variants": {
+    "2026-balboa-park-blue-pink": {
+      "label": "2026 Balboa Park — Blue & Pink",
+      "dark": {
+        "bg": {
+          "base": "#091623",
+          "surface": "#182430",
+          "elevated": "#27323d",
+          "overlay": "rgba(0, 0, 0, 0.5)"
+        },
+        "text": {
+          "primary": "#f0f5f9",
+          "secondary": "#aec7e1",
+          "muted": "rgba(174, 199, 225, 0.6)",
+          "inverse": "#ffffff"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#679dcc",
+            "muted": "rgba(103, 157, 204, 0.3)",
+            "subtle": "rgba(103, 157, 204, 0.1)"
+          },
+          "secondary": {
+            "DEFAULT": "#e674a0",
+            "muted": "rgba(230, 116, 160, 0.3)",
+            "subtle": "rgba(230, 116, 160, 0.1)"
+          },
+          "accent": {
+            "DEFAULT": "#f28c28",
+            "muted": "rgba(242, 140, 40, 0.3)",
+            "subtle": "rgba(242, 140, 40, 0.1)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#4ade80",
+            "muted": "rgba(74, 222, 128, 0.3)",
+            "subtle": "rgba(74, 222, 128, 0.1)"
+          },
+          "error": {
+            "DEFAULT": "#e879f9",
+            "muted": "rgba(232, 121, 249, 0.3)",
+            "subtle": "rgba(232, 121, 249, 0.1)"
+          },
+          "warning": {
+            "DEFAULT": "#fbbf24",
+            "muted": "rgba(251, 191, 36, 0.3)",
+            "subtle": "rgba(251, 191, 36, 0.1)"
+          }
+        },
+        "border": {
+          "default": "rgba(174, 199, 225, 0.3)",
+          "subtle": "rgba(174, 199, 225, 0.15)",
+          "focus": "#679dcc"
+        },
+        "typing": {
+          "cursor": "#679dcc",
+          "cursorGhost": "#385a78",
+          "correct": "#f0f5f9",
+          "incorrect": "#e879f9",
+          "upcoming": "#889199",
+          "default": "#889199"
+        }
+      },
+      "light": {
+        "bg": {
+          "base": "#eaf0f7",
+          "surface": "#f5f8fb",
+          "elevated": "#ffffff",
+          "overlay": "rgba(0, 0, 0, 0.3)"
+        },
+        "text": {
+          "primary": "#06101a",
+          "secondary": "#183b61",
+          "muted": "rgba(24, 59, 97, 0.6)",
+          "inverse": "#000000"
+        },
+        "interactive": {
+          "primary": {
+            "DEFAULT": "#1f6fb4",
+            "muted": "rgba(31, 111, 180, 0.2)",
+            "subtle": "rgba(31, 111, 180, 0.08)"
+          },
+          "secondary": {
+            "DEFAULT": "#b3446f",
+            "muted": "rgba(179, 68, 111, 0.2)",
+            "subtle": "rgba(179, 68, 111, 0.08)"
+          },
+          "accent": {
+            "DEFAULT": "#a05c1a",
+            "muted": "rgba(160, 92, 26, 0.2)",
+            "subtle": "rgba(160, 92, 26, 0.08)"
+          }
+        },
+        "status": {
+          "success": {
+            "DEFAULT": "#15803d",
+            "muted": "rgba(21, 128, 61, 0.2)",
+            "subtle": "rgba(21, 128, 61, 0.08)"
+          },
+          "error": {
+            "DEFAULT": "#a21caf",
+            "muted": "rgba(162, 28, 175, 0.2)",
+            "subtle": "rgba(162, 28, 175, 0.08)"
+          },
+          "warning": {
+            "DEFAULT": "#b45309",
+            "muted": "rgba(180, 83, 9, 0.2)",
+            "subtle": "rgba(180, 83, 9, 0.08)"
+          }
+        },
+        "border": {
+          "default": "rgba(24, 59, 97, 0.2)",
+          "subtle": "rgba(24, 59, 97, 0.1)",
+          "focus": "#1f6fb4"
+        },
+        "typing": {
+          "cursor": "#1f6fb4",
+          "cursorGhost": "#85b0d6",
+          "correct": "#06101a",
+          "incorrect": "#a21caf",
+          "upcoming": "#788089",
+          "default": "#788089"
+        }
+      }
+    }
+  }
+}
