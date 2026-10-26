@@ -2,58 +2,57 @@ import { useState, type ComponentType, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LayoutGroup } from "framer-motion";
 import { ArrowClockwiseIcon, ArrowLeftIcon, FlaskIcon } from "@phosphor-icons/react";
+import { LiveStatsDemo } from "@/components/temp/LiveStatsDemo";
 import { SettingsPillDemo } from "@/components/temp/SettingsPillDemo";
-import { FillCapsuleMockup } from "@/components/temp/stats/FillCapsuleMockup";
-import { InlineTickerMockup } from "@/components/temp/stats/InlineTickerMockup";
-import { MorphingStatsMockup } from "@/components/temp/stats/MorphingStatsMockup";
-import { RaceTrackMockup } from "@/components/temp/stats/RaceTrackMockup";
-import { RingTimerMockup } from "@/components/temp/stats/RingTimerMockup";
-import { MockPrompt } from "@/components/temp/stats/StatsPrimitives";
-import { useSimulatedRun, type SimulatedMode, type SimulatedRun } from "@/components/temp/stats/useSimulatedRun";
+import { BentoResults } from "@/components/temp/results/BentoResults";
+import { MorphingHeroResults } from "@/components/temp/results/MorphingHeroResults";
+import { ReportCardResults } from "@/components/temp/results/ReportCardResults";
+import { SpeedGraphResults } from "@/components/temp/results/SpeedGraphResults";
+import { TranscriptResults } from "@/components/temp/results/TranscriptResults";
 
-interface StatsMockup {
+interface ResultsMockup {
   id: string;
   title: string;
   summary: string;
   notes: string[];
-  Component: ComponentType<{ run: SimulatedRun }>;
+  Component: ComponentType;
 }
 
-const STATS_MOCKUPS: StatsMockup[] = [
+const RESULTS_MOCKUPS: ResultsMockup[] = [
   {
-    id: "morphing-stats",
-    title: "Morphing stats pill",
-    summary: "Speed and time in one small pill with a hairline of progress. Hover or click and it morphs into a full card with accuracy and a speed graph. In the last ten seconds it grows the countdown on its own.",
-    notes: ["Same morph language as the settings pill", "Smallest footprint while typing", "Detail on demand"],
-    Component: MorphingStatsMockup,
+    id: "morphing-hero",
+    title: "Morphing hero",
+    summary: "Speed and accuracy count up in a calm hero. Correct, mistakes, characters and test details sit in small chips that morph into a detail panel when tapped, then shrink back.",
+    notes: ["Same morph language as the settings pill", "Very little on screen until asked", "Uses only data we already have"],
+    Component: MorphingHeroResults,
   },
   {
-    id: "inline-ticker",
-    title: "Inline ticker",
-    summary: "No pills or cards. Numbers roll like an odometer on a single quiet line, with a one-pixel progress line the width of the prompt.",
-    notes: ["Least visual weight", "Progress lines up with the text", "Numbers may be harder for young kids to spot"],
-    Component: InlineTickerMockup,
+    id: "transcript",
+    title: "Transcript",
+    summary: "The passage you typed becomes the result. Mistakes are highlighted in place; hover or focus one to see what you typed. Filter to mistakes only, or replay the reveal.",
+    notes: ["Mistakes shown in context", "Stats line matches the in-test ticker", "Long tests need a scroll or a mistakes-first view"],
+    Component: TranscriptResults,
   },
   {
-    id: "ring-timer",
-    title: "Ring timer",
-    summary: "Progress wraps around the countdown as a ring. Speed sits on the left, accuracy on the right, and the countdown pops each second near the end.",
-    notes: ["Instantly readable time left", "One focal point", "Taller than a single line"],
-    Component: RingTimerMockup,
+    id: "speed-graph",
+    title: "Speed graph",
+    summary: "Stat tiles over a speed-over-time chart that draws itself in. Red markers show where mistakes happened; drag across the chart to read any second.",
+    notes: ["Shows how the test went, not just the end", "Familiar to experienced typists", "Needs new per-second speed and error tracking"],
+    Component: SpeedGraphResults,
   },
   {
-    id: "fill-capsule",
-    title: "Filling capsule",
-    summary: "The three pills and the progress bar merge into one capsule. The capsule itself fills from left to right as the test goes on.",
-    notes: ["Four elements become one", "Familiar layout, less clutter", "Fill is subtle on low-contrast themes"],
-    Component: FillCapsuleMockup,
+    id: "report-card",
+    title: "Report card",
+    summary: "Stars pop in with a friendly message, bars compare today with your average and best, and tricky words are flip cards: tap to see what you typed.",
+    notes: ["Built for younger students", "Encouraging, practice-focused", "Average and best need account history"],
+    Component: ReportCardResults,
   },
   {
-    id: "race-track",
-    title: "Race track",
-    summary: "A small track where your speed rides along in a bubble toward the finish flag. Time or words left and accuracy wait at the flag.",
-    notes: ["Playful and clear for kids", "Progress you can feel", "Wider than the other options"],
-    Component: RaceTrackMockup,
+    id: "bento",
+    title: "Bento grid",
+    summary: "Tiles slide in one after another: a big speed tile, an accuracy ring, a characters bar you can hover to isolate, and a words tile with sliding tabs.",
+    notes: ["Everything visible at once, still organized", "Each tile has its own small interaction", "Densest of the five"],
+    Component: BentoResults,
   },
 ];
 
@@ -71,27 +70,57 @@ export default function Temp() {
             UI Lab
           </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Interactive mockups for the UI overhaul. Everything here uses local state and does not change your saved preferences.
+            Interactive mockups for the UI overhaul. Everything here uses local or fake data and does not change your saved preferences.
           </p>
         </header>
 
-        <Section id="settings-pill" title="Test settings pill" badge="on Home" summary="The shipping settings pill: difficulty and extras share the top row, then mode, then length.">
-          <div className="flex min-h-[19rem] items-start justify-center rounded-xl bg-background px-4 py-10 ring-1 ring-border/60">
-            <SettingsPillDemo />
-          </div>
-        </Section>
+        <div className="flex flex-col gap-8">
+          <Section id="settings-pill" title="Test settings pill" badge="on Home" summary="Difficulty and extras share the top row, then mode, then length.">
+            <Stage className="min-h-[19rem] items-start">
+              <SettingsPillDemo />
+            </Stage>
+          </Section>
+          <Section id="live-stats" title="In-test stats ticker" badge="on Home" summary="Accuracy, speed, then time or words, over a 3px progress line. Driven by a simulated test.">
+            <Stage>
+              <LiveStatsDemo />
+            </Stage>
+          </Section>
+        </div>
 
-        <h2 className="mb-1 mt-12 text-xl font-semibold">In-test stats</h2>
+        <h2 className="mb-1 mt-12 text-xl font-semibold">Results page</h2>
         <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
-          Five takes on the live WPM, accuracy, time or word count, and progress shown above the prompt. Each runs a simulated test that loops.
+          Five takes on the screen after a test, using the same fake 30-second attempt with four mistakes.
         </p>
         <div className="flex flex-col gap-8">
-          {STATS_MOCKUPS.map((mockup, index) => (
-            <StatsSection key={mockup.id} entry={mockup} number={index + 1} />
+          {RESULTS_MOCKUPS.map((mockup, index) => (
+            <ResultsSection key={mockup.id} entry={mockup} number={index + 1} />
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+function ResultsSection({ entry, number }: { entry: ResultsMockup; number: number }) {
+  const [run, setRun] = useState(0);
+  const { Component } = entry;
+  const replay = (
+    <button type="button" onClick={() => setRun((value) => value + 1)} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground">
+      <ArrowClockwiseIcon className="size-3.5 shrink-0" aria-hidden="true" />
+      Replay
+    </button>
+  );
+  return (
+    <Section id={entry.id} title={`${String(number).padStart(2, "0")} ${entry.title}`} summary={entry.summary} actions={replay}>
+      <Stage>
+        <LayoutGroup id={entry.id} key={run}>
+          <Component />
+        </LayoutGroup>
+      </Stage>
+      <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        {entry.notes.map((note) => <li key={note}>· {note}</li>)}
+      </ul>
+    </Section>
   );
 }
 
@@ -113,44 +142,6 @@ function Section({ id, title, badge, summary, actions, children }: { id: string;
   );
 }
 
-const SIM_MODES: SimulatedMode[] = ["time", "words", "zen"];
-
-function StatsSection({ entry, number }: { entry: StatsMockup; number: number }) {
-  const [mode, setMode] = useState<SimulatedMode>("time");
-  const [seed, setSeed] = useState(number);
-  const run = useSimulatedRun(mode, seed);
-  const { Component } = entry;
-  const actions = (
-    <div className="flex items-center gap-1 text-xs">
-      {SIM_MODES.map((option) => (
-        <button
-          key={option}
-          type="button"
-          aria-pressed={mode === option}
-          onClick={() => setMode(option)}
-          className={`rounded-md px-2 py-1 transition ${mode === option ? "bg-accent text-primary" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          {option}
-        </button>
-      ))}
-      <button type="button" onClick={() => setSeed((value) => value + 1)} className="ml-1 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground transition hover:bg-accent hover:text-foreground">
-        <ArrowClockwiseIcon className="size-3.5 shrink-0" aria-hidden="true" />
-        Restart
-      </button>
-    </div>
-  );
-
-  return (
-    <Section id={entry.id} title={`${String(number).padStart(2, "0")} ${entry.title}`} summary={entry.summary} actions={actions}>
-      <div className="flex min-h-64 flex-col items-center justify-center gap-8 overflow-hidden rounded-xl bg-background px-4 py-10 ring-1 ring-border/60">
-        <LayoutGroup id={entry.id}>
-          <Component run={run} />
-        </LayoutGroup>
-        <MockPrompt run={run} />
-      </div>
-      <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {entry.notes.map((note) => <li key={note}>· {note}</li>)}
-      </ul>
-    </Section>
-  );
+function Stage({ className = "items-center", children }: { className?: string; children: ReactNode }) {
+  return <div className={`flex justify-center rounded-xl bg-background px-4 py-10 ring-1 ring-border/60 ${className}`}>{children}</div>;
 }
