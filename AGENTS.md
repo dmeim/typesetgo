@@ -91,6 +91,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/lessons` | Lessons mode |
 | `/about`, `/privacy`, `/tos` | Info/legal pages |
 | `/admin` | Review route; requires Clerk sign-in and the server-side admin password |
+| `/temp` | UI Lab: interactive mockups for upcoming UI changes (`src/components/temp/`); local state only |
 | Other paths | Themed not-found recovery |
 
 ## Provider Stack (`src/main.tsx`)

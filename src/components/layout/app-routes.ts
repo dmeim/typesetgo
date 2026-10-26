@@ -23,6 +23,7 @@ export const appRoutes: RouteObject[] = [{
     { path: "/privacy", lazy: async () => ({ Component: (await import("@/pages/Privacy")).default }) },
     { path: "/tos", lazy: async () => ({ Component: (await import("@/pages/TermsOfService")).default }) },
     { path: "/admin", lazy: async () => ({ Component: (await import("@/pages/Admin")).default }) },
+    { path: "/temp", lazy: async () => ({ Component: (await import("@/pages/Temp")).default }) },
     { path: "*", Component: NotFound },
   ],
 }];

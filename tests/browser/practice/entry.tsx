@@ -7,6 +7,7 @@ import { NotificationProvider } from "@/lib/notification-store";
 import { AppAuthContext, unavailableAuth } from "@/components/layout/useAppAuth";
 import type { AppAuth, AppAuthUser } from "@/components/layout/useAppAuth";
 import Home from "@/pages/Home";
+import Temp from "@/pages/Temp";
 import AreaFixture from "./AreaFixture";
 import { AccountProvider } from "@/components/layout/AccountProvider";
 import ToastFixture from "./ToastFixture";
@@ -35,7 +36,7 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <ThemeProvider>
           <IconProvider>
-            {query.has("toasts") ? <ToastFixture /> : query.has("area") ? <AreaFixture /> : <Home />}
+            {query.has("toasts") ? <ToastFixture /> : query.has("area") ? <AreaFixture /> : query.has("temp") ? <Temp /> : <Home />}
             <Toaster />
           </IconProvider>
         </ThemeProvider>

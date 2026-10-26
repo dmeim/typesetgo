@@ -174,7 +174,7 @@ Important behavior:
 - `tests/unit/foundations-toasts.test.tsx` covers delivery/history behavior; the practice browser suite includes `tests/browser/practice/toasts.mjs` for themes, keyboard focus, modal feedback, scrolling, and timer behavior.
 
 ### Routes (`src/components/layout/app-routes.ts`)
-Lazy route modules cover Home, leaderboard/profile, Connect landing/host/room/board, race lobby/active/results, lessons, admin, and legal/info pages. `RouteRecovery.tsx` supplies loading, route error, and not-found recovery. Race/Lessons navigation remains disabled; route existence does not mean an unfinished feature is enabled.
+Lazy route modules cover Home, leaderboard/profile, Connect landing/host/room/board, race lobby/active/results, lessons, admin, the `/temp` UI Lab mockups, and legal/info pages. `RouteRecovery.tsx` supplies loading, route error, and not-found recovery. Race/Lessons navigation remains disabled; route existence does not mean an unfinished feature is enabled.
 
 Use React Router links and hooks. Avoid alternate navigation systems. Header now participates in normal page flow; do not reintroduce fixed-header clearance spacers.
 
