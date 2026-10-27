@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MagnifyingGlassIcon, MedalIcon, ShieldCheckIcon, TrophyIcon } from "@phosphor-icons/react";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
-import { PeriodTabs, PlayerAvatar, RankChange, YouTag } from "./LeaderboardParts";
+import { PeriodTabs, PlayerAvatar, ProfileLink, RankChange, YouTag } from "./LeaderboardParts";
 import { BOARDS, entryLabel, METALS, PERIODS, RULES, YOU, when, yourStanding, type PeriodId } from "./mock-leaderboard";
 
 function YourStanding({ period, onSelect }: { period: PeriodId; onSelect: (period: PeriodId) => void }) {
@@ -45,7 +45,7 @@ function MedalRow({ period }: { period: PeriodId }) {
             {place === 0 ? <TrophyIcon weight="fill" className="size-5" aria-hidden="true" /> : <MedalIcon weight="fill" className="size-5" aria-hidden="true" />}{place + 1}{["st", "nd", "rd"][place]}
           </span>
           <PlayerAvatar username={entry.username} size={place === 0 ? "lg" : "md"} />
-          <span className="max-w-full truncate text-sm font-semibold">{entry.username}</span>
+          <span className="max-w-full truncate text-sm font-semibold"><ProfileLink username={entry.username} /></span>
           <span className={`${place === 0 ? "text-3xl" : "text-2xl"} font-bold tabular-nums`}>{entry.wpm}</span>
         </motion.li>
       ))}
@@ -98,7 +98,7 @@ export function StandingsLeaderboard() {
                       className={`border-b border-border last:border-0 ${entry.isYou ? "bg-primary/10" : entry.rank <= 3 ? "bg-muted/30" : ""}`}>
                       <td className="px-4 py-2.5 text-right font-bold tabular-nums" style={entry.rank <= 3 ? { color: METALS[entry.rank - 1] } : undefined}>{entry.rank}</td>
                       <td className="py-2.5"><RankChange change={entry.change} /></td>
-                      <th scope="row" className="px-3 py-2.5 text-left font-medium"><span className="flex items-center gap-2"><PlayerAvatar username={entry.username} size="sm" />{entry.username}{entry.isYou && <YouTag />}</span></th>
+                      <th scope="row" className="px-3 py-2.5 text-left font-medium"><span className="flex items-center gap-2"><PlayerAvatar username={entry.username} size="sm" /><ProfileLink username={entry.username} />{entry.isYou && <YouTag />}</span></th>
                       <td className="px-3 py-2.5 text-right text-base font-bold tabular-nums">{entry.wpm}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{entry.accuracy.toFixed(1)}%</td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground">{entry.test}</td>

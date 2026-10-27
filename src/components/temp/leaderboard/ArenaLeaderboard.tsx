@@ -3,7 +3,7 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { CrownSimpleIcon, TrophyIcon } from "@phosphor-icons/react";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
-import { PeriodTabs, PlayerAvatar, RankChange, RulesNote, YouTag } from "./LeaderboardParts";
+import { PeriodTabs, PlayerAvatar, ProfileLink, RankChange, RulesNote, YouTag } from "./LeaderboardParts";
 import { BOARDS, entryLabel, METALS, PERIODS, YOU, yourStanding, type BoardEntry, type PeriodId } from "./mock-leaderboard";
 
 const STEP_HEIGHTS = ["h-44", "h-32", "h-24"];
@@ -25,7 +25,7 @@ function PodiumSpot({ entry, place }: { entry: BoardEntry; place: 0 | 1 | 2 }) {
           <PlayerAvatar username={entry.username} size={place === 0 ? "xl" : "lg"} layoutId={`arena-${entry.username}`} />
         </span>
         <motion.span key={entry.username} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="max-w-full truncate px-1 text-sm font-semibold">
-          {entry.username}{entry.isYou && <> <YouTag /></>}
+          <ProfileLink username={entry.username} />{entry.isYou && <> <YouTag /></>}
         </motion.span>
         <span className="flex items-baseline gap-1"><span className={`${place === 0 ? "text-4xl" : "text-3xl"} font-bold tabular-nums`}>{wpm}</span><span className="text-xs text-muted-foreground">wpm</span></span>
       </div>
@@ -86,7 +86,7 @@ export function ArenaLeaderboard() {
                 <RankChange change={entry.change} />
                 <PlayerAvatar username={entry.username} size="sm" layoutId={`arena-${entry.username}`} />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="flex items-center gap-2 truncate font-semibold">{entry.username}{entry.isYou && <YouTag />}</span>
+                  <span className="flex items-center gap-2 truncate font-semibold"><ProfileLink username={entry.username} />{entry.isYou && <YouTag />}</span>
                   <span className="text-xs text-muted-foreground">{entry.test} · {entry.accuracy.toFixed(1)}% accuracy</span>
                 </span>
                 <span className="text-xl font-bold tabular-nums">{entry.wpm}<span className="ml-1 text-xs font-normal text-muted-foreground">wpm</span></span>

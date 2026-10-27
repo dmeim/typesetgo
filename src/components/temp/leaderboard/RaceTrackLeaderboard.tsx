@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FlagCheckeredIcon } from "@phosphor-icons/react";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
-import { PeriodTabs, PlayerAvatar, RulesNote, YouTag } from "./LeaderboardParts";
+import { PeriodTabs, PlayerAvatar, ProfileLink, RulesNote, YouTag } from "./LeaderboardParts";
 import { BOARDS, entryLabel, METALS, PERIODS, YOU, yourStanding, type BoardEntry, type PeriodId } from "./mock-leaderboard";
 
 const BLOCK_HEIGHTS = [176, 128, 96];
@@ -15,7 +15,7 @@ function Blocks({ board }: { board: BoardEntry[] }) {
         <li key={entry.username} aria-label={entryLabel(entry)} className={`flex flex-col items-center ${place === 0 ? "order-2" : place === 1 ? "order-1" : "order-3"}`}>
           <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ ...LAB_SPRING, delay: 0.35 + (2 - place) * 0.12 }} className="flex flex-col items-center gap-1 pb-3">
             <PlayerAvatar username={entry.username} size={place === 0 ? "xl" : "lg"} />
-            <span className="max-w-full truncate px-1 text-sm font-semibold">{entry.username}</span>
+            <span className="max-w-full truncate px-1 text-sm font-semibold"><ProfileLink username={entry.username} /></span>
             <span className="text-2xl font-bold tabular-nums">{entry.wpm}<span className="ml-1 text-xs font-normal text-muted-foreground">wpm</span></span>
           </motion.div>
           <motion.div aria-hidden="true" initial={{ height: 0 }} animate={{ height: BLOCK_HEIGHTS[place] }} transition={{ type: "spring", stiffness: 140, damping: 18, delay: (2 - place) * 0.12 }}
@@ -35,7 +35,7 @@ function Lane({ entry, start, finish, index }: { entry: BoardEntry; start: numbe
   return (
     <motion.li layout transition={LAB_SPRING} aria-label={entryLabel(entry)} className="grid grid-cols-[2.5rem_minmax(0,9rem)_minmax(0,1fr)_3.5rem] items-center gap-3">
       <span className="text-right text-lg font-bold tabular-nums text-muted-foreground">{entry.rank}</span>
-      <span className="flex min-w-0 items-center gap-2 truncate text-sm font-semibold">{entry.username}{entry.isYou && <YouTag />}</span>
+      <span className="flex min-w-0 items-center gap-2 truncate text-sm font-semibold"><ProfileLink username={entry.username} />{entry.isYou && <YouTag />}</span>
       <span className={`relative h-12 overflow-hidden rounded-xl border ${entry.isYou ? "border-primary/60 bg-primary/10" : "border-border bg-card"}`}>
         <span aria-hidden="true" className="absolute inset-x-3 top-1/2 border-t-2 border-dashed border-border" />
         <span aria-hidden="true" className="absolute inset-y-0 right-0 w-3 opacity-30" style={{ background: CHECKER }} />

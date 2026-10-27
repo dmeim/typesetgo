@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { CaretLeftIcon, CaretRightIcon, MagnifyingGlassIcon, SidebarSimpleIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CaretLeftIcon, CaretRightIcon, EyeIcon, MagnifyingGlassIcon, SidebarSimpleIcon, UserCircleDashedIcon, XIcon } from "@phosphor-icons/react";
 import ThemeSitePreview from "@/components/typing/ThemeSitePreview";
 import { getTypingFontOption } from "@/lib/typing-fonts";
-import { AccountCard, SignInButton, StatsPanel } from "./AccountPanels";
+import { AccountCard, SignInButton, SignInPrompt, StatsPanel } from "./AccountPanels";
 import { AchievementsPanel } from "./AchievementsPanel";
 import { FontGallery } from "./FontGallery";
 import { HistoryPanel } from "./HistoryPanel";
@@ -11,7 +12,9 @@ import { KeyboardPanel, LabSwitch, SoundPanel, TypingPanel } from "./LabControls
 import { RealTextPreview } from "./RealTextPreview";
 import { ThemeGallery } from "./ThemeGallery";
 import { ACCOUNT_SECTIONS, LAB_SPRING, SECTIONS, SETTING_INDEX, type PaneId, type SectionId, type SectionMeta } from "./lab-settings";
+import { MY_PROFILE, findPlayer, type PublicProfile } from "./mock-players";
 import { MOCK_ACHIEVEMENT_TOTALS, MOCK_STATS } from "./mock-profile";
+import { parseProfilePath, profilePath, type ProfileRoute } from "./profile-routes";
 import { useThemeCatalog, useThemeColors, type LabState } from "./useLabSettings";
 
 const SETTING_GROUPS: SectionId[][] = [["theme"], ["text", "typing"], ["sound", "keyboard"]];
@@ -19,10 +22,27 @@ const ACCOUNT_GROUP: PaneId[] = ACCOUNT_SECTIONS.map((section) => section.id);
 const sectionById = (id: PaneId) => [...SECTIONS, ...ACCOUNT_SECTIONS].find((section) => section.id === id) as SectionMeta;
 const isSettingsPane = (id: PaneId): id is SectionId => SECTIONS.some((section) => section.id === id);
 
-/** Mockup 1: iPadOS-style split view. Your account pages and every setting on the left, the chosen one on the right. */
-export function SplitViewSettings({ lab }: { lab: LabState }) {
-  const [active, setActive] = useState<PaneId>("theme");
-  const [mobileDetail, setMobileDetail] = useState(false);
+/** Whose stats the Stats pane shows: yours, another player's public profile, or nobody matching the link. */
+type Viewing = { kind: "you" } | { kind: "player"; profile: PublicProfile } | { kind: "missing" };
+
+function resolve(route: ProfileRoute | null, signedIn: boolean): Viewing {
+  if (route?.kind !== "player") return { kind: "you" };
+  if (signedIn && route.userId === MY_PROFILE.id) return { kind: "you" };
+  const profile = findPlayer(route.userId);
+  return profile ? { kind: "player", profile } : { kind: "missing" };
+}
+
+/**
+ * Mockup 1: iPadOS-style split view. Your account pages and every setting on the left, the chosen one on the right.
+ * With `basePath` the open tab comes from the URL (see profile-routes.ts); without it, tabs are local state.
+ */
+export function SplitViewSettings({ lab, basePath }: { lab: LabState; basePath?: string }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const route = basePath ? parseProfilePath(location.pathname, basePath) : null;
+  const [localActive, setLocalActive] = useState<PaneId>("theme");
+  const active: PaneId = route ? (route.kind === "tab" ? route.tab : "stats") : localActive;
+  const [mobileDetail, setMobileDetail] = useState(!!route);
   const [query, setQuery] = useState("");
   // Desktop only: the sidebar folds into an icon rail; phones keep the list/detail flow.
   const [collapsed, setCollapsed] = useState(false);
@@ -46,11 +66,24 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
   const groups: PaneId[][] = signedIn ? [ACCOUNT_GROUP, ...SETTING_GROUPS] : SETTING_GROUPS;
   const needle = query.trim().toLowerCase();
   const matches = needle ? SETTING_INDEX.filter((entry) => `${entry.label} ${entry.keywords}`.toLowerCase().includes(needle)) : [];
-  const open = (id: PaneId) => { setActive(id); setMobileDetail(true); };
+  const viewing = resolve(route, signedIn);
+  const own = active === "stats" && viewing.kind === "you";
+  const open = (id: PaneId) => {
+    setMobileDetail(true);
+    if (!basePath) return setLocalActive(id);
+    const target: ProfileRoute = id !== "stats" ? { kind: "tab", tab: id } : signedIn ? { kind: "player", userId: MY_PROFILE.id } : { kind: "own" };
+    navigate(profilePath(basePath, target));
+  };
   const setSignedInPreview = (next: boolean) => {
     setSignedIn(next);
-    if (!next && !isSettingsPane(active)) setActive("theme");
+    // On the routed page a signed-out account tab shows a sign-in prompt instead.
+    if (!basePath && !next && !isSettingsPane(active)) setLocalActive("theme");
   };
+
+  // Signed in, /profile becomes /profile/:yourId so the address bar always holds a shareable link.
+  if (basePath && route?.kind === "own" && signedIn) {
+    return <Navigate replace to={profilePath(basePath, { kind: "player", userId: MY_PROFILE.id })} />;
+  }
 
   return (
     <div className="flex min-h-[100dvh]">
@@ -66,7 +99,7 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
           >
             <SidebarSimpleIcon className="size-5" aria-hidden="true" />
           </button>
-          <h1 className={`whitespace-nowrap px-2 text-3xl font-bold transition-opacity duration-200 md:px-0 ${fade}`}>Settings</h1>
+          <h1 className={`whitespace-nowrap px-2 text-3xl font-bold transition-opacity duration-200 md:px-0 ${fade}`}>Profile</h1>
         </div>
         <label className={`flex items-center gap-2 rounded-xl bg-muted/60 py-2 text-sm text-muted-foreground transition-[padding] duration-300 focus-within:outline-2 focus-within:outline-ring ${collapsed ? "px-3 md:px-[1.0625rem]" : "px-3"}`}>
           <MagnifyingGlassIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -93,14 +126,15 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
             <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-5">
               <AnimatePresence mode="popLayout" initial={false}>
                 {signedIn
-                  ? <AccountCard key="account" collapsed={collapsed} fade={fade} selected={active === "stats"} onOpen={() => open("stats")} />
+                  ? <AccountCard key="account" collapsed={collapsed} fade={fade} selected={own} onOpen={() => open("stats")} />
                   : <SignInButton key="sign-in" collapsed={collapsed} fade={fade} />}
               </AnimatePresence>
               {groups.map((group) => (
                 <motion.div layout transition={LAB_SPRING} key={group.join("-")} className="flex flex-col gap-0.5">
                   {group.map((id) => {
                     const section = sectionById(id);
-                    const selected = active === id;
+                    // Someone else’s public profile is not one of your tabs, so nothing is highlighted.
+                    const selected = active === id && viewing.kind === "you";
                     return (
                       <button
                         key={id}
@@ -136,22 +170,30 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
 
       <main className={`min-w-0 flex-1 px-4 pb-28 pt-6 md:px-6 xl:px-8 ${mobileDetail ? "block" : "hidden md:block"}`}>
         <button type="button" onClick={() => setMobileDetail(false)} className="mb-4 flex items-center gap-1 text-sm text-primary md:hidden">
-          <CaretLeftIcon className="size-4" aria-hidden="true" />Settings
+          <CaretLeftIcon className="size-4" aria-hidden="true" />Profile
         </button>
         <div className="mx-auto flex max-w-[110rem] flex-col gap-6 xl:flex-row xl:items-start">
           <div className="min-w-0 flex-1">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
-                key={active}
+                key={active === "stats" && viewing.kind === "player" ? viewing.profile.id : active}
                 initial={{ opacity: 0, x: 24 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
                 className="flex flex-col gap-6"
               >
-                {active === "stats" && <StatsPanel />}
-                {active === "history" && <HistoryPanel />}
-                {active === "achievements" && <AchievementsPanel />}
+                {active === "stats" && viewing.kind === "player" && (
+                  <>
+                    <ViewingBanner username={viewing.profile.username} signedIn={signedIn} onBack={() => open("stats")} />
+                    <StatsPanel profile={viewing.profile} />
+                  </>
+                )}
+                {active === "stats" && viewing.kind === "missing" && <MissingPlayer />}
+                {active !== "stats" && !isSettingsPane(active) && !signedIn && <SignInPrompt pane={active} />}
+                {active === "stats" && viewing.kind === "you" && (signedIn ? <StatsPanel /> : <SignInPrompt pane="stats" />)}
+                {active === "history" && signedIn && <HistoryPanel />}
+                {active === "achievements" && signedIn && <AchievementsPanel />}
                 {active === "theme" && <ThemeGallery lab={lab} />}
                 {active === "text" && <FontGallery settings={settings} update={lab.update} />}
                 {(active === "typing" || active === "sound" || active === "keyboard") && (
@@ -169,6 +211,33 @@ export function SplitViewSettings({ lab }: { lab: LabState }) {
         </div>
       </main>
     </div>
+  );
+}
+
+function ViewingBanner({ username, signedIn, onBack }: { username: string; signedIn: boolean; onBack: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
+      <EyeIcon className="size-5 shrink-0 text-primary" aria-hidden="true" />
+      <span className="min-w-48 flex-1">You’re viewing <strong>{username}</strong>’s public profile. Only these stats are public.</span>
+      {signedIn && (
+        <button type="button" onClick={onBack} className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 font-semibold hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">
+          <ArrowLeftIcon className="size-4" aria-hidden="true" />Your profile
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MissingPlayer() {
+  return (
+    <section className="flex flex-col items-center gap-4 rounded-3xl border border-border bg-card px-6 py-14 text-center">
+      <UserCircleDashedIcon className="size-14 text-muted-foreground" aria-hidden="true" />
+      <h2 className="text-2xl font-bold">We couldn’t find that player</h2>
+      <p className="max-w-sm text-sm text-muted-foreground">The link may be old, or the account was deleted.</p>
+      <Link to="/temp-leaderboard1" className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">
+        <ArrowLeftIcon className="size-4" aria-hidden="true" />Back to the leaderboard
+      </Link>
+    </section>
   );
 }
 

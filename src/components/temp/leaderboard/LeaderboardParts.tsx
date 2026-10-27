@@ -1,7 +1,9 @@
 import { useId, useState } from "react";
+import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { CaretDownIcon, CaretUpIcon, InfoIcon, MinusIcon } from "@phosphor-icons/react";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
+import { profileHref } from "@/components/temp/settings/mock-players";
 import { PERIODS, RULES, avatarTone, type PeriodId } from "./mock-leaderboard";
 
 const SIZES = { sm: "size-8 text-sm", md: "size-10 text-base", lg: "size-14 text-xl", xl: "size-20 text-3xl" };
@@ -39,6 +41,13 @@ export function RankChange({ change }: { change: number }) {
     <span aria-label={`${up ? "Up" : "Down"} ${Math.abs(change)}`} className={`inline-flex w-8 items-center justify-center gap-0.5 text-xs font-semibold tabular-nums ${up ? "text-success" : "text-destructive"}`}>
       <Arrow weight="fill" className="size-3" aria-hidden="true" />{Math.abs(change)}
     </span>
+  );
+}
+
+/** A player's name, linking to their public profile. */
+export function ProfileLink({ username, className = "" }: { username: string; className?: string }) {
+  return (
+    <Link to={profileHref(username)} className={`truncate rounded underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring ${className}`}>{username}</Link>
   );
 }
 

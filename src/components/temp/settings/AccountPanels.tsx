@@ -10,16 +10,20 @@ import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { toast } from "@/lib/toast-manager";
 import { Sparkline } from "./MockCharts";
 import { LAB_SPRING } from "./lab-settings";
-import { MOCK_CHART_RESULTS, MOCK_STATS, MOCK_USER } from "./mock-profile";
+import { avatarTone } from "@/components/temp/leaderboard/mock-leaderboard";
+import { MY_PROFILE, type PublicProfile } from "./mock-players";
+import { MOCK_USER } from "./mock-profile";
 
 const UserStatsChartModal = lazy(() => import("@/components/stats/UserStatsChartModal"));
 
 const ease = "transition-[padding,opacity] duration-300";
 
-function Avatar({ size = "size-12", text = "text-lg" }: { size?: string; text?: string }) {
+function Avatar({ username = MOCK_USER.username, size = "size-12", text = "text-lg" }: { username?: string; size?: string; text?: string }) {
+  // Your own avatar keeps the gradient; other players use the same colour as on the leaderboard.
+  const tone = username === MOCK_USER.username ? "bg-[conic-gradient(from_200deg,var(--primary),var(--accent-emphasis),var(--primary))] text-primary-foreground" : avatarTone(username);
   return (
-    <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full bg-[conic-gradient(from_200deg,var(--primary),var(--accent-emphasis),var(--primary))] font-bold text-primary-foreground ${size} ${text}`}>
-      {MOCK_USER.username[0].toUpperCase()}
+    <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full font-bold ${tone} ${size} ${text}`}>
+      {username[0].toUpperCase()}
     </span>
   );
 }
@@ -88,14 +92,19 @@ interface StatCard {
   note: string;
 }
 
-const CARDS: StatCard[] = [
-  { type: "bestWpm", label: "Best WPM", value: MOCK_STATS.bestWpm, format: String, Icon: TrophyIcon, note: "Quote · yesterday" },
-  { type: "avgWpm", label: "Average WPM", value: MOCK_STATS.averageWpm, format: String, Icon: GaugeIcon, trend: MOCK_STATS.trend, note: "+17 since March" },
-  { type: "avgAccuracy", label: "Average accuracy", value: MOCK_STATS.averageAccuracy, format: (value) => `${value}%`, Icon: TargetIcon, trend: MOCK_STATS.accuracyTrend, note: "Up 5% since March" },
-  { type: "typingTime", label: "Typing time", value: MOCK_STATS.totalTimeTyped, format: formatDuration, Icon: ClockIcon, note: `${MOCK_STATS.totalTests} tests` },
-  { type: "wordsTyped", label: "Words typed", value: MOCK_STATS.totalWordsTyped, format: (value) => value.toLocaleString(), Icon: TextAaIcon, note: "Correct words, all time" },
-  { type: "characters", label: "Characters", value: MOCK_STATS.totalCharactersTyped, format: (value) => value.toLocaleString(), Icon: TextTIcon, note: "Estimated as words × 5" },
-];
+function cardsFor({ stats, joined }: PublicProfile): StatCard[] {
+  const since = joined.split(" ")[0];
+  const gain = stats.trend[stats.trend.length - 1] - stats.trend[0];
+  const accuracyGain = stats.accuracyTrend[stats.accuracyTrend.length - 1] - stats.accuracyTrend[0];
+  return [
+    { type: "bestWpm", label: "Best WPM", value: stats.bestWpm, format: String, Icon: TrophyIcon, note: "Personal best" },
+    { type: "avgWpm", label: "Average WPM", value: stats.averageWpm, format: String, Icon: GaugeIcon, trend: stats.trend, note: `${gain >= 0 ? "+" : ""}${gain} since ${since}` },
+    { type: "avgAccuracy", label: "Average accuracy", value: stats.averageAccuracy, format: (value) => `${value}%`, Icon: TargetIcon, trend: stats.accuracyTrend, note: `${accuracyGain >= 0 ? "Up" : "Down"} ${Math.abs(accuracyGain)}% since ${since}` },
+    { type: "typingTime", label: "Typing time", value: stats.totalTimeTyped, format: formatDuration, Icon: ClockIcon, note: `${stats.totalTests} tests` },
+    { type: "wordsTyped", label: "Words typed", value: stats.totalWordsTyped, format: (value) => value.toLocaleString(), Icon: TextAaIcon, note: "Correct words, all time" },
+    { type: "characters", label: "Characters", value: stats.totalCharactersTyped, format: (value) => value.toLocaleString(), Icon: TextTIcon, note: "Estimated as words × 5" },
+  ];
+}
 
 function StatTile({ card, index, onOpen }: { card: StatCard; index: number; onOpen: () => void }) {
   const counted = useAnimatedCounter(card.label === "Average accuracy" ? card.value * 10 : card.value, 1000, index * 60);
@@ -123,37 +132,63 @@ function StatTile({ card, index, onOpen }: { card: StatCard; index: number; onOp
   );
 }
 
-/** Stats tab: the header and lifetime cards from today’s profile page. */
-export function StatsPanel() {
+/** Stats tab and public profile: name, picture and lifetime cards; each card opens its chart. */
+export function StatsPanel({ profile = MY_PROFILE }: { profile?: PublicProfile }) {
   const [chart, setChart] = useState<StatCard | null>(null);
+  const { stats } = profile;
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-wrap items-center gap-5 rounded-3xl border border-border bg-card p-6">
-        <Avatar size="size-20" text="text-3xl" />
+        <Avatar username={profile.username} size="size-20" text="text-3xl" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="truncate text-3xl font-bold">{MOCK_USER.username}</h2>
-          <p className="text-sm text-muted-foreground">Typing since {MOCK_USER.joined} · {MOCK_STATS.totalTests} tests</p>
+          <h2 className="truncate text-3xl font-bold">{profile.username}</h2>
+          <p className="text-sm text-muted-foreground">Typing since {profile.joined} · {stats.totalTests} tests</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="flex items-center gap-2 rounded-2xl bg-warning/15 px-4 py-2 text-sm font-semibold text-warning">
-            <FlameIcon weight="fill" className="size-5" aria-hidden="true" />{MOCK_USER.streak}-day streak
+            <FlameIcon weight="fill" className="size-5" aria-hidden="true" />{profile.streak}-day streak
           </span>
           <span className="flex items-center gap-2 rounded-2xl bg-muted px-4 py-2 text-sm text-muted-foreground">
-            <ChartLineUpIcon className="size-5" aria-hidden="true" />Best streak {MOCK_USER.bestStreak} days
+            <ChartLineUpIcon className="size-5" aria-hidden="true" />Best streak {profile.bestStreak} days
           </span>
         </div>
       </section>
       <section aria-labelledby="lab-lifetime" className="flex flex-col gap-3">
         <h3 id="lab-lifetime" className="px-1 text-xs uppercase tracking-wider text-muted-foreground">Lifetime stats</h3>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {CARDS.map((card, index) => <StatTile key={card.label} card={card} index={index} onOpen={() => setChart(card)} />)}
+          {cardsFor(profile).map((card, index) => <StatTile key={card.label} card={card} index={index} onOpen={() => setChart(card)} />)}
         </div>
       </section>
       {chart && (
         <Suspense fallback={<p role="status" className="py-6 text-center text-sm text-muted-foreground">Loading chart…</p>}>
-          <UserStatsChartModal isOpen onClose={() => setChart(null)} cardType={chart.type} cardValue={chart.format(chart.value)} allResults={MOCK_CHART_RESULTS} />
+          <UserStatsChartModal isOpen onClose={() => setChart(null)} cardType={chart.type} cardValue={chart.format(chart.value)} allResults={profile.chartResults} />
         </Suspense>
       )}
     </div>
+  );
+}
+
+const PROMPTS: Record<"stats" | "history" | "achievements", { title: string; body: string }> = {
+  stats: { title: "Sign in to see your profile", body: "Your speed, accuracy and typing time, saved after every test." },
+  history: { title: "Sign in to see your history", body: "Every test you finish is saved here, grouped by day." },
+  achievements: { title: "Sign in to collect achievements", body: "Earn cards for speed, streaks and words typed, and see every level ahead." },
+};
+
+/** What an account tab shows to someone signed out, e.g. at /profile/history. */
+export function SignInPrompt({ pane }: { pane: keyof typeof PROMPTS }) {
+  const { openSignIn } = useAppAuth();
+  const prompt = PROMPTS[pane];
+  const signIn = async () => {
+    if (!await openSignIn()) toast.add({ type: "info", title: "Sign-in isn’t available here", description: "On the live site this opens the sign-in window. In this mockup, use Preview signed in." });
+  };
+  return (
+    <section className="flex flex-col items-center gap-4 rounded-3xl border border-border bg-card px-6 py-14 text-center">
+      <span className="flex size-16 items-center justify-center rounded-2xl bg-primary/15 text-primary"><SignInIcon className="size-8" aria-hidden="true" /></span>
+      <h2 className="text-2xl font-bold">{prompt.title}</h2>
+      <p className="max-w-sm text-sm text-muted-foreground">{prompt.body}</p>
+      <button type="button" onClick={() => void signIn()} className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-semibold text-primary-foreground hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+        <SignInIcon className="size-5" aria-hidden="true" />Sign in
+      </button>
+    </section>
   );
 }

@@ -11,6 +11,11 @@ const SETTINGS_MOCKUPS: [number, string, string][] = [
   [3, "Studio", "A big live preview beside tabbed controls. Kept for reference."],
 ];
 
+const PROFILE_LINKS: [string, string, string][] = [
+  ["/temp-profile", "Your profile", "Signed in, /temp-profile becomes /temp-profile/:yourId, a link you can share."],
+  ["/temp-profile/history", "A private tab", "History, achievements and settings always show your own; signed out, they ask you to sign in."],
+];
+
 const LEADERBOARD_MOCKUPS: [number, string, string][] = [
   [1, "Arena", "One big podium; switching period morphs players between places."],
   [2, "Three boards", "Today, 7 days and all time side by side; hover a player to find them on every board."],
@@ -54,6 +59,16 @@ export default function Temp() {
               {SETTINGS_MOCKUPS.map(([number, name, summary]) => (
                 <Link key={name} to={`/temp-settings${number}`} className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-primary">
                   <span className="text-xs text-muted-foreground">{String(number).padStart(2, "0")}</span>
+                  <span className="font-semibold">{name}</span>
+                  <span className="text-xs text-muted-foreground">{summary}</span>
+                </Link>
+              ))}
+            </div>
+          </Section>
+          <Section id="profile-page" title="Profile page" summary="The split view renamed Profile and driven by the URL. Your stats live at /profile/:yourId and are the only public page; history, achievements and settings always show your own.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {PROFILE_LINKS.map(([to, name, summary]) => (
+                <Link key={to} to={to} className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-primary">
                   <span className="font-semibold">{name}</span>
                   <span className="text-xs text-muted-foreground">{summary}</span>
                 </Link>

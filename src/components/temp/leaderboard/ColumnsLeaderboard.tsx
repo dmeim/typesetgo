@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { TimerIcon, TrophyIcon } from "@phosphor-icons/react";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
-import { PeriodTabs, PlayerAvatar, RankChange, RulesNote, YouTag } from "./LeaderboardParts";
+import { PeriodTabs, PlayerAvatar, ProfileLink, RankChange, RulesNote, YouTag } from "./LeaderboardParts";
 import { BOARDS, entryLabel, METALS, PERIODS, YOU, yourStanding, type BoardEntry, type PeriodId, type PeriodMeta } from "./mock-leaderboard";
 
 const STEPS = ["h-20", "h-14", "h-10"];
@@ -22,7 +22,7 @@ function MiniPodium({ board, hovered, onHover }: { board: BoardEntry[] } & Hover
         <li key={entry.username} aria-label={entryLabel(entry)} onMouseEnter={() => onHover(entry.username)} onMouseLeave={() => onHover(null)}
           className={`flex min-w-0 flex-col items-center gap-1.5 rounded-t-xl pt-2 transition-opacity duration-200 ${place === 0 ? "order-2" : place === 1 ? "order-1" : "order-3"} ${highlight(entry.username, hovered)}`}>
           <PlayerAvatar username={entry.username} size={place === 0 ? "lg" : "md"} />
-          <span className="max-w-full truncate px-1 text-xs font-semibold">{entry.username}</span>
+          <span className="max-w-full truncate px-1 text-xs font-semibold"><ProfileLink username={entry.username} /></span>
           <span className="text-lg font-bold tabular-nums">{entry.wpm}</span>
           <span aria-hidden="true" className={`flex w-full items-start justify-center rounded-t-lg pt-1 text-lg font-black ${STEPS[place]}`}
             style={{ color: METALS[place], background: `linear-gradient(180deg, color-mix(in srgb, ${METALS[place]} 28%, var(--card)), transparent)`, borderTop: `3px solid ${METALS[place]}` }}>
@@ -55,7 +55,7 @@ function Board({ meta, hovered, onHover }: { meta: PeriodMeta } & HoverProps) {
             <span className="w-6 text-right tabular-nums text-muted-foreground">{entry.rank}</span>
             <RankChange change={entry.change} />
             <PlayerAvatar username={entry.username} size="sm" />
-            <span className="flex min-w-0 flex-1 items-center gap-2 truncate">{entry.username}{entry.isYou && <YouTag />}</span>
+            <span className="flex min-w-0 flex-1 items-center gap-2 truncate"><ProfileLink username={entry.username} />{entry.isYou && <YouTag />}</span>
             <span className="font-semibold tabular-nums">{entry.wpm}</span>
           </li>
         ))}

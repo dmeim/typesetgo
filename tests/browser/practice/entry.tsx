@@ -6,13 +6,8 @@ import { IconProvider } from "@/components/ui/icon-provider";
 import { NotificationProvider } from "@/lib/notification-store";
 import { AppAuthContext, unavailableAuth } from "@/components/layout/useAppAuth";
 import type { AppAuth, AppAuthUser } from "@/components/layout/useAppAuth";
-import Home from "@/pages/Home";
-import Temp from "@/pages/Temp";
-import TempSettings from "@/pages/TempSettings";
-import TempLeaderboard from "@/pages/TempLeaderboard";
-import AreaFixture from "./AreaFixture";
 import { AccountProvider } from "@/components/layout/AccountProvider";
-import ToastFixture from "./ToastFixture";
+import { FixturePage } from "./FixturePage";
 import "@/index.css";
 
 const query = new URLSearchParams(location.search);
@@ -38,7 +33,7 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <ThemeProvider>
           <IconProvider>
-            {query.has("toasts") ? <ToastFixture /> : query.has("area") ? <AreaFixture /> : query.has("temp") ? <Temp /> : query.has("temp-settings") ? <TempSettings /> : query.has("temp-leaderboard") ? <TempLeaderboard /> : <Home />}
+            <FixturePage />
             <Toaster />
           </IconProvider>
         </ThemeProvider>

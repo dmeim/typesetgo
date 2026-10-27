@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRightIcon, CrownSimpleIcon, CrosshairIcon, MedalIcon, TimerIcon } from "@phosphor-icons/react";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
-import { PlayerAvatar, RulesNote, YouTag } from "./LeaderboardParts";
+import { PlayerAvatar, ProfileLink, RulesNote, YouTag } from "./LeaderboardParts";
 import { BOARDS, entryLabel, METALS, PERIODS, yourStanding, type BoardEntry, type PeriodId } from "./mock-leaderboard";
 
 function PeriodCards({ value, onChange }: { value: PeriodId; onChange: (period: PeriodId) => void }) {
@@ -38,7 +38,7 @@ function RunnerUp({ entry, side }: { entry: BoardEntry; side: "left" | "right" }
       className="flex flex-col items-center gap-2 rounded-3xl border-2 bg-card p-5 text-center" style={{ borderColor: metal }}>
       <span className="flex items-center gap-1.5 text-sm font-bold" style={{ color: metal }}><MedalIcon weight="fill" className="size-5" aria-hidden="true" />#{entry.rank}</span>
       <PlayerAvatar username={entry.username} size="lg" />
-      <span className="max-w-full truncate font-semibold">{entry.username}</span>
+      <span className="max-w-full truncate font-semibold"><ProfileLink username={entry.username} /></span>
       <span className="text-3xl font-bold tabular-nums">{entry.wpm}<span className="ml-1 text-xs font-normal text-muted-foreground">wpm</span></span>
     </motion.div>
   );
@@ -59,7 +59,7 @@ function Stage({ board }: { board: BoardEntry[] }) {
           <span className="rounded-full p-1.5" style={{ boxShadow: "0 0 0 3px #d6a738, 0 0 60px 10px color-mix(in srgb, #d6a738 45%, transparent)" }}>
             <PlayerAvatar username={first.username} size="xl" />
           </span>
-          <span className="flex items-center gap-2 text-2xl font-bold">{first.username}{first.isYou && <YouTag />}</span>
+          <span className="flex items-center gap-2 text-2xl font-bold"><ProfileLink username={first.username} />{first.isYou && <YouTag />}</span>
           <span className="text-7xl font-black leading-none tabular-nums tracking-tight">{first.wpm}</span>
           <span className="text-sm text-muted-foreground">words per minute · {first.accuracy.toFixed(1)}% accuracy · {first.test}</span>
         </motion.div>
@@ -99,7 +99,7 @@ export function SpotlightLeaderboard() {
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-sm font-bold tabular-nums">{entry.rank}</span>
                 <PlayerAvatar username={entry.username} size="sm" />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="flex items-center gap-1.5 truncate text-sm font-semibold">{entry.username}{entry.isYou && <YouTag />}</span>
+                  <span className="flex items-center gap-1.5 truncate text-sm font-semibold"><ProfileLink username={entry.username} />{entry.isYou && <YouTag />}</span>
                   <span className="text-[0.7rem] text-muted-foreground">{entry.test}</span>
                 </span>
                 <span className="text-lg font-bold tabular-nums">{entry.wpm}</span>

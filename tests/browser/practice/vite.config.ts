@@ -48,7 +48,8 @@ export default defineConfig({
             res.end(JSON.stringify(manifests[pathname]));
             return;
           }
-          if (pathname !== "/") return next();
+          // The UI Lab mockups are also served at their app paths, e.g. /temp-profile/history.
+          if (pathname !== "/" && !pathname.startsWith("/temp")) return next();
           try {
             const html = await server.transformIndexHtml("/", '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div><script type="module" src="/tests/browser/practice/entry.tsx"></script></body></html>');
             res.setHeader("Content-Type", "text/html");

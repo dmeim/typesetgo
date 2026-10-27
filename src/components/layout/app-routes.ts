@@ -26,6 +26,7 @@ export const appRoutes: RouteObject[] = [{
     { path: "/temp", lazy: async () => ({ Component: (await import("@/pages/Temp")).default }) },
     { path: "/temp-settings1", lazy: async () => ({ Component: (await import("@/pages/TempSettings")).default }) },
     { path: "/temp-settings3", lazy: async () => ({ Component: (await import("@/pages/TempSettings")).default }) },
+    { path: "/temp-profile/*", lazy: async () => ({ Component: (await import("@/pages/TempProfile")).default }) },
     { path: "/temp-leaderboard1", lazy: async () => ({ Component: (await import("@/pages/TempLeaderboard")).default }) },
     { path: "/temp-leaderboard2", lazy: async () => ({ Component: (await import("@/pages/TempLeaderboard")).default }) },
     { path: "/temp-leaderboard3", lazy: async () => ({ Component: (await import("@/pages/TempLeaderboard")).default }) },
