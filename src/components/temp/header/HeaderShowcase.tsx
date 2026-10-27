@@ -9,7 +9,7 @@ import { IslandHeader } from "./IslandHeader";
 import { RailHeader } from "./RailHeader";
 import { SplitHeader } from "./SplitHeader";
 import { TilesHeader } from "./TilesHeader";
-import { GUEST_NOTIFICATIONS, NOTIFICATIONS, PAGES, type HeaderMockupProps, type PageId } from "./header-mock";
+import { ALL_PAGES, GUEST_NOTIFICATIONS, NOTIFICATIONS, type HeaderMockupProps, type PageId } from "./header-mock";
 
 const MOCKUPS: [string, string, ComponentType<HeaderMockupProps>][] = [
   ["Dock", "A floating dock. The page you are on grows its name, icons lift as you point, and phones get the dock at the bottom.", DockHeader],
@@ -19,7 +19,12 @@ const MOCKUPS: [string, string, ComponentType<HeaderMockupProps>][] = [
   ["Tiles", "Big colourful app tiles that wiggle when you point, plus one capsule with a real light/dark switch.", TilesHeader],
 ];
 
-const PATHS: Record<PageId, string> = { type: "/", race: "/race", lessons: "/lessons", connect: "/connect", leaderboard: "/leaderboard" };
+const PATHS: Record<PageId, string> = { type: "/", race: "/race", lessons: "/lessons", connect: "/connect", leaderboard: "/leaderboard", theme: "/profile/theme", settings: "/profile/text" };
+const PAGE_LINKS: Partial<Record<PageId, [string, string]>> = {
+  leaderboard: ["/temp-leaderboard1", "Open the leaderboard mockups"],
+  theme: ["/temp-profile/theme", "Open Theme in the Profile mockup"],
+  settings: ["/temp-profile/text", "Open Settings in the Profile mockup"],
+};
 const WORDS = "the quick brown fox jumps over the lazy dog while the class races to type every word".split(" ");
 
 /** Every header mockup in a mini browser window, with the toggles the UI Lab section provides. */
@@ -75,7 +80,7 @@ function MockWindow({ Mockup, signedIn, typing, phone }: { Mockup: ComponentType
 }
 
 function MockPage({ page, typing }: { page: PageId; typing: boolean }) {
-  const item = PAGES.find((entry) => entry.id === page) ?? PAGES[0];
+  const item = ALL_PAGES.find((entry) => entry.id === page) ?? ALL_PAGES[0];
   if (page !== "type") {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 pb-16 text-center">
@@ -83,8 +88,8 @@ function MockPage({ page, typing }: { page: PageId; typing: boolean }) {
           <item.Icon className="size-7" weight="fill" aria-hidden="true" />
         </span>
         <span className="text-lg font-semibold">{item.label}</span>
-        {page === "leaderboard"
-          ? <Link to="/temp-leaderboard1" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">Open the leaderboard mockups<ArrowRightIcon className="size-4" aria-hidden="true" /></Link>
+        {PAGE_LINKS[page]
+          ? <Link to={PAGE_LINKS[page][0]} className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">{PAGE_LINKS[page][1]}<ArrowRightIcon className="size-4" aria-hidden="true" /></Link>
           : <span className="text-sm text-muted-foreground">Host a room or join one with a code.</span>}
       </div>
     );

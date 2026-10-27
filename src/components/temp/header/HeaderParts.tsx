@@ -121,7 +121,7 @@ export function Avatar({ signedIn, className = "size-8 text-sm" }: { signedIn: b
 }
 
 /** Profile now holds stats, history, achievements, theme and settings, so one menu replaces four buttons. */
-export function AccountMenu({ signedIn, onPick }: { signedIn: boolean; onPick?: () => void }) {
+export function AccountMenu({ signedIn, onPick, links = PROFILE_LINKS }: { signedIn: boolean; onPick?: () => void; links?: typeof PROFILE_LINKS }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3 px-2 pt-1">
@@ -135,8 +135,8 @@ export function AccountMenu({ signedIn, onPick }: { signedIn: boolean; onPick?: 
           </span>
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-1">
-        {PROFILE_LINKS.map(({ label, href, Icon }) => {
+      <div className="flex flex-col gap-0.5">
+        {links.map(({ label, href, Icon }) => {
           const locked = !signedIn && (label === "Stats" || label === "History" || label === "Achievements");
           return (
             <Link key={label} to={href} onClick={onPick} className={cn("flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm hover:bg-accent", locked && "text-muted-foreground")}>

@@ -5,7 +5,7 @@ import {
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
-export type PageId = "type" | "race" | "lessons" | "connect" | "leaderboard";
+export type PageId = "type" | "race" | "lessons" | "connect" | "leaderboard" | "theme" | "settings";
 
 export interface NavItem {
   id: PageId;
@@ -27,6 +27,12 @@ export const LEADERBOARD: NavItem = { id: "leaderboard", label: "Leaderboard", I
 
 /** Every page the header reaches, leaderboard last. */
 export const PAGES: NavItem[] = [...NAV, LEADERBOARD];
+
+// The dock keeps Theme and Settings beside the leaderboard rather than inside the account menu.
+export const THEME: NavItem = { id: "theme", label: "Theme", Icon: PaletteIcon, tile: "bg-(--accent-emphasis) text-background" };
+export const SETTINGS: NavItem = { id: "settings", label: "Settings", Icon: GearSixIcon, tile: "bg-muted-foreground text-background" };
+export const TOOLS: NavItem[] = [LEADERBOARD, THEME, SETTINGS];
+export const ALL_PAGES: NavItem[] = [...NAV, ...TOOLS];
 
 export interface MockNotification {
   id: string;
@@ -53,8 +59,11 @@ export const PROFILE_LINKS: { label: string; href: string; Icon: Icon }[] = [
   { label: "History", href: "/temp-profile/history", Icon: ClockCounterClockwiseIcon },
   { label: "Achievements", href: "/temp-profile/achievements", Icon: TrophyIcon },
   { label: "Theme", href: "/temp-profile/theme", Icon: PaletteIcon },
-  { label: "Settings", href: "/temp-profile/typing", Icon: GearSixIcon },
+  { label: "Settings", href: "/temp-profile/text", Icon: GearSixIcon },
 ];
+
+/** The dock's account menu: only your own records, since Theme and Settings have their own buttons. */
+export const ACCOUNT_LINKS = PROFILE_LINKS.filter(({ label }) => label !== "Theme" && label !== "Settings");
 
 export const MOCK_ACCOUNT = { username: "pixelpenguin", streak: 6 };
 
