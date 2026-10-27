@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { ArrowLeftIcon, ArrowsClockwiseIcon, CircleNotchIcon, UserPlusIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, ArrowsClockwiseIcon, CircleNotchIcon, DoorOpenIcon, LinkBreakIcon, UserMinusIcon, UserPlusIcon } from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
@@ -69,19 +69,19 @@ function RoomSession({ roomId }: { roomId: string }) {
   }, [leaving, participantId, leaveMutation, credential, roomId, navigate]);
 
   if (membership.status === "removed" || viewState === "removed") {
-    return <RoomPage><RoomMessage title="The host removed you from this room" description="You can join again with the room code if the host lets you back in." action={joinAction} /></RoomPage>;
+    return <RoomPage><RoomMessage Icon={UserMinusIcon} title="The host removed you from this room" description="You can join again with the room code if the host lets you back in." action={joinAction} /></RoomPage>;
   }
   if (membership.status === "ended" || viewState === "ended") {
-    return <RoomPage><RoomMessage title="This room has ended" description="Thanks for typing! The host has closed this room." action={backAction} /></RoomPage>;
+    return <RoomPage><RoomMessage Icon={DoorOpenIcon} title="This room has ended" description="Thanks for typing! The host has closed this room." action={backAction} /></RoomPage>;
   }
   if (membership.status === "not_member") {
-    return <RoomPage><RoomMessage title="You're not in this room yet" description="Enter the room code from your host to join." action={{ ...joinAction, label: "Join with a code" }} /></RoomPage>;
+    return <RoomPage><RoomMessage Icon={UserPlusIcon} title="You're not in this room yet" description="Enter the room code from your host to join." action={{ ...joinAction, label: "Join with a code" }} /></RoomPage>;
   }
   if (membership.status === "error") {
     return (
       <RoomPage>
-        <RoomMessage title="Couldn't reach the room" description={membership.message} action={backAction}>
-          <Button variant="outline" onClick={retry}>
+        <RoomMessage Icon={LinkBreakIcon} title="Couldn't reach the room" description={membership.message} action={backAction}>
+          <Button variant="outline" className="rounded-full" onClick={retry}>
             <ArrowsClockwiseIcon aria-hidden="true" />
             Try again
           </Button>

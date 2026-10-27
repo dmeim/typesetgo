@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
+import { motion } from "framer-motion";
 import { HourglassMediumIcon, PauseCircleIcon } from "@phosphor-icons/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -20,6 +21,7 @@ import { BreakScreen } from "./BreakScreen";
 import { LateJoinScreen } from "./LateJoinScreen";
 import { useConnectProgress } from "./use-connect-progress";
 import { readableError } from "@/components/connect/connect-errors";
+import { CONNECT_SPRING } from "@/components/connect/connect-motion";
 
 interface RoomLiveProps {
   roomId: string;
@@ -116,11 +118,13 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
   if (room.status === "lobby") {
     body = (
       <main className="flex flex-1 flex-col items-center overflow-y-auto px-4 py-10">
-        <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-          <HourglassMediumIcon className="size-10 text-primary" weight="regular" aria-hidden="true" />
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold">Waiting for the host to start</h1>
-            <p className="text-muted-foreground">You're in as <span className="font-medium text-foreground">{participant.name}</span>.</p>
+        <div className="flex w-full max-w-md flex-col items-center gap-5 text-center">
+          <motion.span animate={{ rotate: [0, 0, 180, 180] }} transition={{ duration: 2.4, repeat: Infinity, times: [0, 0.4, 0.6, 1] }} className="text-primary">
+            <HourglassMediumIcon weight="fill" className="size-12" aria-hidden="true" />
+          </motion.span>
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-black">Waiting for {room.hostName} to start</h1>
+            <p className="text-muted-foreground">You're in as <strong className="text-foreground">{participant.name}</strong>. Get comfy!</p>
           </div>
           <TestList tests={room.tests} currentIndex={-1} />
         </div>
@@ -176,11 +180,14 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
             connectResultsActions={resultsActions}
           />
           {room.status === "paused" && (
-            <div role="status" className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background/80 px-4 text-center backdrop-blur-sm">
-              <PauseCircleIcon className="size-10 text-primary" weight="regular" aria-hidden="true" />
-              <p className="text-xl font-semibold">Paused by the host</p>
-              <p className="text-sm text-muted-foreground">Your progress is kept. Typing resumes when the host continues.</p>
-            </div>
+            <motion.div role="status" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background/85 px-6 text-center backdrop-blur-sm">
+              <motion.span initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={CONNECT_SPRING}>
+                <PauseCircleIcon weight="fill" className="size-14 text-primary" aria-hidden="true" />
+              </motion.span>
+              <p className="text-xl font-black">Paused by {room.hostName}</p>
+              <p className="text-sm text-muted-foreground">Your progress is safe. Everything picks up when the host continues.</p>
+            </motion.div>
           )}
         </div>
       </main>
@@ -189,7 +196,8 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
 
   return (
     <RoomPage style={themeStyle} themeMode={connectThemeMode(roomTheme)}>
-      <RoomTopBar roomName={room.name} participantName={participant.name} avatarUrl={participant.avatarUrl} dimmed={isTyping && !onBreak && !waiting && room.status !== "lobby" && splashStep === null && !allDone}
+      <RoomTopBar roomName={room.name} participantName={participant.name} avatarUrl={participant.avatarUrl} signedIn={participant.signedIn}
+        sound={room.overrides.sound} dimmed={isTyping && !onBreak && !waiting && room.status !== "lobby" && splashStep === null && !allDone}
         leaving={leaving} reconnecting={reconnecting} onLeave={onLeave} />
       {leaveError && <p role="alert" className="shrink-0 px-4 py-2 text-center text-sm text-destructive">{leaveError}</p>}
       {body}

@@ -1,34 +1,18 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { FloppyDiskIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Switch } from "@/components/ui/switch";
+import { AnimatePresence, motion } from "framer-motion";
+import { CircleNotchIcon, CopySimpleIcon, FloppyDiskIcon, PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
 import {
-  CONNECT_MAX_TESTS,
-  DEFAULT_CONNECT_TEST,
-  validateConnectTest,
-  type ConnectDifficulty,
-  type ConnectQuoteLength,
-  type ConnectTest,
-  type ConnectTestMode,
+  DEFAULT_CONNECT_BREAK, DEFAULT_CONNECT_TEST, describeConnectTest, validateConnectTest,
+  type ConnectDifficulty, type ConnectQuoteLength, type ConnectTest, type ConnectTestMode,
 } from "@/lib/connect-types";
-import { fetchWordsManifest } from "@/lib/words";
 import { fetchQuotesManifest } from "@/lib/quotes";
-import { DurationField, WordCountField } from "./DurationField";
-import { CustomTextField } from "./CustomTextField";
-import { Segmented } from "./Segmented";
+import { fetchWordsManifest } from "@/lib/words";
+import { cn } from "@/lib/utils";
+import { Chips, CustomText, Field, ModeTiles, ToggleChip, WordChips, DurationChips, field } from "./editor-fields";
+import { BREAKS, DURATIONS } from "./test-presets";
 
 type Draft = Omit<ConnectTest, "id" | "title"> & { title: string };
 
-const MODES: { value: ConnectTestMode; label: string }[] = [
-  { value: "time", label: "Time" },
-  { value: "words", label: "Words" },
-  { value: "quote", label: "Quote" },
-  { value: "preset", label: "Custom text" },
-  { value: "break", label: "Break" },
-];
 const DIFFICULTIES: ConnectDifficulty[] = ["beginner", "easy", "medium", "hard", "expert"];
 const QUOTE_LENGTHS: ConnectQuoteLength[] = ["short", "medium", "long", "xl"];
 const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
@@ -67,6 +51,7 @@ function validationError(test: ConnectTest) {
   }
 }
 
+/** Difficulties and quote lengths the word and quote lists actually have. */
 function useManifestOptions() {
   const [difficulties, setDifficulties] = useState<ConnectDifficulty[]>(DIFFICULTIES);
   const [lengths, setLengths] = useState<ConnectQuoteLength[]>(QUOTE_LENGTHS);
@@ -85,106 +70,141 @@ function useManifestOptions() {
   return { difficulties, lengths };
 }
 
-function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  const id = useId();
-  return (
-    <div className="flex items-center gap-2">
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
-      <Label htmlFor={id}>{label}</Label>
-    </div>
-  );
-}
+const roundButton = "flex size-10 items-center justify-center rounded-full text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-30";
 
-export function TestEditor({ editing, testCount, onSubmit, onCancel }: {
+/** Adds or edits one test or break. */
+export function TestEditor({ editing, autoTitle, canRemove, full, onSave, onCancel, onDuplicate, onRemove }: {
   /** The test being edited, or null when adding. */
   editing: ConnectTest | null;
-  testCount: number;
-  onSubmit: (test: ConnectTest) => Promise<boolean>;
+  /** What participants see when the title is left empty. */
+  autoTitle: (test: ConnectTest) => string;
+  canRemove: boolean;
+  full: boolean;
+  onSave: (test: ConnectTest) => Promise<boolean>;
   onCancel: () => void;
+  onDuplicate?: () => void;
+  onRemove?: () => void;
 }) {
   const id = useId();
   const [draft, setDraft] = useState(() => toDraft(editing));
-  const [showErrors, setShowErrors] = useState(false);
+  const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const { difficulties, lengths } = useManifestOptions();
   const update = (changes: Partial<Draft>) => setDraft((current) => ({ ...current, ...changes }));
-  const error = validationError(fromDraft(draft, editing?.id ?? "draft"));
-  // Empty custom text only complains after a save attempt; other problems show as soon as they appear.
-  const visibleError = error && (showErrors || draft.mode !== "preset" || Boolean(draft.presetText?.trim())) ? error : null;
-  const full = !editing && testCount >= CONNECT_MAX_TESTS;
+  const test = fromDraft(draft, editing?.id ?? "draft");
+  const error = validationError(test);
+  // Empty custom text only complains after a save attempt; other problems show straight away.
+  const shownError = error && (tried || draft.mode !== "preset" || Boolean(draft.presetText?.trim())) ? error : null;
+  const wordOptions = draft.mode === "time" || draft.mode === "words";
   const noun = draft.mode === "break" ? "break" : "test";
-  const usesWordOptions = draft.mode === "time" || draft.mode === "words";
+  const blocked = full && !editing;
 
+  const setMode = (mode: ConnectTestMode) => {
+    if (mode === draft.mode) return;
+    if (mode === "break") update({ mode, duration: DEFAULT_CONNECT_BREAK.duration });
+    else update({ mode, duration: draft.mode === "break" ? DEFAULT_CONNECT_TEST.duration : draft.duration });
+  };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (error) { setShowErrors(true); return; }
+    if (error) { setTried(true); return; }
+    if (blocked || saving) return;
     setSaving(true);
-    const ok = await onSubmit(fromDraft(draft, editing?.id ?? crypto.randomUUID()));
-    setSaving(false);
-    if (ok && !editing) { setDraft(toDraft(null)); setShowErrors(false); }
+    const ok = await onSave(fromDraft(draft, editing?.id ?? crypto.randomUUID()));
+    if (!ok) setSaving(false);
   };
+  const summary = [
+    describeConnectTest(test),
+    ...(wordOptions ? [capitalize(draft.difficulty), ...(draft.punctuation ? ["punctuation"] : []), ...(draft.numbers ? ["numbers"] : []), ...(draft.capitalization ? ["capitals"] : [])] : []),
+  ].join(" · ");
 
   return (
-    <section aria-labelledby={`${id}-heading`} className="min-w-0 rounded-xl border border-border bg-card p-4 text-card-foreground sm:p-5">
-      <form aria-labelledby={`${id}-heading`} className="space-y-4" onSubmit={(event) => void submit(event)} noValidate>
-        <h2 id={`${id}-heading`} className="text-lg font-semibold">{editing ? `Edit ${noun}` : "Add a test or break"}</h2>
-        <Segmented<ConnectTestMode> label="Test mode" value={draft.mode} options={MODES} onChange={(mode) => update({ mode })} />
-        {(draft.mode === "time" || draft.mode === "break") && <DurationField value={draft.duration} onChange={(duration) => update({ duration })} />}
-        {draft.mode === "break" && (
-          <p className="text-sm text-muted-foreground">Everyone sees a countdown, then the next test starts on its own. Breaks freeze while the room is paused.</p>
-        )}
-        {draft.mode === "words" && <WordCountField value={draft.wordTarget} onChange={(wordTarget) => update({ wordTarget })} />}
-        {usesWordOptions && (
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,12rem)_1fr] sm:items-end">
-            <div className="space-y-2">
-              <Label htmlFor={`${id}-difficulty`}>Difficulty</Label>
-              <NativeSelect id={`${id}-difficulty`} value={draft.difficulty} onChange={(event) => update({ difficulty: event.target.value as ConnectDifficulty })}>
-                {difficulties.map((value) => <NativeSelectOption key={value} value={value}>{capitalize(value)}</NativeSelectOption>)}
-              </NativeSelect>
-            </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-3 pb-2">
-              <ToggleRow label="Punctuation" checked={draft.punctuation} onChange={(punctuation) => update({ punctuation })} />
-              <ToggleRow label="Numbers" checked={draft.numbers} onChange={(numbers) => update({ numbers })} />
-              <ToggleRow label="Capitals" checked={draft.capitalization} onChange={(capitalization) => update({ capitalization })} />
-            </div>
-          </div>
-        )}
-        {draft.mode === "quote" && (
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-quote`}>Quote length</Label>
-            <NativeSelect id={`${id}-quote`} value={draft.quoteLength} onChange={(event) => update({ quoteLength: event.target.value as ConnectQuoteLength })}>
-              <NativeSelectOption value="all">Any length</NativeSelectOption>
-              {lengths.map((value) => <NativeSelectOption key={value} value={value}>{value === "xl" ? "Extra long" : capitalize(value)}</NativeSelectOption>)}
-            </NativeSelect>
-          </div>
-        )}
-        {draft.mode === "preset" && (
-          <CustomTextField
-            text={draft.presetText ?? ""}
-            modeType={draft.presetModeType ?? "finish"}
-            duration={draft.duration}
-            onChange={update}
-          />
-        )}
-        <div className="space-y-2">
-          <Label htmlFor={`${id}-title`}>Title <span className="font-normal text-muted-foreground">(optional)</span></Label>
-          <Input id={`${id}-title`} value={draft.title} maxLength={60} placeholder="Shown to participants" onChange={(event) => update({ title: event.target.value })} />
+    <form onSubmit={(event) => void submit(event)} noValidate aria-labelledby={`${id}-heading`} className="@container flex flex-col gap-5 rounded-3xl border-2 border-primary/40 bg-background p-3.5 sm:p-5">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 id={`${id}-heading`} className="text-lg font-bold">{editing ? `Edit ${noun}` : "Add a test or break"}</h3>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.p key={summary} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }} className="text-sm text-muted-foreground">
+              {Number.isFinite(test.duration) && Number.isFinite(test.wordTarget) ? summary : "Finish the settings below"}
+            </motion.p>
+          </AnimatePresence>
         </div>
-        {visibleError && <p role="alert" className="text-sm text-destructive">{visibleError}</p>}
-        {full && <p className="text-sm text-muted-foreground">The list is full ({CONNECT_MAX_TESTS} tests). Remove one to add another.</p>}
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={saving || full}>
-            {editing ? <FloppyDiskIcon aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}
-            {editing ? "Save changes" : "Add to list"}
-          </Button>
-          {editing && (
-            <Button type="button" variant="outline" onClick={onCancel}>
-              <XIcon aria-hidden="true" />
-              Cancel
-            </Button>
+        <button type="button" onClick={onCancel} aria-label="Close the editor" className={cn(roundButton, "size-9 hover:bg-accent hover:text-foreground")}>
+          <XIcon className="size-4" aria-hidden="true" />
+        </button>
+      </header>
+
+      <ModeTiles value={draft.mode} onChange={setMode} />
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={draft.mode} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }} className="flex flex-col gap-5">
+          {draft.mode === "time" && <DurationChips label="Duration" value={draft.duration} presets={DURATIONS} onChange={(duration) => update({ duration })} />}
+          {draft.mode === "break" && <DurationChips label="Break length" value={draft.duration} presets={BREAKS} onChange={(duration) => update({ duration })} />}
+          {draft.mode === "break" && <p className="-mt-2 text-sm text-muted-foreground">Everyone sees a countdown, then the next test starts on its own. Breaks freeze while the room is paused.</p>}
+          {draft.mode === "words" && <WordChips value={draft.wordTarget} onChange={(wordTarget) => update({ wordTarget })} />}
+          {wordOptions && (
+            <>
+              <Field label="Difficulty">
+                <Chips<ConnectDifficulty> label="Difficulty" value={draft.difficulty} onChange={(difficulty) => update({ difficulty })}
+                  options={difficulties.map((value) => ({ value, label: capitalize(value) }))} />
+              </Field>
+              <Field label="Mix in">
+                <div className="flex flex-wrap gap-1.5">
+                  <ToggleChip label="Punctuation" pressed={draft.punctuation} onChange={(punctuation) => update({ punctuation })} />
+                  <ToggleChip label="Numbers" pressed={draft.numbers} onChange={(numbers) => update({ numbers })} />
+                  <ToggleChip label="Capitals" pressed={draft.capitalization} onChange={(capitalization) => update({ capitalization })} />
+                </div>
+              </Field>
+            </>
           )}
-        </div>
-      </form>
-    </section>
+          {draft.mode === "quote" && (
+            <Field label="Quote length">
+              <Chips<ConnectQuoteLength> label="Quote length" value={draft.quoteLength} onChange={(quoteLength) => update({ quoteLength })}
+                options={[{ value: "all", label: "Any length" }, ...lengths.map((value) => ({ value, label: value === "xl" ? "Extra long" : capitalize(value) }))]} />
+            </Field>
+          )}
+          {draft.mode === "preset" && (
+            <CustomText text={draft.presetText ?? ""} modeType={draft.presetModeType ?? "finish"} duration={draft.duration} onChange={update} />
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      <Field label="Title (optional)">
+        <input id={`${id}-title`} aria-label="Title (optional)" value={draft.title} maxLength={60} placeholder={autoTitle(test)}
+          onChange={(event) => update({ title: event.target.value })} className={cn(field, "w-full")} />
+      </Field>
+
+      <AnimatePresence initial={false}>
+        {shownError && (
+          <motion.p role="alert" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden text-sm font-medium text-destructive">
+            {shownError}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      {blocked && <p className="text-sm text-muted-foreground">The list is full. Remove a test to add another.</p>}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <motion.button type="submit" whileTap={{ scale: 0.96 }} disabled={blocked || saving}
+          className="flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40">
+          {saving ? <CircleNotchIcon className="size-4 animate-spin" aria-hidden="true" />
+            : editing ? <FloppyDiskIcon weight="fill" className="size-4" aria-hidden="true" /> : <PlusIcon className="size-4" aria-hidden="true" />}
+          {editing ? "Save changes" : "Add to list"}
+        </motion.button>
+        <button type="button" onClick={onCancel} className="h-11 rounded-full px-4 text-sm font-semibold text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">Cancel</button>
+        {editing && (
+          <span className="ml-auto flex gap-1">
+            {onDuplicate && (
+              <button type="button" onClick={onDuplicate} disabled={full} aria-label={`Duplicate this ${noun}`} title="Duplicate" className={cn(roundButton, "hover:bg-accent hover:text-foreground")}>
+                <CopySimpleIcon className="size-4" aria-hidden="true" />
+              </button>
+            )}
+            {onRemove && (
+              <button type="button" onClick={onRemove} disabled={!canRemove} aria-label={`Remove this ${noun}`} title="Remove" className={cn(roundButton, "hover:bg-destructive/10 hover:text-destructive")}>
+                <TrashIcon className="size-4" aria-hidden="true" />
+              </button>
+            )}
+          </span>
+        )}
+      </div>
+    </form>
   );
 }

@@ -189,7 +189,8 @@ function publicRoom(room: Room) {
 function publicParticipant(participant: Participant) {
   const { sessionId, typedText, targetText, ...rest } = participant;
   void sessionId; void typedText; void targetText;
-  return rest;
+  // The server always reports whether a seat belongs to an account.
+  return { ...rest, signedIn: rest.signedIn === true };
 }
 
 function hostView(args: Args) {
@@ -217,7 +218,7 @@ function participantView(args: Args) {
   return {
     state: "ok" as const,
     room: { _id, code, name, hostName, status, pacing, currentIndex, runVersion, tests, overrides },
-    participant: self,
+    participant: { ...self, signedIn: self.signedIn === true },
   };
 }
 

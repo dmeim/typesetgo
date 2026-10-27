@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeftIcon, CircleNotchIcon, DoorOpenIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CircleNotchIcon, DoorIcon, DoorOpenIcon, LockKeyIcon, MagnifyingGlassIcon, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { toast } from "@/lib/toast-manager";
 
 function BackToConnect() {
   return (
-    <Button variant="outline" asChild>
+    <Button variant="outline" className="rounded-full" asChild>
       <Link to="/connect">
         <ArrowLeftIcon aria-hidden="true" />
         Back to Connect
@@ -23,10 +23,13 @@ function BackToConnect() {
   );
 }
 
-function StateCard({ title, children }: { title: string; children: ReactNode }) {
+function StateCard({ title, Icon, children }: { title: string; Icon: PhosphorIcon; children: ReactNode }) {
   return (
-    <div className="mx-auto mt-8 max-w-md space-y-4 rounded-xl border border-border bg-card p-6 text-center text-card-foreground">
-      <h1 className="text-2xl font-semibold">{title}</h1>
+    <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 rounded-3xl border border-border bg-card p-6 text-center text-card-foreground sm:p-8">
+      <span aria-hidden="true" className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <Icon weight="fill" className="size-7" />
+      </span>
+      <h1 className="text-2xl font-black">{title}</h1>
       {children}
     </div>
   );
@@ -51,9 +54,9 @@ function ReopenAction({ roomId, label }: { roomId: string; label: string }) {
     }
   };
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap justify-center gap-2">
-        <Button type="button" disabled={pending} onClick={() => void run()}>
+        <Button type="button" className="rounded-full" disabled={pending} onClick={() => void run()}>
           {pending ? <CircleNotchIcon className="animate-spin" aria-hidden="true" /> : <DoorOpenIcon aria-hidden="true" />}
           {label}
         </Button>
@@ -79,7 +82,7 @@ function HostView({ roomId }: { roomId: string }) {
   }
   if (view.state === "missing") {
     return (
-      <StateCard title="Room not found">
+      <StateCard title="Room not found" Icon={MagnifyingGlassIcon}>
         <p className="text-muted-foreground">This room doesn't exist or was closed more than a day ago.</p>
         <div className="flex justify-center"><BackToConnect /></div>
       </StateCard>
@@ -87,7 +90,7 @@ function HostView({ roomId }: { roomId: string }) {
   }
   if (view.state === "forbidden") {
     return (
-      <StateCard title="This room is hosted from another browser">
+      <StateCard title="This room is hosted from another browser" Icon={LockKeyIcon}>
         <p className="text-muted-foreground">
           Take over to host it here. If you're signed in as the room's owner, or this is the browser that created it, you can continue.
         </p>
@@ -97,7 +100,7 @@ function HostView({ roomId }: { roomId: string }) {
   }
   if (view.state === "ended") {
     return (
-      <StateCard title="This room has ended">
+      <StateCard title="This room has ended" Icon={DoorIcon}>
         <p className="text-muted-foreground">
           {view.room.name} is closed. Reopen it to keep the same tests and settings; it gets a new code for participants.
         </p>
@@ -111,7 +114,7 @@ function HostView({ roomId }: { roomId: string }) {
 export default function ConnectHost() {
   const { roomId = "" } = useParams();
   return (
-    <ConnectShell>
+    <ConnectShell className="max-w-6xl">
       <HostView key={roomId} roomId={roomId} />
     </ConnectShell>
   );

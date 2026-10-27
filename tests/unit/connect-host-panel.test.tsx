@@ -111,11 +111,20 @@ describe("state screens", () => {
   });
 });
 
+const testsCard = () => screen.getByRole("region", { name: "Tests" });
+/** The editor opens from "Add a test or break" or from a test's row. */
+const openNewEditor = () => {
+  fireEvent.click(within(testsCard()).getByRole("button", { name: "Add a test or break" }));
+  return editor();
+};
+
 describe("test list", () => {
   it("adds a test to the end of the list", async () => {
     renderHost();
-    const form = editor();
-    fireEvent.click(within(within(form).getByRole("radiogroup", { name: "Test mode" })).getByRole("radio", { name: "Words" }));
+    expect(screen.queryByRole("form")).not.toBeInTheDocument();
+    const form = openNewEditor();
+    expect(within(form).getByRole("heading", { name: "Add a test or break" })).toBeInTheDocument();
+    fireEvent.click(within(within(form).getByRole("radiogroup", { name: "Test type" })).getByRole("radio", { name: "Words" }));
     fireEvent.click(within(form).getByRole("button", { name: "Add to list" }));
     await waitFor(() => expect(mutation("setTests")).toHaveBeenCalledTimes(1));
     const tests = lastTests();
@@ -127,27 +136,33 @@ describe("test list", () => {
 
   it("adds a break with only a duration and a title", async () => {
     renderHost();
-    const form = editor();
+    const form = openNewEditor();
     fireEvent.click(within(form).getByRole("radio", { name: "Break" }));
-    expect(within(form).getByText(/next test starts on its own/)).toBeInTheDocument();
-    expect(within(form).queryByLabelText("Difficulty")).not.toBeInTheDocument();
+    expect(await within(form).findByText(/next test starts on its own/)).toBeInTheDocument();
+    expect(within(form).queryByRole("radiogroup", { name: "Difficulty" })).not.toBeInTheDocument();
     fireEvent.click(within(form).getByRole("button", { name: "Add to list" }));
     await waitFor(() => expect(mutation("setTests")).toHaveBeenCalledTimes(1));
     expect(lastTests()[2]).toMatchObject({ mode: "break", duration: 30 });
   });
 
-  it("validates custom text before saving", () => {
+  it("quick-adds a common test", async () => {
     renderHost();
-    const form = editor();
+    fireEvent.click(within(testsCard()).getByRole("button", { name: /Break · 30s/ }));
+    await waitFor(() => expect(lastTests()[2]).toMatchObject({ mode: "break", duration: 30 }));
+  });
+
+  it("validates custom text before saving", async () => {
+    renderHost();
+    const form = openNewEditor();
     fireEvent.click(within(form).getByRole("radio", { name: "Custom text" }));
     fireEvent.click(within(form).getByRole("button", { name: "Add to list" }));
-    expect(within(form).getByRole("alert")).toHaveTextContent("enter the text to type");
+    expect(await within(form).findByRole("alert")).toHaveTextContent("enter the text to type");
     expect(mutation("setTests")).not.toHaveBeenCalled();
   });
 
   it("edits a test in place", async () => {
     renderHost();
-    fireEvent.click(screen.getByRole("button", { name: "Edit test 1" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit test 1:/ }));
     const form = editor();
     expect(within(form).getByRole("heading", { name: "Edit test" })).toBeInTheDocument();
     fireEvent.click(within(within(form).getByRole("radiogroup", { name: "Duration" })).getByRole("radio", { name: "1m" }));
@@ -159,44 +174,48 @@ describe("test list", () => {
 
   it("removes, duplicates, and reorders tests", async () => {
     renderHost();
-    fireEvent.click(screen.getByRole("button", { name: "Remove test 1" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Remove test 1:/ }));
     await waitFor(() => expect(lastTests()).toEqual([words]));
     // The optimistic copy settles back to the server list once the save finishes.
-    await waitFor(() => expect(screen.getByRole("button", { name: "Move test 2 up" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "Move test 2 up" }));
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /^Reorder test/ })).toHaveLength(2));
+    fireEvent.keyDown(screen.getByRole("button", { name: /^Reorder test 2:/ }), { key: "ArrowUp" });
     await waitFor(() => expect(lastTests()).toEqual([words, timed]));
-    fireEvent.click(screen.getByRole("button", { name: "Duplicate test 1" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Duplicate test 1:/ }));
     await waitFor(() => expect(lastTests().map((test) => test.mode)).toEqual(["time", "time", "words"]));
   });
 
   it("rolls back and reports a rejected save", async () => {
     mutation("setTests").mockRejectedValueOnce(new Error("[CONVEX M(connect:setTests)] Uncaught Error: Tests already reached can't be changed while the room is running"));
     renderHost();
-    fireEvent.click(screen.getByRole("button", { name: "Remove test 1" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Remove test 1:/ }));
     await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({
       type: "error", description: "Tests already reached can't be changed while the room is running",
     })));
-    expect(screen.getByRole("button", { name: "Remove test 1" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /^Remove test 1:/ })).toBeInTheDocument();
   });
 
   it("locks tests already reached while running", () => {
     setView({ status: "running", currentIndex: 1, tests: [timed, words, quote] });
     renderHost();
-    const items = within(screen.getByRole("region", { name: "Tests" })).getAllByRole("listitem");
+    const items = within(within(testsCard()).getByRole("list")).getAllByRole("listitem");
     expect(within(items[0]).getByText("Locked")).toBeInTheDocument();
     expect(within(items[1]).getByText("Locked")).toBeInTheDocument();
     expect(items[1]).toHaveAttribute("aria-current", "step");
-    expect(screen.queryByRole("button", { name: "Edit test 2" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Edit test 3" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Move test 3 up" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /^Edit test 2:/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Reorder test 2:/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Edit test 3:/ })).toBeInTheDocument();
+    // The first unlocked test can't move above the locked ones.
+    fireEvent.keyDown(screen.getByRole("button", { name: /^Reorder test 3:/ }), { key: "ArrowUp" });
+    expect(mutation("setTests")).not.toHaveBeenCalled();
   });
 
   it("locks through the furthest participant in self-paced rooms and shows counts", () => {
     setView({ status: "running", pacing: "participant", tests: [timed, words, quote] }, [participant("a", 0), participant("b", 1), participant("c", 3, { completedAt: 5 })]);
     renderHost();
-    expect(screen.queryByRole("button", { name: "Edit test 2" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Edit test 3" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Edit test 2:/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Edit test 3:/ })).not.toBeInTheDocument();
     expect(screen.getByText(/1 on test 1 · 1 on test 2 · 1 done/)).toBeInTheDocument();
+    expect(within(testsCard()).getByText("1 finished every test.")).toBeInTheDocument();
   });
 });
 
@@ -205,18 +224,19 @@ describe("run controls", () => {
 
   it("changes pacing only in the lobby", async () => {
     renderHost();
-    fireEvent.click(pacing().getByRole("radio", { name: "Self-paced" }));
+    fireEvent.click(pacing().getByRole("radio", { name: "Own pace" }));
     await waitFor(() => expect(mutation("updateRoom")).toHaveBeenCalledWith({ roomId: "room1", credential: "cred", pacing: "participant" }));
     cleanup();
     setView({ status: "running" });
     renderHost();
-    expect(pacing().getByRole("radio", { name: "Self-paced" })).toBeDisabled();
-    expect(screen.getByText(/Reset the room to change pacing/)).toBeInTheDocument();
+    expect(pacing().getByRole("radio", { name: "Own pace" })).toBeDisabled();
+    expect(screen.getByText(/Reset the room to change this/)).toBeInTheDocument();
   });
 
   it("starts from the lobby", async () => {
     renderHost();
     expect(screen.getByText(/2 tests ready/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset room" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await waitFor(() => expect(mutation("start")).toHaveBeenCalledWith({ roomId: "room1", credential: "cred" }));
     expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
@@ -227,33 +247,35 @@ describe("run controls", () => {
     const pause: ConnectTest = { ...timed, id: "b1", mode: "break", duration: 60 };
     setView({ status: "running", tests: [timed, words, pause, quote], currentIndex: 0, stepStartedAt: 90_000 });
     renderHost();
-    expect(screen.getByText(/Ends in 0:25/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Ends in 0:25/).length).toBeGreaterThan(0);
     cleanup();
     setView({ status: "running", tests: [timed, words, pause, quote], currentIndex: 1, stepStartedAt: 90_000 },
       [participant("a", 1, { stats: { wpm: 40, accuracy: 95, progress: 100, wordsTyped: 50, timeElapsed: 9000, isFinished: true } }), participant("b", 1)]);
     renderHost();
-    expect(screen.getByText(/1 of 2 finished/)).toBeInTheDocument();
+    expect(screen.getAllByText(/1 of 2 finished/).length).toBeGreaterThan(0);
     cleanup();
     setView({ status: "running", tests: [timed, words, pause, quote], currentIndex: 1, stepStartedAt: 80_000, stepEndedAt: 95_000 });
     renderHost();
-    expect(screen.getByText(/Break, next test in 0:55/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Break, next test in 0:55/).length).toBeGreaterThan(0);
     cleanup();
     setView({ status: "running", tests: [timed, words, pause, quote], currentIndex: 3, stepStartedAt: 80_000, stepEndedAt: 95_000 });
     renderHost();
-    expect(screen.getByText(/Results, finishing in 0:05/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Results, finishing in 0:05/).length).toBeGreaterThan(0);
     vi.useRealTimers();
   });
 
   it("pauses, restarts, and moves between tests while running", async () => {
     setView({ status: "running", currentIndex: 0 });
     renderHost();
-    expect(screen.getByText("Test 1 of 2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Previous test" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Next test" }));
+    const run = within(screen.getByRole("region", { name: "Run the room" }));
+    expect(run.getByText(/^Test 1 of 2 · /)).toBeInTheDocument();
+    expect(run.getByRole("list", { name: "Test 1 of 2" })).toBeInTheDocument();
+    expect(run.getByRole("button", { name: "Previous" })).toBeDisabled();
+    fireEvent.click(run.getByRole("button", { name: "Next test" }));
     await waitFor(() => expect(mutation("goToTest")).toHaveBeenCalledWith({ roomId: "room1", credential: "cred", index: 1 }));
-    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    fireEvent.click(run.getByRole("button", { name: "Pause" }));
     await waitFor(() => expect(mutation("pause")).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole("button", { name: "Restart test" }));
+    fireEvent.click(run.getByRole("button", { name: "Restart test" }));
     await waitFor(() => expect(mutation("restartTest")).toHaveBeenCalled());
   });
 
@@ -277,49 +299,116 @@ describe("run controls", () => {
     expect(screen.queryByRole("button", { name: "Next test" })).not.toBeInTheDocument();
   });
 
-  it("confirms before resetting the room", async () => {
+  it("asks for a second tap before resetting the room", async () => {
     setView({ status: "running" });
     renderHost();
     fireEvent.click(screen.getByRole("button", { name: "Reset room" }));
-    const dialog = await screen.findByRole("alertdialog");
-    expect(dialog).toHaveTextContent("results from this run are cleared");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Reset room" }));
+    expect(mutation("resetRoom")).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: "Tap again: clears this run's results" }));
     await waitFor(() => expect(mutation("resetRoom")).toHaveBeenCalled());
   });
 
-  it("ends the room after confirmation and returns to Connect", async () => {
+  it("ends the room after a second tap and returns to Connect", async () => {
     renderHost();
+    expect(screen.getByText(/reopen it from Connect for 48 hours/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "End room" }));
-    const dialog = await screen.findByRole("alertdialog");
-    expect(dialog).toHaveTextContent("48 hours");
-    fireEvent.click(within(dialog).getByRole("button", { name: "End room" }));
+    expect(mutation("endRoom")).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: "Tap again to end" }));
     expect(await screen.findByText("Connect landing")).toBeInTheDocument();
     expect(mutation("endRoom")).toHaveBeenCalledWith({ roomId: "room1", credential: "cred" });
   });
+
+  it("renames the room", async () => {
+    renderHost();
+    fireEvent.click(screen.getByRole("button", { name: "Rename room" }));
+    fireEvent.change(await screen.findByLabelText("Room name"), { target: { value: "Period 4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save room name" }));
+    await waitFor(() => expect(mutation("updateRoom")).toHaveBeenCalledWith({ roomId: "room1", credential: "cred", name: "Period 4" }));
+  });
 });
 
-describe("participant settings", () => {
+describe("code, roster and live board", () => {
+  it("shows the code with copy actions and a big view", async () => {
+    renderHost();
+    const card = within(screen.getByRole("region", { name: "Room code" }));
+    expect(card.getByRole("img", { name: "Room code A B C D" })).toHaveTextContent("ABCD");
+    expect(card.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
+    expect(card.getByRole("button", { name: "Copy link" })).toBeInTheDocument();
+    fireEvent.click(card.getByRole("button", { name: /Show big/ }));
+    const big = await screen.findByRole("dialog", { name: "Room code, large" });
+    expect(big).toHaveTextContent("ABCD");
+    // The card's tiles move into the big view and come back when it closes.
+    const outsideBig = () => screen.getAllByRole("img", { name: "Room code A B C D" }).filter((tiles) => !big.contains(tiles));
+    expect(outsideBig()).toHaveLength(0);
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(outsideBig()).toHaveLength(1));
+  });
+
+  it("restarts, lets a late arrival start, and removes players after confirming", async () => {
+    setView({ status: "running", currentIndex: 0 }, [participant("Ana", 0), participant("Leo", 0, { lateForRun: 1 })]);
+    renderHost();
+    const roster = within(screen.getByRole("region", { name: "Who's here" }));
+    expect(roster.getByText(/2 joined · 2 online · 1 waiting/)).toBeInTheDocument();
+    fireEvent.click(roster.getByRole("button", { name: "Restart Ana's attempt" }));
+    expect(roster.getByText("Restart Ana's attempt? Earlier results stay.")).toBeInTheDocument();
+    fireEvent.click(roster.getByRole("button", { name: "Restart" }));
+    await waitFor(() => expect(mutation("resetParticipant")).toHaveBeenCalledWith(expect.objectContaining({ participantId: "Ana" })));
+    fireEvent.click(await roster.findByRole("button", { name: "Let Leo start now" }));
+    fireEvent.click(roster.getByRole("button", { name: "Start now" }));
+    await waitFor(() => expect(mutation("resetParticipant")).toHaveBeenCalledWith(expect.objectContaining({ participantId: "Leo" })));
+    fireEvent.click(await roster.findByRole("button", { name: "Remove Ana" }));
+    expect(roster.getByText("Remove Ana? They can rejoin with the code.")).toBeInTheDocument();
+    fireEvent.click(roster.getByRole("button", { name: "Cancel" }));
+    expect(mutation("removeParticipant")).not.toHaveBeenCalled();
+    fireEvent.click(await roster.findByRole("button", { name: "Remove Ana" }));
+    fireEvent.click(roster.getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(mutation("removeParticipant")).toHaveBeenCalledWith(expect.objectContaining({ participantId: "Ana" })));
+  });
+
+  it("puts the live board in fullscreen, a pop-out, or a new tab", async () => {
+    const open = vi.fn().mockReturnValue({});
+    vi.stubGlobal("open", open);
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    HTMLElement.prototype.requestFullscreen = requestFullscreen;
+    setView({}, [participant("Ana", 0)]);
+    renderHost();
+    const board = within(screen.getByRole("region", { name: "Live board" }));
+    expect(board.getByRole("group", { name: "Board settings" })).toBeInTheDocument();
+    expect(board.getByRole("article", { name: "Ana" })).toBeInTheDocument();
+    expect(board.getByRole("link", { name: /New tab/ })).toHaveAttribute("href", "/connect/host/room1/board");
+    fireEvent.click(board.getByRole("button", { name: /Pop out/ }));
+    expect(open).toHaveBeenCalledWith("/connect/host/room1/board", expect.any(String), expect.stringContaining("popup"));
+    fireEvent.click(board.getByRole("button", { name: /Fullscreen/ }));
+    await waitFor(() => expect(requestFullscreen).toHaveBeenCalled());
+    expect(requestFullscreen.mock.contexts[0]).toHaveAttribute("data-board", "live");
+  });
+});
+
+describe("everyone gets", () => {
   const ghostOverride = { enabled: true, ghostWriterEnabled: true, ghostWriterSpeed: 70 };
+  const everyone = () => within(screen.getByRole("region", { name: "Everyone gets" }));
 
   it("toggles a group and sends the whole overrides object", async () => {
     setView({ overrides: { ghost: ghostOverride } });
     renderHost();
-    fireEvent.click(screen.getByRole("switch", { name: "Use room setting for theme" }));
+    expect(everyone().getByText(/1 of 5 set for the room/)).toBeInTheDocument();
+    fireEvent.click(everyone().getByRole("switch", { name: "Everyone gets the same theme" }));
     await waitFor(() => expect(mutation("updateRoom")).toHaveBeenCalledWith({
       roomId: "room1", credential: "cred",
       overrides: { ghost: ghostOverride, theme: { enabled: true, themeId: "typesetgo", mode: "dark" } },
     }));
   });
 
-  it("keeps values when a group is turned off and disables its controls", async () => {
+  it("keeps values when a group is turned off and hides its controls", async () => {
     setView({ overrides: { ghost: ghostOverride } });
     renderHost();
-    fireEvent.click(screen.getByRole("switch", { name: "Use room setting for ghost writer" }));
+    expect(everyone().getByText("Ghost at 70 wpm")).toBeInTheDocument();
+    fireEvent.click(everyone().getByRole("switch", { name: "Everyone gets the same ghost racer" }));
     await waitFor(() => expect(mutation("updateRoom")).toHaveBeenCalledWith(expect.objectContaining({
       overrides: { ghost: { ...ghostOverride, enabled: false } },
     })));
-    expect(screen.getByRole("switch", { name: "Use room setting for keyboard" })).not.toBeChecked();
-    expect(screen.getByLabelText("Show on-screen keyboard")).toBeDisabled();
+    expect(everyone().getByRole("switch", { name: "Everyone gets the same on-screen keyboard" })).toHaveAttribute("aria-checked", "false");
+    expect(everyone().queryByRole("switch", { name: "Show the keyboard" })).not.toBeInTheDocument();
   });
 
   it("debounces rapid edits into one save", async () => {

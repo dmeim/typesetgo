@@ -7,6 +7,8 @@ import { formatClock } from "@/components/connect/board/board-model";
 import { participantTestDetail } from "./test-labels";
 
 const RETRY_MS = 2000;
+const RADIUS = 54;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 /**
  * Countdown between tests. Host pacing moves on from the server; in participant pacing
@@ -39,26 +41,31 @@ export function BreakScreen({ tests, index, startedAt, pausedAt, paused, onExpir
   const labels = connectTestLabels(tests);
   const nextIndex = tests.findIndex((item, position) => position > index && item.mode !== "break");
   const next = nextIndex >= 0 ? tests[nextIndex] : undefined;
+  const left = Math.min(1, remaining / total);
+  const clock = formatClock(remaining);
 
   return (
-    <section aria-labelledby="break-title" className="mx-auto flex w-full max-w-md flex-col items-center gap-6 px-4 py-10 text-center">
-      {paused
-        ? <PauseCircleIcon className="size-10 text-primary" weight="regular" aria-hidden="true" />
-        : <CoffeeIcon className="size-10 text-primary" weight="regular" aria-hidden="true" />}
-      <div className="space-y-1">
-        <h2 id="break-title" className="text-2xl font-semibold">{paused ? "Paused by the host" : labels[index]?.title ?? "Break"}</h2>
-        <p className="text-muted-foreground">{paused ? "The countdown continues when the host resumes." : expired ? "Starting…" : "Take a breather. The next test starts on its own."}</p>
+    <section aria-labelledby="break-title" className="mx-auto flex w-full max-w-md flex-col items-center gap-5 px-4 py-10 text-center">
+      <div className="relative size-40">
+        <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden="true">
+          <circle cx="60" cy="60" r={RADIUS} fill="none" strokeWidth="10" className="stroke-muted" />
+          <circle cx="60" cy="60" r={RADIUS} fill="none" strokeWidth="10" strokeLinecap="round" className="stroke-primary transition-[stroke-dashoffset] duration-300 ease-linear motion-reduce:transition-none"
+            strokeDasharray={CIRCUMFERENCE} strokeDashoffset={CIRCUMFERENCE * (1 - left)} />
+        </svg>
+        <span className="absolute inset-0 flex flex-col items-center justify-center" role="timer" aria-label={`${clock} left in the break`}>
+          {paused
+            ? <PauseCircleIcon weight="fill" className="size-6 text-primary" aria-hidden="true" />
+            : <CoffeeIcon weight="fill" className="size-6 text-primary" aria-hidden="true" />}
+          <span className="text-3xl font-black tabular-nums">{clock}</span>
+        </span>
       </div>
-      <p className="font-mono text-6xl font-bold tabular-nums text-secondary-emphasis" role="timer" aria-label={`${formatClock(remaining)} left in the break`}>
-        {formatClock(remaining)}
-      </p>
-      <div className="h-1.5 w-48 overflow-hidden rounded-full bg-foreground/15" aria-hidden="true">
-        <div className="h-full rounded-full bg-primary transition-[width] duration-300 ease-linear motion-reduce:transition-none"
-          style={{ width: `${Math.min(100, ((total - remaining) / total) * 100)}%` }} />
+      <div className="flex flex-col gap-1">
+        <h2 id="break-title" className="text-2xl font-black">{paused ? "Paused by the host" : labels[index]?.title ?? "Break"}</h2>
+        <p className="text-muted-foreground">{paused ? "The countdown continues when the host resumes." : expired ? "Starting…" : "Shake out your hands and wiggle those fingers."}</p>
       </div>
       {next && (
-        <p className="text-sm text-muted-foreground">
-          Up next: <span className="font-medium text-foreground">{labels[nextIndex].title}</span> · {participantTestDetail(next)}
+        <p className="rounded-full bg-muted px-4 py-1.5 text-sm">
+          Up next: <strong>{labels[nextIndex].title}</strong> <span className="text-muted-foreground">· {participantTestDetail(next)}</span>
         </p>
       )}
     </section>

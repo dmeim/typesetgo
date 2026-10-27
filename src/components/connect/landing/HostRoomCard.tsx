@@ -1,19 +1,27 @@
 import { useId, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "convex/react";
-import { ChalkboardTeacherIcon, CircleNotchIcon, PlusIcon } from "@phosphor-icons/react";
+import { motion } from "framer-motion";
+import { ArrowRightIcon, ChalkboardTeacherIcon, ChartBarIcon, CircleNotchIcon, ListChecksIcon, PlusIcon, ShareNetworkIcon } from "@phosphor-icons/react";
 import { api } from "../../../../convex/_generated/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { CONNECT_NAME_MAX, CONNECT_ROOM_NAME_MAX } from "@/lib/connect-types";
 import { loadHostName, saveHostName } from "@/lib/connect-membership";
-import { FormError, LandingCard } from "@/components/connect/landing/LandingCard";
-import { RecentRooms } from "@/components/connect/landing/RecentRooms";
+import { cn } from "@/lib/utils";
+import { ConnectCard } from "@/components/connect/ConnectParts";
+import { CONNECT_SPRING } from "@/components/connect/connect-motion";
 import { readableError } from "@/components/connect/connect-errors";
+import { FormError } from "./FormError";
 
-export function HostRoomCard({ className }: { className?: string }) {
+const STEPS = [
+  { Icon: ListChecksIcon, label: "Pick tests" },
+  { Icon: ShareNetworkIcon, label: "Share the code" },
+  { Icon: ChartBarIcon, label: "Watch live" },
+];
+
+const field = "h-12 w-full rounded-2xl border border-input bg-background px-4 text-base font-normal outline-none focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/20";
+
+export function HostRoomCard() {
   const id = useId();
   const navigate = useNavigate();
   const credential = useMultiplayerCredential();
@@ -25,6 +33,7 @@ export function HostRoomCard({ className }: { className?: string }) {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (pending) return;
     const name = hostName.trim();
     if (!name) {
       setError("Enter the name students will see.");
@@ -43,45 +52,41 @@ export function HostRoomCard({ className }: { className?: string }) {
   };
 
   return (
-    <LandingCard
-      labelledBy={`${id}-title`}
-      title="Host a room"
-      description="Build a list of tests, share the code, and watch everyone's progress live."
-      icon={<ChalkboardTeacherIcon className="size-5" />}
-      className={className}
-    >
-      <form className="space-y-4" onSubmit={(event) => void submit(event)} noValidate>
-        <div className="space-y-2">
-          <Label htmlFor={`${id}-host`}>Your name</Label>
-          <Input
-            id={`${id}-host`}
-            value={hostName}
-            maxLength={CONNECT_NAME_MAX}
-            autoComplete="name"
-            placeholder="Ms. Rivera"
-            onChange={(event) => setHostName(event.target.value)}
-            aria-invalid={error && !hostName.trim() ? true : undefined}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${id}-room`}>
-            Room name <span className="font-normal text-muted-foreground">(optional)</span>
-          </Label>
-          <Input
-            id={`${id}-room`}
-            value={roomName}
-            maxLength={CONNECT_ROOM_NAME_MAX}
-            placeholder={hostName.trim() ? `${hostName.trim()}'s room` : "Period 3 typing"}
-            onChange={(event) => setRoomName(event.target.value)}
-          />
+    <ConnectCard title="Host a room" description="For teachers, coaches and club leaders." Icon={ChalkboardTeacherIcon} bare hideHeader>
+      <ol className="grid grid-cols-3 gap-2" aria-label="How hosting works">
+        {STEPS.map(({ Icon, label }, index) => (
+          <motion.li key={label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ ...CONNECT_SPRING, delay: 0.1 + index * 0.08 }}
+            className="flex flex-col items-center gap-1.5 rounded-2xl bg-muted/50 px-2 py-3 text-center">
+            <span className="relative flex size-9 items-center justify-center rounded-full bg-background text-foreground">
+              <Icon weight="bold" className="size-5" aria-hidden="true" />
+              <span aria-hidden="true" className="absolute -right-1 -top-1 flex size-4.5 items-center justify-center rounded-full bg-(--accent-emphasis) text-[0.6rem] font-bold text-background">{index + 1}</span>
+            </span>
+            <span className="text-xs font-semibold leading-tight">{label}</span>
+          </motion.li>
+        ))}
+      </ol>
+      <form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5 text-sm font-semibold" htmlFor={`${id}-host`}>
+            Your name
+            <input id={`${id}-host`} value={hostName} maxLength={CONNECT_NAME_MAX} autoComplete="name" placeholder="Ms. Rivera"
+              aria-invalid={error && !hostName.trim() ? true : undefined}
+              onChange={(event) => { setHostName(event.target.value); setError(""); }} className={cn(field, error && !hostName.trim() && "border-destructive")} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-semibold" htmlFor={`${id}-room`}>
+            <span>Room name <span className="font-normal text-muted-foreground">(optional)</span></span>
+            <input id={`${id}-room`} value={roomName} maxLength={CONNECT_ROOM_NAME_MAX} onChange={(event) => setRoomName(event.target.value)}
+              placeholder={hostName.trim() ? `${hostName.trim()}'s room` : "Period 3 typing"} className={field} />
+          </label>
         </div>
         <FormError>{error}</FormError>
-        <Button type="submit" className="w-full" disabled={pending}>
-          {pending ? <CircleNotchIcon className="animate-spin" aria-hidden="true" /> : <PlusIcon aria-hidden="true" />}
-          {pending ? "Creating room…" : "Create room"}
-        </Button>
+        <button type="submit" disabled={pending}
+          className="group flex h-12 items-center justify-center gap-2 rounded-full bg-foreground px-6 font-bold text-background transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40">
+          {pending ? <CircleNotchIcon className="size-5 animate-spin" aria-hidden="true" /> : <PlusIcon className="size-5" aria-hidden="true" />}
+          {pending ? "Making your room…" : "Create room"}
+          {!pending && <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />}
+        </button>
       </form>
-      <RecentRooms />
-    </LandingCard>
+    </ConnectCard>
   );
 }

@@ -55,8 +55,12 @@ function view(path = "/connect", auth: AppAuth = unavailableAuth) {
   );
 }
 
+const room = { name: "Period 3", hostName: "Ms. Rivera" };
 const hostCard = () => screen.getByRole("region", { name: "Host a room" });
 const joinCard = () => screen.getByRole("region", { name: "Join a room" });
+const nameLabel = "What should we call you?";
+/** The landing opens on joining; hosting is behind the switch. */
+const showHost = () => fireEvent.click(screen.getByRole("radio", { name: /Host a room/ }));
 
 beforeEach(() => {
   localStorage.clear();
@@ -70,7 +74,11 @@ it("creates a room with the host name, saves the name, and opens the host panel"
   localStorage.setItem("typesetgo_connect_host_name", "Ms. Rivera");
   mocks.mutations["connect:createRoom"] = vi.fn().mockResolvedValue({ roomId: "room-1", code: "ABCD" });
   view();
+  expect(screen.getByRole("radio", { name: /Join a room/ })).toHaveAttribute("aria-checked", "true");
+  expect(screen.queryByRole("region", { name: "Host a room" })).not.toBeInTheDocument();
+  showHost();
   const card = hostCard();
+  await waitFor(() => expect(screen.queryByRole("region", { name: "Join a room" })).not.toBeInTheDocument());
   expect(within(card).getByLabelText("Your name")).toHaveValue("Ms. Rivera");
   fireEvent.change(within(card).getByLabelText("Your name"), { target: { value: "  Mr. Lee " } });
   fireEvent.change(within(card).getByLabelText(/Room name/), { target: { value: "Period 3" } });
@@ -85,6 +93,7 @@ it("requires a host name and shows server errors without the Convex prefix", asy
     new Error("[CONVEX M(connect:createRoom)] [Request ID: 1] Server Error\nUncaught Error: Names must be 32 characters or fewer\n    at handler"),
   );
   view();
+  showHost();
   const card = hostCard();
   fireEvent.click(within(card).getByRole("button", { name: "Create room" }));
   expect(await within(card).findByRole("alert")).toHaveTextContent("Enter the name students will see.");
@@ -97,18 +106,23 @@ it("requires a host name and shows server errors without the Convex prefix", asy
 
 it("joins with a sanitized code, saves membership, and opens the room", async () => {
   localStorage.setItem("typesetgo_connect_name", "Alex");
-  mocks.queries["connect:lookupCode"] = { name: "Period 3", hostName: "Ms. Rivera" };
+  mocks.queries["connect:lookupCode"] = room;
   mocks.mutations["connect:join"] = vi.fn().mockResolvedValue({ roomId: "room-9", participantId: "p-1" });
   view();
   const card = joinCard();
-  expect(within(card).getByLabelText("Your name")).toHaveValue("Alex");
   const code = within(card).getByLabelText("Room code");
   fireEvent.change(code, { target: { value: "ab-c" } });
   expect(code).toHaveValue("ABC");
   expect(mocks.queryArgs["connect:lookupCode"]).toBe("skip");
+  expect(within(card).getByText(/Ask your teacher/)).toBeInTheDocument();
+  // Guests are asked for a name once the room is found.
+  expect(within(card).queryByLabelText(nameLabel)).not.toBeInTheDocument();
+  expect(within(card).getByRole("button", { name: "Join room" })).toBeDisabled();
   fireEvent.change(code, { target: { value: "abcd" } });
-  expect(within(card).getByText(/Joining/)).toHaveTextContent("Joining Period 3 hosted by Ms. Rivera");
+  expect(await within(card).findByText("Found it!")).toBeInTheDocument();
+  expect(within(card).getByText("Period 3").parentElement).toHaveTextContent("Period 3 with Ms. Rivera");
   expect(mocks.queryArgs["connect:lookupCode"]).toEqual({ code: "ABCD" });
+  expect(within(card).getByLabelText(nameLabel)).toHaveValue("Alex");
   fireEvent.click(within(card).getByRole("button", { name: "Join room" }));
   await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/connect/room/room-9"));
   expect(mocks.mutations["connect:join"]).toHaveBeenCalledWith({ code: "ABCD", name: "Alex", sessionId: "session-1", credential: "credential-1" });
@@ -119,16 +133,17 @@ it("joins a signed-in player with their account, or with a typed name on request
   localStorage.setItem("typesetgo_connect_name", "Alex");
   mocks.queries["connect:joinAccount"] = { name: "pixelpenguin", avatarUrl: "https://img.clerk.com/abc" };
   mocks.mutations["connect:join"] = vi.fn().mockResolvedValue({ roomId: "room-9", participantId: "p-1", name: "pixelpenguin" });
+  mocks.queries["connect:lookupCode"] = room;
   view("/connect/join?code=ABCD", signedIn);
   const card = joinCard();
-  expect(within(card).queryByLabelText("Your name")).not.toBeInTheDocument();
+  expect(within(card).queryByLabelText(nameLabel)).not.toBeInTheDocument();
   expect(within(card).getByText(/Joining as/)).toHaveTextContent("Joining as pixelpenguin");
   expect(card.querySelector("[data-avatar=picture] img")).toHaveAttribute("src", "https://img.clerk.com/abc");
 
   fireEvent.click(within(card).getByRole("button", { name: "Use a name" }));
-  expect(within(card).getByLabelText("Your name")).toHaveValue("Alex");
+  expect(within(card).getByLabelText(nameLabel)).toHaveValue("Alex");
   fireEvent.click(within(card).getByRole("button", { name: "Use my account" }));
-  expect(within(card).queryByLabelText("Your name")).not.toBeInTheDocument();
+  await waitFor(() => expect(within(card).queryByLabelText(nameLabel)).not.toBeInTheDocument());
 
   fireEvent.click(within(card).getByRole("button", { name: "Join room" }));
   await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/connect/room/room-9"));
@@ -139,25 +154,31 @@ it("joins a signed-in player with their account, or with a typed name on request
 
 it("asks a signed-in player for a name when their account has not synced", () => {
   mocks.queries["connect:joinAccount"] = null;
+  mocks.queries["connect:lookupCode"] = room;
   view("/connect/join?code=ABCD", signedIn);
-  expect(within(joinCard()).getByLabelText("Your name")).toHaveFocus();
+  expect(within(joinCard()).getByLabelText(nameLabel)).toHaveFocus();
   expect(within(joinCard()).queryByRole("button", { name: "Use my account" })).not.toBeInTheDocument();
 });
 
 it("prefills the code from /connect/join and focuses the name field", () => {
+  mocks.queries["connect:lookupCode"] = room;
+  view("/connect/join?code=wxyz");
+  expect(within(joinCard()).getByLabelText("Room code")).toHaveValue("WXYZ");
+  expect(within(joinCard()).getByLabelText(nameLabel)).toHaveFocus();
+  cleanup();
   mocks.queries["connect:lookupCode"] = null;
   view("/connect/join?code=wxyz");
-  const card = joinCard();
-  expect(within(card).getByLabelText("Room code")).toHaveValue("WXYZ");
-  expect(within(card).getByLabelText("Your name")).toHaveFocus();
-  expect(within(card).getByText("No live room with this code")).toBeInTheDocument();
+  expect(within(joinCard()).getByText("Hmm, no room with that code. Check the letters?")).toBeInTheDocument();
+  expect(within(joinCard()).queryByLabelText(nameLabel)).not.toBeInTheDocument();
+  expect(within(joinCard()).getByRole("button", { name: "Join room" })).toBeDisabled();
 });
 
 it("maps join error codes to friendly messages", async () => {
   mocks.mutations["connect:join"] = vi.fn().mockRejectedValue(new ConvexError({ code: "full", message: "This room is full" }));
+  mocks.queries["connect:lookupCode"] = room;
   view("/connect/join?code=ABCD");
   const card = joinCard();
-  fireEvent.change(within(card).getByLabelText("Your name"), { target: { value: "Sam" } });
+  fireEvent.change(within(card).getByLabelText(nameLabel), { target: { value: "Sam" } });
   fireEvent.click(within(card).getByRole("button", { name: "Join room" }));
   expect(await within(card).findByRole("alert")).toHaveTextContent("This room is full. Ask the host");
   expect(screen.queryByTestId("location")).not.toBeInTheDocument();
@@ -178,13 +199,14 @@ it("lists recent rooms and resumes live or reopens ended rooms", async () => {
   ];
   mocks.mutations["connect:reopenRoom"] = vi.fn().mockResolvedValue({ roomId: "old-room", code: "WXYZ" });
   view("/connect", { ...unavailableAuth, available: true, status: "signed-out", unavailableReason: null });
-  const recent = within(hostCard()).getByRole("region", { name: /Recent rooms/ });
+  showHost();
+  const recent = screen.getByRole("region", { name: /recent rooms/i });
   expect(within(recent).getByText(/Live/)).toBeInTheDocument();
   expect(within(recent).getByText("ABCD")).toBeInTheDocument();
   expect(within(recent).getByText("4 tests")).toBeInTheDocument();
   expect(within(recent).getByText("Ended 3 h ago")).toBeInTheDocument();
   expect(within(recent).getByText(/gives it a new code/)).toBeInTheDocument();
-  expect(within(recent).getByText(/from other devices/)).toBeInTheDocument();
+  expect(within(recent).getByText(/from any device/)).toBeInTheDocument();
   expect(within(recent).getByRole("button", { name: "Resume Period 3" })).toBeInTheDocument();
   fireEvent.click(within(recent).getByRole("button", { name: "Reopen Period 1" }));
   await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/connect/host/old-room"));
@@ -199,10 +221,12 @@ it("shows reopen failures in place and hides the recent list when empty", async 
   ];
   mocks.mutations["connect:reopenRoom"] = vi.fn().mockRejectedValue(new ConvexError({ code: "ended", message: "This room is too old to reopen" }));
   view();
+  showHost();
   fireEvent.click(screen.getByRole("button", { name: "Reopen Period 1" }));
-  expect(await within(hostCard()).findByRole("alert")).toHaveTextContent("This room is too old to reopen");
+  expect(await screen.findByRole("region", { name: /recent rooms/i }).then((recent) => within(recent).findByRole("alert"))).toHaveTextContent("This room is too old to reopen");
   cleanup();
   mocks.queries["connect:recentRooms"] = [];
   view();
-  expect(within(hostCard()).queryByRole("region", { name: /Recent rooms/ })).not.toBeInTheDocument();
+  showHost();
+  expect(screen.queryByRole("region", { name: /recent rooms/i })).not.toBeInTheDocument();
 });

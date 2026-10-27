@@ -1,6 +1,8 @@
 import type { BoardPrefs } from "@/hooks/useConnectBoardPrefs";
 import type { ConnectPacing, ConnectResult, ConnectRoomStatus, ConnectStats, ConnectTest } from "@/lib/connect-types";
-import { breakEndsAt, isBreakTest, isTimedConnectTest, isWaitingForNextTest } from "@/lib/connect-types";
+import {
+  breakEndsAt, isBreakTest, isTimedConnectTest, isWaitingForNextTest, resultsEndAt, stepAfterResults, timedTestEndsAt,
+} from "@/lib/connect-types";
 import { effectiveStep } from "@/lib/connect-settings";
 
 /** The parts of a room the board derives participant state from. */
@@ -12,6 +14,7 @@ export type BoardRoom = {
   tests: ConnectTest[];
   stepStartedAt?: number;
   pausedAt?: number;
+  stepEndedAt?: number;
 };
 
 /** The parts of a participant the board derives state from. */
@@ -31,11 +34,14 @@ export type BoardParticipant = {
 
 export type BoardStatus = "waiting" | "late" | "typing" | "finished" | "break" | "done" | "paused" | "offline" | "left";
 
+/** Card size bounds for the board, as a font-size multiplier. */
+export const CARD_SIZE = { min: 0.8, max: 1.6, step: 0.1 };
+
 export const BOARD_STATUS_LABELS: Record<BoardStatus, string> = {
-  waiting: "Waiting",
+  waiting: "Ready",
   late: "Joins next test",
   typing: "Typing",
-  finished: "Finished test",
+  finished: "Finished",
   break: "On a break",
   done: "All done",
   paused: "Paused",
@@ -144,14 +150,6 @@ export function headlineStats(room: BoardRoom, participant: BoardParticipant) {
   return { wpm: participant.stats.wpm, accuracy: participant.stats.accuracy, isAverage: false };
 }
 
-export type SegmentState = "done" | "current" | "upcoming";
-
-/** One state per test for the progress strip. */
-export function testSegments(room: BoardRoom, participant: Pick<BoardParticipant, "stepIndex" | "completedAt">): SegmentState[] {
-  const current = room.status === "lobby" ? -1 : effectiveTestIndex(room, participant);
-  return room.tests.map((_, index) => index < current ? "done" : index === current ? "current" : "upcoming");
-}
-
 function sortValue(room: BoardRoom, participant: BoardParticipant, sort: BoardPrefs["sort"]) {
   if (sort === "wpm") return headlineStats(room, participant).wpm;
   if (sort === "accuracy") return headlineStats(room, participant).accuracy;
@@ -209,4 +207,35 @@ export function boardCounts(room: BoardRoom, participants: BoardParticipant[]) {
     if (status === "done") done += 1;
   }
   return { online, finished, typing, done, total: participants.length };
+}
+
+/** Host pacing: what the room is waiting on before it moves on by itself, e.g. "Ends in 0:12" or "2 of 5 finished". */
+export function stepLine(room: BoardRoom, participants: BoardParticipant[], now: number) {
+  const index = room.currentIndex;
+  const test = room.tests[index];
+  if (!test) return "";
+  const pausedAt = room.status === "paused" ? room.pausedAt : undefined;
+  const left = (endsAt: number) => formatClock(endsAt - now);
+  const startedAt = room.stepStartedAt ?? now;
+  if (isBreakTest(test)) return `Break, next test in ${left(breakEndsAt(test, startedAt, pausedAt, now))}`;
+  if (room.stepEndedAt !== undefined) {
+    const endsAt = left(resultsEndAt(room.tests, index, room.stepEndedAt, pausedAt, now));
+    const next = stepAfterResults(room.tests, index) >= room.tests.length ? "finishing" : "next test";
+    return `${isBreakTest(room.tests[index + 1]) ? "Break" : "Results"}, ${next} in ${endsAt}`;
+  }
+  if (isTimedConnectTest(test)) return `Ends in ${left(timedTestEndsAt(test, startedAt, pausedAt, now))}`;
+  const taking = participants.filter((participant) => !isAway(participant) && !isWaitingForNextTest(room, participant));
+  return `${taking.filter((participant) => participant.stats.isFinished).length} of ${taking.length} finished`;
+}
+
+/** The fastest present participant with live or average numbers, once anyone has typed. */
+export function leaderId(room: BoardRoom, participants: BoardParticipant[]) {
+  if (room.status === "lobby") return null;
+  let best: { id: string; wpm: number } | null = null;
+  for (const participant of participants) {
+    if (isAway(participant)) continue;
+    const { wpm } = headlineStats(room, participant);
+    if (wpm > 0 && (!best || wpm > best.wpm)) best = { id: participant._id, wpm };
+  }
+  return best?.id ?? null;
 }

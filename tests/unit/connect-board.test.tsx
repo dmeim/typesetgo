@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import ConnectBoard from "@/pages/ConnectBoard";
 import { ParticipantBoard } from "@/components/connect/board/ParticipantBoard";
@@ -13,7 +13,6 @@ import {
   progressDetail,
   reorderIds,
   sortParticipants,
-  testSegments,
   visibleParticipants,
 } from "@/components/connect/board/board-model";
 import { DEFAULT_BOARD_PREFS, type BoardPrefs } from "@/hooks/useConnectBoardPrefs";
@@ -83,8 +82,6 @@ describe("board model", () => {
     expect(effectiveTestIndex(makeRoom({ currentIndex: 1 }), participant)).toBe(1);
     expect(effectiveTestIndex(makeRoom({ pacing: "participant", currentIndex: 0 }), participant)).toBe(2);
     expect(effectiveTestIndex(makeRoom({ pacing: "participant" }), makeParticipant("b", { stepIndex: 4, completedAt: 1 }))).toBe(4);
-    expect(testSegments(makeRoom({ pacing: "participant" }), participant)).toEqual(["done", "done", "current", "upcoming"]);
-    expect(testSegments(makeRoom({ status: "lobby" }), participant)).toEqual(["upcoming", "upcoming", "upcoming", "upcoming"]);
   });
 
   it("describes progress as time left, words typed, or percent", () => {
@@ -148,22 +145,24 @@ describe("board model", () => {
 });
 
 describe("participant board", () => {
-  it("shows the shared test once under host pacing", () => {
+  it("shows the shared test once under host pacing", async () => {
     const room = makeRoom({ currentIndex: 2 });
     render(<ParticipantBoard room={room} participants={[makeParticipant("Ana", { stats: { wpm: 41.6, accuracy: 96.2, timeElapsed: 15000 } })]} prefs={prefs()} />);
     const summary = screen.getByRole("region", { name: "Room progress" });
-    expect(within(summary).getByRole("heading", { name: "Test 3 of 4" })).toBeInTheDocument();
-    expect(within(summary).getByText("2nd timed test · Time · 60s")).toBeInTheDocument();
+    expect(within(summary).getByRole("heading", { name: "Test 3 of 4 · 2nd timed test" })).toBeInTheDocument();
+    expect(within(summary).getByText(/^Time · 60s · /)).toBeInTheDocument();
+    expect(within(summary).getByRole("list", { name: "Test 3 of 4" })).toBeInTheDocument();
     const card = screen.getByRole("article", { name: "Ana" });
-    expect(within(card).getByText("Typing")).toHaveClass("sr-only");
+    expect(within(card).getByText("Typing,")).toHaveClass("sr-only");
     expect(card.closest("li")).toHaveAttribute("data-status", "typing");
-    expect(within(card).getByText("42")).toBeInTheDocument();
-    expect(within(card).getByText("96")).toBeInTheDocument();
+    expect(await within(card).findByText("42")).toBeInTheDocument();
+    expect(within(card).getByText("96%")).toBeInTheDocument();
     expect(within(card).getByText("0:45 left")).toBeInTheDocument();
-    expect(within(card).queryByText(/Test 3 of 4/)).not.toBeInTheDocument();
+    expect(within(card).getByRole("progressbar", { name: "Ana progress" })).toHaveAttribute("aria-valuetext", "0:45 left");
+    expect(within(card).queryByRole("list")).not.toBeInTheDocument();
   });
 
-  it("shows each participant's position and test strip under participant pacing", () => {
+  it("shows each participant's place in the list under participant pacing", async () => {
     const room = makeRoom({ pacing: "participant" });
     const results = [{ stepIndex: 0, testId: "t1", wpm: 50, accuracy: 98, progress: 100, wordsTyped: 25, timeElapsed: 30000, finished: true }];
     render(<ParticipantBoard room={room} participants={[
@@ -171,42 +170,52 @@ describe("participant board", () => {
       makeParticipant("Ben", { stepIndex: 4, completedAt: 1, results }),
     ]} prefs={prefs()} />);
     const ana = screen.getByRole("article", { name: "Ana" });
-    expect(within(ana).getByText("Test 3 of 4 · 2nd timed test")).toBeInTheDocument();
-    expect(within(ana).getByRole("list", { name: "2 of 4 tests done" })).toBeInTheDocument();
-    expect(within(ana).getByText("avg 50 wpm")).toBeInTheDocument();
+    const steps = within(ana).getByRole("list", { name: "Test 3 of 4: 2nd timed test" });
+    expect(Array.from(steps.children).map((node) => node.getAttribute("data-segment"))).toEqual(["done", "done", "current", "upcoming"]);
     const ben = screen.getByRole("article", { name: "Ben" });
     expect(within(ben).getByText("All done")).toBeInTheDocument();
+    expect(within(ben).getByRole("list", { name: "All 4 tests done" })).toBeInTheDocument();
     expect(within(ben).getByText("avg wpm")).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: "Room progress" })).getByText("all done")).toBeInTheDocument();
+    expect(await within(ben).findByText("50")).toBeInTheDocument();
+    const summary = screen.getByRole("region", { name: "Room progress" });
+    expect(within(summary).getByRole("heading", { name: "4 tests · own pace" })).toBeInTheDocument();
+    expect(within(summary).getByText("All done")).toBeInTheDocument();
   });
 
-  it("dims offline participants, sorts them last, and hides them when showOffline is off", () => {
+  it("crowns the fastest player who is still here", () => {
+    const room = makeRoom();
+    render(<ParticipantBoard room={room} participants={[
+      makeParticipant("Zed", { stats: { wpm: 80, timeElapsed: 1 } }),
+      makeParticipant("Amy", { stats: { wpm: 20, timeElapsed: 1 } }),
+      makeParticipant("Bob", { isConnected: false, stats: { wpm: 99, timeElapsed: 1 } }),
+    ]} prefs={prefs()} />);
+    expect(within(screen.getByRole("article", { name: "Zed" })).getByLabelText("Fastest right now")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Fastest right now")).toHaveLength(1);
+  });
+
+  it("dims offline participants, sorts them last, and hides them when showOffline is off", async () => {
     const room = makeRoom();
     const participants = [makeParticipant("Off", { isConnected: false }), makeParticipant("On")];
     const { rerender } = render(<ParticipantBoard room={room} participants={participants} prefs={prefs()} />);
-    const items = within(screen.getByRole("list", { name: "Participants" })).getAllByRole("article");
+    const items = within(screen.getByRole("list", { name: "Players" })).getAllByRole("article");
     expect(items.map((item) => item.getAttribute("aria-label"))).toEqual(["On", "Off"]);
     expect(screen.getByRole("article", { name: "Off" }).closest("li")).toHaveAttribute("data-away", "true");
     rerender(<ParticipantBoard room={room} participants={participants} prefs={prefs({ showOffline: false })} />);
-    expect(screen.queryByRole("article", { name: "Off" })).not.toBeInTheDocument();
-    expect(screen.getByText("1 offline participant hidden")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("article", { name: "Off" })).not.toBeInTheDocument());
+    expect(screen.getByText("1 offline player hidden")).toBeInTheDocument();
   });
 
-  it("offers reset and remove only when handlers are given", () => {
+  it("offers drag handles only in your own order on the host's board", () => {
     const room = makeRoom();
     const participant = makeParticipant("Ana");
     const { rerender } = render(<ParticipantBoard room={room} participants={[participant]} prefs={prefs({ sort: "custom" })} />);
-    expect(screen.queryByRole("button", { name: "Reset Ana" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Remove Ana" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reorder Ana" })).not.toBeInTheDocument();
-    const onReset = vi.fn();
-    const onRemove = vi.fn();
-    rerender(<ParticipantBoard room={room} participants={[participant]} prefs={prefs({ sort: "custom" })} onReset={onReset} onRemove={onRemove} onReorder={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Reset Ana" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remove Ana" }));
-    expect(onReset).toHaveBeenCalledWith(participant);
-    expect(onRemove).toHaveBeenCalledWith(participant);
+    rerender(<ParticipantBoard room={room} participants={[participant]} prefs={prefs({ sort: "join" })} onReorder={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Reorder Ana" })).not.toBeInTheDocument();
+    rerender(<ParticipantBoard room={room} participants={[participant]} prefs={prefs({ sort: "custom" })} onReorder={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Reorder Ana" })).toBeInTheDocument();
+    // Moderation lives in the host's roster, never on the board cards.
+    expect(screen.queryByRole("button", { name: /Remove|Restart/ })).not.toBeInTheDocument();
   });
 
   it("shows account pictures, letters for guests, and only letters when pictures are off", () => {
@@ -232,19 +241,24 @@ describe("participant board", () => {
 });
 
 describe("board controls", () => {
-  it("changes layout, sort with a natural direction, and offline visibility", () => {
+  it("changes layout, sort with a natural direction, size, offline visibility and pictures", () => {
     const onChange = vi.fn();
-    render(<BoardControls prefs={prefs()} onChange={onChange} />);
-    fireEvent.click(screen.getByRole("radio", { name: "List layout" }));
+    render(<BoardControls prefs={prefs()} onChange={onChange} currentOrder={() => ["p-b", "p-a"]} />);
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Layout" })).getByRole("radio", { name: /List/ }));
     expect(onChange).toHaveBeenLastCalledWith({ layout: "list" });
-    fireEvent.change(screen.getByLabelText("Sort"), { target: { value: "wpm" } });
+    const sort = screen.getByRole("radiogroup", { name: "Sort by" });
+    fireEvent.click(within(sort).getByRole("radio", { name: "WPM" }));
     expect(onChange).toHaveBeenLastCalledWith({ sort: "wpm", descending: true });
-    fireEvent.click(screen.getByRole("button", { name: /switch to descending/ }));
+    fireEvent.click(within(sort).getByRole("radio", { name: "Your order" }));
+    expect(onChange).toHaveBeenLastCalledWith({ sort: "custom", descending: false, customOrder: ["p-b", "p-a"] });
+    fireEvent.click(screen.getByRole("button", { name: /switch to highest first/ }));
     expect(onChange).toHaveBeenLastCalledWith({ descending: true });
-    fireEvent.click(screen.getByRole("switch", { name: "Show offline" }));
+    fireEvent.click(screen.getByRole("button", { name: "Offline" }));
     expect(onChange).toHaveBeenLastCalledWith({ showOffline: false });
-    fireEvent.click(screen.getByRole("switch", { name: "Profile pictures" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pictures" }));
     expect(onChange).toHaveBeenLastCalledWith({ showPictures: false });
+    fireEvent.click(screen.getByRole("button", { name: "Bigger cards" }));
+    expect(onChange).toHaveBeenLastCalledWith({ cardSize: 1.1 });
     expect(screen.getByRole("slider", { name: "Card size" })).toHaveAttribute("aria-valuenow", "1");
   });
 });

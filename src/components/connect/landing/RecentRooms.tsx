@@ -1,16 +1,19 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { ArrowArcRightIcon, CircleNotchIcon, PlayIcon } from "@phosphor-icons/react";
+import { motion } from "framer-motion";
+import { ArrowArcRightIcon, CircleNotchIcon, ClockCounterClockwiseIcon, PlayIcon, SignInIcon } from "@phosphor-icons/react";
 import { api } from "../../../../convex/_generated/api";
-import { Button } from "@/components/ui/button";
 import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
+import { CONNECT_ARCHIVE_HOURS } from "@/lib/connect-types";
+import { cn } from "@/lib/utils";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import type { RecentRoom } from "@/components/connect/types";
-import { FormError } from "@/components/connect/landing/LandingCard";
+import { ConnectCard } from "@/components/connect/ConnectParts";
+import { CONNECT_SPRING } from "@/components/connect/connect-motion";
 import { readableError } from "@/components/connect/connect-errors";
-import { formatAgo } from "@/components/connect/landing/landing-helpers";
-import { CONNECT_ARCHIVE_HOURS } from "@/lib/connect-types";
+import { FormError } from "./FormError";
+import { formatAgo } from "./landing-helpers";
 
 function useNow(intervalMs = 60_000) {
   const [now, setNow] = useState(() => Date.now());
@@ -21,8 +24,9 @@ function useNow(intervalMs = 60_000) {
   return now;
 }
 
-function RoomRow({ room, now, pending, disabled, onOpen }: {
+function RoomRow({ room, index, now, pending, disabled, onOpen }: {
   room: RecentRoom;
+  index: number;
   now: number;
   pending: boolean;
   disabled: boolean;
@@ -30,45 +34,42 @@ function RoomRow({ room, now, pending, disabled, onOpen }: {
 }) {
   const tests = `${room.testCount} ${room.testCount === 1 ? "test" : "tests"}`;
   return (
-    <li className="flex items-center gap-3 py-2.5">
+    <motion.li layout initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ ...CONNECT_SPRING, delay: 0.15 + index * 0.06 }}
+      className={cn("flex items-center gap-3 rounded-2xl border p-3", room.live ? "border-success/40 bg-success/5" : "border-border")}>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium" title={room.name}>{room.name}</p>
-        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+        <p className="truncate text-sm font-bold" title={room.name}>{room.name}</p>
+        <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
           {room.live ? (
             <>
-              <span className="inline-flex items-center gap-1 font-medium text-success">
-                <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
-                Live
-              </span>
-              <span aria-hidden="true">·</span>
-              <span>code <span className="font-mono tracking-wider text-foreground">{room.code}</span></span>
+              <span className="flex items-center gap-1 font-bold text-success"><span aria-hidden="true" className="size-1.5 animate-pulse rounded-full bg-current" />Live</span>
+              <span className="rounded-md bg-muted px-1.5 font-mono font-bold tracking-widest text-foreground">{room.code}</span>
             </>
-          ) : (
-            <span>Ended {formatAgo(room.endedAt ?? room.lastActiveAt, now)}</span>
-          )}
-          <span aria-hidden="true">·</span>
+          ) : <span>Ended {formatAgo(room.endedAt ?? room.lastActiveAt, now)}</span>}
           <span>{tests}</span>
         </p>
       </div>
-      <Button
-        size="sm"
-        variant={room.live ? "default" : "outline"}
-        disabled={disabled}
-        aria-label={`${room.live ? "Resume" : "Reopen"} ${room.name}`}
-        onClick={() => onOpen(room)}
-      >
-        {pending
-          ? <CircleNotchIcon className="animate-spin" aria-hidden="true" />
-          : room.live ? <PlayIcon aria-hidden="true" /> : <ArrowArcRightIcon aria-hidden="true" />}
+      <button type="button" onClick={() => onOpen(room)} disabled={disabled} aria-label={`${room.live ? "Resume" : "Reopen"} ${room.name}`}
+        className={cn("flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60",
+          room.live ? "bg-success text-background hover:opacity-90" : "border border-border hover:bg-accent")}>
+        {pending ? <CircleNotchIcon className="size-4 animate-spin" aria-hidden="true" />
+          : room.live ? <PlayIcon weight="fill" className="size-4" aria-hidden="true" /> : <ArrowArcRightIcon className="size-4" aria-hidden="true" />}
         {room.live ? "Resume" : "Reopen"}
-      </Button>
-    </li>
+      </button>
+    </motion.li>
+  );
+}
+
+function SignInHint({ onSignIn }: { onSignIn: () => void }) {
+  return (
+    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <SignInIcon className="size-4 shrink-0" aria-hidden="true" />
+      <span><button type="button" onClick={onSignIn} className="font-semibold text-foreground underline underline-offset-4 hover:text-primary">Sign in</button> to reopen rooms you host from any device.</span>
+    </p>
   );
 }
 
 /** Rooms this browser (or the signed-in owner) hosted within the reopen window. */
 export function RecentRooms() {
-  const id = useId();
   const navigate = useNavigate();
   const credential = useMultiplayerCredential();
   const auth = useAppAuth();
@@ -91,42 +92,24 @@ export function RecentRooms() {
   };
 
   const signedOut = auth.available && auth.status === "signed-out";
-  const hasEnded = rooms?.some((room) => !room.live) ?? false;
+  const signIn = () => void auth.openSignIn();
 
   if (!rooms || rooms.length === 0) {
-    return signedOut ? (
-      <p className="border-t border-border pt-4 text-xs text-muted-foreground">
-        <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void auth.openSignIn()}>Sign in</button>
-        {" "}to reopen rooms you host from any device.
-      </p>
-    ) : null;
+    return signedOut ? <div className="border-t border-border pt-6"><SignInHint onSignIn={signIn} /></div> : null;
   }
 
   return (
-    <section aria-labelledby={`${id}-recent`} className="space-y-1 border-t border-border pt-4">
-      <h3 id={`${id}-recent`} className="text-sm font-semibold">
-        Recent rooms <span className="font-normal text-muted-foreground">(last {CONNECT_ARCHIVE_HOURS} hours)</span>
-      </h3>
-      {hasEnded && <p className="text-xs text-muted-foreground">Reopening an ended room keeps its tests and gives it a new code.</p>}
-      <ul className="divide-y divide-border">
-        {rooms.map((room) => (
-          <RoomRow
-            key={room._id}
-            room={room}
-            now={now}
-            pending={pendingId === room._id}
-            disabled={pendingId !== null}
-            onOpen={(target) => void open(target)}
-          />
-        ))}
-      </ul>
-      <FormError>{error}</FormError>
-      {signedOut && (
-        <p className="pt-1 text-xs text-muted-foreground">
-          <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void auth.openSignIn()}>Sign in</button>
-          {" "}to reopen these rooms from other devices.
-        </p>
-      )}
-    </section>
+    <div className="border-t border-border pt-6">
+      <ConnectCard title="Your recent rooms" Icon={ClockCounterClockwiseIcon} tile="bg-muted-foreground text-background" bare
+        description={`From the last ${CONNECT_ARCHIVE_HOURS} hours. Reopening an ended room keeps its tests and gives it a new code.`}>
+        <ul className="flex flex-col gap-2">
+          {rooms.map((room, index) => (
+            <RoomRow key={room._id} room={room} index={index} now={now} pending={pendingId === room._id} disabled={pendingId !== null} onOpen={(target) => void open(target)} />
+          ))}
+        </ul>
+        <FormError>{error}</FormError>
+        {signedOut && <SignInHint onSignIn={signIn} />}
+      </ConnectCard>
+    </div>
   );
 }

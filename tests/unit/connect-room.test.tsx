@@ -229,10 +229,13 @@ describe("room states", () => {
   beforeEach(() => saveMembership("room-1", { participantId: "p1", name: "Ada" }));
 
   it("waits in the lobby with the participant's name and the test list", async () => {
-    state.view = okView({ room: { status: "lobby" } });
+    const sound = { enabled: true, soundEnabled: true, typingSound: "creamy", warningSound: "clock" };
+    state.view = okView({ room: { status: "lobby", overrides: { sound } }, participant: { signedIn: false } });
     renderRoom();
-    expect(await screen.findByRole("heading", { name: "Waiting for the host to start" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Waiting for Ms. Lee to start" })).toBeInTheDocument();
     expect(screen.getAllByText("Ada").length).toBeGreaterThan(0);
+    expect(screen.getByText("Typing as Ada (guest)")).toBeInTheDocument();
+    expect(screen.getByTitle("Sounds are set by the room")).toHaveTextContent("Room sound: Creamy");
     expect(screen.getByRole("list", { name: "Tests in this room" }).children).toHaveLength(3);
     expect(screen.queryByLabelText("Practice input")).not.toBeInTheDocument();
   });
@@ -259,7 +262,7 @@ describe("room states", () => {
         <Routes><Route path="/connect/room/:roomId" element={<ConnectRoom />} /></Routes>
       </MemoryRouter>,
     );
-    expect(screen.getByText("Paused by the host")).toBeInTheDocument();
+    expect(screen.getByText("Paused by Ms. Lee")).toBeInTheDocument();
     expect(state.props.isTestActive).toBe(false);
     expect(state.mounts).toBe(1);
   });
@@ -343,7 +346,7 @@ describe("room states", () => {
     expect(await screen.findByRole("heading", { name: "All done, Ada!" })).toBeInTheDocument();
     expect(screen.getByText("50")).toBeInTheDocument();
     expect(screen.getByText("95%")).toBeInTheDocument();
-    expect(screen.getByText("No result")).toBeInTheDocument();
+    expect(screen.getByText("Skipped")).toBeInTheDocument();
   });
 });
 

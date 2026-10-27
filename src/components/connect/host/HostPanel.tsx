@@ -1,40 +1,26 @@
-import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
-import type { ConnectTest } from "@/lib/connect-types";
-import { HostHeader } from "./HostHeader";
-import { OverridesPanel } from "./OverridesPanel";
-import { ParticipantsSection } from "./ParticipantsSection";
-import { RunControls } from "./RunControls";
-import { TestEditor } from "./TestEditor";
-import { TestList } from "./TestList";
-import { useHostRoom } from "./use-host-room";
+import { useConnectBoardPrefs } from "@/hooks/useConnectBoardPrefs";
+import { CodeCard } from "@/components/connect/host/CodeCard";
+import { HostHeader } from "@/components/connect/host/HostHeader";
+import { LiveBoardCard } from "@/components/connect/host/LiveBoardCard";
+import { OverridesPanel } from "@/components/connect/host/OverridesPanel";
+import { RosterCard } from "@/components/connect/host/RosterCard";
+import { RunCard } from "@/components/connect/host/RunControls";
+import { TestsCard } from "@/components/connect/host/TestList";
+import { useHostRoom } from "@/components/connect/host/use-host-room";
 
+/**
+ * The host's room: run controls and tests on the left, code and roster on the right, the live board below.
+ * On phones the cards stack code, run, roster, tests, then "Everyone gets".
+ */
 export function HostPanel({ room, participants }: { room: HostRoom; participants: HostParticipant[] }) {
   const navigate = useNavigate();
   const actions = useHostRoom(room);
-  const { tests, saveTests } = actions;
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const editing = tests.find((test) => test.id === editingId) ?? null;
-
-  const startEditing = (test: ConnectTest) => {
-    setEditingId(test.id);
-    requestAnimationFrame(() => {
-      editorRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      editorRef.current?.querySelector<HTMLElement>("[role=radio][aria-checked=true]")?.focus();
-    });
-  };
-
-  const submitTest = async (test: ConnectTest) => {
-    if (!editing) return saveTests([...tests, test]);
-    const ok = await saveTests(tests.map((item) => (item.id === test.id ? test : item)));
-    if (ok) setEditingId(null);
-    return ok;
-  };
+  const [prefs, updatePrefs] = useConnectBoardPrefs(room._id);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <HostHeader
         room={room}
         onRename={actions.rename}
@@ -42,33 +28,18 @@ export function HostPanel({ room, participants }: { room: HostRoom; participants
         ending={actions.busy === "end"}
         onEnd={() => void actions.endRoom().then((ok) => { if (ok) navigate("/connect"); })}
       />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start">
-        <div className="min-w-0 space-y-6">
-          <RunControls room={room} tests={tests} participants={participants} actions={actions} />
-          <TestList
-            room={room}
-            tests={tests}
-            participants={participants}
-            editingId={editing?.id ?? null}
-            onEdit={startEditing}
-            onSave={(next) => {
-              if (editingId && !next.some((test) => test.id === editingId)) setEditingId(null);
-              void saveTests(next);
-            }}
-          />
-          <div ref={editorRef}>
-            <TestEditor
-              key={editing?.id ?? "new"}
-              editing={editing}
-              testCount={tests.length}
-              onSubmit={submitTest}
-              onCancel={() => setEditingId(null)}
-            />
-          </div>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
+          <RunCard room={room} tests={actions.tests} participants={participants} actions={actions} className="order-2" />
+          <TestsCard room={room} tests={actions.tests} participants={participants} onSave={actions.saveTests} className="order-4" />
+          <OverridesPanel overrides={actions.overrides} onChange={actions.changeOverrides} className="order-5" />
         </div>
-        <OverridesPanel overrides={actions.overrides} onChange={actions.changeOverrides} />
+        <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-6">
+          <CodeCard code={room.code} className="order-1" />
+          <RosterCard room={room} participants={participants} actions={actions} className="order-3" />
+        </div>
       </div>
-      <ParticipantsSection room={room} participants={participants} actions={actions} />
+      <LiveBoardCard room={room} participants={participants} prefs={prefs} update={updatePrefs} />
     </div>
   );
 }

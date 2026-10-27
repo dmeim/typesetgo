@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { ArrowFatRightIcon, ArrowsClockwiseIcon, CircleNotchIcon, CoffeeIcon, HourglassMediumIcon, PauseCircleIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { resultsEndAt, resultsMs, type ConnectPacing, type ConnectTest } from "@/lib/connect-types";
@@ -71,7 +72,7 @@ export function RoomResultsActions({
   const syncNotice = syncFailed && (
     <div role="alert" className="flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground">
       Your result hasn't reached the host yet. Retrying…
-      <Button variant="outline" size="sm" onClick={onRetrySync}>
+      <Button variant="outline" size="sm" className="rounded-full" onClick={onRetrySync}>
         <ArrowsClockwiseIcon aria-hidden="true" />
         Retry sync
       </Button>
@@ -86,18 +87,18 @@ export function RoomResultsActions({
       <p role="status" className="flex items-center gap-2 text-muted-foreground">
         {selfPaced
           ? <><CircleNotchIcon className="size-5 motion-safe:animate-spin" aria-hidden="true" />Sending your result…</>
-          : <><HourglassMediumIcon className="size-5" weight="regular" aria-hidden="true" />Waiting for everyone to finish</>}
+          : <><HourglassMediumIcon className="size-5 text-primary" weight="fill" aria-hidden="true" />Waiting for everyone to finish</>}
       </p>
     );
   } else {
     const Icon = paused ? PauseCircleIcon : breakTitle ? CoffeeIcon : HourglassMediumIcon;
     status = (
       <div className="flex w-full max-w-sm flex-col items-center gap-2">
-        <p role="timer" className="flex flex-wrap items-center justify-center gap-x-2 text-center text-muted-foreground">
-          <Icon className="size-5 shrink-0 text-primary" weight="regular" aria-hidden="true" />
+        <p role="timer" className="flex flex-wrap items-center justify-center gap-x-2 text-center text-muted-foreground tabular-nums">
+          <Icon className="size-5 shrink-0 text-primary" weight="fill" aria-hidden="true" />
           {paused ? <>Paused by the host · {clock}</> : breakTitle ? <><span className="font-medium text-foreground">{breakTitle}</span> · {nextText}</> : nextText}
         </p>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/15" aria-hidden="true">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" aria-hidden="true">
           <div className="h-full rounded-full bg-primary transition-[width] duration-300 ease-linear motion-reduce:transition-none"
             style={{ width: `${Math.min(100, ((total - remaining) / total) * 100)}%` }} />
         </div>
@@ -109,14 +110,15 @@ export function RoomResultsActions({
     <div className="flex flex-col items-center gap-3">
       {status}
       {selfPaced && !breakTitle && (
-        <Button size="lg" onClick={() => onAdvance(true)} disabled={!canSkip}>
-          {advancing ? <CircleNotchIcon className="motion-safe:animate-spin" aria-hidden="true" /> : <ArrowFatRightIcon aria-hidden="true" />}
+        <motion.button type="button" onClick={() => onAdvance(true)} disabled={!canSkip} whileTap={{ scale: 0.96 }}
+          className="flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50">
+          {advancing ? <CircleNotchIcon className="size-4 motion-safe:animate-spin" aria-hidden="true" /> : <ArrowFatRightIcon weight="fill" className="size-4" aria-hidden="true" />}
           {nextTitle ? "Next test" : "Finish"}
-        </Button>
+          {canSkip && <kbd className="rounded-md bg-primary-foreground/20 px-1.5 font-sans text-xs">Enter</kbd>}
+        </motion.button>
       )}
       {advanceError && <p role="alert" className="text-sm text-destructive">{advanceError}</p>}
       {syncNotice}
-      {canSkip && <p className="text-sm text-muted-foreground">Press Enter to continue.</p>}
     </div>
   );
 }
