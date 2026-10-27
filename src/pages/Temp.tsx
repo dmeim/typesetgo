@@ -5,6 +5,7 @@ import { ArrowClockwiseIcon, ArrowLeftIcon, FlaskIcon } from "@phosphor-icons/re
 import { LiveStatsDemo } from "@/components/temp/LiveStatsDemo";
 import { SettingsPillDemo } from "@/components/temp/SettingsPillDemo";
 import { ResultsDemo } from "@/components/temp/ResultsDemo";
+import { HeaderShowcase } from "@/components/temp/header/HeaderShowcase";
 
 const SETTINGS_MOCKUPS: [number, string, string][] = [
   [1, "Split view", "Your stats, history and achievements plus every setting in one place, with live previews. History is a day timeline with rows that open; achievements are collector cards that open a journey of every level."],
@@ -43,6 +44,7 @@ export default function Temp() {
         </header>
 
         <div className="flex flex-col gap-8">
+          <HeaderSection />
           <Section id="settings-pill" title="Test settings pill" badge="on Home" summary="Difficulty and extras share the top row, then mode, then length.">
             <Stage className="min-h-[19rem] items-start">
               <SettingsPillDemo />
@@ -89,6 +91,31 @@ export default function Temp() {
         </div>
       </div>
     </div>
+  );
+}
+
+function HeaderSection() {
+  const [signedIn, setSignedIn] = useState(true);
+  const [typing, setTyping] = useState(false);
+  const [phone, setPhone] = useState(false);
+  const toggles: [string, string, boolean, (value: boolean) => void][] = [
+    ["Signed in", "Guest", signedIn, setSignedIn],
+    ["Typing", "Typing", typing, setTyping],
+    ["Phone", "Phone", phone, setPhone],
+  ];
+  const actions = (
+    <div className="flex items-center gap-1">
+      {toggles.map(([on, off, value, set]) => (
+        <button key={on} type="button" aria-pressed={value} onClick={() => set(!value)} className="rounded-md px-2 py-1 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground">
+          {value ? on : off}
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <Section id="header" title="Header & navigation" badge="every page" summary="Five takes on a leaner header: logo (home), Type, Race, Lessons, Connect, Leaderboard, notifications, light/dark and one account button. Theme, settings and stats now live in Profile, so their buttons are gone. Try Typing to see how each one steps aside mid-test." actions={actions}>
+      <HeaderShowcase signedIn={signedIn} typing={typing} phone={phone} />
+    </Section>
   );
 }
 

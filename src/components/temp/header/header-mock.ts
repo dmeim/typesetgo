@@ -1,0 +1,74 @@
+// Mock data for the header mockups in the /temp UI Lab. The header keeps only: logo (home), page links,
+// leaderboard, notifications, light/dark, and one account button; theme, settings and stats live in Profile.
+import {
+  ChartLineUpIcon, ClockCounterClockwiseIcon, FlagCheckeredIcon, GearSixIcon, GraduationCapIcon, KeyboardIcon, PaletteIcon, TrophyIcon, UsersThreeIcon, type Icon,
+} from "@phosphor-icons/react";
+import type { ReactNode } from "react";
+
+export type PageId = "type" | "race" | "lessons" | "connect" | "leaderboard";
+
+export interface NavItem {
+  id: PageId;
+  label: string;
+  Icon: Icon;
+  /** Solid tile colour, matching the Profile sidebar tiles. */
+  tile: string;
+  soon?: boolean;
+}
+
+export const NAV: NavItem[] = [
+  { id: "type", label: "Type", Icon: KeyboardIcon, tile: "bg-primary text-primary-foreground" },
+  { id: "race", label: "Race", Icon: FlagCheckeredIcon, tile: "bg-destructive text-background", soon: true },
+  { id: "lessons", label: "Lessons", Icon: GraduationCapIcon, tile: "bg-success text-background", soon: true },
+  { id: "connect", label: "Connect", Icon: UsersThreeIcon, tile: "bg-(--accent-emphasis) text-background" },
+];
+
+export const LEADERBOARD: NavItem = { id: "leaderboard", label: "Leaderboard", Icon: TrophyIcon, tile: "bg-[#E8B931] text-black" };
+
+/** Every page the header reaches, leaderboard last. */
+export const PAGES: NavItem[] = [...NAV, LEADERBOARD];
+
+export interface MockNotification {
+  id: string;
+  title: string;
+  body: string;
+  when: string;
+  kind: "achievement" | "streak" | "info";
+  unread: boolean;
+}
+
+export const NOTIFICATIONS: MockNotification[] = [
+  { id: "n1", title: "Achievement unlocked", body: "Emerald II · reach 70 WPM in a single test", when: "2m ago", kind: "achievement", unread: true },
+  { id: "n2", title: "Keep your streak going", body: "Type today to make it 7 days in a row", when: "3h ago", kind: "streak", unread: true },
+  { id: "n3", title: "New themes", body: "640 new themes to explore in Profile → Theme", when: "Yesterday", kind: "info", unread: false },
+];
+
+export const GUEST_NOTIFICATIONS: MockNotification[] = [
+  { id: "g1", title: "Welcome to TypeSetGo", body: "Sign in to save your results and earn achievements", when: "Just now", kind: "info", unread: true },
+];
+
+/** Where the account button leads now that stats, theme and settings live in Profile. */
+export const PROFILE_LINKS: { label: string; href: string; Icon: Icon }[] = [
+  { label: "Stats", href: "/temp-profile", Icon: ChartLineUpIcon },
+  { label: "History", href: "/temp-profile/history", Icon: ClockCounterClockwiseIcon },
+  { label: "Achievements", href: "/temp-profile/achievements", Icon: TrophyIcon },
+  { label: "Theme", href: "/temp-profile/theme", Icon: PaletteIcon },
+  { label: "Settings", href: "/temp-profile/typing", Icon: GearSixIcon },
+];
+
+export const MOCK_ACCOUNT = { username: "pixelpenguin", streak: 6 };
+
+/** What every header mockup is given by the UI Lab frame. */
+export interface HeaderDemo {
+  signedIn: boolean;
+  /** Mid-test: the real header steps out of the way while you type. */
+  typing: boolean;
+  page: PageId;
+  go: (page: PageId) => void;
+  dark: boolean;
+  toggleDark: () => void;
+  notifications: MockNotification[];
+  readAll: () => void;
+}
+
+export type HeaderMockupProps = HeaderDemo & { children: ReactNode };
