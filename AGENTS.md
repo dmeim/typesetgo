@@ -94,6 +94,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/temp` | UI Lab: interactive mockups for upcoming UI changes, including the header/navigation mockups (the locked-in one-pill Dock plus split and three-pill concepts) (`src/components/temp/`, `src/components/temp/header/`); local state only |
 | `/temp-settings1`, `/temp-settings3` | Full-page settings and themes mockups (split view with account stats/history/achievements tabs, studio) (`src/components/temp/settings/`); local state and mock profile data only |
 | `/temp-profile`, `/temp-profile/:userId`, `/temp-profile/:tab` | Profile page mockup driven by the URL: `:userId` is the public stats view; `history`, `achievements` and settings tabs always show your own (`src/components/temp/settings/profile-routes.ts`); mock players only |
+| `/temp-connect` | Connect refresh mockup (landing, host panel, live board and student view; `?screen=`) (`src/components/temp/connect/`); one pretend room, mock data only |
 | `/temp-leaderboard1`–`/temp-leaderboard5` | Leaderboard page mockups (arena, three boards, spotlight, race track, standings) (`src/components/temp/leaderboard/`); mock players only |
 | Other paths | Themed not-found recovery |
 

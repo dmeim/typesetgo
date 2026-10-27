@@ -17,6 +17,12 @@ const PROFILE_LINKS: [string, string, string][] = [
   ["/temp-profile/history", "A private tab", "History, achievements and settings always show your own; signed out, they ask you to sign in."],
 ];
 
+const CONNECT_SCREENS: [string, string, string][] = [
+  ["landing", "Landing", "Big letter boxes for the join code, a three-step host card, and recent rooms."],
+  ["host", "Host panel", "Room code, one run button, the test list and who's here, in clear cards."],
+  ["board", "Live board", "Cards that move as kids type, plus the student's own view of the room."],
+];
+
 const LEADERBOARD_MOCKUPS: [number, string, string][] = [
   [1, "Arena", "One big podium; switching period morphs players between places."],
   [2, "Three boards", "Today, 7 days and all time side by side; hover a player to find them on every board."],
@@ -71,6 +77,16 @@ export default function Temp() {
             <div className="grid gap-3 sm:grid-cols-2">
               {PROFILE_LINKS.map(([to, name, summary]) => (
                 <Link key={to} to={to} className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-primary">
+                  <span className="font-semibold">{name}</span>
+                  <span className="text-xs text-muted-foreground">{summary}</span>
+                </Link>
+              ))}
+            </div>
+          </Section>
+          <Section id="connect-page" title="Connect" summary="A refreshed Connect with a pretend classroom: join with code K7QM, run the room as the host, and watch the live board. Mock data only; the real Connect is unchanged.">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {CONNECT_SCREENS.map(([screen, name, summary]) => (
+                <Link key={screen} to={`/temp-connect?screen=${screen}`} className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-primary">
                   <span className="font-semibold">{name}</span>
                   <span className="text-xs text-muted-foreground">{summary}</span>
                 </Link>
