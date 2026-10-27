@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BellIcon, CheckIcon, FireIcon, MoonIcon, SignInIcon, SignOutIcon, SparkleIcon, SunIcon, TrophyIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
-import { MOCK_ACCOUNT, PROFILE_LINKS, type MockNotification } from "./header-mock";
+import { ACCOUNT_LINKS, MOCK_ACCOUNT, type MockNotification } from "./header-mock";
 import { iconButton, unreadOf } from "./header-utils";
 
 export function Logo({ variant, onHome, className }: { variant: "icon" | "banner"; onHome: () => void; className?: string }) {
@@ -120,8 +120,8 @@ export function Avatar({ signedIn, className = "size-8 text-sm" }: { signedIn: b
   );
 }
 
-/** Profile now holds stats, history, achievements, theme and settings, so one menu replaces four buttons. */
-export function AccountMenu({ signedIn, onPick, links = PROFILE_LINKS }: { signedIn: boolean; onPick?: () => void; links?: typeof PROFILE_LINKS }) {
+/** Your stats, history and achievements, all in Profile, behind one button. */
+export function AccountMenu({ signedIn, onPick }: { signedIn: boolean; onPick?: () => void }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3 px-2 pt-1">
@@ -136,10 +136,9 @@ export function AccountMenu({ signedIn, onPick, links = PROFILE_LINKS }: { signe
         </span>
       </div>
       <div className="flex flex-col gap-0.5">
-        {links.map(({ label, href, Icon }) => {
-          const locked = !signedIn && (label === "Stats" || label === "History" || label === "Achievements");
+        {ACCOUNT_LINKS.map(({ label, href, Icon }) => {
           return (
-            <Link key={label} to={href} onClick={onPick} className={cn("flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm hover:bg-accent", locked && "text-muted-foreground")}>
+            <Link key={label} to={href} onClick={onPick} className={cn("flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm hover:bg-accent", !signedIn && "text-muted-foreground")}>
               <Icon className="size-4 shrink-0" aria-hidden="true" />{label}
             </Link>
           );
@@ -171,9 +170,4 @@ export function PopoverCard({ open, align = "right", className, children }: { op
       )}
     </AnimatePresence>
   );
-}
-
-/** A small "Soon" chip for pages that are not open yet. */
-export function SoonChip({ className }: { className?: string }) {
-  return <span className={cn("rounded-full bg-muted px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground", className)}>Soon</span>;
 }

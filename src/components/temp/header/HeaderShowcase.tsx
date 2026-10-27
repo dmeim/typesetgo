@@ -1,23 +1,11 @@
-import { useState, type ComponentType } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRightIcon, LockSimpleIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { DockHeader } from "./DockHeader";
-import { IslandHeader } from "./IslandHeader";
-import { RailHeader } from "./RailHeader";
-import { SplitHeader } from "./SplitHeader";
-import { TilesHeader } from "./TilesHeader";
-import { ALL_PAGES, GUEST_NOTIFICATIONS, NOTIFICATIONS, type HeaderMockupProps, type PageId } from "./header-mock";
-
-const MOCKUPS: [string, string, ComponentType<HeaderMockupProps>][] = [
-  ["Dock", "A floating dock. The page you are on grows its name, icons lift as you point, and phones get the dock at the bottom.", DockHeader],
-  ["Split", "Logo, centred tabs with a sliding underline, and an account pill that morphs into its own menu.", SplitHeader],
-  ["Rail", "A side rail that opens to show labels on hover or Tab, freeing the top of the page. A bottom tab bar on phones.", RailHeader],
-  ["Island", "One island names your page. Tap it to grow into pages, alerts or your account, all in one place.", IslandHeader],
-  ["Tiles", "Big colourful app tiles that wiggle when you point, plus one capsule with a real light/dark switch.", TilesHeader],
-];
+import { ALL_PAGES, GUEST_NOTIFICATIONS, NOTIFICATIONS, type PageId } from "./header-mock";
 
 const PATHS: Record<PageId, string> = { type: "/", race: "/race", lessons: "/lessons", connect: "/connect", leaderboard: "/leaderboard", theme: "/profile/theme", settings: "/profile/text" };
 const PAGE_LINKS: Partial<Record<PageId, [string, string]>> = {
@@ -27,25 +15,13 @@ const PAGE_LINKS: Partial<Record<PageId, [string, string]>> = {
 };
 const WORDS = "the quick brown fox jumps over the lazy dog while the class races to type every word".split(" ");
 
-/** Every header mockup in a mini browser window, with the toggles the UI Lab section provides. */
+/** The Dock header in a mini browser window, with the toggles the UI Lab section provides. */
 export function HeaderShowcase({ signedIn, typing, phone }: { signedIn: boolean; typing: boolean; phone: boolean }) {
-  return (
-    <div className="flex flex-col gap-6">
-      {MOCKUPS.map(([name, summary, Mockup], index) => (
-        <div key={name} className="flex flex-col gap-2">
-          <div className="flex flex-col gap-0.5 px-1">
-            <span className="text-sm font-semibold"><span className="text-muted-foreground">{String(index + 1).padStart(2, "0")}</span> {name}</span>
-            <span className="text-xs text-muted-foreground">{summary}</span>
-          </div>
-          {/* Remount when signing in or out so each mockup starts fresh. */}
-          <MockWindow key={String(signedIn)} Mockup={Mockup} signedIn={signedIn} typing={typing} phone={phone} />
-        </div>
-      ))}
-    </div>
-  );
+  // Remount when signing in or out so the mockup starts fresh.
+  return <MockWindow key={String(signedIn)} signedIn={signedIn} typing={typing} phone={phone} />;
 }
 
-function MockWindow({ Mockup, signedIn, typing, phone }: { Mockup: ComponentType<HeaderMockupProps>; signedIn: boolean; typing: boolean; phone: boolean }) {
+function MockWindow({ signedIn, typing, phone }: { signedIn: boolean; typing: boolean; phone: boolean }) {
   const [page, setPage] = useState<PageId>("type");
   const [dark, setDark] = useState(true);
   const [notifications, setNotifications] = useState(signedIn ? NOTIFICATIONS : GUEST_NOTIFICATIONS);
@@ -62,7 +38,7 @@ function MockWindow({ Mockup, signedIn, typing, phone }: { Mockup: ComponentType
         </span>
       </div>
       <div className="@container flex h-[30rem] flex-col">
-        <Mockup
+        <DockHeader
           signedIn={signedIn}
           typing={typing}
           page={page}
@@ -73,7 +49,7 @@ function MockWindow({ Mockup, signedIn, typing, phone }: { Mockup: ComponentType
           readAll={readAll}
         >
           <MockPage page={page} typing={typing} />
-        </Mockup>
+        </DockHeader>
       </div>
     </motion.div>
   );

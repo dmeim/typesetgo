@@ -1,5 +1,5 @@
-// Mock data for the header mockups in the /temp UI Lab. The header keeps only: logo (home), page links,
-// leaderboard, notifications, light/dark, and one account button; theme, settings and stats live in Profile.
+// Mock data for the Dock header mockup in the /temp UI Lab. The header keeps only: logo (home), page links,
+// leaderboard, theme, settings, notifications, light/dark, and one account button; stats live in Profile.
 import {
   ChartLineUpIcon, ClockCounterClockwiseIcon, FlagCheckeredIcon, GearSixIcon, GraduationCapIcon, KeyboardIcon, PaletteIcon, TrophyIcon, UsersThreeIcon, type Icon,
 } from "@phosphor-icons/react";
@@ -25,10 +25,7 @@ export const NAV: NavItem[] = [
 
 export const LEADERBOARD: NavItem = { id: "leaderboard", label: "Leaderboard", Icon: TrophyIcon, tile: "bg-[#E8B931] text-black" };
 
-/** Every page the header reaches, leaderboard last. */
-export const PAGES: NavItem[] = [...NAV, LEADERBOARD];
-
-// The dock keeps Theme and Settings beside the leaderboard rather than inside the account menu.
+// Theme and Settings sit beside the leaderboard rather than inside the account menu.
 export const THEME: NavItem = { id: "theme", label: "Theme", Icon: PaletteIcon, tile: "bg-(--accent-emphasis) text-background" };
 export const SETTINGS: NavItem = { id: "settings", label: "Settings", Icon: GearSixIcon, tile: "bg-muted-foreground text-background" };
 export const TOOLS: NavItem[] = [LEADERBOARD, THEME, SETTINGS];
@@ -53,17 +50,12 @@ export const GUEST_NOTIFICATIONS: MockNotification[] = [
   { id: "g1", title: "Welcome to TypeSetGo", body: "Sign in to save your results and earn achievements", when: "Just now", kind: "info", unread: true },
 ];
 
-/** Where the account button leads now that stats, theme and settings live in Profile. */
-export const PROFILE_LINKS: { label: string; href: string; Icon: Icon }[] = [
+/** The account menu holds only your own records; Theme and Settings have their own dock buttons. */
+export const ACCOUNT_LINKS: { label: string; href: string; Icon: Icon }[] = [
   { label: "Stats", href: "/temp-profile", Icon: ChartLineUpIcon },
   { label: "History", href: "/temp-profile/history", Icon: ClockCounterClockwiseIcon },
   { label: "Achievements", href: "/temp-profile/achievements", Icon: TrophyIcon },
-  { label: "Theme", href: "/temp-profile/theme", Icon: PaletteIcon },
-  { label: "Settings", href: "/temp-profile/text", Icon: GearSixIcon },
 ];
-
-/** The dock's account menu: only your own records, since Theme and Settings have their own buttons. */
-export const ACCOUNT_LINKS = PROFILE_LINKS.filter(({ label }) => label !== "Theme" && label !== "Settings");
 
 export const MOCK_ACCOUNT = { username: "pixelpenguin", streak: 6 };
 
