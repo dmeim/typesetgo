@@ -68,7 +68,7 @@ export function ProfileSidebar({ account, active, summary, onOpen, hiddenOnPhone
   return (
     <aside
       aria-label="Profile"
-      className={`w-full shrink-0 flex-col gap-4 overflow-x-hidden border-border pb-4 pt-6 transition-[width,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:sticky md:top-(--profile-header,0px) md:flex md:h-[calc(100dvh-var(--profile-header,0px))] md:border-r md:bg-card/40 ${collapsed ? "px-4 md:w-[4.75rem] md:px-3" : "px-4 md:w-72"} ${hiddenOnPhone ? "hidden" : "flex"}`}
+      className={`w-full shrink-0 flex-col gap-4 overflow-x-hidden border-border pb-4 pt-[calc(var(--profile-header,0px)+1.5rem)] transition-[width,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:sticky md:top-0 md:z-40 md:flex md:h-dvh md:border-r md:bg-[color-mix(in_oklab,var(--card)_40%,var(--background))] ${collapsed ? "px-4 md:w-[4.75rem] md:px-3" : "px-4 md:w-72"} ${hiddenOnPhone ? "hidden" : "flex"}`}
     >
       <div className="flex items-center gap-2">
         <button

@@ -14,7 +14,6 @@ interface PracticeLiveStatsProps {
   elapsedMs: number;
   timeRemaining: number;
   typedWordCount: number;
-  keyboardVisible: boolean;
 }
 
 function formatPracticeTime(seconds: number) {
@@ -27,7 +26,7 @@ function formatPracticeTime(seconds: number) {
 }
 
 /** One quiet line of rolling numbers (accuracy, speed, then time or words) over a progress line. */
-export function PracticeLiveStats({ settings, isKidMode, wpm, accuracy, elapsedMs, timeRemaining, typedWordCount, keyboardVisible }: PracticeLiveStatsProps) {
+export function PracticeLiveStats({ settings, isKidMode, wpm, accuracy, elapsedMs, timeRemaining, typedWordCount }: PracticeLiveStatsProps) {
   const shownWpm = useSampledValue(Math.round(wpm), READOUT_INTERVAL_MS);
   const shownAccuracy = useSampledValue(Math.round(accuracy), READOUT_INTERVAL_MS);
   const timed = isTimedPractice(settings);
@@ -40,7 +39,7 @@ export function PracticeLiveStats({ settings, isKidMode, wpm, accuracy, elapsedM
     : settings.wordTarget > 0 ? Math.min(typedWordCount / settings.wordTarget, 1) : 0;
 
   return (
-    <div className={`flex w-full shrink-0 select-none flex-col items-center gap-2 ${keyboardVisible ? "pb-8" : "pb-2"}`}>
+    <div className="flex w-full shrink-0 select-none flex-col items-center gap-2 pb-2">
       <div className="flex flex-wrap items-baseline justify-center gap-x-6 gap-y-1">
         {isKidMode ? (
           <>

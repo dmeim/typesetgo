@@ -56,11 +56,23 @@ await withFixtureBrowser(async browser => {
   await expect(keyboard.locator('[data-key="CapsLock"]')).not.toHaveClass(/bg-warning/);
   console.log("Keyboard defaults on; Caps Lock highlights only Caps, with next-letter guidance intact PASS");
   expect(themeFetches).toBeLessThanOrEqual(1);
+  // The keyboard is pinned to the bottom, just above the footer, and the text block stays put once typing starts.
+  const layout = () => p.evaluate(() => {
+    const board = document.querySelector('[data-testid="keyboard-container"]').getBoundingClientRect();
+    const text = document.querySelector(".cursor-text").getBoundingClientRect();
+    return { boardTop: Math.round(board.top), gap: Math.round(document.querySelector("footer").getBoundingClientRect().top - board.bottom), textTop: Math.round(text.top) };
+  });
+  await expect(keyboard.getByText("Caps Lock is on", { exact: true })).toHaveCount(0);
+  const idleLayout = await layout();
+  expect(idleLayout.gap).toBeGreaterThanOrEqual(0);
+  expect(idleLayout.gap).toBeLessThanOrEqual(24);
   await i.fill("x ");
   await expect(p.locator("[data-next-key=true][data-key=c]")).toHaveCount(1);
   await expect(p.locator("[data-next-key=true][data-key=Backspace]")).toHaveCount(0);
   await p.waitForTimeout(1000);
   await expect(p.locator("[data-ghost-caret]")).toHaveCount(1);
+  expect(await layout()).toEqual(idleLayout);
+  console.log("keyboard pinned above the footer; text and keyboard still once typing starts PASS");
   const ghost = await visibleBounds(p.locator("[data-ghost-caret]"));
   console.log("historical error correction guidance + elapsed ghost PASS", ghost);
   await p.setViewportSize({
@@ -148,4 +160,23 @@ await withFixtureBrowser(async browser => {
     });
   }
   console.log("phone settings pill at 390/320: mode, length, difficulty, extras, custom length and own text unfold without sideways scroll PASS");
+  // Without the keyboard, the middle of the whole text block sits at the middle of the practice screen.
+  const centred = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+  await centred.addInitScript(() => localStorage.setItem("typesetgo_settings", JSON.stringify({
+    mode: "words", wordTarget: 25, soundEnabled: false, showOnScreenKeyboard: false,
+  })));
+  await routeFixtureRequests(centred, r => new URL(r.request().url()).hostname === "127.0.0.1" ? r.fallback() : r.abort());
+  await centred.goto(fixtureOrigin);
+  await expect(centred.getByRole("textbox", { name: "Typing practice", exact: true })).toBeEnabled();
+  await expect(centred.locator("[data-testid=keyboard-container]")).toHaveCount(0);
+  for (const [width, height] of [[1440, 900], [1280, 720], [1024, 768]]) {
+    await centred.setViewportSize({ width, height });
+    await expect.poll(() => centred.evaluate(() => {
+      const screen = document.querySelector("main").getBoundingClientRect();
+      const text = document.querySelector(".cursor-text").getBoundingClientRect();
+      return Math.abs(text.top + text.height / 2 - (screen.top + screen.height / 2));
+    }), `text block centred at ${width}x${height}`).toBeLessThanOrEqual(2);
+  }
+  await centred.close();
+  console.log("text block centred on the practice screen without the keyboard PASS");
 });

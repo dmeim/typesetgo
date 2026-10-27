@@ -41,7 +41,6 @@ export function LiveStatsDemo() {
         elapsedMs={run.elapsedMs}
         timeRemaining={run.timeRemaining}
         typedWordCount={run.wordsTyped}
-        keyboardVisible={false}
       />
       <MockPrompt run={run} />
     </div>

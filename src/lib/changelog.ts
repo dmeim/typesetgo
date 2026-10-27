@@ -36,6 +36,36 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "last-sweep-touches",
+    date: "2026-10-27",
+    title: "The profile page meets the header, and new players get a friendlier start",
+    kind: "improved",
+    status: "live",
+    area: "Profile",
+    summary: "The header floats over the profile page like everywhere else, a brand-new account no longer shows a page of zeros, and a few phone layouts read better.",
+    highlights: [
+      "The profile sidebar runs from the top of the window to the bottom, and the page fades out under the header as you scroll instead of being cut off",
+      "Before your first test, Stats says \"No stats yet\" with a Start a test button instead of zeros and a 0-day streak",
+      "On phones a long name in the profile header wraps into a few readable lines",
+      "On the Connect board on a phone, the join address gets its own line above the code",
+    ],
+  },
+  {
+    id: "steady-practice-screen",
+    date: "2026-10-27",
+    title: "The keyboard stays at the bottom and the words stay in the middle",
+    kind: "improved",
+    status: "live",
+    area: "Home",
+    summary: "The practice screen no longer shifts around. The on-screen keyboard sits at the bottom of the screen, and the whole block of words sits in the middle, whatever your text size, line count or test.",
+    highlights: [
+      "The keyboard is pinned just above the footer and doesn't move when you change settings or start typing",
+      "All the lines you see are centred together, not just the first one; short quotes are centred too",
+      "The stats that appear while you type take the settings pill's place, so the words don't jump when a test starts",
+      "With the keyboard on, the words sit as close to the middle as the keyboard leaves room for",
+    ],
+  },
+  {
     id: "small-screen-touches",
     date: "2026-10-27",
     title: "Room for the keyboard on small phones, and a few finishing touches",

@@ -1,7 +1,8 @@
 import { lazy, Suspense, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
-  ArrowRightIcon, ChartLineUpIcon, ClockIcon, FlameIcon, GaugeIcon, SignInIcon, TargetIcon, TextAaIcon, TextTIcon, TrophyIcon, type Icon,
+  ArrowFatRightIcon, ArrowRightIcon, ChartLineUpIcon, ClockIcon, FlameIcon, GaugeIcon, KeyboardIcon, SignInIcon, TargetIcon, TextAaIcon, TextTIcon, TrophyIcon, type Icon,
 } from "@phosphor-icons/react";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { formatDuration, type VerifiedProfileTestResult } from "@/components/stats/profile-presentation";
@@ -75,7 +76,9 @@ export function AccountCard({ user, streak, collapsed, fade, selected, onOpen }:
       <span className={`flex min-w-0 flex-1 flex-col whitespace-nowrap ${ease} ${fade}`}>
         <span className="truncate font-semibold">{name}</span>
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <FlameIcon weight="fill" className="size-3.5 text-warning" aria-hidden="true" />{streak ? streakLabel(streak.currentStreak) : "Your stats"}
+          {streak && streak.currentStreak > 0
+            ? <><FlameIcon weight="fill" className="size-3.5 text-warning" aria-hidden="true" />{streakLabel(streak.currentStreak)}</>
+            : <><ChartLineUpIcon className="size-3.5" aria-hidden="true" />Your stats</>}
         </span>
       </span>
     </motion.button>
@@ -203,6 +206,26 @@ function StatTile({ card, index, onOpen }: { card: StatCard; index: number; onOp
   );
 }
 
+/** Shown instead of a wall of zeros before the first counted test. */
+function NoStatsYet({ own, username }: { own: boolean; username: string }) {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-border px-6 py-12 text-center">
+      <span className="flex size-14 items-center justify-center rounded-2xl bg-primary/15 text-primary"><KeyboardIcon weight="fill" className="size-7" aria-hidden="true" /></span>
+      <div className="flex flex-col gap-1">
+        <p className="text-lg font-bold">No stats yet</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          {own ? "Finish your first test and your speed, accuracy and typing time show up here." : <><span className="[overflow-wrap:anywhere]">{username}</span> hasn’t finished a test yet.</>}
+        </p>
+      </div>
+      {own && (
+        <Link to="/" className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          <ArrowFatRightIcon className="size-4" aria-hidden="true" />Start a test
+        </Link>
+      )}
+    </div>
+  );
+}
+
 /** Stats tab and public profile: name, picture and lifetime cards; each card opens its chart. */
 export function StatsPanel({ user, stats, results, streak }: {
   user: ProfileUser;
@@ -211,6 +234,8 @@ export function StatsPanel({ user, stats, results, streak }: {
   /** Only known on your own profile. */
   streak?: ProfileStreak | null;
 }) {
+  const own = streak !== undefined;
+  const started = stats.totalTests > 0;
   const [chart, setChart] = useState<StatCard | null>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const restoreFocus = (event: Event) => {
@@ -221,12 +246,15 @@ export function StatsPanel({ user, stats, results, streak }: {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-wrap items-center gap-5 rounded-3xl border border-border bg-card p-6">
-        <ProfileAvatar user={user} size="size-20" text="text-3xl" />
+        {/* Smaller on phones so a long name keeps a readable line length beside the picture. */}
+        <ProfileAvatar user={user} size="size-14 sm:size-20" text="text-2xl sm:text-3xl" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="break-words text-3xl font-bold [overflow-wrap:anywhere]">{user.username}</h2>
-          <p className="text-sm text-muted-foreground">{joined ? `Typing since ${joined} · ` : ""}{stats.totalTests.toLocaleString()} tests</p>
+          <h2 className="break-words text-2xl font-bold [overflow-wrap:anywhere] sm:text-3xl">{user.username}</h2>
+          <p className="text-sm text-muted-foreground">
+            {started ? `${joined ? `Typing since ${joined} · ` : ""}${stats.totalTests.toLocaleString()} ${stats.totalTests === 1 ? "test" : "tests"}` : joined ? `Joined ${joined}` : "New player"}
+          </p>
         </div>
-        {streak && (
+        {streak && streak.longestStreak > 0 && (
           <div className="flex flex-wrap gap-2">
             <span className="flex items-center gap-2 rounded-2xl bg-warning/15 px-4 py-2 text-sm font-semibold text-warning">
               <FlameIcon weight="fill" className="size-5" aria-hidden="true" />{streakLabel(streak.currentStreak)}
@@ -239,9 +267,11 @@ export function StatsPanel({ user, stats, results, streak }: {
       </section>
       <section aria-labelledby="profile-lifetime" className="flex flex-col gap-3">
         <h3 id="profile-lifetime" className="px-1 text-xs uppercase tracking-wider text-muted-foreground">Lifetime statistics</h3>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {cardsFor(stats, results).map((card, index) => <StatTile key={card.type} card={card} index={index} onOpen={(button) => { trigger.current = button; setChart(card); }} />)}
-        </div>
+        {started ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {cardsFor(stats, results).map((card, index) => <StatTile key={card.type} card={card} index={index} onOpen={(button) => { trigger.current = button; setChart(card); }} />)}
+          </div>
+        ) : <NoStatsYet own={own} username={user.username} />}
       </section>
       {chart && (
         <Suspense fallback={<p role="status" className="py-6 text-center text-sm text-muted-foreground">Loading chart…</p>}>

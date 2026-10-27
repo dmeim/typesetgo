@@ -212,9 +212,6 @@ export default function TypingPractice({
   const activeKeyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const uiOpacity = isRunning && isFocused && !isFinished && (!connectMode || isTestActive) ? 0 : 1;
 
-  // Compact Mode (for zoomed/narrow viewports)
-  const [isCompactMode, setIsCompactMode] = useState(false);
-
   // Kids mode is saved with what it replaced, so leaving it still restores them after a trip to the profile page.
   const [preKidModeSettings, setPreKidModeSettingsState] = useState<KidModeSnapshot | null>(() => (connectMode ? null : loadKidModeSnapshot()));
   const [isKidMode, setIsKidMode] = useState(() => preKidModeSettings !== null);
@@ -317,11 +314,17 @@ export default function TypingPractice({
     linePreview, maxWordsPerLine, updateLinePreview, updateMaxWordsPerLine } = usePracticePreferences({
     userId: user?.id, connectMode, settings, settingsRef, setSettings, isRunningRef, isFinishedRef, composingRef,
   });
+  // A prompt shorter than the line count gets a block its own height, so a short quote is centred too.
+  const [promptLines, setPromptLines] = useState(linePreview);
+  const visibleLines = Math.min(linePreview, promptLines);
   const scrollOffset = useTypingScroll({ viewportRef: containerRef, contentRef, caretRef,
-    layoutKey: JSON.stringify([typedText, compositionDraft, words, settings.typingFontSize, settings.typingFontFamily, settings.textAlign, maxWordsPerLine, isFinished]),
-    visibleLines: linePreview });
-  const topLayoutRef = useRef<HTMLDivElement | null>(null);
-  const bottomLayoutRef = useRef<HTMLDivElement | null>(null);
+    layoutKey: JSON.stringify([typedText, compositionDraft, words, settings.typingFontSize, settings.typingFontFamily, settings.textAlign, maxWordsPerLine, isFinished, visibleLines]),
+    visibleLines });
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const topRef = useRef<HTMLDivElement | null>(null);
+  const [idleTopHeight, setIdleTopHeight] = useState(0);
+  const regionRef = useRef<HTMLDivElement | null>(null);
+  const groupRef = useRef<HTMLDivElement | null>(null);
   const [typingCenterOffset, setTypingCenterOffset] = useState(0);
 
   const promptReady = (restoringPrompt || dataset.status === "ready") && matchesPromptRequest && words.length > 0;
@@ -410,24 +413,6 @@ export default function TypingPractice({
 
   const timeRemaining =
     isTimedPractice(settings) ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
-
-  // --- Compact Mode Detection (for zoomed/narrow viewports) ---
-  useEffect(() => {
-    const COMPACT_WIDTH = 768;
-    const COMPACT_HEIGHT = 600;
-    
-    const checkCompactMode = () => {
-      // Trigger compact mode when viewport is narrow OR short (e.g. browser zoom)
-      setIsCompactMode(window.innerWidth < COMPACT_WIDTH || window.innerHeight < COMPACT_HEIGHT);
-    };
-    
-    // Check on mount
-    checkCompactMode();
-    
-    // Listen for resize events (covers zoom changes which alter innerWidth/innerHeight)
-    window.addEventListener("resize", checkCompactMode);
-    return () => window.removeEventListener("resize", checkCompactMode);
-  }, []);
 
   // --- Load sound manifest ---
   useEffect(() => {
@@ -984,44 +969,59 @@ export default function TypingPractice({
     }
   };
 
+  // Measured once per prompt (and on resize), not while typing, so the block never changes height mid-test.
   useLayoutEffect(() => {
-    if (isCompactMode || isFinished) return;
-
-    const topEl = topLayoutRef.current;
-    const bottomEl = bottomLayoutRef.current;
-    if (!topEl || !bottomEl) return;
-
-    const updateOffset = () => {
-      const topHeight = topEl.getBoundingClientRect().height;
-      const bottomHeight = bottomEl.getBoundingClientRect().height;
-      const offset = (bottomHeight - topHeight) / 2;
-      setTypingCenterOffset(Math.max(-180, Math.min(180, offset)));
+    const content = contentRef.current;
+    if (isFinished || !content) return;
+    const measure = () => {
+      const lineHeight = parseFloat(getComputedStyle(content).lineHeight) || 0;
+      if (!lineHeight) return;
+      const lines = Math.max(1, Math.round(content.offsetHeight / lineHeight));
+      setPromptLines((current) => (current === lines ? current : lines));
     };
+    measure();
+    window.addEventListener("resize", measure);
+    void document.fonts?.ready.then(measure);
+    return () => window.removeEventListener("resize", measure);
+    // Typed text is left out on purpose: extra letters can wrap a line, and the block would jump.
+  }, [isFinished, promptReady, words, settings.typingFontSize, settings.typingFontFamily, settings.textAlign, maxWordsPerLine]);
 
-    updateOffset();
+  // The pill's height before a test, kept for the stats while typing (an open editor is not the resting height).
+  useLayoutEffect(() => {
+    const top = topRef.current;
+    if (!top || isRunning || isFinished || editor) return;
+    const measure = () => setIdleTopHeight((current) => (current === top.offsetHeight ? current : top.offsetHeight));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(top);
+    return () => observer.disconnect();
+  }, [isRunning, isFinished, editor]);
 
-    const resizeObserver = new ResizeObserver(() => {
-      updateOffset();
-    });
-
-    resizeObserver.observe(topEl);
-    resizeObserver.observe(bottomEl);
-    window.addEventListener("resize", updateOffset);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateOffset);
+  // The whole visible text block sits at the middle of the practice screen, whatever is above or below it. When the
+  // pill, an open editor or the keyboard leave too little room, it moves toward the middle by at most half the free
+  // space, so it never presses against the keyboard.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const region = regionRef.current;
+    const group = groupRef.current;
+    const text = containerRef.current;
+    if (isFinished || !root || !region || !group || !text) return;
+    const update = () => {
+      const rootRect = root.getBoundingClientRect();
+      const regionRect = region.getBoundingClientRect();
+      // Both rects carry the group's current shift, so their difference is the text's place inside the group.
+      const textCenter = text.getBoundingClientRect().top - group.getBoundingClientRect().top + text.offsetHeight / 2;
+      const room = Math.max(0, regionRect.height - group.offsetHeight) / 2;
+      const naturalCenter = regionRect.top + room + textCenter;
+      const wanted = rootRect.top + root.clientHeight / 2 - naturalCenter;
+      const next = Math.round(Math.max(-room / 2, Math.min(room / 2, wanted)));
+      setTypingCenterOffset((current) => (current === next ? current : next));
     };
-  }, [
-    isCompactMode,
-    isFinished,
-    isRunning,
-    isKidMode,
-    settings.mode,
-    settings.helpFontSize,
-    linePreview,
-    editor,
-  ]);
+    update();
+    const observer = new ResizeObserver(update);
+    for (const element of [root, region, group, text]) observer.observe(element);
+    return () => observer.disconnect();
+  }, [isFinished]);
 
   const selectedDurationPreset = TIME_PRESETS.find((preset) => preset === settings.duration);
   const selectedWordPreset = WORD_PRESETS.find((preset) => preset === settings.wordTarget);
@@ -1048,10 +1048,12 @@ export default function TypingPractice({
 
   return (
     <div
+      ref={rootRef}
       className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300 ${PRACTICE_TEXT_SHARE_CLASS}`}
       style={{ backgroundColor: tv.ui.background, ...(connectMode ? { color: tv.ui.foreground, ...roomThemeStyle } : {}) }}
     >
-      <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
+      {/* While typing, the stats take the pill's place in the same height, so nothing below them moves. */}
+      <div ref={topRef} className="shrink-0 w-full flex flex-col items-center" style={isRunning && !isFinished && idleTopHeight ? { height: idleTopHeight } : undefined}>
       <div className="h-4 shrink-0" />
 
       <PracticeControls
@@ -1071,17 +1073,17 @@ export default function TypingPractice({
           elapsedMs={elapsedMs}
           timeRemaining={timeRemaining}
           typedWordCount={typedWordCount}
-          keyboardVisible={settings.showOnScreenKeyboard}
         />
       )}
       </div>
 
-      {/* Flexible spacer - balances content vertically; results center themselves in the leftover height instead */}
-      <div className={isFinished ? "hidden" : settings.showOnScreenKeyboard ? "shrink-0" : "flex-1"} />
-
+      {/* The room between the pill and the bottom: the text block is centred on the whole screen within it (see the
+          centring effect); results center themselves in it instead. */}
+      <div ref={regionRef} className={`w-full flex flex-col items-center ${isFinished ? "min-h-0 flex-1" : "flex-[1_0_auto] justify-center"}`}>
       <div
-        className={`w-full flex flex-col items-center transition-transform duration-300 ${isFinished ? "min-h-0 flex-1" : ""}`}
-        style={!isCompactMode && !isFinished && !settings.showOnScreenKeyboard && !editor ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
+        ref={groupRef}
+        className={`w-full flex flex-col items-center motion-safe:transition-transform motion-safe:duration-300 ${isFinished ? "min-h-0 flex-1" : ""}`}
+        style={!isFinished ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
       >
         {/* Quote Info */}
         {settings.mode === "quote" && currentQuote && !isFinished && (
@@ -1138,7 +1140,7 @@ export default function TypingPractice({
                 fontSize: practiceFontSize(settings.typingFontSize, linePreview, settings.showOnScreenKeyboard),
                 fontFamily: getTypingFontFamily(settings.typingFontFamily),
                 lineHeight: LINE_HEIGHT,
-                maxHeight: `${linePreview * LINE_HEIGHT}em`,
+                height: `${visibleLines * LINE_HEIGHT}em`,
                 textAlign: settings.textAlign,
               }}
               onMouseDown={(e) => {
@@ -1186,17 +1188,6 @@ export default function TypingPractice({
               </div>
             )}
 
-            {settings.showOnScreenKeyboard && (
-              <OnScreenKeyboard
-                nextChar={nextChar}
-                capsLockOn={capsLockOn}
-                layoutId={settings.keyboardLayout}
-                style={settings.keyboardStyle}
-                toDelete={wrongLetters}
-                activeKey={activeKey}
-                visible={isFocused}
-              />
-            )}
           </div>
         ) : (
           <PracticeResults
@@ -1221,14 +1212,17 @@ export default function TypingPractice({
         )}
         </div>
       </div>
+      </div>
 
-      <div ref={bottomLayoutRef} className={`shrink-0 w-full flex flex-col items-center ${isFinished ? "" : settings.showOnScreenKeyboard && isRunning ? "" : settings.showOnScreenKeyboard ? "pt-2" : "pt-10 md:pt-12"}`}>
-        {/* Instructions */}
-        {!connectMode && !isRunning && !isFinished && (
-          // Keyboard shortcuts mean nothing on touch screens, and on short windows the keyboard needs the room.
+      {/* Pinned to the bottom: the hint, then the keyboard, so neither moves when the text or settings change. */}
+      <div className={`shrink-0 w-full flex flex-col items-center ${isFinished ? "" : settings.showOnScreenKeyboard ? "pt-1" : "pt-4"}`}>
+        {/* Instructions: invisible while typing but keeping their space, so the keyboard and text never shift. */}
+        {!connectMode && !isFinished && (
+          // Keyboard shortcuts mean nothing on touch screens, and on short or narrow windows the keyboard needs the room.
           <div
-            className={`text-center text-muted-foreground transition-opacity duration-300 pointer-coarse:hidden ${settings.showOnScreenKeyboard ? "[@media(max-height:50rem)]:hidden" : ""}`}
-            style={{ fontSize: `${settings.helpFontSize}rem`, opacity: uiOpacity }}
+            aria-hidden={isRunning || undefined}
+            className={`text-center text-muted-foreground transition-opacity duration-300 pointer-coarse:hidden ${isRunning ? "invisible" : ""} ${settings.showOnScreenKeyboard ? "mb-3 [@media(max-height:50rem)]:hidden [@media(max-width:40rem)]:hidden" : ""}`}
+            style={{ fontSize: `${settings.helpFontSize}rem`, opacity: isRunning ? 0 : uiOpacity }}
           >
             {isRepeated && <div className="mb-2 text-destructive font-medium">REPEATED</div>}
             <div>
@@ -1238,13 +1232,23 @@ export default function TypingPractice({
           </div>
         )}
 
+        {settings.showOnScreenKeyboard && !isFinished && (
+          <div className="w-[95%] md:w-[80%]">
+            <OnScreenKeyboard
+              nextChar={nextChar}
+              capsLockOn={capsLockOn}
+              layoutId={settings.keyboardLayout}
+              style={settings.keyboardStyle}
+              toDelete={wrongLetters}
+              activeKey={activeKey}
+              visible={isFocused}
+            />
+          </div>
+        )}
+
         {/* Bottom padding */}
-        <div className={`shrink-0 ${isFinished ? "h-3" : settings.showOnScreenKeyboard && isRunning ? "h-0" : settings.showOnScreenKeyboard ? "h-1" : "h-8"}`} />
+        <div className={`shrink-0 ${isFinished ? "h-3" : settings.showOnScreenKeyboard ? "h-2" : "h-8"}`} />
       </div>
-
-      {/* Flexible spacer - keeps typing area vertically centered; results center themselves in the leftover height instead */}
-      <div className={isFinished ? "hidden" : settings.showOnScreenKeyboard ? "shrink-0" : "flex-1"} />
-
     </div>
   );
 }

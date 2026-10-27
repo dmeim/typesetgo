@@ -55,7 +55,7 @@ export function ProfilePage() {
   const earnedTotal = own.earned ? Object.keys(own.earned).filter((id) => getAchievementById(id)).length : undefined;
 
   const summary: Partial<Record<PaneId, string>> = {
-    stats: own.stats ? `${own.stats.bestWpm} best` : undefined,
+    stats: own.stats ? (own.stats.totalTests > 0 ? `${own.stats.bestWpm} best` : "No tests yet") : undefined,
     history: own.stats ? `${own.stats.totalTests.toLocaleString()} tests` : undefined,
     achievements: earnedTotal === undefined ? undefined : `${earnedTotal} / ${ALL_ACHIEVEMENTS.length}`,
     theme: themeName,
@@ -153,7 +153,7 @@ export function ProfilePage() {
         hiddenOnPhone={mobileDetail}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <main id="profile-content" tabIndex={-1} className={`min-w-0 flex-1 px-4 pb-16 pt-6 outline-none md:px-6 xl:px-8 ${mobileDetail ? "block" : "hidden md:block"}`}>
+        <main id="profile-content" tabIndex={-1} className={`min-w-0 flex-1 px-4 pb-16 pt-[calc(var(--profile-header,0px)+1.5rem)] outline-none md:px-6 xl:px-8 ${mobileDetail ? "block" : "hidden md:block"}`}>
           <button type="button" onClick={() => setMobileDetail(false)} className="mb-4 flex items-center gap-1 text-sm text-primary md:hidden">
             <CaretLeftIcon className="size-4" aria-hidden="true" />All profile sections
           </button>

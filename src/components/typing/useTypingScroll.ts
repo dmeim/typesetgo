@@ -21,7 +21,8 @@ export function useTypingScroll({ viewportRef, contentRef, caretRef, layoutKey, 
     const measure = () => {
       if (disposed) return;
       const caret = caretRef.current;
-      if (!caret) { setOffset(0); return; }
+      // A prompt that fits the block (a short quote) never scrolls, so no line is pushed out of view.
+      if (!caret || (!feedingTape && content.offsetHeight <= viewport.clientHeight + 1)) { setOffset(0); return; }
       const caretRect = caret.getBoundingClientRect();
       const contentRect = content.getBoundingClientRect();
       const lineHeight = parseFloat(getComputedStyle(content).lineHeight) || 0;

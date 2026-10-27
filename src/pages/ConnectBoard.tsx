@@ -48,11 +48,12 @@ function BoardStrip({ room, live }: { room: HostRoom; live: boolean }) {
           {live ? "Live" : "Connecting…"}<span aria-hidden="true">·</span><span className="truncate">Hosted by {room.hostName}</span>
         </p>
       </div>
-      <div className="ml-auto flex min-w-0 items-center gap-3 sm:gap-4">
+      {/* On phones the address gets its own line above the code instead of being squeezed beside it. */}
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-3 sm:flex-nowrap sm:gap-4">
         {room.code && (
           <>
-            <p className="min-w-0 break-all text-right text-xs leading-tight text-muted-foreground sm:text-sm">
-              Join at<br /><span className="font-semibold text-foreground">{joinHost()}</span>
+            <p className="min-w-0 basis-full text-right text-xs leading-tight text-muted-foreground [overflow-wrap:anywhere] sm:basis-auto sm:text-sm">
+              Join at<br className="hidden sm:inline" />{" "}<span className="font-semibold text-foreground">{joinHost()}</span>
             </p>
             <CodeTiles key={room.code} code={room.code}
               className="[&>span]:h-12 [&>span]:w-10 [&>span]:rounded-xl [&>span]:text-2xl sm:[&>span]:h-14 sm:[&>span]:w-11 sm:[&>span]:text-3xl" />

@@ -128,6 +128,20 @@ it("shows only public stats for someone else, without loading their streak or ac
   expect(screen.queryByRole("button", { current: "page" })).toBeNull();
 });
 
+it("greets a brand-new player with a start prompt instead of zeros", async () => {
+  mocks.queries["testResults:getUserStatsByUserId"] = () => ({
+    totalTests: 0, averageWpm: 0, bestWpm: 0, averageAccuracy: 0, totalTimeTyped: 0,
+    totalWordsTyped: 0, totalCharactersTyped: 0, allResults: [],
+  });
+  mocks.queries["streaks:getUserStreak"] = { currentStreak: 0, longestStreak: 0, lastActivityDate: null };
+  view("/profile");
+  await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/profile/${OWNER}`));
+  expect(screen.getByText("No stats yet")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Start a test" })).toHaveAttribute("href", "/");
+  expect(screen.queryByRole("button", { name: /^Best WPM:/ })).toBeNull();
+  expect(screen.queryByText(/0-day streak|Best streak 0/)).toBeNull();
+});
+
 it("tells visitors when a player does not exist", () => {
   view("/profile/users_gone", unavailableAuth);
   expect(screen.getByRole("heading", { name: "We couldn’t find that player" })).toBeInTheDocument();
