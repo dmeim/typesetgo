@@ -22,8 +22,9 @@ await withFixtureBrowser(async (browser) => {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "reduce" });
     const page = await context.newPage();
     await page.addInitScript((fontSize) => {
+      // Alignment is chosen before a test (on the Profile page): each reload starts with the stored choice.
       localStorage.setItem("typesetgo_settings", JSON.stringify({
-        mode: "words", wordTarget: 25, textAlign: "justify", typingFontSize: fontSize,
+        mode: "words", wordTarget: 25, textAlign: sessionStorage.getItem("fixture-align") ?? "justify", typingFontSize: fontSize,
         soundEnabled: false, showOnScreenKeyboard: false, ghostWriterEnabled: true, ghostWriterSpeed: 1,
       }));
       localStorage.setItem("typesetgo_layout", JSON.stringify({ maxWordsPerLine: 7, linePreview: 3 }));
@@ -53,12 +54,12 @@ await withFixtureBrowser(async (browser) => {
     await expect(input).toHaveValue("catt");
     const prompt = await page.locator("[data-typing-word]").allTextContents();
     for (const align of ["Left", "Center", "Right", "Justify"]) {
-      await input.press("Tab");
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
-      await page.getByRole("radio", { name: align.toLowerCase(), exact: true }).click();
-      await page.getByRole("button", { name: "Close settings", exact: true }).click();
-      await expect(input).toHaveValue("catt");
-      assert.deepEqual(await page.locator("[data-typing-word]").allTextContents(), prompt, "Changing alignment preserves the prompt and extra characters");
+      await page.evaluate((textAlign) => sessionStorage.setItem("fixture-align", textAlign), align.toLowerCase());
+      await page.reload();
+      await expect(input).toBeEnabled();
+      await page.evaluate(() => document.fonts.ready);
+      await input.fill("catt");
+      assert.deepEqual(await page.locator("[data-typing-word]").allTextContents(), prompt, "Every alignment renders the same prompt");
       const current = await rows(page);
       const first = current.lines[0];
       if (align === "Left" || align === "Justify") assert.ok(Math.abs(first.left - current.left) < 1);
@@ -150,18 +151,6 @@ await withFixtureBrowser(async (browser) => {
   await expectCaretInside(ranked);
   await expect.poll(() => ranked.evaluate(() => window.__mutations.filter(({ name }) => name === "typingSessions:recordProgress").length)).toBe(2);
 
-  for (const align of ["Left", "Center", "Right", "Justify"]) {
-    await input.press("Tab");
-    await ranked.getByRole("button", { name: "Settings", exact: true }).click();
-    await ranked.getByRole("radio", { name: align.toLowerCase(), exact: true }).click();
-    await ranked.getByRole("button", { name: "Close settings", exact: true }).click();
-    await expect(input).toHaveValue(prefix + "日");
-    assert.deepEqual(await ranked.locator("[data-typing-word]").allTextContents(), Array(25).fill("dog"));
-    assert.deepEqual(await ranked.evaluate(() => window.__mutations.filter(({ name }) => name === "typingSessions:startSession" || name === "typingSessions:cancelSession").map(({ name }) => name)), ["typingSessions:startSession"], "Alignment changes retain the existing ranked session");
-    await input.focus();
-    await expectCaretInside(ranked);
-  }
-
   const completedText = "dog ".repeat(25);
   await input.dispatchEvent("compositionstart", { data: "" });
   await input.fill(completedText);
@@ -172,8 +161,8 @@ await withFixtureBrowser(async (browser) => {
   await expect(ranked.getByRole("region", { name: "Test results" })).toBeVisible();
   await expect.poll(() => ranked.evaluate(() => window.__mutations.filter(({ name }) => name === "typingSessions:finalizeSession").length)).toBe(1);
   const finalization = await ranked.evaluate(() => window.__mutations.find(({ name }) => name === "typingSessions:finalizeSession"));
-  assert.equal(finalization.args.sessionId, sessionId, "The original session receives the final result after alignment changes");
+  assert.equal(finalization.args.sessionId, sessionId, "The original session receives the final result after IME input");
   assert.equal(finalization.args.typedText, completedText);
   await ranked.close();
-  console.log("Justified forced/natural rows, short final row, all alignments, preserved input/session, narrow long words, IME, extra/ghost carets and scrolling PASS");
+  console.log("Justified forced/natural rows, short final row, all alignments, narrow long words, IME with a preserved ranked session, extra/ghost carets and scrolling PASS");
 });

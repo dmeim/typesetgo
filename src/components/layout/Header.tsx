@@ -10,6 +10,7 @@ import { DockDivider, DockItem, HeaderLogo, HeaderTip, ModeIcon } from "@/compon
 import { LEADERBOARD_PAGE, PRACTICE_PAGES, PROFILE_SETTINGS_PATH, PROFILE_THEME_PATH, isProfileSettingsPath } from "@/components/layout/header/header-nav";
 import { DOCK_SPRING, iconButton } from "@/components/layout/header/header-utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useHoldCelebrations } from "@/lib/achievement-celebrations";
 
 interface HeaderProps {
   hidden?: boolean;
@@ -49,6 +50,8 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
   const chromeFocusRef = useRef<HTMLElement | null>(null);
   const chromeTriggerRef = useRef<HTMLElement | null>(null);
   const accountFeaturesEnabled = available && isLoaded && isSignedIn;
+  // The header hides while a test runs; achievement celebrations wait until it comes back.
+  useHoldCelebrations(hidden);
 
   useLayoutEffect(() => {
     const trackOutsideFocus = (event: FocusEvent) => {

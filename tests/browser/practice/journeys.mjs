@@ -59,17 +59,21 @@ await withFixtureBrowser(async browser => {
     for (const control of [
       modes.getByRole("link", { name: "Type", exact: true }),
       page.getByRole("link", { name: "Leaderboard", exact: true }),
-      page.getByRole("button", { name: "Change theme", exact: true }),
-      page.getByRole("button", { name: "Settings", exact: true }),
+      page.getByRole("link", { name: "Change theme", exact: true }),
+      page.getByRole("link", { name: "Settings", exact: true }),
     ]) {
       await expectWithinViewport(page, control);
     }
     const modesBounds = await modes.boundingBox();
-    const settingsBounds = await page.getByRole("button", { name: "Settings", exact: true }).boundingBox();
+    const settingsBounds = await page.getByRole("link", { name: "Settings", exact: true }).boundingBox();
     expect(settingsBounds.x).toBeGreaterThanOrEqual(modesBounds.x + modesBounds.width);
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
-  console.log("dock header stays centered from 320 to 1920px with tools after the practice modes PASS");
+  // Home has no theme or settings dialogs: the Dock sends both to the Profile tabs.
+  await expect(page.getByRole("link", { name: "Change theme", exact: true })).toHaveAttribute("href", "/profile/theme");
+  await expect(page.getByRole("link", { name: "Settings", exact: true })).toHaveAttribute("href", "/profile/typing");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  console.log("dock header stays centered from 320 to 1920px with tools after the practice modes; theme/settings link to Profile PASS");
   await openTestSettings(page);
   await page.getByRole("radio", {
     name: "words",
@@ -141,18 +145,8 @@ await withFixtureBrowser(async browser => {
   await expect(explanation).toHaveCount(0);
   console.log("results info hover, pointer transfer, pin, toggle, outside click and keyboard PASS");
   const oldText = Array(10).fill("cat").join(" ");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("slider", {
-    name: "Text Size",
-    exact: true
-  }).focus();
-  await page.keyboard.press("Enter");
-  await expect(page.locator("[aria-label=\"Test results\"]")).toBeAttached();
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(dialog).toHaveCount(0);
+  // Settings are chosen before a test: results show no settings pill.
+  await expect(page.getByRole("button", { name: /^Test settings/ })).toHaveCount(0);
   await expect(results).toBeVisible();
   await page.getByRole("button", {
     name: "Repeat Test",
@@ -161,7 +155,7 @@ await withFixtureBrowser(async browser => {
   await expect(input).toBeEnabled();
   await expect(words).toHaveCount(10);
   await expect(input).toHaveValue("");
-  console.log("finish\u2192settings\u2192repeat PASS", (await words.allTextContents()).join(" ").replace(/\s+/g, " ").trim());
+  console.log("finish (no settings on results)\u2192repeat PASS", (await words.allTextContents()).join(" ").replace(/\s+/g, " ").trim());
   await input.fill(oldText + " ");
   await expect(results).toBeVisible();
   await page.getByRole("button", {

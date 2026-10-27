@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { GraduationCapIcon, KeyboardIcon } from "@phosphor-icons/react";
 import Header from "@/components/layout/Header";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { useTheme } from "@/hooks/useTheme";
 import { tv } from "@/lib/theme-vars";
 
@@ -59,30 +60,7 @@ export default function Lessons() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="shrink-0 p-6 flex justify-center gap-8">
-        <Link
-          to="/about"
-          className="text-sm transition-colors hover:opacity-80"
-          style={{ color: tv.ui.mutedForeground }}
-        >
-          About
-        </Link>
-        <Link
-          to="/privacy"
-          className="text-sm transition-colors hover:opacity-80"
-          style={{ color: tv.ui.mutedForeground }}
-        >
-          Privacy
-        </Link>
-        <Link
-          to="/tos"
-          className="text-sm transition-colors hover:opacity-80"
-          style={{ color: tv.ui.mutedForeground }}
-        >
-          Terms
-        </Link>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

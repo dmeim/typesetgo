@@ -4,6 +4,7 @@ import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import { TrophyIcon } from "@phosphor-icons/react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import Header from "@/components/layout/Header";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { useAccount } from "@/components/layout/useAccount";
 import { ArenaPodium } from "@/components/leaderboard/ArenaPodium";
 import { ArenaRankList } from "@/components/leaderboard/ArenaRankList";
@@ -75,7 +76,7 @@ export default function Leaderboard() {
   const subtitle = periodSubtitle(periodId, periodStart, now);
 
   return (
-    <div className="min-h-[100dvh] bg-background font-mono text-foreground">
+    <div className="flex min-h-[100dvh] flex-col bg-background font-mono text-foreground">
       <Header />
       <Tabs
         value={periodId}
@@ -86,7 +87,7 @@ export default function Leaderboard() {
         }}
         className="contents"
       >
-        <main className="mx-auto flex max-w-4xl flex-col gap-8 px-4 pt-6 pb-6">
+        <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 pt-6 pb-6">
           <header className="flex flex-col items-center gap-4 text-center">
             <h1 className="flex items-center gap-3 text-3xl font-bold sm:text-4xl">
               <TrophyIcon weight="fill" className="size-8 sm:size-9" style={{ color: PODIUM_METALS[0] }} aria-hidden="true" />Leaderboard
@@ -118,6 +119,7 @@ export default function Leaderboard() {
           </TabsContent>
         </main>
       </Tabs>
+      <SiteFooter />
     </div>
   );
 }

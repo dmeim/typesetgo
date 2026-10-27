@@ -3,6 +3,7 @@ import { NotFound, RouteError, RouteLoading } from "@/components/layout/RouteRec
 import About from "@/pages/About";
 import Home from "@/pages/Home";
 import Privacy from "@/pages/Privacy";
+import Profile from "@/pages/Profile";
 import Temp from "@/pages/Temp";
 import TempConnect from "@/pages/TempConnect";
 import TempLeaderboard from "@/pages/TempLeaderboard";
@@ -12,7 +13,7 @@ import TermsOfService from "@/pages/TermsOfService";
 import AreaFixture from "./AreaFixture";
 import ToastFixture from "./ToastFixture";
 
-/** Picks the page from the query (?temp-settings=1) or, for the UI Lab, the app path (/temp-profile/history). */
+/** Picks the page from the query (?temp-settings=1) or the app path (/profile/typing, /temp-profile/history). */
 export function FixturePage() {
   const { pathname } = useLocation();
   const query = new URLSearchParams(location.search);
@@ -25,6 +26,7 @@ export function FixturePage() {
   if (query.has("route-error")) return <RouteError />;
   if (query.has("route-loading")) return <RouteLoading />;
   if (pathname.startsWith("/temp-profile")) return <TempProfile />;
+  if (pathname.startsWith("/profile")) return <Profile />;
   if (pathname.startsWith("/temp-connect")) return <TempConnect />;
   if (query.has("temp-settings") || pathname.startsWith("/temp-settings")) return <TempSettings />;
   if (query.has("temp-leaderboard") || pathname.startsWith("/temp-leaderboard")) return <TempLeaderboard />;

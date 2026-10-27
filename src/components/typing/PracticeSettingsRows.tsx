@@ -1,11 +1,12 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { PencilSimpleIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
+import { PencilSimpleIcon, PlusIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Difficulty, QuoteLength } from "@/lib/typing-constants";
-import type { PracticeConfigurationProps } from "./PracticeControls";
+import type { PracticeConfigurationProps, PracticeEditorTrigger } from "./PracticeControls";
+import { excerpt, formatLength, type PracticeEditor } from "./practice-custom";
 import { MODE_SELECTOR_OPTIONS, TIME_PRESETS, WORD_PRESETS } from "./practice-config";
 import { MODE_META, MODIFIER_OPTIONS, SETTINGS_SPRING, selectedModeOption } from "./practice-settings-meta";
 
@@ -72,25 +73,21 @@ export function ModeChoices({ settings, isKidMode, handleModeSelect }: PracticeC
   );
 }
 
-/** Duration, word count, quote length, or the custom-text action for the current mode. */
-export function LengthChoices(props: PracticeConfigurationProps) {
-  const { settings, updateSettings, generateTest, quotesManifest, openCustomCountModal, openPresetInput } = props;
+/** Duration, word count, quote length, or your own text for the current mode. */
+export function LengthChoices({ trigger, triggerRef, ...props }: PracticeConfigurationProps & { trigger?: PracticeEditorTrigger; triggerRef?: Ref<HTMLButtonElement> }) {
+  const { settings, updateSettings, generateTest, quotesManifest } = props;
   const pick = (current: boolean, updates: Parameters<typeof updateSettings>[0]) => (current ? generateTest() : updateSettings(updates));
 
   if (settings.mode === "preset") {
-    if (!openPresetInput) return null;
-    return (
-      <Button type="button" variant="ghost" onClick={openPresetInput} className="h-auto px-3 py-1.5 font-normal text-muted-foreground hover:text-foreground">
-        <PencilSimpleIcon className="size-4" aria-hidden="true" />
-        Edit custom text
-      </Button>
-    );
+    if (!trigger) return null;
+    return <PresetTextChip settings={settings} trigger={trigger} triggerRef={triggerRef} />;
   }
   if (settings.mode === "time" || settings.mode === "words") {
     const isTime = settings.mode === "time";
     const presets = isTime ? TIME_PRESETS : WORD_PRESETS;
     const current = isTime ? settings.duration : settings.wordTarget;
     const custom = isTime ? props.isCustomDurationSelected : props.isCustomWordTargetSelected;
+    const customLabel = `${formatLength(settings.mode, current)}${isTime ? "" : " words"}`;
     return (
       <ChoiceGroup
         id="practice-length"
@@ -98,20 +95,16 @@ export function LengthChoices(props: PracticeConfigurationProps) {
         value={custom ? "" : String(current)}
         onChoose={(value) => pick(Number(value) === current, isTime ? { duration: Number(value) } : { wordTarget: Number(value) })}
         choices={presets.map((preset) => ({ value: String(preset), label: isTime ? `${preset}s` : String(preset) }))}
-        trailing={
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={openCustomCountModal}
-            className={`${itemClass} hover:bg-transparent ${custom ? selectedClass : idleClass}`}
-          >
+        trailing={trigger && (
+          <EditorChip trigger={trigger} triggerRef={triggerRef} editor="length" label={custom ? `Custom length, ${customLabel}` : "Custom length"}
+            className={`${itemClass} hover:bg-transparent ${custom ? selectedClass : idleClass}`}>
             {custom && <SelectionHighlight id="practice-length" />}
             <span className="relative z-10 inline-flex items-center gap-1.5">
               <SlidersHorizontalIcon className="size-4" aria-hidden="true" />
-              {custom ? (isTime ? `${current}s` : current) : "custom"}
+              {custom ? formatLength(settings.mode, current) : "custom"}
             </span>
-          </Button>
-        }
+          </EditorChip>
+        )}
       />
     );
   }
@@ -127,6 +120,40 @@ export function LengthChoices(props: PracticeConfigurationProps) {
     );
   }
   return null;
+}
+
+function PresetTextChip({ settings, trigger, triggerRef }: { settings: PracticeConfigurationProps["settings"]; trigger: PracticeEditorTrigger; triggerRef?: Ref<HTMLButtonElement> }) {
+  const text = settings.presetText;
+  if (!text) {
+    return (
+      <EditorChip trigger={trigger} triggerRef={triggerRef} editor="text" label="Add your text"
+        className="h-auto rounded-lg border border-dashed border-border px-3 py-1.5 font-normal text-muted-foreground hover:border-primary hover:text-foreground">
+        <PlusIcon className="size-4" aria-hidden="true" />
+        Add your text
+      </EditorChip>
+    );
+  }
+  const words = text.split(" ").length;
+  return (
+    <EditorChip trigger={trigger} triggerRef={triggerRef} editor="text" label={`Edit your text, ${words} ${words === 1 ? "word" : "words"}`}
+      className="h-auto min-w-0 max-w-full rounded-lg bg-accent px-3 py-1.5 font-medium text-primary hover:bg-accent">
+      <PencilSimpleIcon className="size-4 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 truncate font-normal text-foreground">“{excerpt(text, 26)}”</span>
+    </EditorChip>
+  );
+}
+
+/** Unfolds an editor below the row; pressing it again folds it away. */
+function EditorChip({ trigger, triggerRef, editor, label, className, children }: {
+  trigger: PracticeEditorTrigger; triggerRef?: Ref<HTMLButtonElement>; editor: PracticeEditor; label: string; className: string; children: ReactNode;
+}) {
+  const open = trigger.open === editor;
+  return (
+    <Button ref={triggerRef} type="button" variant="ghost" aria-label={label} aria-expanded={open} aria-controls={open ? trigger.regionId : undefined}
+      onClick={() => trigger.toggle(editor)} className={`${className} ${open ? "ring-2 ring-primary/50" : ""}`}>
+      {children}
+    </Button>
+  );
 }
 
 /** Five rising bars; hovering or focusing a bar previews its level name. */

@@ -6,8 +6,6 @@ import { expectLoadedFace, expectRenderedFont } from "../font-assertions.mjs";
 
 const { fonts } = JSON.parse(await readFile(new URL("../../../public/fonts/catalog.json", import.meta.url), "utf8"));
 const representative = "café naïve façade résumé 0123456789!?";
-// Courier New, Arial, Verdana, Trebuchet MS, Comic Sans, Georgia and Times New Roman.
-const systemFonts = 7;
 
 async function prepare(page, key = "jetbrains-mono", mode = "dark") {
   await page.addInitScript(({ key, mode }) => {
@@ -55,42 +53,19 @@ await withFixtureBrowser(async (browser) => {
   }
   console.log(`All ${fonts.length} stored selections render custom font glyphs in fresh contexts; only selected/UI fonts fetched PASS`);
 
+  // The font picker lives on the Profile page (/profile/text); Home renders whatever it stored.
   for (const width of [390, 1280]) {
     for (const mode of ["dark", "light"]) {
       const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
       const page = await context.newPage();
-      const fontRequests = new Set();
-      page.on("request", (request) => {
-        if (request.resourceType() === "font") fontRequests.add(new URL(request.url()).pathname);
-      });
-      await prepare(page, "jetbrains-mono", mode);
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
-      await expectWithinViewport(page, dialog);
-      await page.getByRole("combobox", { name: "Typing Font", exact: true }).click();
-      await expect(page.getByRole("option")).toHaveCount(fonts.length + systemFonts);
-      const option = page.getByRole("option", { name: "OpenDyslexic", exact: true });
+      await prepare(page, "opendyslexic", mode);
       await expectLoadedFace(page, "OpenDyslexic", 400, "normal", representative);
-      await option.focus();
-      await option.scrollIntoViewIfNeeded();
-      await expect(option).toBeInViewport({ ratio: 1 });
-      await option.evaluate((element) => { element.id = "font-picker-preview"; });
-      await expectRenderedFont(page, "#font-picker-preview > span:last-child", ["OpenDyslexic-Regular"]);
-      if (width === 390 && mode === "dark") {
-        const requestedAssets = fonts.flatMap((font) => font.assets).filter((asset) => fontRequests.has(asset.path));
-        console.log("Picker preview font downloads:", requestedAssets.length, "files,", requestedAssets.reduce((total, asset) => total + asset.bytes, 0), "bytes including UI");
-      }
-      await page.screenshot({ path: artifactPath(`fonts-picker-${width}-${mode}.png`) });
-      await option.click();
-      await expect(page.getByRole("combobox", { name: "Typing Font", exact: true })).toHaveText("OpenDyslexic");
-      await page.getByRole("button", { name: "Close settings", exact: true }).click();
       await page.getByRole("textbox", { name: "Typing practice", exact: true }).focus();
       await expectRenderedFont(page, "[data-typing-word]", ["OpenDyslexic-Regular"]);
       await expectWithinViewport(page, page.locator(".cursor-text"));
-      await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("typesetgo_settings")).typingFontFamily)).toBe("opendyslexic");
       await page.screenshot({ path: artifactPath(`fonts-practice-${width}-${mode}.png`) });
       await context.close();
     }
   }
-  console.log(`${fonts.length + systemFonts}-choice picker, OpenDyslexic preview/selection/persistence, wide/narrow and light/dark PASS`);
+  console.log("Stored OpenDyslexic selection renders on Home, wide/narrow and light/dark PASS");
 });

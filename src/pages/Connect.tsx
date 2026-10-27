@@ -32,7 +32,7 @@ export default function Connect() {
   const [mode, setMode] = useState<Mode>("join");
 
   return (
-    <ConnectShell className="flex max-w-xl flex-col gap-8 overflow-x-clip pt-8 md:pt-12">
+    <ConnectShell footer className="flex max-w-xl flex-col gap-8 overflow-x-clip pt-8 md:pt-12">
       <LandingHero />
       <motion.div layout transition={CONNECT_SPRING}
         className={cn("flex min-w-0 flex-col gap-5 overflow-hidden rounded-3xl border bg-card p-4 text-card-foreground transition-[border-color,box-shadow] sm:p-6",

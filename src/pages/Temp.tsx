@@ -8,6 +8,11 @@ import { ResultsDemo } from "@/components/temp/ResultsDemo";
 import { ResultsLayoutShowcase } from "@/components/temp/results/ResultsLayoutShowcase";
 import { KeyboardShowcase } from "@/components/temp/keyboard/KeyboardShowcase";
 import { HeaderShowcase } from "@/components/temp/header/HeaderShowcase";
+import { HomeSettingsShowcase } from "@/components/temp/home-settings/HomeSettingsShowcase";
+import { NotificationsShowcase } from "@/components/temp/notifications/NotificationsShowcase";
+import { FooterShowcase } from "@/components/temp/footer/FooterShowcase";
+import { LessonsShowcase } from "@/components/temp/lessons/LessonsShowcase";
+import { PracticeDialogsShowcase } from "@/components/temp/practice-dialogs/PracticeDialogsShowcase";
 
 const SETTINGS_MOCKUPS: [number, string, string][] = [
   [1, "Split view", "Your stats, history and achievements plus every setting in one place, with live previews. History is a day timeline with rows that open; achievements are collector cards that open a journey of every level."],
@@ -23,6 +28,14 @@ const CONNECT_SCREENS: [string, string, string][] = [
   ["landing", "Landing", "Big letter boxes for the join code, a three-step host card, and recent rooms."],
   ["host", "Host panel", "Room code, one run button, the test list and who's here, in clear cards."],
   ["board", "Live board", "Cards that move as kids type, plus the student's own view of the room."],
+];
+
+const RACE_MOCKUPS: [number, string, string][] = [
+  [1, "Clubhouse", "One card with a Join/Host switch like Connect, avatar cards that ready up, progress rings and a podium."],
+  [2, "Starting grid", "Numbered grid boxes, five start lights, a timing tower with gaps and a classification table."],
+  [3, "Track map", "One lap of an oval: racers roll out of the pit lane, go round live and park in finishing order."],
+  [4, "Drag strip", "Stage in your lane, a tree of lights counts down, a big timer runs and everyone gets a time slip."],
+  [5, "Scoreboard", "Almost no decoration: a big code box, a plain list lobby, thin progress lines and a giant finishing place."],
 ];
 
 const LEADERBOARD_MOCKUPS: [number, string, string][] = [
@@ -100,6 +113,32 @@ export default function Temp() {
                 </Link>
               ))}
             </div>
+          </Section>
+          <Section id="race-page" title="Race" badge="shipped: Clubhouse + Track map" summary="The whole Race flow still uses the old look. Five concepts, each with a landing, lobby, live race and results; a pretend room races on its own, and pressing a key takes over your racer. The crown in the switcher makes you the host.">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {RACE_MOCKUPS.map(([number, name, summary]) => (
+                <Link key={name} to={`/temp-race?concept=${number}&screen=landing`} className="flex flex-col gap-1 rounded-xl border border-border bg-card p-4 transition hover:-translate-y-0.5 hover:border-primary">
+                  <span className="text-xs text-muted-foreground">{String(number).padStart(2, "0")}</span>
+                  <span className="font-semibold">{name}</span>
+                  <span className="text-xs text-muted-foreground">{summary}</span>
+                </Link>
+              ))}
+            </div>
+          </Section>
+          <Section id="home-settings" title="Quick settings on Home" badge="not shipping" summary="Not shipping: settings are chosen before a test on the profile page, and Home stays clean while you type. Search (03) is the starting point for a command bar later. Five ways to change settings without leaving the test, built from the profile page's controls. Each shows a computer and a phone.">
+            <HomeSettingsShowcase />
+          </Section>
+          <Section id="practice-dialogs" title="Custom length & your own text" badge="shipped: Unfold" summary="The test pill's custom length and Preset text dialogs still use the old look. Five ways to set them, each with empty, too short and too long states and how the pill reads afterwards.">
+            <PracticeDialogsShowcase />
+          </Section>
+          <Section id="notifications" title="Notifications" badge="shipped: Day cards + Celebration" summary="The bell's list is still a plain popover, and opening an achievement shows the old grid. Five takes on the inbox, each opening achievements as the profile's collector cards.">
+            <NotificationsShowcase />
+          </Section>
+          <Section id="footer" title="Footer & info pages" badge="shipped: Info tabs" summary="Footers differ from page to page, nothing links to What's new, and About, Privacy and Terms have no Dock. Five footers, each with a matching info page top. Switch between Home and an info page.">
+            <FooterShowcase />
+          </Section>
+          <Section id="lessons" title="Lessons page" badge="later" summary="Lessons is still a plain coming-soon card. Five layouts with a sample course, shown as it would read today (coming soon) and once lessons are live.">
+            <LessonsShowcase />
           </Section>
           <Section id="leaderboard-page" title="Leaderboard page" summary="Five takes on the leaderboard, each keeping the top-three podium and the Today, 7 days and All time boards.">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

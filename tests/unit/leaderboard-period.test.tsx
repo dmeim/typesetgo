@@ -8,6 +8,7 @@ const queries = vi.hoisted(() => vi.fn(() => []));
 vi.mock("convex/react", () => ({ useQuery: queries }));
 vi.mock("../../convex/_generated/api", () => ({ api: { testResults: { getLeaderboard: "leaderboard" } } }));
 vi.mock("@/components/layout/Header", () => ({ default: () => null }));
+vi.mock("@/components/layout/SiteFooter", () => ({ SiteFooter: () => <footer aria-label="Site footer" /> }));
 
 afterEach(() => { cleanup(); vi.useRealTimers(); queries.mockClear(); });
 

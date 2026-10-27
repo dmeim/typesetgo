@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
+import { PencilSimpleIcon } from "@phosphor-icons/react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { RACE_EMOJIS } from "@/lib/race-emojis";
-import { tv } from "@/lib/theme-vars";
+import { cn } from "@/lib/utils";
+import { RacerAvatar, type RacerAvatarSize } from "./RaceParts";
 
 const EMOJI_NAMES = [
   "Racing car",
@@ -42,14 +44,19 @@ const EMOJI_NAMES = [
   "Target",
 ];
 
+/** Your avatar as a button that opens the named emoji grid (arrow keys move, Escape closes). */
 export default function EmojiPicker({
   selectedEmoji,
   onSelect,
   disabled = false,
+  color = "var(--primary)",
+  size = "sm",
 }: {
   selectedEmoji: string;
   onSelect: (emoji: string) => void;
   disabled?: boolean;
+  color?: string;
+  size?: RacerAvatarSize;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(
@@ -64,24 +71,20 @@ export default function EmojiPicker({
           type="button"
           disabled={disabled}
           aria-label="Change avatar"
-          className="size-12 rounded-full flex items-center justify-center text-2xl disabled:opacity-50"
-          style={{
-            backgroundColor: tv.ui.secondary,
-            border: `1px solid ${tv.ui.border}`,
-          }}
+          className="group relative shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed"
         >
-          <span aria-hidden="true">{selectedEmoji}</span>
+          <RacerAvatar emoji={selectedEmoji} color={color} size={size} className="transition-transform group-enabled:group-hover:scale-105" />
+          {!disabled && (
+            <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex size-4.5 items-center justify-center rounded-full border border-border bg-card">
+              <PencilSimpleIcon className="size-2.5" />
+            </span>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent
         aria-label="Choose a racing avatar"
         collisionPadding={12}
-        className="w-[min(20rem,calc(100vw-1.5rem))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto p-3"
-        style={{
-          backgroundColor: tv.ui.card,
-          color: tv.ui.foreground,
-          borderColor: tv.ui.border,
-        }}
+        className="w-[min(20rem,calc(100vw-1.5rem))] max-h-[var(--radix-popover-content-available-height)] overflow-y-auto rounded-2xl p-3"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           const index = Math.max(0, RACE_EMOJIS.indexOf(selectedEmoji));
@@ -89,7 +92,7 @@ export default function EmojiPicker({
           options.current[index]?.focus();
         }}
       >
-        <p className="text-sm font-medium mb-2">Choose your avatar</p>
+        <p className="mb-2 text-sm font-semibold">Choose your avatar</p>
         <div
           className="grid grid-cols-4 gap-1"
           onKeyDown={(event) => {
@@ -127,13 +130,10 @@ export default function EmojiPicker({
                 onSelect(emoji);
                 setIsOpen(false);
               }}
-              className="h-10 rounded-md flex items-center justify-center text-xl"
-              style={{
-                backgroundColor:
-                  emoji === selectedEmoji
-                    ? tv.ui.accent
-                    : tv.ui.secondary,
-              }}
+              className={cn(
+                "flex h-10 items-center justify-center rounded-xl text-xl transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring",
+                emoji === selectedEmoji && "bg-primary/15 ring-2 ring-primary",
+              )}
             >
               <span aria-hidden="true">{emoji}</span>
             </button>

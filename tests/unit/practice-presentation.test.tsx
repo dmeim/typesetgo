@@ -2,23 +2,15 @@ import { useState } from "react";
 import { fireEvent, render, screen, cleanup, within, waitFor, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PracticeControls from "@/components/typing/PracticeControls";
-import PracticeQuickSettingsDialog from "@/components/typing/PracticeQuickSettingsDialog";
-import PracticeCountDialog from "@/components/typing/PracticeCountDialog";
-import PracticeSettingsDialog from "@/components/typing/PracticeSettingsDialog";
-import PracticeThemePicker from "@/components/typing/PracticeThemePicker";
-import PracticePresetDialog from "@/components/typing/PracticePresetDialog";
+import { TIME_PRESETS, WORD_PRESETS } from "@/components/typing/practice-config";
+import type { PracticeEditor } from "@/components/typing/practice-custom";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
 import { contrastRatio, deriveThemeUI } from "@/lib/colors";
-import { fetchThemeCatalogIndex, fetchThemeForPreview, getThemeFromCache } from "@/lib/themes";
-import type { ThemeCatalogIndex, ThemeDefinition } from "@/types/theme";
+import { MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET } from "@/lib/practice-limits";
 import PracticeResults from "@/components/typing/PracticeResults";
 import { MAX_DURATION_SECONDS, normalizePracticeSettings, type SettingsState } from "@/lib/typing-constants";
 import theme from "../../public/themes/typesetgo.json";
 
-const themeActions = vi.hoisted(() => ({
-  setTheme: vi.fn(),
-  setThemeSelection: vi.fn(),
-}));
 vi.mock("@/hooks/useTheme", () => ({
   useTheme: () => ({
     colors: theme.variants.default.dark,
@@ -26,14 +18,9 @@ vi.mock("@/hooks/useTheme", () => ({
     themeId: "typesetgo",
     variantId: "default",
     mode: "dark",
-    ...themeActions,
+    setTheme: vi.fn(),
+    setThemeSelection: vi.fn(),
   }),
-}));
-vi.mock("@/lib/themes", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/themes")>()),
-  fetchThemeCatalogIndex: vi.fn(),
-  fetchThemeForPreview: vi.fn(),
-  getThemeFromCache: vi.fn(),
 }));
 vi.mock("@/hooks/useAnimatedCounter", () => ({
   useAnimatedCounter: (value: number) => value,
@@ -45,10 +32,6 @@ beforeEach(() => {
   resizeCallbacks = [];
   availableWidth = 800;
   vi.clearAllMocks();
-  themeActions.setTheme.mockResolvedValue(undefined);
-  themeActions.setThemeSelection.mockResolvedValue(undefined);
-  vi.mocked(getThemeFromCache).mockReturnValue(null);
-  vi.mocked(fetchThemeForPreview).mockImplementation(async (id) => fixtureTheme(id));
   Object.defineProperty(HTMLElement.prototype, "clientWidth", {
     configurable: true,
     get: () => availableWidth,
@@ -108,99 +91,84 @@ function configurationProps() {
     handleModeSelect: vi.fn(),
     wordsManifest: null,
     quotesManifest: null,
-    openCustomCountModal: vi.fn(),
     isCustomDurationSelected: false,
     isCustomWordTargetSelected: false,
   };
 }
 
+function pillProps() {
+  return {
+    ...configurationProps(),
+    editor: null as PracticeEditor | null,
+    setEditor: vi.fn(),
+    applyCustomLength: vi.fn(),
+    applyPresetText: vi.fn(),
+    estimateSpeed: { wpm: 40, personal: false },
+    connectMode: false,
+    isRunning: false,
+    isFinished: false,
+    uiOpacity: 1,
+  };
+}
+
+/** The pill with real editor state, as Home wires it. */
+function PillHarness({ initial, initialEditor = null, onApplyLength = vi.fn(), onApplyText = vi.fn() }: {
+  initial: Partial<SettingsState>;
+  initialEditor?: PracticeEditor | null;
+  onApplyLength?: (value: number) => void;
+  onApplyText?: (text: string) => void;
+}) {
+  const current = { ...settings, ...initial };
+  const [editor, setEditor] = useState<PracticeEditor | null>(initialEditor);
+  return (
+    <PracticeControls {...pillProps()} settings={current} editor={editor} setEditor={setEditor}
+      applyCustomLength={onApplyLength} applyPresetText={onApplyText}
+      isCustomDurationSelected={!TIME_PRESETS.includes(current.duration)}
+      isCustomWordTargetSelected={!WORD_PRESETS.includes(current.wordTarget)} />
+  );
+}
+
+function openPill() {
+  fireEvent.click(screen.getByRole("button", { name: /^Test settings/ }));
+}
+
+function openCustomLength() {
+  openPill();
+  fireEvent.click(screen.getByRole("button", { name: /^Custom length/ }));
+}
+
 describe("practice presentation command boundaries", () => {
-  it.each(["desktop", "compact"])("%s exposes Preset and a custom-text edit action", (variant) => {
-    const props = { ...configurationProps(), settings: { ...settings, mode: "preset" as const }, openPresetInput: vi.fn() };
-    if (variant === "desktop") {
-      render(<PracticeControls {...props} connectMode={false} isRunning={false} isFinished={false}
-        isCompactMode={false} uiOpacity={1} setShowQuickSettings={vi.fn()} />);
-      fireEvent.click(screen.getByRole("button", { name: /^Test settings/ }));
-    } else {
-      render(<PracticeQuickSettingsDialog {...props} showQuickSettings setShowQuickSettings={vi.fn()}
-        linePreview={3} setLinePreview={vi.fn()} maxWordsPerLine={7} setMaxWordsPerLine={vi.fn()} />);
-    }
+  it("offers Preset and an own-text chip that unfolds the text editor", () => {
+    const props = { ...pillProps(), settings: { ...settings, mode: "preset" as const } };
+    render(<PracticeControls {...props} />);
+    openPill();
     fireEvent.click(screen.getByRole("radio", { name: "preset", exact: true }));
     expect(props.handleModeSelect).toHaveBeenCalledWith("preset");
-    fireEvent.click(screen.getByRole("button", { name: "Edit custom text" }));
-    expect(props.openPresetInput).toHaveBeenCalledTimes(1);
+    const add = screen.getByRole("button", { name: "Add your text" });
+    expect(add).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(add);
+    expect(props.setEditor).toHaveBeenCalledWith("text");
   });
 
-  it.each(["desktop", "compact"])("%s count controls distinguish selecting a count from repeating it", (variant) => {
-    const props = configurationProps();
-    if (variant === "desktop") {
-      render(
-        <PracticeControls
-          {...props}
-          connectMode={false}
-          isRunning={false}
-          isFinished={false}
-          isCompactMode={false}
-          uiOpacity={1}
-          setShowQuickSettings={vi.fn()}
-        />,
-      );
-      fireEvent.click(screen.getByRole("button", { name: /^Test settings/ }));
-    } else {
-      render(
-        <PracticeQuickSettingsDialog
-          {...props}
-          showQuickSettings
-          setShowQuickSettings={vi.fn()}
-          linePreview={3}
-          setLinePreview={vi.fn()}
-          maxWordsPerLine={7}
-          setMaxWordsPerLine={vi.fn()}
-        />,
-      );
-    }
-    const countControls =
-      variant === "compact" ? within(screen.getByText("Word Count", { exact: true }).parentElement!) : screen;
-    fireEvent.click(countControls.getByRole("radio", { name: "10", exact: true }));
+  it("count controls distinguish selecting a count from repeating it", () => {
+    const props = pillProps();
+    render(<PracticeControls {...props} />);
+    openPill();
+    fireEvent.click(screen.getByRole("radio", { name: "10", exact: true }));
     expect(props.updateSettings).toHaveBeenCalledWith({ wordTarget: 10 });
     expect(props.generateTest).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("radio", { name: "25", exact: true }));
     expect(props.generateTest).toHaveBeenCalledTimes(1);
   });
 
-  it("custom count drafts stay local until submitted", () => {
-    const onApply = vi.fn();
-    const onClose = vi.fn();
-    render(<PracticeCountDialog settings={settings} setShowCustomCountModal={onClose} onApply={onApply} />);
-    fireEvent.click(screen.getByRole("button", { name: "ones up" }));
-    expect(onApply).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Set Word Count" }));
-    expect(onApply).toHaveBeenCalledWith(26);
-    expect(onClose).toHaveBeenCalledWith(false);
-  });
-
-  it("settings navigation does not mutate preferences and returns to All when closed", () => {
-    const updateSettings = vi.fn();
-    const props = {
-      settings,
-      updateSettings,
-      showSettings: true,
-      setShowSettings: vi.fn(),
-      linePreview: 3,
-      setLinePreview: vi.fn(),
-      maxWordsPerLine: 7,
-      setMaxWordsPerLine: vi.fn(),
-      soundManifest: null,
-    };
-    const { rerender } = render(<PracticeSettingsDialog {...props} />);
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Type", exact: true }), { button: 0, ctrlKey: false });
-    expect(screen.getByLabelText("Preview Lines")).toBeInTheDocument();
-    expect(updateSettings).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
-    expect(props.setShowSettings).toHaveBeenCalledWith(false);
-    rerender(<PracticeSettingsDialog {...props} showSettings={false} />);
-    rerender(<PracticeSettingsDialog {...props} />);
-    expect(screen.getByRole("switch", { name: "Sound", checked: true })).toBeInTheDocument();
+  it("keeps settings out of the way while a test runs, on results and in Connect", () => {
+    const props = pillProps();
+    const { rerender } = render(<PracticeControls {...props} isRunning />);
+    expect(screen.queryByRole("button", { name: /^Test settings/ })).not.toBeInTheDocument();
+    rerender(<PracticeControls {...props} isFinished />);
+    expect(screen.queryByRole("button", { name: /^Test settings/ })).not.toBeInTheDocument();
+    rerender(<PracticeControls {...props} connectMode />);
+    expect(screen.queryByRole("button", { name: /^Test settings/ })).not.toBeInTheDocument();
   });
 
   it("results delegate save and next commands while invalid results cannot save", () => {
@@ -232,21 +200,6 @@ describe("practice presentation command boundaries", () => {
   });
 });
 
-const settingsDialogProps = () => ({
-  settings,
-  updateSettings: vi.fn(),
-  showSettings: true,
-  setShowSettings: vi.fn(),
-  linePreview: 3,
-  setLinePreview: vi.fn(),
-  maxWordsPerLine: 7,
-  setMaxWordsPerLine: vi.fn(),
-  soundManifest: {
-    typing: { creamy: ["one.mp3"] },
-    warning: { clock: ["one.mp3"] },
-    error: {},
-  },
-});
 const resultsProps = () => ({
   settings,
   wpm: 42,
@@ -265,90 +218,7 @@ const resultsProps = () => ({
   repeatTest: vi.fn(),
 });
 
-describe("accessible practice dialogs and results", () => {
-  it("names settings controls, exposes chosen values, and uses the same 1–6rem text range", () => {
-    const props = settingsDialogProps();
-    render(<PracticeSettingsDialog {...props} settings={{ ...settings, typingFontSize: 2 }} />);
-    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Typing Font" })).toBeInTheDocument();
-    const slider = screen.getByRole("slider", { name: "Text Size" });
-    expect(slider).toHaveAttribute("aria-valuemin", "1");
-    expect(slider).toHaveAttribute("aria-valuemax", "6");
-    expect(slider).toHaveAttribute("aria-valuenow", "2");
-    expect(screen.getByRole("radio", { name: "center", checked: true })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Race", exact: true })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Error Sound" })).not.toBeInTheDocument();
-  });
-
-  it("actually disables sound previews, ghost speed, and keyboard layout while they are off", () => {
-    const props = settingsDialogProps();
-    render(<PracticeSettingsDialog {...props} settings={{ ...settings, soundEnabled: false }} />);
-    expect(screen.getByRole("combobox", { name: "Typing Sound" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Warning Sound" })).toBeDisabled();
-    screen.getAllByRole("button", { name: "Preview", exact: true }).forEach((button) => expect(button).toBeDisabled());
-    expect(screen.getByRole("radio", { name: "QWERTY" })).toBeDisabled();
-    expect(screen.getByRole("slider", { name: "Target Speed" })).not.toHaveAttribute("tabindex", "0");
-    fireEvent.click(screen.getByRole("switch", { name: "Ghost", checked: false }));
-    expect(props.updateSettings).toHaveBeenCalledWith({
-      ghostWriterEnabled: true,
-    });
-  });
-
-  it("dismisses each reachable dialog with Escape", () => {
-    const close = vi.fn();
-    const { unmount } = render(<PracticeSettingsDialog {...settingsDialogProps()} setShowSettings={close} />);
-    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-    expect(close).toHaveBeenCalledWith(false);
-    unmount();
-    close.mockClear();
-    const quick = render(
-      <PracticeQuickSettingsDialog
-        {...configurationProps()}
-        showQuickSettings
-        setShowQuickSettings={close}
-        linePreview={3}
-        setLinePreview={vi.fn()}
-        maxWordsPerLine={7}
-        setMaxWordsPerLine={vi.fn()}
-      />,
-    );
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Quick Settings" }), {
-      key: "Escape",
-    });
-    expect(close).toHaveBeenCalledWith(false);
-    quick.unmount();
-    close.mockClear();
-    render(<PracticePresetDialog showPresetInput setShowPresetInput={close} handlePresetSubmit={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Start" })).toBeDisabled();
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Enter Custom Text" }), { key: "Escape" });
-    expect(close).toHaveBeenCalledWith(false);
-  });
-
-  it("custom count supports keyboard increments and keeps the draft local until apply", () => {
-    const onApply = vi.fn();
-    render(<PracticeCountDialog settings={settings} setShowCustomCountModal={vi.fn()} onApply={onApply} />);
-    fireEvent.keyDown(screen.getByRole("spinbutton", { name: "ones" }), {
-      key: "ArrowUp",
-    });
-    expect(screen.getByRole("spinbutton", { name: "ones" })).toHaveAttribute("aria-valuenow", "6");
-    expect(onApply).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Set Word Count" }));
-    expect(onApply).toHaveBeenCalledWith(26);
-  });
-
-  it("keeps dial buttons and arrow keys in the same direction", () => {
-    render(<PracticeCountDialog settings={settings} setShowCustomCountModal={vi.fn()} onApply={vi.fn()} />);
-    const ones = screen.getByRole("spinbutton", { name: "ones" });
-    fireEvent.click(screen.getByRole("button", { name: "ones up" }));
-    expect(ones).toHaveAttribute("aria-valuenow", "6");
-    fireEvent.click(screen.getByRole("button", { name: "ones down" }));
-    expect(ones).toHaveAttribute("aria-valuenow", "5");
-    fireEvent.keyDown(ones, { key: "ArrowUp" });
-    expect(ones).toHaveAttribute("aria-valuenow", "6");
-    fireEvent.keyDown(ones, { key: "ArrowDown" });
-    expect(ones).toHaveAttribute("aria-valuenow", "5");
-  });
-
+describe("accessible results", () => {
   it("result shortcuts only run from the focused summary, respecting composition, modifiers, and Tab navigation", () => {
     const props = resultsProps();
     render(<PracticeResults {...props} />);
@@ -370,29 +240,6 @@ describe("accessible practice dialogs and results", () => {
     expect(props.repeatTest).toHaveBeenCalledTimes(1);
   });
 
-  it("settings inputs on the result screen cannot save, repeat, or advance a test", () => {
-    const props = resultsProps();
-    render(
-      <>
-        <PracticeResults {...props} />
-        <PracticeQuickSettingsDialog
-          {...configurationProps()}
-          showQuickSettings
-          setShowQuickSettings={vi.fn()}
-          linePreview={3}
-          setLinePreview={vi.fn()}
-          maxWordsPerLine={7}
-          setMaxWordsPerLine={vi.fn()}
-        />
-      </>,
-    );
-    const input = screen.getByRole("spinbutton", { name: "Text Size (rem)" });
-    for (const key of [" ", "Enter", "Tab"]) fireEvent.keyDown(input, { key });
-    expect(props.saveResults).not.toHaveBeenCalled();
-    expect(props.generateTest).not.toHaveBeenCalled();
-    expect(props.repeatTest).not.toHaveBeenCalled();
-  });
-
   it("opens result word details over the graph, swaps the chip for a Graph pill, and explains unranked repeats", async () => {
     render(<PracticeResults {...resultsProps()} isRepeated rankingStatus="unranked" />);
     fireEvent.click(screen.getByRole("button", { name: "1 mistake" }));
@@ -411,6 +258,124 @@ describe("accessible practice dialogs and results", () => {
     expect(screen.queryByText(/will not appear on leaderboards/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "About these results" }));
     expect(screen.getByText(/will not appear on leaderboards/)).toBeVisible();
+  });
+});
+
+describe("custom length and own text unfold from the pill", () => {
+  it("unfolds a blank custom length under the row and keeps the draft local until applied", async () => {
+    const onApplyLength = vi.fn();
+    render(<PillHarness initial={{ mode: "words", wordTarget: 25 }} onApplyLength={onApplyLength} />);
+    openCustomLength();
+    const chip = screen.getByRole("button", { name: "Custom length" });
+    expect(chip).toHaveAttribute("aria-expanded", "true");
+    const region = screen.getByRole("region", { name: "Custom word count" });
+    expect(chip).toHaveAttribute("aria-controls", region.id);
+    const field = within(region).getByRole("textbox", { name: "Custom word count" });
+    expect(field).toHaveValue("");
+    expect(field).toHaveAttribute("placeholder", "25");
+    expect(field).toHaveFocus();
+    expect(within(region).getByRole("status")).toHaveTextContent("Type how many words, or use a quick pick.");
+    expect(field).not.toHaveAttribute("aria-invalid");
+    expect(within(region).getByRole("button", { name: /^Use/ })).toBeDisabled();
+    fireEvent.change(field, { target: { value: "75" } });
+    expect(within(region).getByRole("status")).toHaveTextContent("About 2 minutes at 40 wpm.");
+    expect(within(region).getByRole("button", { name: "75 words", exact: true })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(within(region).getByRole("button", { name: "150 words", exact: true }));
+    expect(field).toHaveValue("150");
+    fireEvent.change(field, { target: { value: "75" } });
+    expect(onApplyLength).not.toHaveBeenCalled();
+    fireEvent.click(within(region).getByRole("button", { name: "Use 75 words" }));
+    expect(onApplyLength).toHaveBeenCalledWith(75);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Test settings/ })).toBeInTheDocument());
+  });
+
+  it("nudges from the current length with the arrow keys and applies on Enter", () => {
+    const onApplyLength = vi.fn();
+    render(<PillHarness initial={{ mode: "time", duration: 30 }} onApplyLength={onApplyLength} />);
+    openCustomLength();
+    const field = screen.getByRole("textbox", { name: "Custom duration" });
+    fireEvent.keyDown(field, { key: "ArrowUp" });
+    expect(field).toHaveValue("35");
+    fireEvent.keyDown(field, { key: "ArrowDown" });
+    fireEvent.keyDown(field, { key: "ArrowDown" });
+    expect(field).toHaveValue("25");
+    expect(onApplyLength).not.toHaveBeenCalled();
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onApplyLength).toHaveBeenCalledWith(25);
+  });
+
+  it("validates lengths against the shared limits and keeps an accepted duration through normalization", async () => {
+    const onApplyLength = vi.fn();
+    const { unmount } = render(<PillHarness initial={{ mode: "time", duration: 30 }} onApplyLength={onApplyLength} />);
+    openCustomLength();
+    const field = screen.getByRole("textbox", { name: "Custom duration" });
+    const use = () => screen.getByRole("button", { name: /^Use/ });
+    for (const [raw, message] of [["abc", "Not a length."], ["0", "Too short."], ["61:00", "Too long."]] as const) {
+      fireEvent.change(field, { target: { value: raw } });
+      expect(screen.getByRole("status")).toHaveTextContent(message);
+      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(use()).toBeDisabled();
+    }
+    fireEvent.change(field, { target: { value: "9m 30s" } });
+    expect(use()).toHaveAccessibleName("Use 9:30");
+    fireEvent.click(use());
+    expect(onApplyLength).toHaveBeenLastCalledWith(9 * 60 + 30);
+    expect(normalizePracticeSettings({ ...settings, mode: "time", duration: 9 * 60 + 30 }).duration).toBe(9 * 60 + 30);
+    await waitFor(() => expect(screen.queryByRole("group", { name: "Test settings" })).not.toBeInTheDocument());
+    openCustomLength();
+    fireEvent.change(screen.getByRole("textbox", { name: "Custom duration" }), { target: { value: "60:00" } });
+    fireEvent.click(use());
+    expect(onApplyLength).toHaveBeenLastCalledWith(MAX_DURATION_SECONDS);
+    unmount();
+
+    render(<PillHarness initial={{ mode: "words" }} onApplyLength={onApplyLength} />);
+    openCustomLength();
+    const words = screen.getByRole("textbox", { name: "Custom word count" });
+    fireEvent.change(words, { target: { value: String(MAX_WORD_TARGET + 1) } });
+    expect(screen.getByRole("status")).toHaveTextContent("Too long.");
+    fireEvent.change(words, { target: { value: String(MAX_WORD_TARGET) } });
+    fireEvent.click(use());
+    expect(onApplyLength).toHaveBeenLastCalledWith(MAX_WORD_TARGET);
+  });
+
+  it("folds the editor with Escape, returning focus to its chip, then Escape closes the pill", async () => {
+    render(<PillHarness initial={{ mode: "words" }} />);
+    openCustomLength();
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Custom word count" }), { key: "Escape" });
+    const chip = screen.getByRole("button", { name: "Custom length" });
+    expect(chip).toHaveFocus();
+    expect(chip).toHaveAttribute("aria-expanded", "false");
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Custom word count" })).not.toBeInTheDocument());
+    expect(screen.getByRole("group", { name: "Test settings" })).toBeInTheDocument();
+    fireEvent.keyDown(chip, { key: "Escape" });
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Test settings/ })).toHaveFocus());
+    openCustomLength();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Custom length" })).toHaveFocus();
+  });
+
+  it("starts from your text, flags empty, odd and too-long text, and applies the cleaned text", () => {
+    const onApplyText = vi.fn();
+    render(<PillHarness initial={{ mode: "preset", presetText: "my text" }} initialEditor="text" onApplyText={onApplyText} />);
+    const box = screen.getByRole("textbox", { name: "Practice text" });
+    expect(box).toHaveValue("my text");
+    expect(screen.getByRole("button", { name: "Edit your text, 2 words" })).toHaveAttribute("aria-expanded", "true");
+    const practice = screen.getByRole("button", { name: "Practice this" });
+    fireEvent.change(box, { target: { value: "   " } });
+    expect(screen.getByRole("status")).toHaveTextContent("Paste or type some text, or start from a sample.");
+    expect(practice).toBeDisabled();
+    fireEvent.change(box, { target: { value: "Café “quoted” words here now" } });
+    expect(screen.getByText(/3 characters can't be typed/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fix them" }));
+    expect(box).toHaveValue("Cafe \"quoted\" words here now");
+    fireEvent.change(box, { target: { value: "cat ".repeat(MAX_PRESET_TEXT_LENGTH / 3) } });
+    expect(screen.getByRole("status")).toHaveTextContent("Too long.");
+    expect(practice).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Trim to fit" }));
+    expect((box as HTMLTextAreaElement).value.length).toBeLessThanOrEqual(MAX_PRESET_TEXT_LENGTH);
+    fireEvent.change(box, { target: { value: "  line one\n\nline   two  " } });
+    fireEvent.keyDown(box, { key: "Enter", ctrlKey: true });
+    expect(onApplyText).toHaveBeenCalledWith("line one line two");
   });
 });
 
@@ -481,170 +446,6 @@ describe("results comparison and timeline", () => {
   });
 });
 
-function fixtureTheme(id: string, category: ThemeDefinition["category"] = "default", multi = false): ThemeDefinition {
-  const colors = theme.variants.default.dark;
-  const variants = [
-    {
-      id: "default",
-      label: "Default",
-      dark: colors,
-      light: theme.variants.default.light,
-    },
-  ];
-  if (multi)
-    variants.push({
-      id: "soft",
-      label: "Soft",
-      dark: colors,
-      light: theme.variants.default.light,
-    });
-  return {
-    id,
-    name: id,
-    category,
-    dark: colors,
-    light: theme.variants.default.light,
-    variants,
-    defaultVariantId: "default",
-  };
-}
-function catalog(themes: ThemeDefinition[]): ThemeCatalogIndex {
-  return {
-    version: 1,
-    themes: themes.map((theme) => ({
-      id: theme.id, name: theme.name, category: theme.category, defaultVariantId: theme.defaultVariantId,
-      variants: theme.variants.map((variant) => ({
-        id: variant.id, label: variant.label, light: !!variant.light,
-        swatches: [variant.dark.bg.base, variant.dark.typing.cursor, variant.dark.interactive.secondary.DEFAULT, variant.dark.typing.correct],
-      })),
-    })),
-  };
-}
-
-describe("theme browsing", () => {
-  it("loads metadata only on open, keeps the selected preview available, and retries index failure", async () => {
-    let resolve!: (value: ThemeCatalogIndex | null) => void;
-    vi.mocked(fetchThemeCatalogIndex).mockReturnValueOnce(new Promise((done) => { resolve = done; }))
-      .mockResolvedValue(catalog([fixtureTheme("First"), fixtureTheme("Second")]));
-    const props = { showThemeModal: false, setShowThemeModal: vi.fn() };
-    const { rerender } = render(<PracticeThemePicker {...props} />);
-    expect(fetchThemeCatalogIndex).not.toHaveBeenCalled();
-    rerender(<PracticeThemePicker {...props} showThemeModal />);
-    expect(screen.getByRole("status")).toHaveTextContent("Loading themes");
-    expect(screen.getByRole("img", { name: /TypeSetGo.*miniature typing homepage/ })).toBeVisible();
-    await act(async () => { resolve(null); });
-    expect(screen.getByRole("alert")).toHaveTextContent("Themes could not be loaded");
-    fireEvent.click(screen.getByRole("button", { name: "Retry", exact: true }));
-    await screen.findByRole("button", { name: "Select Second", exact: true });
-    expect(fetchThemeForPreview).not.toHaveBeenCalled();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    rerender(<PracticeThemePicker {...props} />);
-    rerender(<PracticeThemePicker {...props} showThemeModal />);
-    expect(fetchThemeCatalogIndex).toHaveBeenCalledTimes(2);
-  });
-
-  it("searches variant metadata without loading palettes and ignores stale preview results", async () => {
-    vi.mocked(fetchThemeCatalogIndex).mockResolvedValue(catalog([fixtureTheme("First", "nature", true), fixtureTheme("Second")]));
-    let resolveFirst!: (value: ThemeDefinition) => void;
-    let resolveSecond!: (value: ThemeDefinition) => void;
-    vi.mocked(fetchThemeForPreview).mockImplementation((id) => new Promise((done) => {
-      if (id === "First") resolveFirst = done;
-      else resolveSecond = done;
-    }));
-    render(<PracticeThemePicker showThemeModal setShowThemeModal={vi.fn()} />);
-    await screen.findByRole("button", { name: "Select Second", exact: true });
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Soft" } });
-    const first = screen.getByRole("button", { name: "First variants" });
-    expect(fetchThemeForPreview).not.toHaveBeenCalled();
-    fireEvent.focus(first);
-    expect(screen.getByRole("status")).toHaveTextContent("Loading preview for First");
-    expect(screen.queryByRole("img")).not.toBeInTheDocument();
-    await waitFor(() => expect(fetchThemeForPreview).toHaveBeenCalledWith("First"));
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Second" } });
-    fireEvent.focus(screen.getByRole("button", { name: "Select Second", exact: true }));
-    await waitFor(() => expect(fetchThemeForPreview).toHaveBeenCalledWith("Second"));
-    await act(async () => { resolveSecond(fixtureTheme("Second")); });
-    expect(screen.getByRole("img", { name: /Second.*miniature typing homepage/ })).toBeVisible();
-    await act(async () => { resolveFirst(fixtureTheme("First")); });
-    expect(screen.getByRole("img", { name: /Second.*miniature typing homepage/ })).toBeVisible();
-    expect(themeActions.setThemeSelection).not.toHaveBeenCalled();
-  });
-
-  it("cancels passing hovers and recovers a failed palette locally without hiding the catalog", async () => {
-    vi.mocked(fetchThemeCatalogIndex).mockResolvedValue(catalog([fixtureTheme("First"), fixtureTheme("Second")]));
-    vi.mocked(fetchThemeForPreview).mockResolvedValueOnce(null).mockResolvedValue(fixtureTheme("Second"));
-    render(<PracticeThemePicker showThemeModal setShowThemeModal={vi.fn()} />);
-    const first = await screen.findByRole("button", { name: "Select First", exact: true });
-    fireEvent.mouseMove(first, { movementX: 4, movementY: 0 });
-    expect(screen.getByRole("status")).toHaveTextContent("Loading preview for First");
-    fireEvent.mouseLeave(first);
-    await act(async () => { await new Promise((done) => setTimeout(done, 160)); });
-    expect(fetchThemeForPreview).not.toHaveBeenCalled();
-    const second = screen.getByRole("button", { name: "Select Second", exact: true });
-    fireEvent.focus(second);
-    await screen.findByRole("button", { name: "Retry preview" });
-    fireEvent.blur(second);
-    expect(first).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Retry preview" }));
-    await screen.findByRole("img", { name: /Second.*miniature typing homepage/ });
-    expect(fetchThemeForPreview).toHaveBeenCalledTimes(2);
-    expect(themeActions.setThemeSelection).not.toHaveBeenCalled();
-  });
-
-  it("unmounts collapsed category controls, makes focus preview work, and records only user selections", async () => {
-    vi.mocked(fetchThemeCatalogIndex).mockResolvedValue(
-      catalog([fixtureTheme("Featured"), fixtureTheme("Forest", "nature", true)]),
-    );
-    const onUserSelection = vi.fn();
-    render(<PracticeThemePicker showThemeModal setShowThemeModal={vi.fn()} onUserSelection={onUserSelection} />);
-    await screen.findByRole("button", { name: "Select Featured", exact: true });
-    expect(screen.queryByRole("button", { name: "Forest variants" })).not.toBeInTheDocument();
-    expect(onUserSelection).not.toHaveBeenCalled();
-    const categoryButton = screen.getByRole("button", { name: /Nature/ });
-    expect(categoryButton).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(categoryButton);
-    const card = screen.getByRole("button", { name: "Forest variants" });
-    fireEvent.focus(card);
-    expect(within(screen.getByLabelText("Theme preview")).getByText("Forest")).toBeVisible();
-    fireEvent.click(card);
-    expect(screen.getByRole("region", { name: "Forest variants" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Select Forest: Soft", exact: true }));
-    expect(themeActions.setThemeSelection).toHaveBeenCalledWith({
-      themeId: "Forest",
-      variantId: "soft",
-      mode: undefined,
-    });
-    expect(onUserSelection).toHaveBeenCalledTimes(1);
-    fireEvent.click(categoryButton);
-    expect(screen.queryByRole("button", { name: "Forest variants" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", {
-        name: "Select Forest: Soft",
-        exact: true,
-      }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("keeps closing variant content out of keyboard interaction during exit", async () => {
-    vi.mocked(fetchThemeCatalogIndex).mockResolvedValue(catalog([fixtureTheme("Featured", "default", true)]));
-    render(<PracticeThemePicker showThemeModal setShowThemeModal={vi.fn()} />);
-    const trigger = await screen.findByRole("button", {
-      name: "Featured variants",
-    });
-    fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole("button", { name: "Close Featured variants" }));
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("button", {
-          name: "Select Featured: Soft",
-          exact: true,
-        }),
-      ).not.toBeInTheDocument(),
-    );
-  });
-});
-
 describe("on-screen keyboard sizing", () => {
   it("legacy retains its observed wrapper and recovers after shrinking below 280px", async () => {
     render(<OnScreenKeyboard style="legacy" nextChar="a" capsLockOn={false} layoutId="qwerty" activeKey={null} visible />);
@@ -662,55 +463,6 @@ describe("on-screen keyboard sizing", () => {
     });
     expect(within(container).getByText("A")).toBeInTheDocument();
     expect(container.querySelector('[data-next-key="true"]')).toHaveTextContent("A");
-  });
-});
-
-describe("dialog focus ownership", () => {
-  it("restores an external settings opener after Escape", async () => {
-    function Example() {
-      const [open, setOpen] = useState(false);
-      return (
-        <>
-          <button onClick={() => setOpen(true)}>Preferences opener</button>
-          <PracticeSettingsDialog {...settingsDialogProps()} showSettings={open} setShowSettings={setOpen} />
-        </>
-      );
-    }
-    render(<Example />);
-    const opener = screen.getByRole("button", { name: "Preferences opener" });
-    opener.focus();
-    fireEvent.click(opener);
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Settings" }), { key: "Escape" });
-    await waitFor(() => expect(opener).toHaveFocus());
-  });
-
-  it("keeps quick settings underneath the count dialog and restores its custom trigger", async () => {
-    function Example() {
-      const [quick, setQuick] = useState(true);
-      const [count, setCount] = useState(false);
-      return (
-        <>
-          <PracticeQuickSettingsDialog
-            {...configurationProps()}
-            openCustomCountModal={() => setCount(true)}
-            showQuickSettings={quick}
-            setShowQuickSettings={setQuick}
-            linePreview={3}
-            setLinePreview={vi.fn()}
-            maxWordsPerLine={7}
-            setMaxWordsPerLine={vi.fn()}
-          />
-          {count && <PracticeCountDialog settings={settings} setShowCustomCountModal={setCount} onApply={vi.fn()} />}
-        </>
-      );
-    }
-    render(<Example />);
-    const custom = screen.getByRole("button", { name: "custom" });
-    custom.focus();
-    fireEvent.click(custom);
-    fireEvent.keyDown(screen.getByRole("dialog", { name: "Custom Word Count" }), { key: "Escape" });
-    await waitFor(() => expect(custom).toHaveFocus());
-    expect(screen.getByRole("dialog", { name: "Quick Settings" })).toBeInTheDocument();
   });
 });
 
@@ -741,51 +493,6 @@ it.each(["qwerty", "dvorak", "colemak"] as const)("legacy does not highlight Shi
   rerender(<OnScreenKeyboard {...props} nextChar="!" />);
   expect(keyboard).toHaveAccessibleDescription("Next key: Shift + 1. Caps Lock is on.");
   expect(shift).toHaveAttribute("data-next-key", "true");
-});
-
-describe("custom duration boundary", () => {
-  it("retains a user-selected duration through preference normalization", () => {
-    const timedSettings = { ...settings, mode: "time" as const, duration: 8 * 60 + 30 };
-    const onApply = vi.fn();
-    render(<PracticeCountDialog settings={timedSettings} setShowCustomCountModal={vi.fn()} onApply={onApply} />);
-    fireEvent.keyDown(screen.getByRole("spinbutton", { name: "minutes" }), { key: "ArrowUp" });
-    fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
-    expect(onApply).toHaveBeenCalledWith(9 * 60 + 30);
-    const [duration] = onApply.mock.calls[0];
-    expect(normalizePracticeSettings({ ...timedSettings, duration }).duration).toBe(9 * 60 + 30);
-  });
-
-  it("clamps the editor to the same supported duration maximum as preferences", () => {
-    const onApply = vi.fn();
-    render(
-      <PracticeCountDialog
-        settings={{ ...settings, mode: "time", duration: MAX_DURATION_SECONDS + 3600 }}
-        setShowCustomCountModal={vi.fn()}
-        onApply={onApply}
-      />,
-    );
-    expect(screen.queryByRole("spinbutton", { name: "hours" })).not.toBeInTheDocument();
-    expect(screen.getByRole("spinbutton", { name: "minutes" })).toHaveAttribute("aria-valuemax", "60");
-    expect(screen.getByRole("spinbutton", { name: "seconds" })).toHaveAttribute("aria-valuemax", "0");
-    expect(screen.getByText("60:00")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
-    expect(onApply).toHaveBeenCalledWith(MAX_DURATION_SECONDS);
-  });
-
-  it("offers 60 seconds below the one-hour limit", () => {
-    const onApply = vi.fn();
-    render(<PracticeCountDialog settings={{ ...settings, mode: "time", duration: 59 * 60 }}
-      setShowCustomCountModal={vi.fn()} onApply={onApply} />);
-    const seconds = screen.getByRole("spinbutton", { name: "seconds" });
-    expect(seconds).toHaveAttribute("aria-valuemax", "60");
-    fireEvent.keyDown(seconds, { key: "End" });
-    expect(screen.getByText("59:60")).toBeInTheDocument();
-    fireEvent.keyDown(screen.getByRole("spinbutton", { name: "minutes" }), { key: "End" });
-    expect(seconds).toHaveAttribute("aria-valuemax", "0");
-    expect(screen.getByText("60:00")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Set Duration" }));
-    expect(onApply).toHaveBeenCalledWith(MAX_DURATION_SECONDS);
-  });
 });
 
 it.each(["dark", "light"] as const)("keeps every save action state readable in %s mode", (mode) => {

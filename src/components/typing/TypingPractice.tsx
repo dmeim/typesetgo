@@ -36,13 +36,9 @@ import { useTypingScroll } from "./useTypingScroll";
 import PracticeText from "./PracticeText";
 import PracticeResults from "./PracticeResults";
 import type { ResultComparison } from "./results/result-stats";
-import PracticeCountDialog from "./PracticeCountDialog";
-import PracticePresetDialog from "./PracticePresetDialog";
 import PracticeControls from "./PracticeControls";
 import { PracticeLiveStats } from "./PracticeLiveStats";
-import PracticeQuickSettingsDialog from "./PracticeQuickSettingsDialog";
-import PracticeSettingsDialog from "./PracticeSettingsDialog";
-import PracticeThemePicker from "./PracticeThemePicker";
+import { DEFAULT_ESTIMATE_SPEED, cleanPresetText, type PracticeEditor } from "./practice-custom";
 import { PROMPT_SETTING_KEYS, TIME_PRESETS, WORD_PRESETS, type ModeSelectorOption } from "./practice-config";
 
 // Constants
@@ -118,11 +114,6 @@ interface TypingPracticeProps {
   roomThemeStyle?: CSSProperties;
   /** Connect: actions shown on the results screen in place of Next/Repeat. */
   connectResultsActions?: ReactNode;
-  // External modal control (lifted state from Home.tsx)
-  showSettings?: boolean;
-  setShowSettings?: (show: boolean) => void;
-  showThemeModal?: boolean;
-  setShowThemeModal?: (show: boolean) => void;
   // Callback to notify parent of typing state changes
   onTypingStateChange?: (isTyping: boolean) => void;
 }
@@ -143,11 +134,6 @@ export default function TypingPractice({
   onLeave,
   roomThemeStyle,
   connectResultsActions,
-  // External state control (when used from Home.tsx)
-  showSettings: externalShowSettings,
-  setShowSettings: externalSetShowSettings,
-  showThemeModal: externalShowThemeModal,
-  setShowThemeModal: externalSetShowThemeModal,
   onTypingStateChange,
 }: TypingPracticeProps) {
   const { isSignedIn, user, openSignIn, status: authStatus } = useAppAuth();
@@ -162,21 +148,13 @@ export default function TypingPractice({
   const settings = useMemo(() => connectMode && lockedSettings
     ? normalizePracticeSettings({ ...localSettings, ...lockedSettings }) : localSettings,
   [connectMode, lockedSettings, localSettings]);
-  // Use external state if provided, otherwise use internal state
-  const [internalShowSettings, setInternalShowSettings] = useState(false);
-  const [internalShowThemeModal, setInternalShowThemeModal] = useState(false);
-
-  // Resolve to external or internal state
-  const showSettings = externalShowSettings ?? internalShowSettings;
-  const setShowSettings = externalSetShowSettings ?? setInternalShowSettings;
-  const showThemeModal = externalShowThemeModal ?? internalShowThemeModal;
-  const setShowThemeModal = externalSetShowThemeModal ?? setInternalShowThemeModal;
-
   const [soundManifest, setSoundManifest] = useState<SoundManifest | null>(null);
   const [wordsManifest, setWordsManifest] = useState<WordsManifest | null>(null);
   const [quotesManifest, setQuotesManifest] = useState<QuotesManifest | null>(null);
-  const [showPresetInput, setShowPresetInput] = useState(settings.mode === "preset" && !settings.presetText);
-  const [showCustomCountModal, setShowCustomCountModal] = useState(false);
+  // Settings are chosen before a test: an empty Preset unfolds its text box under the settings pill.
+  const [editorRequest, setEditor] = useState<PracticeEditor | null>(() => !connectMode && settings.mode === "preset" && !settings.presetText ? "text" : null);
+  const editor: PracticeEditor | null = editorRequest === "length" && (settings.mode === "time" || settings.mode === "words") ? "length"
+    : editorRequest === "text" && settings.mode === "preset" ? "text" : null;
   const dataset = usePracticeDataset(settings, quotesManifest);
   const { wordPool, quotes } = dataset;
   const promptConfigKey = JSON.stringify(PROMPT_SETTING_KEYS.map((key) => settings[key]));
@@ -232,7 +210,6 @@ export default function TypingPractice({
 
   // Compact Mode (for zoomed/narrow viewports)
   const [isCompactMode, setIsCompactMode] = useState(false);
-  const [showQuickSettings, setShowQuickSettings] = useState(false);
 
   // Kid Mode State
   const [isKidMode, setIsKidMode] = useState(false);
@@ -247,8 +224,8 @@ export default function TypingPractice({
 
   const overlayOpenRef = useRef(false);
   useLayoutEffect(() => {
-    overlayOpenRef.current = showSettings || showThemeModal || showQuickSettings || showCustomCountModal || showPresetInput;
-  }, [showSettings, showThemeModal, showQuickSettings, showCustomCountModal, showPresetInput]);
+    overlayOpenRef.current = editor !== null;
+  }, [editor]);
 
   // Save Results State
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -335,7 +312,7 @@ export default function TypingPractice({
   const contentRef = useRef<HTMLDivElement | null>(null);
   const composingRef = useRef(false);
   const [compositionDraft, setCompositionDraft] = useState<string | null>(null);
-  const { pendingPromptPreferences, setQueuedPromptPreferences, markEdited, markThemeEdited,
+  const { pendingPromptPreferences, setQueuedPromptPreferences, markEdited,
     linePreview, maxWordsPerLine, updateLinePreview, updateMaxWordsPerLine } = usePracticePreferences({
     userId: user?.id, connectMode, settings, settingsRef, setSettings, isRunningRef, isFinishedRef, composingRef,
   });
@@ -478,10 +455,6 @@ export default function TypingPractice({
     markEdited(Object.keys(updates));
     setSettings((prev) => normalizePracticeSettings({ ...prev, ...(startsPrompt ? pendingPromptPreferences : {}), ...updates }));
   }, [pendingPromptPreferences, markEdited, setQueuedPromptPreferences, saveState]);
-
-  const openCustomCountModal = useCallback(() => {
-    if (settings.mode === "time" || settings.mode === "words") setShowCustomCountModal(true);
-  }, [settings.mode]);
 
   const resetSession = useCallback((isRepeat = false, accountChanged = false) => {
     if (!accountChanged && (savingRef.current || (!connectModeRef.current && isSignedInRef.current && isFinishedRef.current && saveState === "idle"))) return;
@@ -869,6 +842,7 @@ export default function TypingPractice({
   }, [preKidModeSettings, updateSettings, updateLinePreview, updateMaxWordsPerLine]);
 
   const handleModeSelect = useCallback((mode: ModeSelectorOption) => {
+    setEditor(null);
     if (mode === "kid") {
       if (isKidMode) {
         disableKidMode();
@@ -996,10 +970,10 @@ export default function TypingPractice({
   }, []);
 
   const handlePresetSubmit = (text: string) => {
-    const sanitized = text.replace(/[^\x20-\x7E\n]/g, "").replace(/\s+/g, " ").trim();
+    const sanitized = cleanPresetText(text);
     if (sanitized.length > 0 && sanitized.length <= MAX_PRESET_TEXT_LENGTH) {
       updateSettings({ presetText: sanitized });
-      setShowPresetInput(false);
+      setEditor(null);
     }
   };
 
@@ -1039,18 +1013,18 @@ export default function TypingPractice({
     settings.mode,
     settings.helpFontSize,
     linePreview,
-    showQuickSettings,
+    editor,
   ]);
 
   const selectedDurationPreset = TIME_PRESETS.find((preset) => preset === settings.duration);
   const selectedWordPreset = WORD_PRESETS.find((preset) => preset === settings.wordTarget);
   const isCustomDurationSelected = selectedDurationPreset === undefined;
   const isCustomWordTargetSelected = selectedWordPreset === undefined;
-  const configurationProps = {
+  const pillProps = {
     settings, updateSettings, generateTest, isKidMode, handleModeSelect,
-    wordsManifest, quotesManifest, openCustomCountModal,
-    openPresetInput: () => { setShowQuickSettings(false); setShowPresetInput(true); },
-    isCustomDurationSelected, isCustomWordTargetSelected,
+    wordsManifest, quotesManifest, isCustomDurationSelected, isCustomWordTargetSelected,
+    editor, setEditor, applyCustomLength: applyCustomCount, applyPresetText: handlePresetSubmit,
+    estimateSpeed: recentResults?.averageWpm ? { wpm: Math.round(recentResults.averageWpm), personal: true } : DEFAULT_ESTIMATE_SPEED,
   };
 
   // A new resolved configuration is a new attempt. Reset before children can observe old input
@@ -1062,7 +1036,7 @@ export default function TypingPractice({
     setWords(preparedPrompt.text);
     setSessionEpoch((epoch) => epoch + 1);
     resetAttemptView(false, isSignedIn && settings.mode !== "zen");
-    if (preparedPrompt.needsPreset) setShowPresetInput(true);
+    if (preparedPrompt.needsPreset && !connectMode) setEditor("text");
   }
 
   return (
@@ -1074,13 +1048,11 @@ export default function TypingPractice({
       <div className="h-4 shrink-0" />
 
       <PracticeControls
-        {...configurationProps}
+        {...pillProps}
         connectMode={connectMode}
         isRunning={isRunning}
         isFinished={isFinished}
-        isCompactMode={isCompactMode}
         uiOpacity={uiOpacity}
-        setShowQuickSettings={setShowQuickSettings}
       />
 
       {isRunning && !isFinished && (
@@ -1102,7 +1074,7 @@ export default function TypingPractice({
 
       <div
         className={`w-full flex flex-col items-center transition-transform duration-300 ${isFinished ? "flex-1" : ""}`}
-        style={!isCompactMode && !isFinished && !settings.showOnScreenKeyboard ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
+        style={!isCompactMode && !isFinished && !settings.showOnScreenKeyboard && !editor ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
       >
         {/* Quote Info */}
         {settings.mode === "quote" && currentQuote && !isFinished && (
@@ -1184,7 +1156,7 @@ export default function TypingPractice({
                 <ArrowsClockwiseIcon className="size-4 shrink-0" aria-hidden="true" />
                 Retry
               </button></>
-                : "Loading prompt…"}
+                : activePrompt.needsPreset ? "Add your own text above to start." : "Loading prompt…"}
             </div>}
             <span id="practice-editing-help" className="sr-only">Type at the end of the text. Use Backspace to correct the current word. Tab moves to the next control.</span>
             {/* Click to focus overlay */}
@@ -1264,47 +1236,6 @@ export default function TypingPractice({
 
       {/* Flexible spacer - keeps typing area vertically centered; results fill the height instead */}
       <div className={isFinished ? "hidden" : settings.showOnScreenKeyboard ? "shrink-0" : "flex-1"} />
-
-      <PracticePresetDialog
-        key={settings.presetText}
-        presetText={settings.presetText}
-        showPresetInput={showPresetInput}
-        setShowPresetInput={setShowPresetInput}
-        handlePresetSubmit={handlePresetSubmit}
-      />
-
-      <PracticeThemePicker showThemeModal={showThemeModal} setShowThemeModal={setShowThemeModal} onUserSelection={markThemeEdited} />
-
-      <PracticeSettingsDialog
-        showSettings={showSettings}
-        setShowSettings={setShowSettings}
-        settings={settings}
-        updateSettings={updateSettings}
-        linePreview={linePreview}
-        setLinePreview={updateLinePreview}
-        maxWordsPerLine={maxWordsPerLine}
-        setMaxWordsPerLine={updateMaxWordsPerLine}
-        soundManifest={soundManifest}
-      />
-
-      {showCustomCountModal && (
-        <PracticeCountDialog
-          settings={settings}
-          setShowCustomCountModal={setShowCustomCountModal}
-          onApply={applyCustomCount}
-        />
-      )}
-
-      <PracticeQuickSettingsDialog
-        {...configurationProps}
-        showQuickSettings={showQuickSettings}
-        setShowQuickSettings={setShowQuickSettings}
-        linePreview={linePreview}
-        setLinePreview={updateLinePreview}
-        maxWordsPerLine={maxWordsPerLine}
-        setMaxWordsPerLine={updateMaxWordsPerLine}
-      />
-
 
     </div>
   );

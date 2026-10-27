@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useMutation } from "convex/react";
 import { ArrowLeftIcon, CaretLeftIcon, EyeIcon, UserCircleDashedIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { api } from "../../../convex/_generated/api";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { useAccount } from "@/components/layout/useAccount";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { ALL_ACHIEVEMENTS, getAchievementById } from "@/lib/achievement-definitions";
@@ -137,7 +138,8 @@ export function ProfilePage() {
   const settingsPane = isSettingsPane(pane) && !viewingPlayer ? pane : null;
 
   return (
-    <div className="flex min-w-0 flex-1">
+    // Phones stack the list over the open tab; from md up the sidebar sits beside a column that ends in the site footer.
+    <div className="flex min-w-0 flex-1 flex-col md:flex-row">
       <ProfileSidebar
         account={accountState}
         active={viewingPlayer ? null : pane}
@@ -145,35 +147,38 @@ export function ProfilePage() {
         onOpen={open}
         hiddenOnPhone={mobileDetail}
       />
-      <main id="profile-content" tabIndex={-1} className={`min-w-0 flex-1 px-4 pb-16 pt-6 outline-none md:px-6 xl:px-8 ${mobileDetail ? "block" : "hidden md:block"}`}>
-        <button type="button" onClick={() => setMobileDetail(false)} className="mb-4 flex items-center gap-1 text-sm text-primary md:hidden">
-          <CaretLeftIcon className="size-4" aria-hidden="true" />All profile sections
-        </button>
-        {settingsPane === "theme" && prefs.themeError && (
-          <p role="alert" className="mb-4 flex items-center gap-2 rounded-2xl border border-destructive/40 px-4 py-3 text-sm text-destructive">
-            <WarningCircleIcon className="size-5 shrink-0" aria-hidden="true" />{prefs.themeError}
-          </p>
-        )}
-        <div className="mx-auto flex max-w-[110rem] flex-col gap-6 xl:flex-row xl:items-start">
-          <div className="min-w-0 flex-1">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={viewingPlayer ?? pane}
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -12 }}
-                transition={{ duration: 0.22, ease: "easeOut" }}
-                className="flex flex-col gap-6"
-              >
-                {content}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-          {settingsPane && (
-            <SettingsPreview settings={settings} theme={prefs.theme} themeName={themeName} fallbackColors={prefs.colors} active={settingsPane} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <main id="profile-content" tabIndex={-1} className={`min-w-0 flex-1 px-4 pb-16 pt-6 outline-none md:px-6 xl:px-8 ${mobileDetail ? "block" : "hidden md:block"}`}>
+          <button type="button" onClick={() => setMobileDetail(false)} className="mb-4 flex items-center gap-1 text-sm text-primary md:hidden">
+            <CaretLeftIcon className="size-4" aria-hidden="true" />All profile sections
+          </button>
+          {settingsPane === "theme" && prefs.themeError && (
+            <p role="alert" className="mb-4 flex items-center gap-2 rounded-2xl border border-destructive/40 px-4 py-3 text-sm text-destructive">
+              <WarningCircleIcon className="size-5 shrink-0" aria-hidden="true" />{prefs.themeError}
+            </p>
           )}
-        </div>
-      </main>
+          <div className="mx-auto flex max-w-[110rem] flex-col gap-6 xl:flex-row xl:items-start">
+            <div className="min-w-0 flex-1">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={viewingPlayer ?? pane}
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="flex flex-col gap-6"
+                >
+                  {content}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            {settingsPane && (
+              <SettingsPreview settings={settings} theme={prefs.theme} themeName={themeName} fallbackColors={prefs.colors} active={settingsPane} />
+            )}
+          </div>
+        </main>
+        <SiteFooter />
+      </div>
     </div>
   );
 }

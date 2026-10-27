@@ -7,6 +7,14 @@
 
 ---
 
+## Later: from the UI overhaul (2026-10-27)
+
+- [ ] **Command bar.** A Raycast/Spotlight-style bar opened with a keyboard shortcut (for example ⌘K / Ctrl K) where you type anything for quick access: settings, themes, pages and actions. Start from UI Lab concept 03 "Search" in `/temp` (`src/components/temp/home-settings/CommandPaletteConcept.tsx`). It must never open or change settings during a test; settings are chosen before a test starts.
+- [ ] **Lessons.** Build the Lessons page from one of the five `/temp` concepts (`src/components/temp/lessons/`) and then enable the Lessons button in the Dock (`soon` in `src/components/layout/header/header-nav.ts`).
+- [ ] **Race button.** The Race pages ship in the new design, but the Dock button stays "coming soon" until we decide to open races to everyone.
+
+---
+
 ## Legend
 
 - [ ] Not started

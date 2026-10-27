@@ -1,23 +1,24 @@
-import { useMultiplayerPresence } from "@/hooks/useMultiplayerPresence";
-import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import {
-  ArrowClockwiseIcon,
-  ArrowLeftIcon,
-  CircleNotchIcon,
-  FloppyDiskIcon,
-  SignOutIcon,
-  TrophyIcon,
-} from "@phosphor-icons/react";
+import { motion } from "framer-motion";
+import { ArrowClockwiseIcon, ArrowLeftIcon, CircleNotchIcon, FloppyDiskIcon, TrophyIcon } from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { Podium } from "@/components/race";
-import RaceState, { RaceError } from "@/components/race/RaceState";
+import { BOUNCY_SPRING, formatRaceTime, ordinal } from "@/components/race/race-format";
+import { LeaveButton, RACE_PRIMARY_BUTTON } from "@/components/race/RaceParts";
+import { RacePodium, RaceResultList, type RaceRanking } from "@/components/race/RaceStandings";
+import RaceState, { RaceError, RaceShell } from "@/components/race/RaceState";
 import { useRaceDeparture } from "@/components/race/useRaceDeparture";
+import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
+import { useMultiplayerPresence } from "@/hooks/useMultiplayerPresence";
 import { useSessionId } from "@/hooks/useSessionId";
-import { tv } from "@/lib/theme-vars";
+
+function headline(me: RaceRanking | undefined) {
+  if (!me) return "Race results";
+  if (!me.didFinish) return "Out of time";
+  return me.position === 1 ? "You won!" : `You came ${ordinal(me.position)}`;
+}
 
 export default function RaceResults() {
   const { raceId } = useParams<{ raceId: string }>();
@@ -103,12 +104,13 @@ export default function RaceResults() {
             : "Results appear after the race finishes."
         }
       >
-        <div className="space-y-4">
+        <div className="flex flex-col items-center gap-3">
           <RaceError>{error || leaveError}</RaceError>
           {room.raceEndTime ? (
             <button
+              type="button"
               disabled={pending || isLeaving}
-              className="inline-flex items-center justify-center gap-2 mx-auto underline"
+              className={`${RACE_PRIMARY_BUTTON} h-11 px-5`}
               onClick={() =>
                 void runAction(
                   () =>
@@ -120,12 +122,12 @@ export default function RaceResults() {
                 )
               }
             >
-              {pending ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <FloppyDiskIcon className="size-4 shrink-0" aria-hidden="true" />}
+              {pending ? <CircleNotchIcon className="size-5 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <FloppyDiskIcon className="size-5 shrink-0" aria-hidden="true" />}
               {pending ? "Preparing…" : "Prepare results"}
             </button>
           ) : (
             <Link
-              className="inline-flex items-center gap-2 underline"
+              className="inline-flex items-center gap-2 font-semibold underline underline-offset-4"
               to={
                 room.raceStartTime
                   ? `/race/${room._id}`
@@ -136,145 +138,48 @@ export default function RaceResults() {
               <span>Return to {room.raceStartTime ? "race" : "lobby"}</span>
             </Link>
           )}
-          <button
-            disabled={isLeaving || pending}
-            className="inline-flex items-center justify-center gap-2 underline"
-            onClick={() => void leave()}
-          >
-            {isLeaving ? <CircleNotchIcon className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" /> : <SignOutIcon className="size-4 shrink-0" aria-hidden="true" />}
-            {isLeaving ? "Leaving…" : "Leave Race"}
-          </button>
+          <LeaveButton onLeave={() => void leave()} leaving={isLeaving} disabled={pending} />
         </div>
       </RaceState>
     );
 
+  const host = results.rankings.find((ranking) => ranking.sessionId === room.hostId);
   return (
-    <main
-      className="min-h-screen px-4 py-6 sm:py-10"
-      style={{ backgroundColor: tv.ui.background, color: tv.ui.foreground }}
-    >
-      <div className="max-w-5xl mx-auto min-w-0">
-        <header className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold inline-flex items-center gap-2">
-            <TrophyIcon aria-hidden="true" size={24} />
-            Race Results
-          </h1>
-          <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
-            {results.totalRacers} racers
-          </p>
-        </header>
-        <div
-          className={`grid gap-6 mb-6 ${userRanking ? "lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]" : "grid-cols-1"}`}
-        >
-          {userRanking && (
-            <section
-              aria-label="Your result"
-              className="min-w-0 flex flex-wrap lg:flex-col gap-4"
-            >
-              <div
-                className="flex-1 rounded-xl border p-5 text-center"
-                style={{
-                  borderColor: tv.ui.border,
-                  backgroundColor: tv.ui.card,
-                }}
-              >
-                <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
-                  Your position
-                </p>
-                <p
-                  className="text-5xl font-bold my-2"
-                  style={{ color: tv.ui.primary }}
-                >
-                  #{userRanking.position}
-                </p>
-                <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
-                  {userRanking.didFinish
-                    ? `of ${results.totalRacers} racers`
-                    : "Did not finish"}
-                </p>
-              </div>
-              <div
-                className="flex-1 rounded-xl border p-5 text-center"
-                style={{
-                  borderColor: tv.ui.border,
-                  backgroundColor: tv.ui.card,
-                }}
-              >
-                <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
-                  Your speed
-                </p>
-                <p
-                  className="text-5xl font-bold my-2"
-                  style={{ color: tv.ui.primary }}
-                >
-                  {userRanking.wpm}
-                </p>
-                <p className="text-sm" style={{ color: tv.ui.mutedForeground }}>
-                  words per minute
-                </p>
-              </div>
-            </section>
-          )}
-          <section
-            aria-label="Race podium"
-            className="min-w-0 flex items-center rounded-xl border p-3 sm:p-6"
-            style={{ borderColor: tv.ui.border, backgroundColor: tv.ui.card }}
-          >
-            <Podium
-              rankings={results.rankings}
-              currentSessionId={sessionId}
-              showTable={false}
-            />
-          </section>
-        </div>
-        <Podium
-          rankings={results.rankings}
-          currentSessionId={sessionId}
-          showPodium={false}
-        />
-        <RaceError>{error || leaveError}</RaceError>
-        <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-          {isHost && participant?.isConnected ? (
-            <button
-              disabled={pending || isLeaving}
-              onClick={() =>
-                void runAction(
-                  () =>
-                    resetForNewRace({ credential,
-                      roomId: room._id,
-                      hostSessionId: sessionId,
-                    }),
-                  "Could not reset this race. Try again.",
-                )
-              }
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-lg font-semibold disabled:opacity-50"
-              style={{
-                backgroundColor: tv.ui.primary,
-                color: tv.ui.primaryForeground,
-              }}
-            >
-              <ArrowClockwiseIcon aria-hidden="true" size={18} />
-              {pending ? "Resetting…" : "Race Again"}
-            </button>
-          ) : participant?.isConnected ? (
-            <p
-              className="text-sm text-center"
-              style={{ color: tv.ui.mutedForeground }}
-            >
-              Waiting for the host to start a new race.
-            </p>
-          ) : null}
-          <button
-            disabled={isLeaving || pending}
-            onClick={() => void leave()}
-            className="inline-flex items-center gap-2 px-4 py-3 rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: tv.ui.secondary }}
-          >
-            <SignOutIcon aria-hidden="true" size={18} />
-            {isLeaving ? "Leaving…" : "Leave Race"}
+    <RaceShell className="max-w-3xl gap-6">
+      <header className="flex flex-col items-center gap-3 text-center">
+        <motion.span initial={{ scale: 0.5, rotate: -15, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={BOUNCY_SPRING}
+          className="flex size-14 items-center justify-center rounded-3xl bg-primary text-primary-foreground shadow-lg">
+          <TrophyIcon weight="fill" className="size-7" aria-hidden="true" />
+        </motion.span>
+        <h1 className="text-3xl font-black sm:text-4xl">{headline(userRanking)}</h1>
+        {userRanking ? (
+          <ul className="flex flex-wrap justify-center gap-2 text-sm" aria-label="Your race">
+            {[
+              [`${ordinal(userRanking.position)}`, `of ${results.totalRacers}`],
+              [`${userRanking.wpm}`, "WPM"],
+              [`${userRanking.accuracy}%`, "accuracy"],
+              [userRanking.didFinish && userRanking.finishTime !== undefined ? formatRaceTime(userRanking.finishTime) : "DNF", "time"],
+            ].map(([value, label]) => (
+              <li key={label} className="rounded-full border border-border bg-card px-3 py-1.5"><strong className="tabular-nums">{value}</strong> <span className="text-muted-foreground">{label}</span></li>
+            ))}
+          </ul>
+        ) : <p className="text-sm text-muted-foreground">{results.totalRacers} racers</p>}
+      </header>
+      <RacePodium rankings={results.rankings} currentSessionId={sessionId} />
+      <RaceResultList rankings={results.rankings} currentSessionId={sessionId} hostId={room.hostId} />
+      <RaceError className="text-center">{error || leaveError}</RaceError>
+      <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        {isHost && participant?.isConnected ? (
+          <button type="button" disabled={pending || isLeaving} className={RACE_PRIMARY_BUTTON}
+            onClick={() => void runAction(() => resetForNewRace({ credential, roomId: room._id, hostSessionId: sessionId }), "Could not reset this race. Try again.")}>
+            {pending ? <CircleNotchIcon className="size-5 motion-safe:animate-spin" aria-hidden="true" /> : <ArrowClockwiseIcon className="size-5" aria-hidden="true" />}
+            {pending ? "Resetting…" : "Race again"}
           </button>
-        </div>
+        ) : participant?.isConnected ? (
+          <p className="text-center text-sm text-muted-foreground [overflow-wrap:anywhere]">Waiting for {host?.name ?? room.hostName ?? "the host"} to start another race…</p>
+        ) : null}
+        <LeaveButton onLeave={() => void leave()} leaving={isLeaving} disabled={pending} className="h-12 px-6" />
       </div>
-    </main>
+    </RaceShell>
   );
 }

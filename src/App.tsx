@@ -3,9 +3,11 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { IconProvider } from "@/components/ui/icon-provider";
 import { Toaster } from "@/components/ui/toast";
+import { AchievementCelebration } from "@/components/achievements/AchievementCelebration";
 import { appRoutes } from "@/components/layout/app-routes";
 
 const router = createBrowserRouter(appRoutes);
+const openAchievements = () => void router.navigate("/profile/achievements");
 
 export default function App() {
   return (
@@ -13,6 +15,7 @@ export default function App() {
       <IconProvider>
         <MotionConfig reducedMotion="user">
           <RouterProvider router={router} />
+          <AchievementCelebration onViewAll={openAchievements} />
           <Toaster />
         </MotionConfig>
       </IconProvider>

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CaretDownIcon, CheckIcon } from "@phosphor-icons/react";
-import type { PracticeConfigurationProps } from "./PracticeControls";
+import type { PracticeConfigurationProps, PracticeEditorTrigger, PracticeSettingsPillProps } from "./PracticeControls";
+import { PracticeCustomEditor } from "./PracticeCustomEditor";
 import { DifficultyChoices, LengthChoices, ModeChoices, ModifierToggles } from "./PracticeSettingsRows";
 import { MODE_META, MODIFIER_OPTIONS, SETTINGS_SPRING, describePracticeLength, selectedModeOption, usesWordOptions } from "./practice-settings-meta";
 
@@ -9,22 +10,32 @@ const panelContent = {
   hidden: { opacity: 0 },
   shown: { opacity: 1, transition: { staggerChildren: 0.045, delayChildren: 0.08 } },
 };
+// Phones wrap the summary onto two lines rather than overflowing 320px.
+const summaryClass = "flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-2.5 text-sm sm:gap-x-3 sm:px-5";
 const panelRow = {
   hidden: { opacity: 0, y: 8 },
   shown: { opacity: 1, y: 0, transition: SETTINGS_SPRING },
 };
 
-/** Test settings as a one-line summary that morphs into the full panel. */
-export function PracticeSettingsPill(props: PracticeConfigurationProps) {
-  const { settings, isKidMode } = props;
-  const [open, setOpen] = useState(false);
+/**
+ * Test settings as a one-line summary that morphs into the full panel. The panel floats over the prompt;
+ * while a custom length or your own text is being edited it joins the page flow and pushes the test down.
+ */
+export function PracticeSettingsPill(props: PracticeSettingsPillProps) {
+  const { settings, isKidMode, editor, setEditor, applyCustomLength, applyPresetText, estimateSpeed, ...configuration } = props;
+  const rowProps: PracticeConfigurationProps = { settings, isKidMode, ...configuration };
+  const [panelOpen, setPanelOpen] = useState(false);
+  const open = panelOpen || editor !== null;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const editorTriggerRef = useRef<HTMLButtonElement>(null);
+  const regionId = useId();
   const returnFocus = useRef(false);
   const close = useCallback((restoreFocus: boolean) => {
     returnFocus.current = restoreFocus;
-    setOpen(false);
-  }, []);
+    setEditor(null);
+    setPanelOpen(false);
+  }, [setEditor]);
   useDismissPanel(surfaceRef, open, close);
 
   useEffect(() => {
@@ -33,25 +44,50 @@ export function PracticeSettingsPill(props: PracticeConfigurationProps) {
     triggerRef.current?.focus();
   }, [open]);
 
+  const foldEditor = () => {
+    setPanelOpen(true);
+    setEditor(null);
+    // The chip stays mounted while the editor folds, so focus can return to it straight away.
+    editorTriggerRef.current?.focus();
+  };
+  // Applying starts the new test, so the pill closes and the prompt takes focus.
+  const finish = (apply: () => void) => {
+    setEditor(null);
+    setPanelOpen(false);
+    apply();
+  };
+  const trigger: PracticeEditorTrigger = {
+    regionId,
+    open: editor,
+    toggle: (next) => {
+      if (editor === next) foldEditor();
+      else setEditor(next);
+    },
+  };
+
   const mode = selectedModeOption(settings, isKidMode);
   const length = describePracticeLength(settings, mode);
   const wordOptions = usesWordOptions(mode);
-  const summary = <Summary {...props} />;
+  const summary = <Summary settings={settings} isKidMode={isKidMode} />;
   const summaryText = [mode, length, wordOptions ? settings.difficulty : null].filter(Boolean).join(", ");
+  const inFlow = editor !== null;
+  const lengthKind = settings.mode === "time" || settings.mode === "words" ? settings.mode : null;
 
   return (
     <div className="relative w-full">
       {/* Reserves the collapsed height so the open panel floats over the prompt instead of pushing it. */}
-      <div className="invisible flex justify-center" aria-hidden="true">
-        <span className="flex items-center gap-3 border border-transparent px-5 py-2.5 text-sm">{summary}</span>
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center">
+      {!inFlow && (
+        <div className="invisible flex justify-center" aria-hidden="true">
+          <span className={`${summaryClass} border border-transparent`}>{summary}</span>
+        </div>
+      )}
+      <div className={inFlow ? "relative z-30 flex justify-center" : "pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center"}>
         <motion.div
           ref={surfaceRef}
           layout
           transition={SETTINGS_SPRING}
           style={{ borderRadius: open ? 16 : 999 }}
-          className={`pointer-events-auto overflow-hidden border border-border bg-card ${open ? "shadow-xl" : "shadow-sm"}`}
+          className={`pointer-events-auto max-w-full overflow-hidden border border-border bg-card ${open ? "shadow-xl" : "shadow-sm"}`}
         >
           <AnimatePresence mode="popLayout" initial={false}>
             {!open ? (
@@ -61,13 +97,13 @@ export function PracticeSettingsPill(props: PracticeConfigurationProps) {
                 type="button"
                 aria-expanded={false}
                 aria-label={`Test settings: ${summaryText}`}
-                onClick={() => setOpen(true)}
+                onClick={() => setPanelOpen(true)}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-3 px-5 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={`${summaryClass} outline-none focus-visible:ring-2 focus-visible:ring-ring`}
               >
                 {summary}
               </motion.button>
@@ -84,25 +120,38 @@ export function PracticeSettingsPill(props: PracticeConfigurationProps) {
               >
                 {wordOptions && (
                   <motion.div variants={panelRow} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-                    <Labeled label="Difficulty"><DifficultyChoices {...props} /></Labeled>
-                    <Labeled label="Extras" align="end"><ModifierToggles {...props} /></Labeled>
+                    <Labeled label="Difficulty"><DifficultyChoices {...rowProps} /></Labeled>
+                    <Labeled label="Extras" align="end"><ModifierToggles {...rowProps} /></Labeled>
                   </motion.div>
                 )}
-                <Row label="Mode"><ModeChoices {...props} /></Row>
+                <Row label="Mode"><ModeChoices {...rowProps} /></Row>
                 {(mode === "time" || mode === "words" || mode === "quote" || mode === "preset") && (
-                  <Row label={mode === "preset" ? "Text" : "Length"}><LengthChoices {...props} /></Row>
+                  <Row label={mode === "preset" ? "Text" : "Length"}><LengthChoices {...rowProps} trigger={trigger} triggerRef={editorTriggerRef} /></Row>
                 )}
-                <motion.div variants={panelRow} className="flex justify-end">
-                  <motion.button
-                    type="button"
-                    onClick={() => close(true)}
-                    whileTap={{ scale: 0.95 }}
-                    className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <CheckIcon className="size-4" aria-hidden="true" />
-                    Done
-                  </motion.button>
-                </motion.div>
+                <PracticeCustomEditor
+                  editor={editor}
+                  regionId={regionId}
+                  kind={lengthKind}
+                  currentLength={settings.mode === "time" ? settings.duration : settings.wordTarget}
+                  presetText={settings.presetText}
+                  speed={estimateSpeed}
+                  onApplyLength={(value) => finish(() => applyCustomLength(value))}
+                  onApplyText={(text) => finish(() => applyPresetText(text))}
+                  onCancel={foldEditor}
+                />
+                {!editor && (
+                  <motion.div variants={panelRow} className="flex justify-end">
+                    <motion.button
+                      type="button"
+                      onClick={() => close(true)}
+                      whileTap={{ scale: 0.95 }}
+                      className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <CheckIcon className="size-4" aria-hidden="true" />
+                      Done
+                    </motion.button>
+                  </motion.div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -112,7 +161,7 @@ export function PracticeSettingsPill(props: PracticeConfigurationProps) {
   );
 }
 
-function Summary({ settings, isKidMode }: PracticeConfigurationProps) {
+function Summary({ settings, isKidMode }: Pick<PracticeConfigurationProps, "settings" | "isKidMode">) {
   const mode = selectedModeOption(settings, isKidMode);
   const { Icon } = MODE_META[mode];
   const length = describePracticeLength(settings, mode);

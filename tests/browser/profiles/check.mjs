@@ -46,6 +46,15 @@ try {
     assert.ok(sizes.content <= sizes.viewport + 1, `${label}: ${JSON.stringify(sizes)}`);
   }
 
+  // Popovers measure their anchor before moving into place, and the opened card widens the panel; wait for both.
+  async function settledWithinViewport(label) {
+    const viewport = page.viewportSize();
+    await expect.poll(async () => {
+      const bounds = await page.locator('[role="dialog"]').last().boundingBox();
+      return Boolean(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width + 1 && bounds.y + bounds.height <= viewport.height + 1);
+    }, { message: label }).toBe(true);
+  }
+
   async function dialogWithinViewport(label) {
     const bounds = await page.locator('[role="dialog"], [role="alertdialog"]').last().boundingBox();
     const viewport = page.viewportSize();
@@ -205,17 +214,60 @@ try {
   await expect(page.getByRole("heading", { name: "We couldn’t find that player" })).toBeVisible();
   checks.push("empty, loading, missing, and independent achievement loading states");
 
-  await open("/notifications", { width: 320, theme: "light" });
-  const notificationTrigger = page.getByRole("button", { name: /^Notifications/ });
-  await notificationTrigger.focus();
-  await page.keyboard.press("Enter");
-  const notification = page.getByRole("button", { name: /^Fixture achievement unlocked/ });
-  await notification.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("dialog", { name: "All Achievements", exact: true })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(notificationTrigger).toBeFocused();
-  checks.push("notification achievement dialog returns focus to surviving Notifications trigger");
+  for (const width of [320, 1440]) {
+    await open("/notifications", { width, height: 740, theme: width === 320 ? "light" : "dark" });
+    const notificationTrigger = page.getByRole("button", { name: /^Notifications/ });
+    await notificationTrigger.focus();
+    await page.keyboard.press("Enter");
+    const popup = page.getByRole("dialog", { name: "Notifications", exact: true });
+    await expect(popup.getByRole("region", { name: "Today" })).toBeVisible();
+    await settledWithinViewport(`notification center ${width}`);
+    await noOverflow(`notification center ${width}`);
+    await page.screenshot({ path: path.join(output, `notifications-${width}.png`) });
+    const card = page.getByRole("button", { name: /^Fixture achievement unlocked/ });
+    await card.focus();
+    await page.keyboard.press("Enter");
+    const detail = page.getByRole("dialog", { name: "Copper I", exact: true });
+    await expect(detail.getByText("On the journey")).toBeVisible();
+    await expect(detail.getByRole("button", { name: "Back to notifications" })).toBeFocused();
+    await settledWithinViewport(`opened achievement ${width}`);
+    await noOverflow(`opened achievement ${width}`);
+    await page.screenshot({ path: path.join(output, `notification-achievement-${width}.png`) });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: /^Fixture achievement unlocked/ })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(popup).toHaveCount(0);
+    await expect(notificationTrigger).toBeFocused();
+  }
+  checks.push("notification day cards: opened achievement steps back to its card, then focus returns to the bell (320 and 1440)");
+
+  for (const [width, reducedMotion] of [[320, "reduce"], [390, "no-preference"], [1440, "no-preference"]]) {
+    await open("/notifications", { width, height: 740, reducedMotion });
+    await page.getByRole("button", { name: "Award three" }).click();
+    const celebration = page.locator("[data-achievement-celebration]");
+    await expect(celebration).toBeVisible();
+    await expect(celebration).toContainText(/Achievement unlocked\s*· 1 of 3/);
+    await expect(celebration.locator("[data-celebration-confetti]")).toHaveCount(reducedMotion === "reduce" ? 0 : 1);
+    await expect(celebration.getByRole("button", { name: "Next achievement" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    assert.ok(await celebration.evaluate((element) => element.contains(document.activeElement)), "Focus must stay inside the celebration");
+    // Every level on the rail keeps its whole name: no clipped lines, nothing wider than the screen.
+    await page.waitForTimeout(reducedMotion === "reduce" ? 50 : 900);
+    const names = await celebration.locator("ol li").evaluateAll((items) => items.filter((item) => item.offsetParent).map((item) => {
+      const label = item.lastElementChild;
+      return { text: label.textContent, clipped: label.scrollHeight > label.clientHeight + 1 || label.scrollWidth > label.clientWidth + 1 };
+    }));
+    assert.ok(names.length >= 2 && names.every((name) => !name.clipped), `celebration level names ${width}: ${JSON.stringify(names)}`);
+    await noOverflow(`celebration ${width}`);
+    await page.screenshot({ path: path.join(output, `celebration-${width}-${reducedMotion}.png`) });
+    await celebration.getByRole("button", { name: "Next achievement" }).click();
+    await expect(celebration).toContainText("2 of 3");
+    await page.keyboard.press("Escape");
+    await expect(celebration).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Notifications, 2 unread" })).toBeVisible();
+  }
+  checks.push("achievement celebration: queue, focus trap, Escape, reduced motion without confetti, whole level names at 320, 390 and 1440");
 
   await checkPodium({ page, open, noOverflow, output, checks });
   await checkProfileCharm({ page, open, noOverflow, dialogWithinViewport, output, checks });

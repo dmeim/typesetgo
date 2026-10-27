@@ -7,6 +7,7 @@ import NotificationCenter from "@/components/layout/NotificationCenter";
 import { AccountContext, unavailableAccount } from "@/components/layout/useAccount";
 import { AppAuthContext, unavailableAuth, type AppAuthUser } from "@/components/layout/useAppAuth";
 import { NotificationProvider, type Notification } from "@/lib/notification-store";
+import { getAchievementsByCategory } from "@/lib/achievement-definitions";
 
 const backend = vi.hoisted(() => ({ query: vi.fn(), mutation: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("convex/react", () => ({ useQuery: backend.query, useMutation: () => backend.mutation }));
@@ -14,8 +15,11 @@ vi.mock("@clerk/clerk-react", () => ({
   useUser: () => { throw new Error("Unexpected Clerk hook without provider"); },
   useClerk: () => { throw new Error("Unexpected Clerk hook without provider"); },
 }));
-vi.mock("@/hooks/useTheme", () => ({ useTheme: () => ({ mode: "dark", supportsLightMode: true, toggleMode: vi.fn() }) }));
-vi.mock("@/components/auth/AchievementsModal", () => ({ default: ({ onClose }: { onClose: () => void }) => <div role="dialog" aria-label="Achievements"><button onClick={onClose}>Close achievements</button></div> }));
+vi.mock("@/hooks/useTheme", async () => {
+  const { getDefaultTheme } = await import("@/lib/themes");
+  const colors = getDefaultTheme().dark;
+  return { useTheme: () => ({ colors, mode: "dark", supportsLightMode: true, toggleMode: vi.fn() }) };
+});
 
 beforeEach(() => {
   localStorage.clear();
@@ -50,7 +54,7 @@ function DockShell({ auth = unavailableAuth, account = unavailableAccount, path 
 const notification = (id: string, title: string): Notification => ({ id, title, type: "info", description: "A notification", timestamp: Date.now(), read: false });
 
 function Notifications() {
-  return <AppAuthContext.Provider value={{ ...unavailableAuth, available: true, status: "signed-in", isSignedIn: true, user: { id: "user_1" } as AppAuthUser }}><NotificationProvider><NotificationCenter /></NotificationProvider></AppAuthContext.Provider>;
+  return <MemoryRouter><AppAuthContext.Provider value={{ ...unavailableAuth, available: true, status: "signed-in", isSignedIn: true, user: { id: "user_1" } as AppAuthUser }}><NotificationProvider><NotificationCenter /></NotificationProvider></AppAuthContext.Provider></MemoryRouter>;
 }
 
 describe("responsive shell semantics and focus", () => {
@@ -157,7 +161,7 @@ describe("notification actions", () => {
     fireEvent.click(remove);
     expect(screen.queryByRole("button", { name: "First update, unread" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Second update, unread" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Notifications" })).toHaveFocus();
+    expect(screen.getByRole("heading", { name: /^Notifications/ })).toHaveFocus();
     expect(screen.getByRole("button", { name: "Notifications, 1 unread" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Second update, unread" }));
     expect(screen.getByRole("button", { name: "Second update", exact: true })).toBeInTheDocument();
@@ -180,17 +184,18 @@ describe("notification actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Notifications, 1 unread" }));
     fireEvent.click(await screen.findByRole("button", { name: "Clear all" }));
     expect(screen.getByText("No notifications yet")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Notifications" })).toHaveFocus();
+    expect(screen.getByRole("heading", { name: /^Notifications/ })).toHaveFocus();
   });
 });
 
 
 it("waits for account readiness before querying a stored achievement", () => {
-  localStorage.setItem("typesetgo_notifications:user:user_1", JSON.stringify([{ ...notification("badge", "Earned badge"), type: "achievement", metadata: { achievementId: "speed_30" } }]));
+  const badge = getAchievementsByCategory("speed")[0];
+  localStorage.setItem("typesetgo_notifications:user:user_1", JSON.stringify([{ ...notification("badge", "Earned badge"), type: "achievement", metadata: { achievementId: badge.id } }]));
   const view = render(<AccountContext.Provider value={{ ...unavailableAccount, status: "loading" }}><Notifications /></AccountContext.Provider>);
   fireEvent.click(screen.getByRole("button", { name: /Notifications, 1 unread/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Earned badge, unread" }));
-  expect(screen.getByRole("dialog", { name: "Achievements" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Earned badge, unread. Open achievement" }));
+  expect(screen.getByRole("dialog", { name: badge.title })).toBeInTheDocument();
   expect(backend.query.mock.calls.every((call) => call[1] === "skip")).toBe(true);
   view.rerender(<AccountContext.Provider value={{ ...unavailableAccount, status: "ready" }}><Notifications /></AccountContext.Provider>);
   expect(backend.query.mock.calls.at(-1)?.[1]).toEqual({ clerkId: "user_1" });

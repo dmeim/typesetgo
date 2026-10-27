@@ -51,7 +51,11 @@ let state = {
       sessionId: `other-${index}`,
       name: `AnExceptionallyLongUnbrokenRacerName${index}`,
       typedText: "",
-      stats: { ...participant.stats, progress: index === 0 ? 0 : 100 },
+      emoji: ["🐆", "⚡", "🚀", "🐙", "🦊", "🤖"][index],
+      joinedAt: index + 2,
+      // Active: one racer still on the line, one already parked in the infield.
+      stats: { ...participant.stats, progress: index === 0 ? 0 : 100, isFinished: mode === "active" && index === 1 },
+      ...(mode === "active" && index === 1 ? { position: 1, finishTime: 8000 } : {}),
       isReady: true,
     })),
   ],

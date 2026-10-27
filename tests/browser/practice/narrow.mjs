@@ -8,8 +8,6 @@ await withFixtureBrowser(async browser => {
     },
     reducedMotion: "reduce"
   });
-  let fail1984 = true;
-  let failIndex = true;
   let themeFetches = 0;
   await p.addInitScript(() => localStorage.setItem("typesetgo_settings", JSON.stringify({
     mode: "words",
@@ -30,17 +28,8 @@ await withFixtureBrowser(async browser => {
         default: "typesetgo"
       }
     });
-    if (u.pathname === "/themes/catalog.json") {
-      await new Promise((done) => setTimeout(done, 250));
-      if (failIndex) return r.fulfill({ status: 503, body: "Fixture index failure" });
-      return r.fallback();
-    }
     if (u.pathname.startsWith("/themes/") && !u.pathname.endsWith("/manifest.json")) {
       themeFetches++;
-      if (u.pathname.endsWith("/1984.json") && fail1984) return r.fulfill({
-        status: 503,
-        body: "Fixture temporary failure"
-      });
       await new Promise(r => setTimeout(r, 1000));
     }
     return r.fallback();
@@ -88,101 +77,77 @@ await withFixtureBrowser(async browser => {
   });
   await expect(p.locator("[data-key]")).toHaveCount(54);
   console.log("keyboard260\u2192900 fits without sideways scroll PASS");
-  await p.setViewportSize({
-    width: 390,
-    height: 844
-  });
-  await i.press("Tab");
-  await p.getByRole("button", {
-    name: "Change theme",
-    exact: true
-  }).click();
-  const dialog = p.getByRole("dialog", {
-    name: "Theme",
-    exact: true
-  });
-  await expect(dialog).toBeVisible();
-  await expect(p.getByText("Loading themes\u2026", {
-    exact: true
-  })).toBeVisible();
-  await expect(dialog.getByRole("alert")).toContainText("Themes could not be loaded");
-  failIndex = false;
-  await dialog.getByRole("button", {
-    name: "Retry",
-    exact: true
-  }).click();
-  await expect(dialog.getByRole("alert")).toHaveCount(0);
-  await expect(p.getByText("Loading themes\u2026", {
-    exact: true
-  })).toHaveCount(0);
-  let b = await expectWithinViewport(p, dialog);
-  expect(b.x).toBeGreaterThanOrEqual(0);
-  expect(b.x + b.width).toBeLessThanOrEqual(390);
-  expect(b.height).toBeLessThanOrEqual(844);
-  console.log("narrow dialog + catalog loading/error/retry PASS", b);
-  expect(themeFetches).toBeLessThanOrEqual(1);
-  await dialog.getByRole("searchbox", { name: "Search themes" }).fill("1984");
-  await dialog.getByRole("button", { name: "Select 1984", exact: true }).focus();
-  await expect(dialog.getByRole("alert")).toContainText("Preview for 1984 could not be loaded");
-  expect(await dialog.getByRole("button", { name: "Select 1984", exact: true }).count()).toBe(1);
-  fail1984 = false;
-  await dialog.getByRole("button", { name: "Retry preview" }).click();
-  await expect(dialog.getByRole("img", { name: /1984.*miniature typing homepage/ })).toBeVisible();
-  await dialog.getByRole("searchbox", { name: "Search themes" }).fill("");
-  await dialog.getByRole("button", {
-    name: "Collapse all",
-    exact: true
-  }).click();
-  await expect(dialog.getByRole("button", {
-    name: "Fire Force variants",
-    exact: true
-  })).toHaveCount(0);
-  await dialog.getByRole("searchbox", {
-    name: "Search themes",
-    exact: true
-  }).fill("Fire Force");
-  await dialog.getByRole("button", {
-    name: "Fire Force variants",
-    exact: true
-  }).click();
-  const drawer = dialog.locator("#theme-variants-fire-force");
-  await expect(drawer).toBeVisible();
-  const drawerSize = await drawer.evaluate(e => ({
-    client: e.clientHeight,
-    scroll: e.scrollHeight
-  }));
-  expect(drawerSize.client).toBeGreaterThan(0);
-  const lastVariant = drawer.getByRole("button").last();
-  await lastVariant.scrollIntoViewIfNeeded();
-  await expect(lastVariant).toBeInViewport();
-  const light = drawer.getByRole("button", {
-    name: /light mode/
-  }).first();
-  await light.click();
-  await expect(light).toHaveAttribute("aria-pressed", "true");
-  await p.screenshot({
-    path: artifactPath("practice-final-theme-narrow.png")
-  });
-  await p.setViewportSize({
-    width: 1280,
-    height: 900
-  });
-  await expect(drawer).toBeVisible();
-  b = await dialog.boundingBox();
-  expect(b.x + b.width).toBeLessThanOrEqual(1280);
-  await p.setViewportSize({
-    width: 640,
-    height: 450
-  });
-  await expect.poll(async () => (await dialog.boundingBox()).height).toBeLessThanOrEqual(450);
-  b = await dialog.boundingBox();
-  expect(b.height).toBeLessThanOrEqual(450);
-  expect(b.x + b.width).toBeLessThanOrEqual(640);
-  console.log("wide resize + compact200%-equivalent viewport PASS", b);
-  await p.keyboard.press("Escape");
-  await expect(dialog).toHaveCount(0);
-  await expect(p.getByRole("button", {
-    name: "Change theme",
-    exact: true
-  })).toBeFocused();
+  // Phones: the same test settings pill as desktop, wrapped to fit, with everything the old Quick Settings offered.
+  const noSideways = () => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+  for (const width of [390, 320]) {
+    await p.setViewportSize({ width, height: 844 });
+    await p.reload();
+    await expect(i).toBeEnabled();
+    await expect(p.getByRole("link", { name: "Change theme", exact: true })).toHaveAttribute("href", "/profile/theme");
+    await expect(p.getByRole("button", { name: "Quick Settings" })).toHaveCount(0);
+    const summary = p.getByRole("button", { name: /^Test settings/ });
+    await expectWithinViewport(p, summary);
+    expect(await noSideways()).toBe(true);
+    await summary.click();
+    const panel = p.getByRole("group", { name: "Test settings", exact: true });
+    await expect(async () => { await expectWithinViewport(p, panel); }).toPass();
+    expect(await noSideways()).toBe(true);
+    await panel.getByRole("radio", { name: "time", exact: true }).click();
+    await expect(panel.getByRole("radio", { name: "time", exact: true })).toHaveAttribute("aria-checked", "true");
+    // The length row swaps from word counts to durations after the mode change; pick once it has settled.
+    await expect(async () => {
+      await panel.getByRole("radio", { name: "60s", exact: true }).click();
+      await expect(panel.getByRole("radio", { name: "60s", exact: true })).toHaveAttribute("aria-checked", "true", { timeout: 1000 });
+    }).toPass();
+    await panel.getByRole("radio", { name: "hard", exact: true }).click();
+    await expect(panel.getByRole("radio", { name: "hard", exact: true })).toHaveAttribute("aria-checked", "true");
+    await panel.getByRole("button", { name: "punctuation" }).click();
+    await expect(panel.getByRole("button", { name: "punctuation" })).toHaveAttribute("aria-pressed", "true");
+    // Custom length unfolds inside the pill and pushes the test down instead of opening a dialog.
+    await panel.getByRole("button", { name: "Custom length" }).click();
+    const lengthEditor = p.getByRole("region", { name: "Custom duration", exact: true });
+    const field = lengthEditor.getByRole("textbox", { name: "Custom duration" });
+    await expect(field).toBeFocused();
+    await expect(field).toHaveValue("");
+    await expect(p.getByRole("dialog")).toHaveCount(0);
+    await field.fill("90");
+    await expect(lengthEditor.getByRole("status")).toContainText("About 60 words at 40 wpm");
+    await lengthEditor.scrollIntoViewIfNeeded();
+    await expect(async () => { await expectWithinViewport(p, lengthEditor); }).toPass();
+    // The open editor pushes the prompt down rather than covering it (once the pill's layout settles).
+    await expect.poll(async () => (await p.locator(".cursor-text").boundingBox()).y
+      - await lengthEditor.evaluate((element) => element.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
+    expect(await noSideways()).toBe(true);
+    await p.screenshot({ path: artifactPath(`practice-pill-custom-length-${width}.png`) });
+    await field.press("Escape");
+    await expect(lengthEditor).toHaveCount(0);
+    await expect(panel.getByRole("button", { name: "Custom length" })).toBeFocused();
+    await panel.getByRole("button", { name: "Custom length" }).click();
+    await field.fill("1:30");
+    await lengthEditor.getByRole("button", { name: "Use 1:30" }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(summary).toHaveAccessibleName(/^Test settings: time, 90s, hard/);
+    await expect(i).toBeFocused();
+    // Preset with no text unfolds its text box straight away.
+    await summary.click();
+    await panel.getByRole("radio", { name: "preset", exact: true }).click();
+    const box = p.getByRole("textbox", { name: "Practice text" });
+    await expect(box).toBeFocused();
+    await expect(p.getByRole("status").filter({ hasText: "Add your own text above to start." })).toBeVisible();
+    await panel.getByRole("button", { name: "Every letter" }).click();
+    await expect(box).toHaveValue(/^Sphinx of black quartz/);
+    const textEditor = p.getByRole("region", { name: "Your own text" });
+    await textEditor.scrollIntoViewIfNeeded();
+    await expect(async () => { await expectWithinViewport(p, textEditor); }).toPass();
+    expect(await noSideways()).toBe(true);
+    await p.screenshot({ path: artifactPath(`practice-pill-own-text-${width}.png`) });
+    await panel.getByRole("button", { name: "Practice this" }).click();
+    await expect(p.locator("[data-typing-word]").first()).toHaveText("Sphinx");
+    await expect(i).toBeFocused();
+    await p.evaluate(() => {
+      const stored = JSON.parse(localStorage.getItem("typesetgo_settings"));
+      localStorage.setItem("typesetgo_settings", JSON.stringify({ ...stored, mode: "words", wordTarget: 10, presetText: "" }));
+    });
+  }
+  console.log("phone settings pill at 390/320: mode, length, difficulty, extras, custom length and own text unfold without sideways scroll PASS");
 });

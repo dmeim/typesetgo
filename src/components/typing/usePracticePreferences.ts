@@ -8,6 +8,9 @@ import { loadLayoutSettings, saveLayoutSettings, saveSettings } from "@/lib/stor
 import { fromAccountPreferences, toAccountPreferences } from "@/lib/practice-preferences";
 import { PROMPT_SETTING_KEYS } from "./practice-config";
 
+/** Short, like the Profile page's, so a pick followed by a trip to the Profile page has usually reached the account. */
+const ACCOUNT_SAVE_DELAY_MS = 400;
+
 interface PreferenceOptions {
   userId: string | undefined;
   connectMode: boolean;
@@ -26,7 +29,6 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
     userSelectionRevision, setThemeSelection } = useTheme();
   const [linePreview, setLinePreview] = useState(() => loadLayoutSettings()?.linePreview ?? 3);
   const [maxWordsPerLine, setMaxWordsPerLine] = useState(() => loadLayoutSettings()?.maxWordsPerLine ?? 7);
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Account defaults arriving during an attempt belong to the next prompt, including while results are open.
   const [queuedPromptPreferences, setQueuedPromptPreferences] = useState<{
     accountId: string; settings: Partial<SettingsState>;
@@ -54,24 +56,15 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
   const [hydratedAccountId, setHydratedAccountId] = useState<string | null>(null);
   const hasResolvedDbPrefs = !userId || dbPreferences === null || hydratedAccountId === userId;
   const prefsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingAccountSaveRef = useRef<(() => Promise<void>) | null>(null);
 
   // --- Save Settings ---
+  // Written straight away (settings change only on discrete picks before a test): the Profile page reads this copy
+  // while it first renders, before Home has unmounted, so a debounced write could arrive too late.
   useEffect(() => {
     if (connectMode) return;
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = setTimeout(() => {
-      saveSettings(preferredSettings);
-      saveLayoutSettings({ linePreview, maxWordsPerLine });
-    }, 500);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
+    saveSettings(preferredSettings);
+    saveLayoutSettings({ linePreview, maxWordsPerLine });
   }, [preferredSettings, linePreview, maxWordsPerLine, connectMode]);
 
   // Theme saving is now handled by ThemeContext
@@ -181,6 +174,7 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
 
   // --- Save Preferences to DB (debounced, dirty-checked, for logged-in users) ---
   useEffect(() => {
+    pendingAccountSaveRef.current = null;
     if (connectMode || !userId || accountStatus !== "ready" || !hasResolvedDbPrefs) return;
 
 
@@ -199,7 +193,8 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
     }
 
     let cancelled = false;
-    prefsDebounceRef.current = setTimeout(async () => {
+    const save = async () => {
+      pendingAccountSaveRef.current = null;
       try {
         await savePreferencesMutation({
           clerkId: userId,
@@ -209,7 +204,9 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
       } catch (error) {
         console.warn("Failed to save preferences to DB:", error);
       }
-    }, 1000);
+    };
+    pendingAccountSaveRef.current = save;
+    prefsDebounceRef.current = setTimeout(save, ACCOUNT_SAVE_DELAY_MS);
 
     return () => {
       cancelled = true;
@@ -218,6 +215,9 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
       }
     };
   }, [userId, hasResolvedDbPrefs, dbPreferences, currentSnapshot, preferences, savePreferencesMutation, connectMode, accountStatus]);
+
+  // A debounced account save still runs when Home unmounts, so the Profile page loads the latest preferences.
+  useEffect(() => () => { void pendingAccountSaveRef.current?.(); }, []);
 
   // Resolution and queued defaults belong to one account visit, including signing back into the same account.
   if (observedAccountId !== (userId ?? null)) {
@@ -229,7 +229,6 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
   const markEdited = useCallback((keys: string[]) => {
     keys.forEach((key) => preferenceEditsRef.current.add(key));
   }, []);
-  const markThemeEdited = useCallback(() => { themeEditedRef.current = true; }, []);
   const updateLinePreview = useCallback((value: number) => {
     preferenceEditsRef.current.add("linePreview");
     setLinePreview(value);
@@ -238,6 +237,6 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
     preferenceEditsRef.current.add("maxWordsPerLine");
     setMaxWordsPerLine(value);
   }, []);
-  return { pendingPromptPreferences, setQueuedPromptPreferences, markEdited, markThemeEdited,
+  return { pendingPromptPreferences, setQueuedPromptPreferences, markEdited,
     linePreview, maxWordsPerLine, updateLinePreview, updateMaxWordsPerLine };
 }

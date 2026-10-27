@@ -10,32 +10,31 @@ test.afterEach(async ({ page }) => {
   expect(browserErrors.get(page)).toEqual([]);
 });
 
+async function noPageScroll(page: Page) {
+  return page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
+}
+
 for (const width of [320, 768, 1440]) {
   for (const theme of ["light", "dark"]) {
-    test(`results fit ${width}px ${theme}, full table stays scrollable`, async ({
+    test(`results fit ${width}px ${theme}, every racer listed with long names bounded`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/race/results/race-room?fixture=results&theme=${theme}`);
-      await expect(
-        page.getByRole("heading", { name: "Race Results" }),
-      ).toBeVisible();
-      const dimensions = await page.evaluate(() => ({
-        width: document.documentElement.clientWidth,
-        scroll: document.documentElement.scrollWidth,
-      }));
-      expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width + 1);
-      await expect(page.getByRole("row")).toHaveCount(51);
-      await expect(
-        page.getByRole("cell", { name: "71", exact: true }),
-      ).toBeVisible();
-      const region = page.getByRole("region", { name: /Race results table/ });
-      if (width === 320)
-        expect(
-          await region.evaluate(
-            (element) => element.scrollWidth > element.clientWidth,
-          ),
-        ).toBe(true);
+      await expect(page.getByRole("heading", { level: 1, name: "You won!" })).toBeVisible();
+      expect(await noPageScroll(page)).toBe(true);
+      await expect(page.getByRole("list", { name: "Podium" }).getByRole("listitem")).toHaveCount(3);
+      const everyone = page.getByRole("list", { name: "Everyone" }).getByRole("listitem");
+      await expect(everyone).toHaveCount(50);
+      await expect(everyone.nth(30)).toContainText("90");
+      await expect(everyone.nth(49)).toContainText("DNF");
+      // Long unbroken names truncate inside their row instead of pushing the stats out.
+      for (const index of [0, 1, 49]) {
+        const row = await everyone.nth(index).boundingBox();
+        expect(row!.x).toBeGreaterThanOrEqual(0);
+        expect(row!.x + row!.width).toBeLessThanOrEqual(width);
+        expect(await everyone.nth(index).evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+      }
       await page.screenshot({
         path: `/tmp/typesetgo-race-results-${width}-${theme}.png`,
         fullPage: false,
@@ -53,22 +52,11 @@ test("spectator results, 200% zoom, reduced motion and long names remain bounded
   await page.evaluate(() => {
     document.body.style.zoom = "2";
   });
-  await expect(
-    page.getByRole("heading", { name: "Race Results" }),
-  ).toBeVisible();
-  expect(
-    await page.evaluate(
-      () =>
-        document.documentElement.scrollWidth <=
-        document.documentElement.clientWidth + 1,
-    ),
-  ).toBe(true);
-  expect(
-    await page
-      .getByRole("region", { name: "Race podium" })
-      .evaluate((element) => element.getBoundingClientRect().width),
-  ).toBeGreaterThan(1000);
-  await expect(page.getByText("Your position", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1, name: "Race results" })).toBeVisible();
+  expect(await noPageScroll(page)).toBe(true);
+  await expect(page.getByRole("list", { name: "Your race" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Everyone" }).getByRole("listitem")).toHaveCount(49);
+  await expect(page.getByRole("list", { name: "Everyone" }).getByRole("listitem").first()).toBeVisible();
 });
 
 test("emoji popover flips within a short narrow viewport, keyboard choices and Escape restore focus", async ({
@@ -105,43 +93,74 @@ test("lobby pending and failed departure stays visible; retry disconnects before
     window.__raceFixture.fail("participants:disconnect");
     window.__raceFixture.setDelay(300);
   });
-  await page.getByRole("button", { name: "Leave Race" }).click();
+  await page.getByRole("button", { name: "Leave race" }).click();
   await expect(page.getByRole("button", { name: "Leaving…" })).toBeDisabled();
   await expect(page.getByRole("alert")).toContainText("Could not leave");
   expect(new URL(page.url()).pathname).toBe("/race/lobby/race-room");
   await page.evaluate(() =>
     window.__raceFixture.fail("participants:disconnect", false),
   );
-  await page.getByRole("button", { name: "Leave Race" }).click();
+  await page.getByRole("button", { name: "Leave race" }).click();
   await expect(page).toHaveURL(/\/race$/);
 });
 
-test("active track reserves full avatar bounds at zero and complete", async ({
+test("track map keeps every racer inside the map at 320px, with finishers parked in the infield", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/race/race-room?fixture=active");
-  await expect(page.locator("[data-race-track]")).toHaveCount(3);
-  for (const track of await page.locator("[data-race-track]").all()) {
-    const lane = await track.boundingBox();
-    const avatar = await track.locator("[data-race-avatar]").boundingBox();
-    expect(avatar!.x).toBeGreaterThanOrEqual(lane!.x);
-    expect(avatar!.x + avatar!.width).toBeLessThanOrEqual(
-      lane!.x + lane!.width,
-    );
-    expect(avatar!.y).toBeGreaterThanOrEqual(lane!.y);
-    expect(avatar!.y + avatar!.height).toBeLessThanOrEqual(
-      lane!.y + lane!.height,
-    );
+  const map = page.locator("[data-track-map]");
+  await expect(map).toHaveAttribute("aria-label", /^You are 2nd of 3, \d+ percent round the lap$/);
+  const dots = map.locator("[data-map-dot]");
+  await expect(dots).toHaveCount(3);
+  const box = (await map.boundingBox())!;
+  for (const dot of await dots.all()) {
+    const bounds = (await dot.locator("[data-map-token]").boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(box.x - 1);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(box.x + box.width + 1);
+    expect(bounds.y).toBeGreaterThanOrEqual(box.y - 1);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(box.y + box.height + 1);
   }
-  expect(
-    await page.evaluate(
-      () =>
-        document.documentElement.scrollWidth <=
-        document.documentElement.clientWidth + 1,
-    ),
-  ).toBe(true);
+  // The finisher wears its place and sits in the middle of the map, off the tarmac.
+  const parked = (await dots.filter({ hasText: "1" }).locator("[data-map-token]").boundingBox())!;
+  expect(parked.y + parked.height / 2).toBeLessThan(box.y + box.height * 0.65);
+  await expect(page.getByRole("region", { name: "Standings" }).getByRole("listitem")).toHaveCount(3);
+  expect(await noPageScroll(page)).toBe(true);
+});
+
+test("landing joins with a code and hosts a new race through the switch", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/race?code=abc123");
+  await expect(page.getByLabel("Room code")).toHaveValue("ABC123");
+  await page.getByRole("button", { name: "Join race" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Pick a racer name first.");
+  await page.getByLabel("Racer name").fill("Dimi");
+  await page.getByRole("button", { name: "Join race" }).click();
+  await expect(page).toHaveURL(/\/race\/lobby\/race-room$/);
+  expect(await page.evaluate(() => window.__raceFixture.calls.find((call) => call.name === "participants:join")?.args)).toMatchObject({ roomCode: "ABC123", name: "Dimi" });
+  await page.goto("/race");
+  await page.getByRole("radio", { name: "Host a race" }).click();
+  await expect(page.getByLabel("Room code")).toHaveCount(0);
+  await page.getByLabel("Racer name").fill("Host");
+  await page.getByRole("button", { name: "Create race" }).click();
+  await expect(page).toHaveURL(/\/race\/lobby\/race-room$/);
+  expect(await noPageScroll(page)).toBe(true);
+});
+
+test("lobby: settings save, readying rolls you to the grid and the countdown starts the race", async ({ page }) => {
+  await page.goto("/race/lobby/race-room?fixture=lobby");
+  const map = page.locator("[data-track-map]");
+  await expect(map).toHaveAttribute("aria-label", "6 racers on the starting grid, 1 still in the pit lane");
+  await page.getByRole("combobox", { name: "Lap length" }).selectOption("50");
+  await expect(page.getByRole("combobox", { name: "Lap length" })).toHaveValue("50");
+  await page.getByRole("button", { name: "Roll out to the line" }).click();
+  await expect(map).toHaveAttribute("aria-label", "7 racers on the starting grid, 0 still in the pit lane");
+  await expect(page.getByRole("status")).toContainText("Race starts in");
+  await expect(page.getByRole("button", { name: /Starting in/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Change avatar" })).toBeDisabled();
+  await expect(page).toHaveURL(/\/race\/race-room$/, { timeout: 8000 });
+  await expect(page.getByRole("heading", { name: "Lap 1/1" })).toBeVisible();
 });
 
 test("loading, missing and not-yet-saved results have distinct recovery", async ({
@@ -159,7 +178,7 @@ test("loading, missing and not-yet-saved results have distinct recovery", async 
   ).toBeVisible();
   await page.getByRole("button", { name: "Prepare results" }).click();
   await expect(
-    page.getByRole("heading", { name: "Race Results" }),
+    page.getByRole("heading", { level: 1, name: "You won!" }),
   ).toBeVisible();
 });
 
@@ -167,7 +186,7 @@ test("real typing engine resumes exact incorrect input/time and ignores reactive
   page,
 }) => {
   await page.goto("/race/race-room?fixture=active");
-  const input = page.locator('section[aria-label="Race typing"] input');
+  const input = page.locator('section[aria-label="Your lap"] input');
   await expect(input).toHaveValue("helxo ");
   await input.evaluate((element) => (element as HTMLInputElement).focus());
   await expect
@@ -202,10 +221,10 @@ test("real typing engine resumes exact incorrect input/time and ignores reactive
   await expect(input).toHaveValue("hello w");
   await page.evaluate(() => window.__raceFixture.reset());
   await expect(input).toHaveValue("");
-  await page.getByRole("button", { name: "Leave Race" }).click();
+  await page.getByRole("button", { name: "Leave race" }).click();
   await expect(
     page.getByRole("dialog", { name: "Leave this race?" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Leave Race" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Leave race" })).toBeFocused();
 });

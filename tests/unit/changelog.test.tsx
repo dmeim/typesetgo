@@ -7,6 +7,7 @@ import Changelog from "@/pages/Changelog";
 import { CHANGELOG, formatChangelogDay, groupChangelogByDay, type ChangelogEntry } from "@/lib/changelog";
 
 vi.mock("@/components/layout/Header", () => ({ default: () => <header aria-label="Site header" /> }));
+vi.mock("@/components/layout/SiteFooter", () => ({ SiteFooter: () => <footer aria-label="Site footer" /> }));
 vi.mock("@/components/changelog/LiveDemo", () => ({ LiveDemo: ({ demo }: { demo: string }) => <p>Demo: {demo}</p> }));
 afterEach(cleanup);
 
@@ -61,6 +62,7 @@ describe("changelog page", () => {
   it("lists every change under its day with the site header", () => {
     renderPage();
     expect(screen.getByRole("banner", { name: "Site header" })).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo", { name: "Site footer" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "What's new" })).toBeInTheDocument();
     expect(screen.getAllByRole("article")).toHaveLength(CHANGELOG.length);
     expect(screen.getByRole("heading", { level: 2, name: /Tuesday, October 27, 2026/ })).toBeInTheDocument();

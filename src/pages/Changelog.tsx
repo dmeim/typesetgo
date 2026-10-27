@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpIcon, CalendarBlankIcon, ListBulletsIcon, MegaphoneIcon, UserCircleIcon } from "@phosphor-icons/react";
 import Header from "@/components/layout/Header";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { ChangelogCard } from "@/components/changelog/ChangelogCard";
 import { CHANGELOG_SPRING, KIND_STYLE } from "@/components/changelog/changelog-style";
 import { CHANGE_KIND_LABELS, CHANGELOG, formatChangelogDay, groupChangelogByDay, type ChangeKind } from "@/lib/changelog";
@@ -63,9 +64,9 @@ export default function Changelog() {
   const active = useActiveEntry(ids);
 
   return (
-    <div className="min-h-[100dvh] bg-background font-mono text-foreground transition-colors duration-300">
+    <div className="flex min-h-[100dvh] flex-col bg-background font-mono text-foreground transition-colors duration-300">
       <Header />
-      <main className="mx-auto w-full max-w-6xl px-4 pt-8 pb-16">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-8 pb-16">
         <header className="mb-10 flex flex-col items-center gap-4 text-center">
           <motion.span
             initial={{ scale: 0.6, rotate: -12, opacity: 0 }}
@@ -150,6 +151,7 @@ export default function Changelog() {
           </div>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

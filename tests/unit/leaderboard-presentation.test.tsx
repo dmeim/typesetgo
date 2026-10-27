@@ -17,6 +17,7 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("@/components/layout/useAccount", () => ({ useAccount: () => account.current }));
 vi.mock("@/components/layout/Header", () => ({ default: () => <header aria-label="Site header" /> }));
+vi.mock("@/components/layout/SiteFooter", () => ({ SiteFooter: () => <footer aria-label="Site footer" /> }));
 afterEach(() => {
   cleanup();
   queries.calls = [];

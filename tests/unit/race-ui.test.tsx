@@ -3,6 +3,7 @@ import {
   act,
   cleanup,
   fireEvent,
+  within,
   render,
   screen,
   waitFor,
@@ -38,6 +39,7 @@ vi.mock("convex/react", () => ({
 }));
 vi.mock("@/hooks/useSessionId", () => ({ useSessionId: () => "self" }));
 vi.mock("@/components/layout/Header", () => ({ default: () => null }));
+vi.mock("@/components/layout/SiteFooter", () => ({ SiteFooter: () => null }));
 vi.mock("@/components/typing/TypingArea", () => ({
   default: (props: TypingAreaProps) => {
     mocks.typing = props;
@@ -103,15 +105,21 @@ describe("Race route recovery and membership", () => {
     },
   );
 
-  it("uses stored ownership without the host URL parameter and ignores a forged flag", () => {
+  it("uses stored ownership without the host URL parameter and ignores a forged flag", async () => {
     const view = render(page("/race/lobby/race-room"));
-    expect(
-      screen.getByRole("heading", { name: "Race Settings" }),
-    ).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Difficulty" })).toBeEnabled();
+    fireEvent.change(screen.getByRole("combobox", { name: "Lap length" }), { target: { value: "50" } });
+    await waitFor(() =>
+      expect(mocks.mutations["rooms:updateSettings"]).toHaveBeenCalledWith(
+        expect.objectContaining({ settings: { wordTarget: 50 } }),
+      ),
+    );
     const fixture = setFixture();
-    mocks.queries["rooms:getById"] = { ...fixture.room, hostId: "other" };
+    mocks.queries["rooms:getById"] = { ...fixture.room, hostId: "other", hostName: "Maya" };
     view.rerender(page("/race/lobby/race-room?host=true"));
-    expect(screen.queryByRole("heading", { name: "Race Settings" })).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Difficulty" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Lap length" })).toBeDisabled();
+    expect(screen.getByText("Maya sets the track.")).toBeVisible();
   });
 
   it.each(["/race/lobby/race-room", "/race/results/race-room"])(
@@ -134,14 +142,14 @@ describe("Race route recovery and membership", () => {
           }),
       );
       render(page(path));
-      fireEvent.click(screen.getByRole("button", { name: "Leave Race" }));
+      fireEvent.click(screen.getByRole("button", { name: "Leave race" }));
       expect(screen.getByTestId("location")).toHaveTextContent(path);
       expect(screen.getByRole("button", { name: "Leaving…" })).toBeDisabled();
       await act(async () => reject(new Error("offline")));
       expect(screen.getByRole("alert")).toHaveTextContent("Could not leave");
       expect(screen.getByTestId("location")).toHaveTextContent(path);
       mocks.mutations["participants:disconnect"].mockResolvedValue(undefined);
-      fireEvent.click(screen.getByRole("button", { name: "Leave Race" }));
+      fireEvent.click(screen.getByRole("button", { name: "Leave race" }));
       await waitFor(() =>
         expect(screen.getByTestId("location").textContent).toBe("/race"),
       );
@@ -225,11 +233,15 @@ describe("Race route recovery and membership", () => {
         {page("/race")}
       </AppAuthContext.Provider>,
     );
-    expect(screen.getByRole("button", { name: "Create Race" })).toBeDisabled();
-    fireEvent.change(screen.getAllByLabelText("Racer name")[0], {
+    fireEvent.click(screen.getByRole("radio", { name: "Host a race" }));
+    expect(screen.getByLabelText("Racer name")).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Create race" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Pick a racer name first.");
+    expect(mocks.mutations["rooms:create"]).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Racer name"), {
       target: { value: "Guest name" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create Race" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create race" }));
     await waitFor(() =>
       expect(mocks.mutations["participants:join"]).toHaveBeenCalledWith(
         expect.objectContaining({ name: "Guest name", gameMode: "race" }),
@@ -248,10 +260,11 @@ it("retries joining a created room without creating another room", async () => {
     .mockRejectedValueOnce(new Error("offline"))
     .mockResolvedValue({ room: fixture.room });
   render(page("/race"));
-  fireEvent.change(screen.getAllByLabelText("Racer name")[0], {
+  fireEvent.click(screen.getByRole("radio", { name: "Host a race" }));
+  fireEvent.change(screen.getByLabelText("Racer name"), {
     target: { value: "Racer" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Create Race" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create race" }));
   await waitFor(() =>
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Room ABC123 was created",
@@ -291,7 +304,7 @@ it("retains a failed name edit and makes readiness errors visible", async () => 
   );
   expect(screen.getByLabelText("Racer name")).toHaveValue("New name");
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  fireEvent.click(screen.getByRole("button", { name: "Ready Up" }));
+  fireEvent.click(screen.getByRole("button", { name: "Roll out to the line" }));
   await waitFor(() =>
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Could not update readiness",
@@ -483,12 +496,12 @@ describe("Race exact resume and progress", () => {
     ];
     mocks.queries["participants:listByRoom"] = members;
     const view = render(page("/race/race-room"));
-    expect(screen.getByText("3s remaining")).toBeVisible();
+    expect(screen.getByText("Closing in 3s")).toBeVisible();
     mocks.queries["participants:listByRoom"] = members.map((member, index) =>
       index === 1 ? { ...member, isConnected: false } : member,
     );
     view.rerender(page("/race/race-room"));
-    expect(screen.getByText("3s remaining")).toBeVisible();
+    expect(screen.getByText("Closing in 3s")).toBeVisible();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000);
     });
@@ -528,7 +541,7 @@ describe("Race exact resume and progress", () => {
   it("has a visible accessible leave dialog and restores focus after Escape", async () => {
     activeFixture();
     render(page("/race/race-room"));
-    const trigger = screen.getByRole("button", { name: "Leave Race" });
+    const trigger = screen.getByRole("button", { name: "Leave race" });
     fireEvent.click(trigger);
     expect(
       screen.getByRole("dialog", { name: "Leave this race?" }),
@@ -536,6 +549,41 @@ describe("Race exact resume and progress", () => {
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(trigger).toHaveFocus();
+  });
+});
+
+describe("Race results", () => {
+  function endedFixture(hostId = "self") {
+    const fixture = setFixture();
+    mocks.queries["rooms:getById"] = { ...fixture.room, hostId, hostName: hostId === "self" ? "Racer" : "Maya", status: "active", raceStartTime: 1, raceEndTime: 2 };
+    return fixture;
+  }
+
+  it("leads with your place, shows the podium and everyone, and lets the host race again", async () => {
+    endedFixture();
+    render(page("/race/results/race-room"));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("You won!");
+    expect(screen.getByRole("list", { name: "Your race" })).toHaveTextContent("120 WPM");
+    expect(within(screen.getByRole("list", { name: "Podium" })).getAllByRole("listitem")).toHaveLength(3);
+    const everyone = within(screen.getByRole("list", { name: "Everyone" })).getAllByRole("listitem");
+    expect(everyone).toHaveLength(50);
+    expect(everyone[49]).toHaveTextContent("DNF");
+    fireEvent.click(screen.getByRole("button", { name: "Race again" }));
+    await waitFor(() =>
+      expect(mocks.mutations["rooms:resetForNewRace"]).toHaveBeenCalledWith(expect.objectContaining({ roomId: "race-room" })),
+    );
+  });
+
+  it("tells a racer who is waiting on the host and says when they ran out of time", () => {
+    const fixture = endedFixture("other-1");
+    mocks.queries["raceResults:getResults"] = {
+      ...fixture.results,
+      rankings: fixture.results.rankings.map((ranking) => ranking.sessionId === "self" ? { ...ranking, didFinish: false } : ranking),
+    };
+    render(page("/race/results/race-room"));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Out of time");
+    expect(screen.queryByRole("button", { name: "Race again" })).toBeNull();
+    expect(screen.getByText(/Waiting for AnExceptionallyLongUnbrokenRacerName1 to start another race/)).toBeVisible();
   });
 });
 

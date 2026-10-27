@@ -424,6 +424,19 @@ describe("preference hydration and Connect boundaries", () => {
     expect(mocks.setThemeSelection).toHaveBeenCalledWith(expect.objectContaining({ themeId: "second-theme" }),
       { source: "preferences", expectedUserSelectionRevision: 0 });
   });
+  it("saves a pick locally at once and flushes the account save when Home unmounts, so the Profile page starts from them", async () => {
+    setLocal();
+    mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" }; mocks.preferences = accountPreferences();
+    const { container, unmount } = render(<TypingPractice />);
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(50));
+    chooseSetting("10");
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(10));
+    expect(JSON.parse(localStorage.getItem("typesetgo_settings")!).wordTarget).toBe(10);
+    expect(mocks.mutations["preferences:savePreferences"]).not.toHaveBeenCalled();
+    unmount();
+    expect(mocks.mutations["preferences:savePreferences"]).toHaveBeenCalledWith({ clerkId: "test-user",
+      preferences: expect.objectContaining({ defaultWordTarget: 10 }) });
+  });
   it("keeps host configuration and avoids solo identity/persistence in Connect", async () => {
     setLocal({ wordTarget: 25 });
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" }; mocks.preferences = accountPreferences();
@@ -585,21 +598,47 @@ describe("saving completion barriers", () => {
 });
 
 describe("reachable custom text and room palettes", () => {
-  it("opens Preset from the picker and lets users replace existing text", async () => {
+  it("unfolds the text box when Preset has no text and lets users replace existing text", async () => {
     setLocal();
     const { container } = render(<TypingPractice />);
     await waitFor(() => expect(promptWords(container)).not.toBe(""));
     chooseSetting("preset");
     const customInput = await screen.findByRole("textbox", { name: "Practice text" });
-    fireEvent.change(customInput, { target: { value: "my custom prompt" } });
-    fireEvent.click(screen.getByRole("button", { name: "Start", exact: true }));
+    expect(customInput).toHaveFocus();
+    fireEvent.change(customInput, { target: { value: "my  custom\nprompt" } });
+    fireEvent.click(screen.getByRole("button", { name: "Practice this", exact: true }));
     await waitFor(() => expect(promptWords(container)).toBe("my custom prompt"));
+    await waitFor(() => expect(screen.queryByRole("textbox", { name: "Practice text" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveFocus());
     openTestSettings();
-    fireEvent.click(screen.getByRole("button", { name: "Edit custom text" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit your text, 3 words" }));
     expect(screen.getByRole("textbox", { name: "Practice text" })).toHaveValue("my custom prompt");
     fireEvent.change(screen.getByRole("textbox", { name: "Practice text" }), { target: { value: "replacement prompt" } });
-    fireEvent.click(screen.getByRole("button", { name: "Start", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Practice this", exact: true }));
     await waitFor(() => expect(promptWords(container)).toBe("replacement prompt"));
+  });
+
+  it("asks for text instead of loading when an empty Preset is folded away", async () => {
+    setLocal({ mode: "preset" });
+    render(<TypingPractice />);
+    const customInput = await screen.findByRole("textbox", { name: "Practice text" });
+    fireEvent.keyDown(customInput, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("textbox", { name: "Practice text" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Add your text" })).toHaveFocus();
+    expect(screen.getByText("Add your own text above to start.")).toBeInTheDocument();
+  });
+
+  it("applies a custom word count from the unfolded editor, and repeats when it matches", async () => {
+    setLocal();
+    const { container } = render(<TypingPractice />);
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
+    openTestSettings();
+    fireEvent.click(screen.getByRole("button", { name: "Custom length" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Custom word count" }), { target: { value: "7" } });
+    fireEvent.click(screen.getByRole("button", { name: "Use 7 words" }));
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(7));
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Typing practice" })).toHaveFocus());
+    expect(screen.getByRole("button", { name: /^Test settings: words, 7 words/ })).toBeInTheDocument();
   });
 
   it("scopes room colors without modifying personal theme storage or root styles", async () => {

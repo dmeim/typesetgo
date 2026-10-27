@@ -169,5 +169,7 @@ export function headlineStep(ladder: Ladder): LadderStep {
 export function toGo(ladder: Ladder, step: LadderStep) {
   if (!ladder.current || step.achievement.target === undefined) return "Not yet";
   const gap = Math.max(0, step.achievement.target - ladder.current.value);
-  return gap === 0 ? "Almost there" : `${gap.toLocaleString()} ${ladder.current.unit} to go`;
+  if (gap === 0) return "Almost there";
+  const unit = gap === 1 && ladder.current.unit !== "WPM" ? ladder.current.unit.replace(/s$/, "") : ladder.current.unit;
+  return `${gap.toLocaleString()} ${unit} to go`;
 }

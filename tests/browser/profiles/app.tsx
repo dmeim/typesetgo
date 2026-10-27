@@ -7,8 +7,8 @@ import { IconProvider } from "@/components/ui/icon-provider";
 import Profile from "@/pages/Profile";
 import { appRoutes } from "@/components/layout/app-routes";
 import Leaderboard from "@/pages/Leaderboard";
-import NotificationCenter from "@/components/layout/NotificationCenter";
 import { NotificationProvider } from "@/lib/notification-store";
+import { NotificationFixture } from "./NotificationFixture";
 import { getAchievementsByCategory } from "@/lib/achievement-definitions";
 import "@/index.css";
 
@@ -34,7 +34,7 @@ const router = createBrowserRouter([{
     userRedirect,
     { path: "/profile/*", element: <Profile /> },
     { path: "/leaderboard", element: <Leaderboard /> },
-    { path: "/notifications", element: <main className="min-h-dvh bg-background p-4 text-foreground"><h1>Notification fixture</h1><NotificationCenter /></main> },
+    { path: "/notifications", element: <NotificationFixture /> },
   ],
 }]);
 
