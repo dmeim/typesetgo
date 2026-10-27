@@ -17,20 +17,24 @@ const PAGE_LINKS: Partial<Record<PageId, [string, string]>> = {
 };
 const WORDS = "the quick brown fox jumps over the lazy dog while the class races to type every word".split(" ");
 
-const DESIGNS: [string, string, ComponentType<HeaderMockupProps>][] = [
-  ["Dock", "Everything in one floating pill.", DockHeader],
-  ["Split dock", "The same dock split in two: logo and pages on the left, leaderboard, theme, settings and your buttons on the right.", SplitDockHeader],
-  ["Three pills", "A big logo on the left, the dock of pages, leaderboard, theme and settings in the centre, and light/dark, notifications and your profile on the right. The side pills match in width.", TriDockHeader],
+// The Dock is the chosen header; the other two stay as concepts to revisit.
+const DESIGNS: [string, string, ComponentType<HeaderMockupProps>, boolean][] = [
+  ["Dock", "Everything in one floating pill.", DockHeader, true],
+  ["Split dock", "The same dock split in two: logo and pages on the left, leaderboard, theme, settings and your buttons on the right.", SplitDockHeader, false],
+  ["Three pills", "A big logo on the left, the dock of pages, leaderboard, theme and settings in the centre, and light/dark, notifications and your profile on the right. The side pills match in width.", TriDockHeader, false],
 ];
 
 /** Each header design in a mini browser window, with the toggles the UI Lab section provides. */
 export function HeaderShowcase({ signedIn, typing, phone }: { signedIn: boolean; typing: boolean; phone: boolean }) {
   return (
     <div className="flex flex-col gap-6">
-      {DESIGNS.map(([name, summary, Header], index) => (
+      {DESIGNS.map(([name, summary, Header, chosen], index) => (
         <div key={name} className="flex flex-col gap-2">
           <div className="flex flex-col gap-0.5 px-1">
-            <span className="text-sm font-semibold"><span className="text-muted-foreground">{String(index + 1).padStart(2, "0")}</span> {name}</span>
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <span><span className="text-muted-foreground">{String(index + 1).padStart(2, "0")}</span> {name}</span>
+              <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", chosen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{chosen ? "Locked in" : "Concept"}</span>
+            </span>
             <span className="text-xs text-muted-foreground">{summary}</span>
           </div>
           {/* Remount when signing in or out so each design starts fresh. */}
