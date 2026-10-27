@@ -123,7 +123,12 @@ export function ProfilePage() {
   } else if (pane === "theme") {
     content = <ThemeGallery selection={prefs.theme} onSelect={prefs.selectTheme} />;
   } else if (pane === "text") {
-    content = <FontGallery settings={settings} update={prefs.update} />;
+    content = (
+      <>
+        <SectionHero section={sectionById("text")} />
+        <FontGallery settings={settings} update={prefs.update} />
+      </>
+    );
   } else {
     content = (
       <div className="flex max-w-3xl flex-col gap-6">

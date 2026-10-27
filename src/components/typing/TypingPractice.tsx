@@ -19,6 +19,7 @@ import {
   type KidModeSnapshot,
 } from "@/lib/storage-utils";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
+import { PRACTICE_LINE_HEIGHT, PRACTICE_TEXT_SHARE_CLASS, practiceFontSize } from "@/lib/practice-text-size";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useAccount } from "@/components/layout/useAccount";
@@ -47,7 +48,7 @@ import { PROMPT_SETTING_KEYS, TIME_PRESETS, WORD_PRESETS, type ModeSelectorOptio
 // Constants
 const PUNCTUATION_CHARS = [".", ",", "!", "?", ";", ":"];
 const NUMBER_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
-const LINE_HEIGHT = 1.6;
+const LINE_HEIGHT = PRACTICE_LINE_HEIGHT;
 
 // Word generation helper
 const generateWords = (
@@ -1047,7 +1048,7 @@ export default function TypingPractice({
 
   return (
     <div
-      className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300`}
+      className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300 ${PRACTICE_TEXT_SHARE_CLASS}`}
       style={{ backgroundColor: tv.ui.background, ...(connectMode ? { color: tv.ui.foreground, ...roomThemeStyle } : {}) }}
     >
       <div ref={topLayoutRef} className="shrink-0 w-full flex flex-col items-center">
@@ -1134,10 +1135,10 @@ export default function TypingPractice({
               ref={containerRef}
               className={`cursor-text overflow-hidden relative transition-all duration-300 ${!isFocused ? "blur-sm opacity-50" : ""}`}
               style={{
-                fontSize: `${settings.typingFontSize}rem`,
+                fontSize: practiceFontSize(settings.typingFontSize, linePreview, settings.showOnScreenKeyboard),
                 fontFamily: getTypingFontFamily(settings.typingFontFamily),
                 lineHeight: LINE_HEIGHT,
-                maxHeight: `${linePreview * settings.typingFontSize * LINE_HEIGHT}rem`,
+                maxHeight: `${linePreview * LINE_HEIGHT}em`,
                 textAlign: settings.textAlign,
               }}
               onMouseDown={(e) => {
@@ -1224,8 +1225,9 @@ export default function TypingPractice({
       <div ref={bottomLayoutRef} className={`shrink-0 w-full flex flex-col items-center ${isFinished ? "" : settings.showOnScreenKeyboard && isRunning ? "" : settings.showOnScreenKeyboard ? "pt-2" : "pt-10 md:pt-12"}`}>
         {/* Instructions */}
         {!connectMode && !isRunning && !isFinished && (
+          // Keyboard shortcuts mean nothing on touch screens, and on short windows the keyboard needs the room.
           <div
-            className="text-center text-muted-foreground transition-opacity duration-300"
+            className={`text-center text-muted-foreground transition-opacity duration-300 pointer-coarse:hidden ${settings.showOnScreenKeyboard ? "[@media(max-height:50rem)]:hidden" : ""}`}
             style={{ fontSize: `${settings.helpFontSize}rem`, opacity: uiOpacity }}
           >
             {isRepeated && <div className="mb-2 text-destructive font-medium">REPEATED</div>}

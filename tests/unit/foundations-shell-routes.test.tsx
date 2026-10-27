@@ -3,6 +3,9 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appRoutes } from "@/components/layout/app-routes";
 
+vi.mock("@/components/layout/Header", () => ({ default: () => <header aria-label="Site header" /> }));
+vi.mock("@/components/layout/SiteFooter", () => ({ SiteFooter: () => <footer aria-label="Site footer" /> }));
+
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("route recovery", () => {
@@ -12,6 +15,8 @@ describe("route recovery", () => {
     const title = await screen.findByRole("heading", { name: "Page not found" });
     expect(title).toHaveFocus();
     expect(screen.getByRole("link", { name: "Back to practice" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("banner", { name: "Site header" })).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo", { name: "Site footer" })).toBeInTheDocument();
   });
 
   it("recovers from feature render failures and navigates home", async () => {

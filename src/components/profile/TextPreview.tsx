@@ -3,13 +3,13 @@ import { MonitorPlayIcon } from "@phosphor-icons/react";
 import PracticeText from "@/components/typing/PracticeText";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { themeCSSVariables } from "@/lib/theme-css";
+import { PRACTICE_LINE_HEIGHT, PRACTICE_TEXT_SHARE_CLASS, practiceFontSize } from "@/lib/practice-text-size";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
 import type { ThemeColors } from "@/types/theme";
 import { KeyboardPreview } from "./KeyboardPreview";
 import type { ProfileSettings } from "./profile-settings";
 
-// Matches TypingPractice: 1.6 line height, page padding px-4, typing area 95% / 80% from md.
-const LINE_HEIGHT = 1.6;
+// Matches TypingPractice: page padding px-4, typing area 95% / 80% from md, and the same short-screen text size.
 const PAGE_PADDING = 32;
 const SAMPLE = "the little robot found a bright green leaf near the garden gate and carried it home to show its friends who were waiting by the window with warm cocoa tonight while the stars came out one by one over the quiet town and the old clock in the square began to ring for supper as the lights in every house turned on";
 const TYPED = "the little robto found a bri";
@@ -25,6 +25,11 @@ function useHomeTypingWidth() {
     const page = window.innerWidth - PAGE_PADDING;
     return Math.round(page * (window.innerWidth >= 768 ? 0.8 : 0.95));
   }, () => 960);
+}
+
+/** Phones show the preview above the settings, so it may use at most 30% of the screen height there. */
+function usePhonePreviewHeight() {
+  return useSyncExternalStore(subscribeResize, () => (window.innerWidth < 768 ? Math.round(window.innerHeight * 0.3) : Infinity), () => Infinity);
 }
 
 function useElementSize<T extends HTMLElement>() {
@@ -52,12 +57,12 @@ function PracticeSample({ settings, width }: { settings: ProfileSettings; width:
     <>
       <div
         data-practice-sample
-        className="overflow-hidden"
+        className={`overflow-hidden ${PRACTICE_TEXT_SHARE_CLASS}`}
         style={{
-          fontSize: `${settings.typingFontSize}rem`,
+          fontSize: practiceFontSize(settings.typingFontSize, settings.linePreview, settings.showOnScreenKeyboard),
           fontFamily: getTypingFontFamily(settings.typingFontFamily),
-          lineHeight: LINE_HEIGHT,
-          maxHeight: `${settings.linePreview * settings.typingFontSize * LINE_HEIGHT}rem`,
+          lineHeight: PRACTICE_LINE_HEIGHT,
+          maxHeight: `${settings.linePreview * PRACTICE_LINE_HEIGHT}em`,
           textAlign: settings.textAlign,
           width,
         }}
@@ -128,7 +133,11 @@ export function TextPreview({ colors, settings, label = "Text preview", livePrev
   const [frameRef, frame] = useElementSize<HTMLDivElement>();
   const [stageRef, stage] = useElementSize<HTMLDivElement>();
   const stageWidth = homeWidth + PAGE_PADDING;
-  const scale = frame.width === 0 ? 1 : Math.min(1, frame.width / stageWidth);
+  const maxHeight = usePhonePreviewHeight();
+  const widthScale = frame.width === 0 ? 1 : Math.min(1, frame.width / stageWidth);
+  const scale = stage.height ? Math.min(widthScale, maxHeight / stage.height) : widthScale;
+  // When the height limit wins, the scaled stage is narrower than the frame: centre it.
+  const inset = frame.width ? Math.max(0, (frame.width - stageWidth * scale) / 2) : 0;
   const themeStyle = useThemeStyle(colors);
 
   return (
@@ -141,14 +150,14 @@ export function TextPreview({ colors, settings, label = "Text preview", livePrev
         ref={frameRef}
         role="img"
         aria-label={`${label}: practice text at your current settings`}
-        className="relative overflow-hidden rounded-xl border border-border"
-        style={{ height: stage.height ? stage.height * scale : undefined }}
+        className="relative overflow-hidden rounded-xl border border-border bg-background transition-colors duration-500"
+        style={{ ...themeStyle, height: stage.height ? stage.height * scale : undefined }}
       >
         <div
           ref={stageRef}
           aria-hidden="true"
           className="bg-background px-4 py-6 text-foreground transition-colors duration-500"
-          style={{ ...themeStyle, width: stageWidth, transform: `scale(${scale})`, transformOrigin: "top left" }}
+          style={{ ...themeStyle, width: stageWidth, transform: `translateX(${inset}px) scale(${scale})`, transformOrigin: "top left" }}
         >
           <PracticeSample settings={settings} width={homeWidth} />
         </div>

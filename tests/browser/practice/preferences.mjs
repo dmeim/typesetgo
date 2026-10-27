@@ -57,7 +57,8 @@ await withFixtureBrowser(async browser => {
     linePreview: 3,
     maxWordsPerLine: 10
   }));
-  await expect.poll(() => p.locator(".cursor-text").evaluate(e => e.style.fontSize)).toBe("5rem");
+  // The chosen size, capped on short screens (practiceFontSize).
+  await expect.poll(() => p.locator(".cursor-text").evaluate(e => e.style.fontSize)).toMatch(/^min\(5rem, /);
   await expect(i).toHaveValue("ca");
   await expect(p.locator("[data-typing-word]")).toHaveCount(10);
   await p.waitForTimeout(1900);

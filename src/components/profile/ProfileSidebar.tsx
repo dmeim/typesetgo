@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowUpRightIcon, CaretRightIcon, MagnifyingGlassIcon, MegaphoneIcon, SidebarSimpleIcon, XIcon } from "@phosphor-icons/react";
@@ -25,6 +25,35 @@ interface ProfileSidebarProps {
   footer?: ReactNode;
 }
 
+/** Fades the list's top or bottom edge only while rows are hidden past it, so a cut-off list reads as scrollable. */
+function useEdgeFade(scroller: RefObject<HTMLElement | null>): CSSProperties | undefined {
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element) return;
+    const measure = () => {
+      const top = element.scrollTop > 1;
+      const bottom = element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+      setEdges((current) => (current.top === top && current.bottom === bottom ? current : { top, bottom }));
+    };
+    measure();
+    element.addEventListener("scroll", measure, { passive: true });
+    const resize = new ResizeObserver(measure);
+    resize.observe(element);
+    // Rows come and go with search, sign-in and the account card, which changes the content height.
+    const mutations = new MutationObserver(measure);
+    mutations.observe(element, { childList: true, subtree: true });
+    return () => {
+      element.removeEventListener("scroll", measure);
+      resize.disconnect();
+      mutations.disconnect();
+    };
+  }, [scroller]);
+  if (!edges.top && !edges.bottom) return undefined;
+  const mask = `linear-gradient(to bottom, ${edges.top ? "transparent 0, black 1.5rem" : "black 0"}, ${edges.bottom ? "black calc(100% - 2.5rem), transparent 100%" : "black 100%"})`;
+  return { maskImage: mask, WebkitMaskImage: mask };
+}
+
 /** iPadOS-style sidebar: your account, then every setting, with search. Folds into an icon rail on desktop. */
 export function ProfileSidebar({ account, active, summary, onOpen, hiddenOnPhone, footer }: ProfileSidebarProps) {
   const [query, setQuery] = useState("");
@@ -33,11 +62,13 @@ export function ProfileSidebar({ account, active, summary, onOpen, hiddenOnPhone
   const matches = searchSettings(query);
   const searching = query.trim() !== "";
   const groups: PaneId[][] = account.kind === "signed-in" ? [ACCOUNT_GROUP, ...SETTING_GROUPS] : SETTING_GROUPS;
+  const scroller = useRef<HTMLDivElement>(null);
+  const edgeFade = useEdgeFade(scroller);
 
   return (
     <aside
       aria-label="Profile"
-      className={`w-full shrink-0 flex-col gap-5 overflow-x-hidden border-border pb-8 pt-6 transition-[width,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:sticky md:top-(--profile-header,0px) md:flex md:h-[calc(100dvh-var(--profile-header,0px))] md:border-r md:bg-card/40 ${collapsed ? "px-4 md:w-[4.75rem] md:px-3" : "px-4 md:w-72"} ${hiddenOnPhone ? "hidden" : "flex"}`}
+      className={`w-full shrink-0 flex-col gap-4 overflow-x-hidden border-border pb-4 pt-6 transition-[width,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:sticky md:top-(--profile-header,0px) md:flex md:h-[calc(100dvh-var(--profile-header,0px))] md:border-r md:bg-card/40 ${collapsed ? "px-4 md:w-[4.75rem] md:px-3" : "px-4 md:w-72"} ${hiddenOnPhone ? "hidden" : "flex"}`}
     >
       <div className="flex items-center gap-2">
         <button
@@ -58,7 +89,7 @@ export function ProfileSidebar({ account, active, summary, onOpen, hiddenOnPhone
         {query && <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><XIcon className="size-3.5" aria-hidden="true" /></button>}
       </label>
 
-      <div className="-mx-1 flex min-h-0 flex-1 flex-col px-1 md:overflow-y-auto">
+      <div ref={scroller} style={edgeFade} className="-mx-1 flex min-h-0 flex-1 flex-col px-1 md:overflow-y-auto">
         <AnimatePresence mode="popLayout" initial={false}>
           {searching ? (
             <motion.div key="results" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="flex flex-col gap-1">
@@ -75,7 +106,7 @@ export function ProfileSidebar({ account, active, summary, onOpen, hiddenOnPhone
               })}
             </motion.div>
           ) : (
-            <motion.nav key="list" aria-label="Profile sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-5">
+            <motion.nav key="list" aria-label="Profile sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-4 pb-2">
               <AnimatePresence mode="popLayout" initial={false}>
                 {account.kind === "signed-in" && (
                   <AccountCard key="account" user={account.user} streak={account.streak} collapsed={collapsed} fade={fade} selected={active === "stats"} onOpen={() => onOpen("stats")} />

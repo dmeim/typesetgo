@@ -2,6 +2,8 @@ import { ArrowLeftIcon, ArrowsClockwiseIcon, TrophyIcon } from "@phosphor-icons/
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigation } from "react-router-dom";
 import { motion } from "framer-motion";
+import Header from "@/components/layout/Header";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Keycaps } from "./Keycaps";
 
@@ -35,13 +37,17 @@ export function RouteLoading() {
   );
 }
 
-function Recovery({ art, title, children, actions }: { art: ReactNode; title: string; children: ReactNode; actions: ReactNode }) {
+/**
+ * `withSiteChrome` adds the Dock and footer, as on every other page. The load-error screen stays bare, since the
+ * failure may be in that shared chrome.
+ */
+function Recovery({ art, title, children, actions, withSiteChrome = false }: { art: ReactNode; title: string; children: ReactNode; actions: ReactNode; withSiteChrome?: boolean }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const location = useLocation();
   useEffect(() => headingRef.current?.focus(), [location.key]);
 
-  return (
-    <main className="flex min-h-[100dvh] items-center justify-center bg-background p-6 font-mono text-foreground">
+  const main = (
+    <main className={`flex items-center justify-center bg-background p-6 font-mono text-foreground ${withSiteChrome ? "flex-1" : "min-h-[100dvh]"}`}>
       <section className="flex w-full max-w-lg flex-col items-center gap-6 text-center">
         {art}
         <div className="flex flex-col items-center gap-3">
@@ -51,6 +57,14 @@ function Recovery({ art, title, children, actions }: { art: ReactNode; title: st
         <div className="flex flex-wrap justify-center gap-3">{actions}</div>
       </section>
     </main>
+  );
+  if (!withSiteChrome) return main;
+  return (
+    <div className="flex min-h-[100dvh] flex-col bg-background font-mono text-foreground">
+      <Header />
+      {main}
+      <SiteFooter />
+    </div>
   );
 }
 
@@ -91,6 +105,7 @@ export function NotFound() {
     <Recovery
       art={<Keycaps keys={["4", "", "4"]} motion="drop" />}
       title="Page not found"
+      withSiteChrome
       actions={(
         <>
           <BackToPractice primary />

@@ -36,6 +36,22 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "small-screen-touches",
+    date: "2026-10-27",
+    title: "Room for the keyboard on small phones, and a few finishing touches",
+    kind: "fixed",
+    status: "live",
+    area: "Everywhere",
+    summary: "On short screens the practice text now shrinks a little so the whole keyboard stays above the footer, and a handful of pages got the finishing touches they were missing.",
+    highlights: [
+      "Small phones and short laptop windows keep the whole on-screen keyboard in view; tall screens keep your chosen text size",
+      "The keyboard shortcut hint hides on touch screens, and on short windows while the keyboard is showing",
+      "The Text settings tab has its own title card, like the other settings",
+      "The page-not-found screen now has the Dock and footer",
+      "The profile sidebar fades at the edge when more sections are hidden, and the phone preview takes less of the screen",
+    ],
+  },
+  {
     id: "polish-after-overhaul",
     date: "2026-10-27",
     title: "Kids mode keyboard, a side-by-side leaderboard, and a calmer results page",

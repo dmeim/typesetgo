@@ -361,7 +361,7 @@ describe("preference hydration and Connect boundaries", () => {
 
     mocks.preferences = accountPreferences({ defaultWordTarget: 50, defaultDifficulty: "expert" });
     rerender(<TypingPractice />);
-    await waitFor(() => expect((container.querySelector("[data-typing-word]")?.closest("[style*='font-size']") as HTMLElement)?.style.fontSize).toBe("5rem"));
+    await waitFor(() => expect((container.querySelector("[data-typing-word]")?.closest("[style*='font-size']") as HTMLElement)?.style.fontSize).toMatch(/^min\(5rem, /));
     expect(input).toHaveValue("ca");
     expect(promptWords(container)).toBe(originalPrompt);
     expect(mocks.words).not.toHaveBeenCalledWith("expert");
@@ -416,7 +416,7 @@ describe("preference hydration and Connect boundaries", () => {
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
     mocks.preferences = accountPreferences();
     rerender(<TypingPractice />);
-    await waitFor(() => expect((container.querySelector("[data-typing-word]")?.closest("[style*='font-size']") as HTMLElement)?.style.fontSize).toBe("5rem"));
+    await waitFor(() => expect((container.querySelector("[data-typing-word]")?.closest("[style*='font-size']") as HTMLElement)?.style.fontSize).toMatch(/^min\(5rem, /));
     expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(10);
   });
   it("applies account prompt settings when local hydration was the only change", async () => {

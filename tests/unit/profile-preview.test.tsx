@@ -50,7 +50,7 @@ it("opens the Live Preview over the page with the current font and returns focus
   expect(sample()?.style.fontFamily).toMatch(/Lexend/);
 
   rerender(<SettingsPreview settings={{ ...settings, typingFontSize: 4 }} theme={selection} themeName="TypeSetGo" fallbackColors={colors} active="text" />);
-  expect(sample()?.style.fontSize).toBe("4rem");
+  expect(sample()?.style.fontSize).toMatch(/^min\(4rem, /);
 
   fireEvent.keyDown(dialog, { key: "Escape" });
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
