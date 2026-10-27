@@ -60,6 +60,7 @@ function run(command, args, timeoutMs = 120_000) {
     child.once("exit", (code, signal) => {
       cleanup();
       if (code === 0 && !killed) resolve();
+      else if (killed && !controller.signal.aborted) reject(new Error(args.join(" ") + " timed out after " + timeoutMs / 1000 + "s"));
       else reject(new Error(args.join(" ") + " failed (" + (signal ?? code) + ")"));
     });
   });
@@ -88,7 +89,8 @@ try {
         await checkPracticeManifests();
         const scenarios = suite === "fonts" ? ["fonts"] : ["journeys", "ranked", "long-duration", "preferences", "narrow", "theme-catalog", "theme-contrast", "secondary", "area", "caret", "alignment", "controls", "toasts"];
         for (const scenario of scenarios) {
-          await run(process.execPath, ["tests/browser/practice/" + scenario + ".mjs"]);
+          // fonts.mjs opens a fresh context for every catalog font, which outgrows two minutes on CI runners.
+          await run(process.execPath, ["tests/browser/practice/" + scenario + ".mjs"], scenario === "fonts" ? 300_000 : undefined);
         }
       } finally {
         await server.close();
