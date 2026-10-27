@@ -91,7 +91,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/lessons` | Lessons mode |
 | `/about`, `/privacy`, `/tos` | Info/legal pages |
 | `/admin` | Review route; requires Clerk sign-in and the server-side admin password |
-| `/temp` | UI Lab: interactive mockups for upcoming UI changes, including the header/navigation mockups (the locked-in one-pill Dock plus split and three-pill concepts) and five one-screen results layouts in a page-sized frame that reports whether they fit (`src/components/temp/`, `src/components/temp/header/`, `src/components/temp/results/`); local state only |
+| `/temp` | UI Lab: interactive mockups for upcoming UI changes, including the header/navigation mockups (the locked-in one-pill Dock plus split and three-pill concepts) five one-screen results layouts in a page-sized frame that reports whether they fit, and five on-screen keyboard designs driven by a scripted student or your own typing (`src/components/temp/`, `src/components/temp/header/`, `src/components/temp/results/`, `src/components/temp/keyboard/`); local state only |
 | `/temp-settings1`, `/temp-settings3` | Full-page settings and themes mockups (split view with account stats/history/achievements tabs, studio) (`src/components/temp/settings/`); local state and mock profile data only |
 | `/temp-profile`, `/temp-profile/:userId`, `/temp-profile/:tab` | Profile page mockup driven by the URL: `:userId` is the public stats view; `history`, `achievements` and settings tabs always show your own (`src/components/temp/settings/profile-routes.ts`); mock players only |
 | `/temp-connect` | Connect refresh mockup (landing, host panel, live board and student view; `?screen=`) (`src/components/temp/connect/`); one pretend room, mock data only |

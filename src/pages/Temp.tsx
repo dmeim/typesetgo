@@ -6,6 +6,7 @@ import { LiveStatsDemo } from "@/components/temp/LiveStatsDemo";
 import { SettingsPillDemo } from "@/components/temp/SettingsPillDemo";
 import { ResultsDemo } from "@/components/temp/ResultsDemo";
 import { ResultsLayoutShowcase } from "@/components/temp/results/ResultsLayoutShowcase";
+import { KeyboardShowcase } from "@/components/temp/keyboard/KeyboardShowcase";
 import { HeaderShowcase } from "@/components/temp/header/HeaderShowcase";
 
 const SETTINGS_MOCKUPS: [number, string, string][] = [
@@ -65,6 +66,9 @@ export default function Temp() {
           <ResultsSection />
           <Section id="results-layouts" title="One-screen results" badge="concepts" summary="Five ways to fit the results on one screen without scrolling. The graph stretches to fill whatever height is left, chips open over the graph instead of pushing the page down, and the key hints move onto the buttons. Switch the screen size; the badge in the frame says whether it still fits.">
             <ResultsLayoutShowcase />
+          </Section>
+          <Section id="keyboard" title="On-screen keyboard" badge="concepts" summary="Five new looks for the practice keyboard. Each still shows the next key and the Shift to hold, warns when Caps Lock is on, and asks for delete after a mistake. Small upgrades: the Shift on the other hand, Tab, Enter and a right Shift for a real keyboard shape, and a stronger hint if a mistake is left alone, with space to skip the word. A pretend student types, fixes a mistake, skips one and trips on Caps Lock; click the box and type to take over.">
+            <KeyboardShowcase />
           </Section>
           <Section id="settings-page" title="Settings page" summary="Full-page takes on one combined settings and themes page. Each opens on its own page with a switcher at the bottom.">
             <div className="grid gap-3 sm:grid-cols-2">
