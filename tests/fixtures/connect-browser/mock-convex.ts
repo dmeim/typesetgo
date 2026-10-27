@@ -95,6 +95,11 @@ function makeParticipant(name: string, patch: Partial<Omit<Participant, "stats">
 // A local picture, so the board shows an account avatar without any network request.
 const FIXTURE_AVATAR = `data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='#7c5cff'/></svg>")}`;
 
+/** Local stand-ins for account pictures: a coloured backdrop with a head-and-shoulders shape. */
+const portrait = (from: string, to: string, skin: string) => `data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x2='1' y2='1'><stop stop-color='${from}'/><stop offset='1' stop-color='${to}'/></linearGradient></defs><rect width='64' height='64' fill='url(#g)'/><circle cx='32' cy='26' r='12' fill='${skin}'/><path d='M10 64c2-14 11-20 22-20s20 6 22 20z' fill='${skin}' opacity='.9'/></svg>`,
+)}`;
+
 const result = (stepIndex: number, testId: string, wpm: number, accuracy: number): ConnectResult => ({
   stepIndex, testId, wpm, accuracy, progress: 100, wordsTyped: 10, timeElapsed: 30_000, finished: true,
 });
@@ -119,6 +124,24 @@ function seed(name: string): { rooms: Room[]; participants: Participant[] } {
           makeParticipant("Dev", { stepIndex: 1, isConnected: false }),
         ],
       };
+    // A busy classroom for screenshots (scripts/capture-changelog-shots.mjs): accounts with pictures and guests with letters.
+    case "showcase": {
+      const live = (name: string, wpm: number, accuracy: number, progress: number, patch: Parameters<typeof makeParticipant>[1] = {}) =>
+        makeParticipant(name, { stepIndex: 1, results: [result(0, "t1", wpm - 4, accuracy - 1)], stats: { wpm, accuracy, progress, timeElapsed: 30_000 * progress / 100, wordsTyped: Math.round(wpm * progress / 200) }, ...patch });
+      return {
+        rooms: [makeRoom({ _id: "room-live", status: "running", currentIndex: 1 })],
+        participants: [
+          live("Maya", 64, 98, 62, { signedIn: true, avatarUrl: portrait("#f59e0b", "#ef4444", "#fde7d0") }),
+          live("Jonah", 48, 95, 55),
+          live("Priya", 71, 99, 64, { signedIn: true, avatarUrl: portrait("#06b6d4", "#6366f1", "#8d5a3b") }),
+          live("Leo", 39, 91, 48),
+          live("Sofia", 57, 97, 60, { signedIn: true, avatarUrl: portrait("#22c55e", "#0ea5e9", "#c68a5e") }),
+          live("Theo", 33, 88, 41),
+          live("Ava", 52, 96, 57, { signedIn: true, avatarUrl: portrait("#ec4899", "#8b5cf6", "#f1c7a5") }),
+          live("Sam", 44, 93, 52),
+        ],
+      };
+    }
     case "host-lobby":
       return { rooms: [makeRoom({ _id: "room-live" })], participants: [makeParticipant("Bea")] };
     case "board-self":

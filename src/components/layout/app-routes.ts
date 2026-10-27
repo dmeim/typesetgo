@@ -25,6 +25,7 @@ export const appRoutes: RouteObject[] = [{
     { path: "/race/:raceId", lazy: async () => ({ Component: (await import("@/pages/RaceActive")).default }) },
     { path: "/race/results/:raceId", lazy: async () => ({ Component: (await import("@/pages/RaceResults")).default }) },
     { path: "/lessons", lazy: async () => ({ Component: (await import("@/pages/Lessons")).default }) },
+    { path: "/changelog", lazy: async () => ({ Component: (await import("@/pages/Changelog")).default }) },
     { path: "/about", lazy: async () => ({ Component: (await import("@/pages/About")).default }) },
     { path: "/privacy", lazy: async () => ({ Component: (await import("@/pages/Privacy")).default }) },
     { path: "/tos", lazy: async () => ({ Component: (await import("@/pages/TermsOfService")).default }) },

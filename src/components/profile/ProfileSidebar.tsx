@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CaretRightIcon, MagnifyingGlassIcon, SidebarSimpleIcon, XIcon } from "@phosphor-icons/react";
+import { Link } from "react-router-dom";
+import { ArrowUpRightIcon, CaretRightIcon, MagnifyingGlassIcon, MegaphoneIcon, SidebarSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { AccountCard, SignInButton, type ProfileStreak, type ProfileUser } from "./AccountPanels";
 import { ACCOUNT_SECTIONS, PROFILE_SPRING, SETTING_GROUPS, searchSettings, sectionById, type PaneId } from "./profile-sections";
 import { IconTile } from "./SectionTiles";
@@ -36,7 +37,7 @@ export function ProfileSidebar({ account, active, summary, onOpen, hiddenOnPhone
   return (
     <aside
       aria-label="Profile"
-      className={`w-full shrink-0 flex-col gap-5 overflow-x-hidden border-border pb-8 pt-6 transition-[width,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:sticky md:top-0 md:flex md:h-[100dvh] md:border-r md:bg-card/40 ${collapsed ? "px-4 md:w-[4.75rem] md:px-3" : "px-4 md:w-72"} ${hiddenOnPhone ? "hidden" : "flex"}`}
+      className={`w-full shrink-0 flex-col gap-5 overflow-x-hidden border-border pb-8 pt-6 transition-[width,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:sticky md:top-(--profile-header,0px) md:flex md:h-[calc(100dvh-var(--profile-header,0px))] md:border-r md:bg-card/40 ${collapsed ? "px-4 md:w-[4.75rem] md:px-3" : "px-4 md:w-72"} ${hiddenOnPhone ? "hidden" : "flex"}`}
     >
       <div className="flex items-center gap-2">
         <button
@@ -113,6 +114,29 @@ export function ProfileSidebar({ account, active, summary, onOpen, hiddenOnPhone
         </AnimatePresence>
       </div>
       {footer && <div className={`shrink-0 transition-opacity duration-200 ${fade}`}>{footer}</div>}
+      <ChangelogLink collapsed={collapsed} fade={fade} />
     </aside>
+  );
+}
+
+/** Pinned under the tabs; opens the full /changelog page instead of a pane. */
+function ChangelogLink({ collapsed, fade }: { collapsed: boolean; fade: string }) {
+  return (
+    <div className="shrink-0 border-t border-border pt-4">
+      <Link
+        to="/changelog"
+        title={collapsed ? "Changelog" : undefined}
+        className={`group relative flex items-center gap-3 rounded-xl py-2 text-left transition-[padding,background-color] duration-300 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring ${collapsed ? "px-2 md:px-2.5" : "px-2"}`}
+      >
+        <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-(--accent-emphasis) text-background">
+          <MegaphoneIcon weight="fill" className="size-[18px]" aria-hidden="true" />
+        </span>
+        <span className={`relative flex min-w-0 flex-1 items-center gap-3 whitespace-nowrap transition-opacity duration-200 ${fade}`}>
+          <span className="flex-1 text-sm">Changelog</span>
+          <span className="text-xs text-muted-foreground">What's new</span>
+        </span>
+        <ArrowUpRightIcon className={`relative size-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 ${fade}`} aria-hidden="true" />
+      </Link>
+    </div>
   );
 }

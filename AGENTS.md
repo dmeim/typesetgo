@@ -93,6 +93,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/race/:raceId` | Active race |
 | `/race/results/:raceId` | Race results/podium |
 | `/lessons` | Lessons mode |
+| `/changelog` | What's new: every user-facing change from `src/lib/changelog.ts`, grouped by day, with screenshots from `public/changelog/` and live demos (`src/components/changelog/`); linked from the pinned button at the bottom of the profile sidebar |
 | `/about`, `/privacy`, `/tos` | Info/legal pages |
 | `/admin` | Review route; requires Clerk sign-in and the server-side admin password |
 | `/temp` | UI Lab: interactive mockups for upcoming UI changes, including the header/navigation mockups (the locked-in one-pill Dock plus split and three-pill concepts) five one-screen results layouts in a page-sized frame that reports whether they fit, and five on-screen keyboard designs driven by a scripted student or your own typing (`src/components/temp/`, `src/components/temp/header/`, `src/components/temp/results/`, `src/components/temp/keyboard/`); local state only |
@@ -137,6 +138,7 @@ Notes:
 - Use `@phosphor-icons/react` with `Icon`-suffixed exports for all UI icons, including shared Shadcn controls. `IconProvider` supplies `weight="bold"` and a 24px fallback size; use `weight="regular"` for lighter artwork and `weight="fill"` for solid indicators. Use weights rather than `strokeWidth`. Custom artwork or text glyphs are fallbacks only when Phosphor has no suitable icon. Place action icons before their text with `gap-2`, hide decorative icons from assistive technology, and label icon-only controls.
 - Keep related states cohesive: `FloppyDiskIcon` / `CheckCircleIcon` / `WarningCircleIcon` for saving, `CircleNotchIcon` while pending, `ArrowClockwiseIcon` for repeat/reset, `ArrowsClockwiseIcon` for refresh/retry, `ArrowFatRightIcon` for advancing tests, `ArrowLeftIcon` for back navigation, `SignOutIcon` for leaving a room, and `CopyIcon` / `CheckIcon` for copying. Achievement icon keys are shared through `src/lib/achievement-icons.ts`.
 - `components.json` selects `"iconLibrary": "phosphor"` for new Shadcn components. Check generated imports for the `Icon` suffix and replace icon `strokeWidth` styling with the appropriate weight.
+- Add an entry to `src/lib/changelog.ts` with every user-facing change. Screenshots go in `public/changelog/` as WebP; `bun run shots:changelog` recaptures them from the local fixtures.
 - Keep changes focused; avoid unrelated refactors.
 - Do not run git write operations (`git add`, `commit`, `push`, history rewrites) unless explicitly asked.
 

@@ -24,9 +24,13 @@ const WIDTHS = [
   { id: "narrow", label: "Phone", frame: "max-w-[375px]" },
 ];
 
-/** The five keyboard designs over one practice line, driven by a pretend student or by your own typing. */
-export function KeyboardShowcase() {
-  const [design, setDesign] = useState(0);
+// Spotlight, Finger guide and Keycaps went live; Compact and Coach stay Lab-only.
+const SHIPPED = [2, 1, 0];
+
+/** The keyboard designs over one practice line, driven by a pretend student or by your own typing. `shippedOnly` hides the Lab-only ones. */
+export function KeyboardShowcase({ shippedOnly = false }: { shippedOnly?: boolean }) {
+  const shown = shippedOnly ? SHIPPED : DESIGNS.map((_, index) => index);
+  const [design, setDesign] = useState(shown[0]);
   const [layout, setLayout] = useState<KeyboardLayoutId>("qwerty");
   const [width, setWidth] = useState("wide");
   const demo = useKeyboardDemo(layout);
@@ -38,7 +42,7 @@ export function KeyboardShowcase() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Switcher
           label="Design"
-          options={DESIGNS.map((entry, index) => ({ id: String(index), label: <><span className="text-muted-foreground">{String(index + 1).padStart(2, "0")}</span> {entry.name}</> }))}
+          options={shown.map((index) => ({ id: String(index), label: shippedOnly ? DESIGNS[index].name : <><span className="text-muted-foreground">{String(index + 1).padStart(2, "0")}</span> {DESIGNS[index].name}</> }))}
           value={String(design)}
           onChange={(value) => setDesign(Number(value))}
         />

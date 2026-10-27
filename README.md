@@ -18,17 +18,21 @@
   <a href="src/"><img src="https://img.shields.io/badge/stack-React%2019%20%C2%B7%20Vite%20%C2%B7%20TS%20%C2%B7%20Convex%20%C2%B7%20Tailwind%20v4-61dafb" alt="Stack" /></a>
 </p>
 
-A modern, open-source typing practice platform with a clean, distraction-free interface. Multiple test modes, 1600+ themes, sound packs, real-time statistics, and deep customization — all powered by a real-time **Convex** backend with optional **Clerk** authentication.
+A modern, open-source typing practice platform with a clean, distraction-free interface. Multiple test modes, 2,600 theme looks, sound packs, classroom multiplayer, real-time statistics, and deep customization — all powered by a real-time **Convex** backend with optional **Clerk** authentication.
+
+**What's new:** see the [changelog](https://typesetgo.app/changelog) for every change with screenshots and working demos you can try on the page.
 
 ## Highlights
 
 - **Multiple modes** — Time, Words, Quotes (Short–XL), Zen, and Preset text
-- **1600+ themes** — Light, dark, and seasonal themes with live preview
-- **Ghost Writer** — Race a ghost cursor set to your target WPM
-- **Deep statistics** — Real-time WPM, accuracy, raw vs. net speed, consistency charts
-- **Sound packs** — Mechanical keyboard sounds (typewriter, creamy, robo, and more)
-- **Adaptive difficulty** — Word lists from Beginner to Expert
-- **User accounts** — Track history, streaks, achievements, and leaderboard rankings
+- **On-screen keyboards** — Spotlight by default, plus a colour-coded Finger guide, chunky Keycaps, or the classic look
+- **One-screen results** — speed and accuracy on one graph with mistakes marked, compared with your average and best
+- **2,600 theme looks** — 18 categories, light and dark versions, with live previews
+- **72 typing fonts** — all served locally, including OpenDyslexic
+- **Ghost Writer** — race a ghost cursor set to your target WPM
+- **Connect for classrooms** — host a room, share a code, and watch a live board as everyone types
+- **Profile page** — stats, a history timeline, achievements and every setting in one place
+- **Leaderboard** — Today, 7 days and All time on one podium, with your own standing
 - **Cloudflare-hosted** — frontend served by Workers Static Assets, with Clerk and Convex
 
 ## Screenshots
@@ -36,50 +40,62 @@ A modern, open-source typing practice platform with a clean, distraction-free in
 <table>
   <tr>
     <td width="40%" valign="top">
-      <h3>Home</h3>
-      <p>The main typing screen with test mode selection (Zen, Time, Words, Quote, Preset), modifier toggles for caps, punctuation, and numbers, adjustable duration or word count, and five difficulty levels from Beginner to Expert.</p>
+      <h3>Typing</h3>
+      <p>A distraction-free typing view. Accuracy, speed and time roll by in one quiet line above a thin progress bar, and the Spotlight keyboard glides to the next key, lights the Shift to hold, and points at delete when a letter is wrong.</p>
     </td>
     <td width="60%">
-      <img src="public/assets/showcase-homepage.png" alt="TypeSetGo homepage" />
-    </td>
-  </tr>
-  <tr>
-    <td width="40%" valign="top">
-      <h3>Typing Test</h3>
-      <p>A distraction-free typing view with live WPM, elapsed time, word count, and accuracy displayed in the stats bar. Correctly typed text turns white while errors are highlighted in red.</p>
-    </td>
-    <td width="60%">
-      <img src="public/assets/showcase-typing.png" alt="Typing test in progress" />
-    </td>
-  </tr>
-  <tr>
-    <td width="40%" valign="top">
-      <h3>On-Screen Keyboard</h3>
-      <p>An optional on-screen keyboard that highlights each key as you type, perfect for younger users learning proper finger placement, but useful for anyone looking to improve their touch typing.</p>
-    </td>
-    <td width="60%">
-      <img src="public/assets/showcase-keyboard.png" alt="On-screen keyboard" />
+      <img src="public/changelog/keyboard-designs.webp" alt="A test in progress with the stats line and the Spotlight keyboard highlighting the next key" />
     </td>
   </tr>
   <tr>
     <td width="40%" valign="top">
       <h3>Results</h3>
-      <p>After each test, see your Words Per Minute and accuracy compared with your recent average and best, a second-by-second graph of speed and accuracy with mistakes marked, and chips that open your correct words, mistakes, and character counts. Save your results to track progress or jump straight into the next test.</p>
+      <p>Everything fits on one screen: your speed and accuracy on the left, compared with your recent average and best, and a graph of both that fills the rest. Correct words, mistakes and characters open over the graph.</p>
     </td>
     <td width="60%">
-      <img src="public/assets/showcase-results.png" alt="Test results screen" />
+      <img src="public/changelog/results-page.webp" alt="The results screen with scores on the left and the speed and accuracy graph on the right" />
+    </td>
+  </tr>
+  <tr>
+    <td width="40%" valign="top">
+      <h3>Profile and settings</h3>
+      <p>Your stats, history, achievements and every setting on one page: themes with live previews, fonts, typing options, sound, and the keyboard style.</p>
+    </td>
+    <td width="60%">
+      <img src="public/changelog/profile-stats.webp" alt="The profile page with the sidebar of sections and lifetime statistics" />
+    </td>
+  </tr>
+  <tr>
+    <td width="40%" valign="top">
+      <h3>Connect</h3>
+      <p>Host a room for a class: share a four-letter code, build the test list, give everyone the same theme and settings, and follow a live board of cards as students type. Students join with just the code.</p>
+    </td>
+    <td width="60%">
+      <img src="public/changelog/connect-host.webp" alt="The Connect host panel with the room code, run controls, test list and who's here" />
     </td>
   </tr>
   <tr>
     <td width="40%" valign="top">
       <h3>Leaderboard</h3>
-      <p>A ranked leaderboard showing All-Time, Daily, and Weekly standings. Players who save their results and meet the minimum requirements earn a spot on the board.</p>
+      <p>Today, 7 days and All time on one podium, with ranks 4 to 50 below and a bar showing your own standing when you're signed in.</p>
     </td>
     <td width="60%">
-      <img src="public/assets/showcase-leaderboard.png" alt="Leaderboard" />
+      <img src="public/changelog/leaderboard-arena.webp" alt="The leaderboard with a podium for the top three" />
+    </td>
+  </tr>
+  <tr>
+    <td width="40%" valign="top">
+      <h3>On a phone</h3>
+      <p>The header folds into two rows, the keyboard scales to the screen, and results stack into one column.</p>
+    </td>
+    <td width="60%">
+      <img src="public/changelog/phone-home.webp" alt="Typing on a phone with the keyboard" width="240" />
+      <img src="public/changelog/phone-results.webp" alt="Results on a phone" width="240" />
     </td>
   </tr>
 </table>
+
+More screenshots, one per change, are in [`public/changelog/`](public/changelog/). They are captured from the local fixtures with `bun run shots:changelog`.
 
 ## Quick Start
 

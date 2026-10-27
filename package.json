@@ -21,6 +21,7 @@
     "cf:types": "wrangler types worker/worker-configuration.d.ts",
     "cf:deploy": "bun run build && wrangler deploy",
     "dev:fixture": "vite --config tests/browser/practice/vite.config.ts",
+    "shots:changelog": "node scripts/capture-changelog-shots.mjs",
     "convex:codegen:offline": "convex codegen --system-udfs --typecheck disable"
   },
   "dependencies": {

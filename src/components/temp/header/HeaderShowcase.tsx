@@ -24,8 +24,9 @@ const DESIGNS: [string, string, ComponentType<HeaderMockupProps>, boolean][] = [
   ["Three pills", "A big logo on the left, the dock of pages, leaderboard, theme and settings in the centre, and light/dark, notifications and your profile on the right. The side pills match in width.", TriDockHeader, false],
 ];
 
-/** Each header design in a mini browser window, with the toggles the UI Lab section provides. */
-export function HeaderShowcase({ signedIn, typing, phone }: { signedIn: boolean; typing: boolean; phone: boolean }) {
+/** Each header design in a mini browser window, with the toggles the UI Lab section provides. `shippedOnly` shows just the Dock. */
+export function HeaderShowcase({ signedIn, typing, phone, shippedOnly = false }: { signedIn: boolean; typing: boolean; phone: boolean; shippedOnly?: boolean }) {
+  if (shippedOnly) return <MockWindow key={String(signedIn)} Header={DockHeader} signedIn={signedIn} typing={typing} phone={phone} />;
   return (
     <div className="flex flex-col gap-6">
       {DESIGNS.map(([name, summary, Header, chosen], index) => (
