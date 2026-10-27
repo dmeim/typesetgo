@@ -80,13 +80,17 @@ await withFixtureBrowser(async browser => {
   const repeat = p.getByRole("button", { name: "Repeat Test", exact: true });
   const next = p.getByRole("button", { name: "Next Test", exact: true });
   async function checkActionRows(saveButton) {
-    const [saveBounds, repeatBounds, nextBounds] = await Promise.all([
-      saveButton.boundingBox(), repeat.boundingBox(), next.boundingBox(),
-    ]);
-    expect(saveBounds.y + saveBounds.height).toBeLessThan(repeatBounds.y);
-    expect(Math.abs(repeatBounds.y - nextBounds.y)).toBeLessThan(1);
-    expect(repeatBounds.x + repeatBounds.width).toBeLessThan(nextBounds.x);
-    expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // Each boundingBox is its own round trip, so right after a resize the three can come from different layouts;
+    // retry until the results settle rather than asserting on a half-applied resize.
+    await expect(async () => {
+      const [saveBounds, repeatBounds, nextBounds] = await Promise.all([
+        saveButton.boundingBox(), repeat.boundingBox(), next.boundingBox(),
+      ]);
+      expect(saveBounds.y + saveBounds.height).toBeLessThan(repeatBounds.y);
+      expect(Math.abs(repeatBounds.y - nextBounds.y)).toBeLessThan(1);
+      expect(repeatBounds.x + repeatBounds.width).toBeLessThan(nextBounds.x);
+      expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }).toPass({ timeout: 5000 });
   }
   for (const width of [320, 390, 1440]) {
     await p.setViewportSize({ width, height: 1000 });
