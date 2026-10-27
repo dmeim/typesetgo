@@ -33,7 +33,7 @@ export function KidAvatar({ name, photo = false, size = "md", className }: { nam
 }
 
 /** A rounded card with an optional coloured icon tile, title and corner action. */
-export function LabCard({ title, description, Icon, tile = "bg-primary text-primary-foreground", action, children, className, labelledBy }: {
+export function LabCard({ title, description, Icon, tile = "bg-primary text-primary-foreground", action, children, className, labelledBy, bare = false, hideHeader = false }: {
   title?: string;
   description?: ReactNode;
   Icon?: Icon;
@@ -42,14 +42,18 @@ export function LabCard({ title, description, Icon, tile = "bg-primary text-prim
   children: ReactNode;
   className?: string;
   labelledBy?: string;
+  /** Drops the card frame, for content that sits inside another card. */
+  bare?: boolean;
+  /** Keeps the heading for screen readers only, when something else on screen already names the card. */
+  hideHeader?: boolean;
 }) {
   const fallback = useId();
   const headingId = labelledBy ?? fallback;
   return (
     <motion.section layout="position" transition={LAB_SPRING} aria-labelledby={title ? headingId : undefined}
-      className={cn("flex min-w-0 flex-col gap-4 rounded-3xl border border-border bg-card p-5 text-card-foreground sm:p-6", className)}>
+      className={cn("flex min-w-0 flex-col gap-4", !bare && "rounded-3xl border border-border bg-card p-5 text-card-foreground sm:p-6", className)}>
       {title && (
-        <header className="flex items-start gap-3">
+        <header className={cn("flex items-start gap-3", hideHeader && "sr-only")}>
           {Icon && <span aria-hidden="true" className={cn("flex size-10 shrink-0 items-center justify-center rounded-2xl", tile)}><Icon weight="fill" className="size-5" /></span>}
           <div className="min-w-0 flex-1">
             <h2 id={headingId} className="text-lg font-bold leading-tight">{title}</h2>
@@ -64,12 +68,14 @@ export function LabCard({ title, description, Icon, tile = "bg-primary text-prim
 }
 
 /** A pill of choices with a sliding highlight. */
-export function Pills<T extends string>({ label, value, options, onChange, disabled, className }: {
+export function Pills<T extends string>({ label, value, options, onChange, disabled, size = "md", className }: {
   label: string;
   value: T;
-  options: { value: T; label: string; Icon?: Icon }[];
+  /** `short` replaces the label on phones. */
+  options: { value: T; label: string; short?: string; Icon?: Icon }[];
   onChange: (value: T) => void;
   disabled?: boolean;
+  size?: "md" | "lg";
   className?: string;
 }) {
   const id = useId();
@@ -79,11 +85,15 @@ export function Pills<T extends string>({ label, value, options, onChange, disab
         const selected = option.value === value;
         return (
           <button key={option.value} type="button" role="radio" aria-checked={selected} disabled={disabled} onClick={() => onChange(option.value)}
-            className={cn("relative flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed",
+            className={cn("relative flex min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full transition-colors",
+              size === "lg" ? "px-3 py-3 text-sm font-bold sm:px-5 sm:text-base" : "px-2 py-2 text-sm font-medium sm:px-4",
+              "focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed",
               selected ? "text-primary-foreground" : "text-muted-foreground enabled:hover:text-foreground")}>
             {selected && <motion.span layoutId={`pill-${id}`} transition={LAB_SPRING} className="absolute inset-0 rounded-full bg-primary shadow-sm" />}
-            {option.Icon && <option.Icon weight={selected ? "fill" : "bold"} className="relative size-4" aria-hidden="true" />}
-            <span className="relative">{option.label}</span>
+            {option.Icon && <option.Icon weight={selected ? "fill" : "bold"} className={cn("relative shrink-0", size === "lg" ? "size-5" : "size-4")} aria-hidden="true" />}
+            {option.short ? (
+              <span className="relative truncate"><span className="sm:hidden">{option.short}</span><span className="hidden sm:inline">{option.label}</span></span>
+            ) : <span className="relative truncate">{option.label}</span>}
           </button>
         );
       })}

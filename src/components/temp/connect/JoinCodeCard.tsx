@@ -113,7 +113,7 @@ function SignedInAs() {
   );
 }
 
-export function JoinCodeCard({ room, onJoin, className }: { room: JoinableRoom; onJoin: (name: string, signedIn: boolean) => void; className?: string }) {
+export function JoinCodeCard({ room, onJoin, bare, className }: { room: JoinableRoom; onJoin: (name: string, signedIn: boolean) => void; bare?: boolean; className?: string }) {
   const id = useId();
   const [signedIn, setSignedIn] = useState(true);
   const [code, setCode] = useState("");
@@ -139,10 +139,10 @@ export function JoinCodeCard({ room, onJoin, className }: { room: JoinableRoom; 
   };
 
   return (
-    <LabCard title="Join a room" description={signedIn ? "Got a code? Pop it in and type along with your class." : "Got a code? Pop it in, then tell us your name."} Icon={UsersThreeIcon} className={className}>
+    <LabCard title="Join a room" description={signedIn ? "Got a code? Pop it in and type along with your class." : "Got a code? Pop it in, then tell us your name."} Icon={UsersThreeIcon} bare={bare} hideHeader={bare} className={className}>
       <div role="group" aria-label="Mockup controls" className="flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-border p-1.5 pl-3 text-xs text-muted-foreground">
         <span>Pretend you're</span>
-        <Pills<"in" | "guest"> label="Signed in or guest" value={signedIn ? "in" : "guest"} onChange={(value) => setSignedIn(value === "in")} className="min-w-0 flex-1"
+        <Pills<"in" | "guest"> label="Signed in or guest" value={signedIn ? "in" : "guest"} onChange={(value) => setSignedIn(value === "in")} className="min-w-48 flex-1"
           options={[{ value: "in", label: "Signed in", Icon: UserCircleIcon }, { value: "guest", label: "Guest" }]} />
       </div>
       <form onSubmit={submit} noValidate className="flex flex-col gap-5">

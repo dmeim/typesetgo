@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowArcRightIcon, ArrowRightIcon, ChalkboardTeacherIcon, ChartBarIcon, CircleNotchIcon, ClockCounterClockwiseIcon, ListChecksIcon, PlayIcon, PlusIcon,
   ShareNetworkIcon, SignInIcon, UsersThreeIcon,
@@ -10,7 +10,7 @@ import { CONNECT_ARCHIVE_HOURS, CONNECT_NAME_MAX, CONNECT_ROOM_NAME_MAX } from "
 import { RECENT_ROOMS, ROOM } from "./connect-mock";
 import { JoinCodeCard } from "./JoinCodeCard";
 import type { MockRoom } from "./use-mock-room";
-import { KidAvatar, LabCard } from "./ConnectParts";
+import { KidAvatar, LabCard, Pills } from "./ConnectParts";
 
 const STEPS = [
   { Icon: ListChecksIcon, label: "Pick tests" },
@@ -22,7 +22,7 @@ const HERO_FACES = ["Maya", "Jordan", "Priya", "Leo", "Sofia"];
 
 const field = "h-12 w-full rounded-2xl border border-input bg-background px-4 text-base outline-none focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/20";
 
-function HostCard({ onCreate }: { onCreate: (host: string, name: string) => void }) {
+function HostCard({ onCreate, bare }: { onCreate: (host: string, name: string) => void; bare?: boolean }) {
   const id = useId();
   const [hostName, setHostName] = useState(ROOM.host);
   const [roomName, setRoomName] = useState("");
@@ -37,7 +37,7 @@ function HostCard({ onCreate }: { onCreate: (host: string, name: string) => void
     setTimeout(() => onCreate(hostName.trim(), roomName.trim()), 600);
   };
   return (
-    <LabCard title="Host a room" description="For teachers, coaches and club leaders." Icon={ChalkboardTeacherIcon} tile="bg-(--accent-emphasis) text-background">
+    <LabCard title="Host a room" description="For teachers, coaches and club leaders." Icon={ChalkboardTeacherIcon} tile="bg-(--accent-emphasis) text-background" bare={bare} hideHeader={bare}>
       <ol className="grid grid-cols-3 gap-2" aria-label="How hosting works">
         {STEPS.map(({ Icon, label }, index) => (
           <motion.li key={label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ ...LAB_SPRING, delay: 0.1 + index * 0.08 }}
@@ -77,7 +77,7 @@ function HostCard({ onCreate }: { onCreate: (host: string, name: string) => void
 
 type RecentRow = { id: string; name: string; live: boolean; code: string; detail: string; tests: number; onOpen: () => void };
 
-function RecentRoomsCard({ room, onResume, onReopen, onCreate }: { room: MockRoom; onResume: () => void; onReopen: () => void; onCreate: (name: string) => void }) {
+function RecentRoomsCard({ room, onResume, onReopen, onCreate, bare }: { room: MockRoom; onResume: () => void; onReopen: () => void; onCreate: (name: string) => void; bare?: boolean }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const rows: RecentRow[] = [
     { id: "current", name: room.name, live: !room.ended, code: room.code, detail: room.ended ? "Ended just now" : "", tests: room.tests.length, onOpen: room.ended ? onReopen : onResume },
@@ -88,7 +88,7 @@ function RecentRoomsCard({ room, onResume, onReopen, onCreate }: { room: MockRoo
     setTimeout(row.onOpen, row.live ? 0 : 500);
   };
   return (
-    <LabCard title="Your recent rooms" description={`From the last ${CONNECT_ARCHIVE_HOURS} hours. Reopening an ended room keeps its tests and gives it a new code.`} Icon={ClockCounterClockwiseIcon} tile="bg-muted-foreground text-background">
+    <LabCard title="Your recent rooms" description={`From the last ${CONNECT_ARCHIVE_HOURS} hours. Reopening an ended room keeps its tests and gives it a new code.`} Icon={ClockCounterClockwiseIcon} tile="bg-muted-foreground text-background" bare={bare}>
       <ul className="flex flex-col gap-2">
         {rows.map((row, index) => (
           <motion.li key={row.id} layout initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ ...LAB_SPRING, delay: 0.15 + index * 0.06 }}
@@ -138,24 +138,51 @@ function Hero() {
         <UsersThreeIcon weight="fill" className="size-4" aria-hidden="true" />Connect
       </span>
       <h1 className="text-4xl font-black tracking-tight sm:text-5xl">Type together, live.</h1>
-      <p className="max-w-xl text-muted-foreground">Join your class with a code, or host a room and watch everyone type in real time.</p>
+      <p className="max-w-xl text-muted-foreground">Got a code? Pop it in and type along with your class. Teaching? Flip the switch to host.</p>
     </header>
   );
 }
 
-/** Landing: join with a code (the common case for students), or host and reopen recent rooms. */
+type Mode = "join" | "host";
+
+const MODES: { value: Mode; label: string; short: string; Icon: typeof UsersThreeIcon }[] = [
+  { value: "join", label: "Join a room", short: "Join", Icon: UsersThreeIcon },
+  { value: "host", label: "Host a room", short: "Host", Icon: ChalkboardTeacherIcon },
+];
+
+// Join sits on the left and host on the right, so each side slides in from its own edge.
+const SLIDE = {
+  enter: (mode: Mode) => ({ opacity: 0, x: mode === "join" ? -48 : 48 }),
+  center: { opacity: 1, x: 0 },
+  exit: (mode: Mode) => ({ opacity: 0, x: mode === "join" ? -48 : 48 }),
+};
+
+/** Landing: one card that opens on joining (what most people do), with a switch over to hosting. */
 export function ConnectLanding({ room, onJoin, onHost }: { room: MockRoom; onJoin: (name: string, signedIn: boolean) => void; onHost: () => void }) {
+  const [mode, setMode] = useState<Mode>("join");
   const create = (host: string, name: string) => { room.actions.create(host, name); onHost(); };
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-8 md:px-6 md:pt-12">
+    <main className="mx-auto flex w-full max-w-xl flex-col gap-8 px-4 pt-8 md:px-6 md:pt-12">
       <Hero />
-      <div className="grid items-start gap-5 md:grid-cols-2">
-        <JoinCodeCard room={room} onJoin={onJoin} className="border-primary/30 shadow-[0_20px_60px_-30px_var(--primary)]" />
-        <div className="flex min-w-0 flex-col gap-5">
-          <HostCard onCreate={create} />
-          <RecentRoomsCard room={room} onResume={onHost} onReopen={() => { room.actions.reopen(); onHost(); }} onCreate={(name) => create(room.host, name)} />
-        </div>
-      </div>
+      <motion.div layout transition={LAB_SPRING}
+        className={cn("flex min-w-0 flex-col gap-5 overflow-hidden rounded-3xl border bg-card p-4 text-card-foreground transition-[border-color,box-shadow] sm:p-6",
+          mode === "join" ? "border-primary/30 shadow-[0_20px_60px_-30px_var(--primary)]" : "border-border shadow-[0_20px_60px_-30px_var(--accent-emphasis)]")}>
+        <Pills<Mode> label="Join or host" value={mode} onChange={setMode} size="lg" options={MODES} />
+        <AnimatePresence mode="popLayout" initial={false} custom={mode}>
+          <motion.div key={mode} custom={mode} variants={SLIDE} initial="enter" animate="center" exit="exit" transition={LAB_SPRING} className="flex min-w-0 flex-col gap-6">
+            {mode === "join" ? (
+              <JoinCodeCard room={room} onJoin={onJoin} bare />
+            ) : (
+              <>
+                <HostCard onCreate={create} bare />
+                <div className="border-t border-border pt-6">
+                  <RecentRoomsCard room={room} onResume={onHost} onReopen={() => { room.actions.reopen(); onHost(); }} onCreate={(name) => create(room.host, name)} bare />
+                </div>
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
     </main>
   );
 }
