@@ -83,7 +83,7 @@ await withFixtureBrowser(async (browser) => {
     const scene = dialog.locator("[data-theme-site-preview]");
     expect(await scene.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
     await search.fill("GitHub");
-    await expect(dialog.getByRole("button", { name: "Select GitHub", exact: true })).toBeInViewport();
+    await expect(dialog.getByRole("button", { name: "GitHub variants", exact: true })).toBeInViewport();
     await page.screenshot({ path: artifactPath(`theme-catalog-${width}x${height}.png`) });
   }
   expect(requests).toEqual(loadedRequests);
