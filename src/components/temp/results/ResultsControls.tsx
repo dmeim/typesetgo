@@ -31,10 +31,12 @@ export function Chips({ detail, scope, variant = "pill", only, swap = false, cla
   return (
     <div className={cn(variant === "pill" && "flex flex-wrap justify-center gap-2", className)}>
       {CHIPS.filter((chip) => !only || only.includes(chip.id)).map(({ id, value, label, Icon, tone, tile }) => detail.open === id && swap ? (
+        // Its own element: reusing the chip's would keep the leftover morph transform and hide it.
         <motion.button
-          key={id}
+          key={`${id}-graph`}
           ref={detail.chipRef(id)}
           type="button"
+          autoFocus
           aria-label="Back to the graph"
           onClick={detail.close}
           initial={{ opacity: 0, scale: 0.8 }}
