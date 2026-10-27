@@ -5,6 +5,7 @@ import { ArrowClockwiseIcon, ArrowLeftIcon, FlaskIcon } from "@phosphor-icons/re
 import { LiveStatsDemo } from "@/components/temp/LiveStatsDemo";
 import { SettingsPillDemo } from "@/components/temp/SettingsPillDemo";
 import { ResultsDemo } from "@/components/temp/ResultsDemo";
+import { ResultsLayoutShowcase } from "@/components/temp/results/ResultsLayoutShowcase";
 import { HeaderShowcase } from "@/components/temp/header/HeaderShowcase";
 
 const SETTINGS_MOCKUPS: [number, string, string][] = [
@@ -62,6 +63,9 @@ export default function Temp() {
             </Stage>
           </Section>
           <ResultsSection />
+          <Section id="results-layouts" title="One-screen results" badge="concepts" summary="Five ways to fit the results on one screen without scrolling. The graph stretches to fill whatever height is left, chips open over the graph instead of pushing the page down, and the key hints move onto the buttons. Switch the screen size; the badge in the frame says whether it still fits.">
+            <ResultsLayoutShowcase />
+          </Section>
           <Section id="settings-page" title="Settings page" summary="Full-page takes on one combined settings and themes page. Each opens on its own page with a switcher at the bottom.">
             <div className="grid gap-3 sm:grid-cols-2">
               {SETTINGS_MOCKUPS.map(([number, name, summary]) => (

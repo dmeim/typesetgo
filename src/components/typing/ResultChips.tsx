@@ -5,7 +5,7 @@ import { diffWord, type CharStatus } from "@/lib/word-diff";
 
 const SPRING = { type: "spring", stiffness: 420, damping: 36, mass: 0.9 } as const;
 
-type ChipId = "correct" | "mistakes" | "characters" | "test";
+export type ChipId = "correct" | "mistakes" | "characters" | "test";
 
 const CHAR_TONE: Record<CharStatus, string> = {
   correct: "text-foreground",
@@ -125,7 +125,7 @@ export function ResultChips({ correctWords, incorrectWords, stats, testLabel, du
   );
 }
 
-function ChipDetail({ id, correctWords, incorrectWords, stats, testLabel, seconds }: Omit<ResultChipsProps, "durationMs"> & { id: ChipId; seconds: string | null }) {
+export function ChipDetail({ id, correctWords, incorrectWords, stats, testLabel, seconds }: Omit<ResultChipsProps, "durationMs"> & { id: ChipId; seconds: string | null }) {
   if (id === "correct") {
     if (correctWords.length === 0) return <Empty>No correct words</Empty>;
     return (
