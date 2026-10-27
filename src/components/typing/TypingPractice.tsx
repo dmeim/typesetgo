@@ -35,7 +35,7 @@ import { usePracticeDataset } from "./usePracticeDataset";
 import { useTypingScroll } from "./useTypingScroll";
 import PracticeText from "./PracticeText";
 import PracticeResults from "./PracticeResults";
-import type { ResultComparison } from "./ResultStatCard";
+import type { ResultComparison } from "./results/result-stats";
 import PracticeCountDialog from "./PracticeCountDialog";
 import PracticePresetDialog from "./PracticePresetDialog";
 import PracticeControls from "./PracticeControls";
@@ -1097,11 +1097,11 @@ export default function TypingPractice({
       )}
       </div>
 
-      {/* Flexible spacer - balances content vertically */}
-      <div className={settings.showOnScreenKeyboard && !isFinished ? "shrink-0" : "flex-1"} />
+      {/* Flexible spacer - balances content vertically; results fill the height instead */}
+      <div className={isFinished ? "hidden" : settings.showOnScreenKeyboard ? "shrink-0" : "flex-1"} />
 
       <div
-        className="w-full flex flex-col items-center transition-transform duration-300"
+        className={`w-full flex flex-col items-center transition-transform duration-300 ${isFinished ? "flex-1" : ""}`}
         style={!isCompactMode && !isFinished && !settings.showOnScreenKeyboard ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
       >
         {/* Quote Info */}
@@ -1123,7 +1123,7 @@ export default function TypingPractice({
 
         {/* Typing Area */}
         <div 
-          className="w-[95%] md:w-[80%] max-w-none relative z-0 transition-all duration-300"
+          className={`w-[95%] md:w-[80%] max-w-none relative z-0 transition-all duration-300 ${isFinished ? "flex flex-1 flex-col" : ""}`}
         >
         {!isFinished ? (
           <div className="relative z-0">
@@ -1243,7 +1243,7 @@ export default function TypingPractice({
         </div>
       </div>
 
-      <div ref={bottomLayoutRef} className={`shrink-0 w-full flex flex-col items-center ${settings.showOnScreenKeyboard && !isFinished && isRunning ? "" : settings.showOnScreenKeyboard && !isFinished ? "pt-2" : "pt-10 md:pt-12"}`}>
+      <div ref={bottomLayoutRef} className={`shrink-0 w-full flex flex-col items-center ${isFinished ? "" : settings.showOnScreenKeyboard && isRunning ? "" : settings.showOnScreenKeyboard ? "pt-2" : "pt-10 md:pt-12"}`}>
         {/* Instructions */}
         {!connectMode && !isRunning && !isFinished && (
           <div
@@ -1259,11 +1259,11 @@ export default function TypingPractice({
         )}
 
         {/* Bottom padding */}
-        <div className={`shrink-0 ${settings.showOnScreenKeyboard && !isFinished && isRunning ? "h-0" : settings.showOnScreenKeyboard && !isFinished ? "h-1" : "h-8"}`} />
+        <div className={`shrink-0 ${isFinished ? "h-3" : settings.showOnScreenKeyboard && isRunning ? "h-0" : settings.showOnScreenKeyboard ? "h-1" : "h-8"}`} />
       </div>
 
-      {/* Flexible spacer - keeps typing area vertically centered */}
-      <div className={settings.showOnScreenKeyboard && !isFinished ? "shrink-0" : "flex-1"} />
+      {/* Flexible spacer - keeps typing area vertically centered; results fill the height instead */}
+      <div className={isFinished ? "hidden" : settings.showOnScreenKeyboard ? "shrink-0" : "flex-1"} />
 
       <PracticePresetDialog
         key={settings.presetText}

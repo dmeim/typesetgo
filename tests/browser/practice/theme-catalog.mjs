@@ -78,8 +78,11 @@ await withFixtureBrowser(async (browser) => {
   }));
   for (const [width, height] of [[320, 700], [390, 844], [640, 450], [768, 900], [1024, 800]]) {
     await page.setViewportSize({ width, height });
-    await expectWithinViewport(page, dialog);
-    await expectWithinViewport(page, dialog.getByRole("img"));
+    // The dialog re-centres as its content reflows after a resize, so let the position settle.
+    await expect(async () => {
+      await expectWithinViewport(page, dialog);
+      await expectWithinViewport(page, dialog.getByRole("img"));
+    }).toPass();
     const scene = dialog.locator("[data-theme-site-preview]");
     expect(await scene.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
     await search.fill("GitHub");

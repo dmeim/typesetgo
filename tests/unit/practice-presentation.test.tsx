@@ -393,15 +393,21 @@ describe("accessible practice dialogs and results", () => {
     expect(props.repeatTest).not.toHaveBeenCalled();
   });
 
-  it("opens result word details by button activation and explains unranked repeats", () => {
+  it("opens result word details over the graph, swaps the chip for a Graph pill, and explains unranked repeats", async () => {
     render(<PracticeResults {...resultsProps()} isRepeated rankingStatus="unranked" />);
-    const chip = screen.getByRole("button", { name: "1 mistake" });
-    fireEvent.click(chip);
+    fireEvent.click(screen.getByRole("button", { name: "1 mistake" }));
     const details = screen.getByRole("group", { name: "Mistakes" });
     expect(within(details).getByLabelText("typed dig, expected dog")).toBeInTheDocument();
-    fireEvent.keyDown(details, { key: "Escape" });
-    expect(chip).toHaveFocus();
-    expect(chip).toHaveAttribute("aria-expanded", "false");
+    const graph = screen.getByRole("button", { name: "Back to the graph" });
+    expect(graph).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "1 mistake" })).not.toBeInTheDocument();
+    fireEvent.keyDown(graph, { key: "Escape" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "1 mistake" })).toHaveFocus());
+    expect(screen.getByRole("button", { name: "1 mistake" })).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getByRole("button", { name: "1 correct" }));
+    fireEvent.keyDown(screen.getByRole("group", { name: "Correct words" }), { key: "Escape" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "1 correct" })).toHaveFocus());
+    expect(screen.getByText("Repeated")).toBeInTheDocument();
     expect(screen.queryByText(/will not appear on leaderboards/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "About these results" }));
     expect(screen.getByText(/will not appear on leaderboards/)).toBeVisible();
@@ -420,7 +426,7 @@ describe("results comparison and timeline", () => {
       comparison={{ tests: 12, averageWpm: 40, bestWpm: 60, averageAccuracy: 95, bestAccuracy: 99 }} />);
     expect(screen.getByText("+2 faster than your average")).toBeInTheDocument();
     expect(screen.getByText("+3% more accurate than your average")).toBeInTheDocument();
-    expect(screen.getAllByText("last 12 tests")).toHaveLength(2);
+    expect(screen.getByText("Compared with your last 12 tests")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /Speed ranged from 30 to 50 words per minute; accuracy ended at 93.3%. Mistakes at 2s\./ })).toBeInTheDocument();
   });
 
@@ -432,7 +438,46 @@ describe("results comparison and timeline", () => {
     rerender(<PracticeResults {...resultsProps()} timeline={timeline.slice(0, 1)} comparison={null} />);
     expect(screen.queryByText(/than your average/)).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /Speed and accuracy/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/No graph for this result/)).toBeInTheDocument();
+    expect(screen.queryByText(/Compared with your last/)).not.toBeInTheDocument();
     expect(screen.getByText("Words Per Minute")).toBeInTheDocument();
+  });
+
+  it("prints shortcut keys on the buttons only while they work, and draws the ghost as a guide", () => {
+    const props = resultsProps();
+    const { rerender } = render(<PracticeResults {...props} duration={30_000} timeline={timeline}
+      settings={{ ...settings, ghostWriterEnabled: true, ghostWriterSpeed: 60 }} />);
+    expect(screen.getByRole("button", { name: "Save Results" })).toHaveAttribute("aria-keyshortcuts", "Space");
+    expect(screen.getByRole("button", { name: "Next Test" })).toHaveAttribute("aria-keyshortcuts", "Enter");
+    expect(screen.getByRole("region", { name: "Test results" })).toHaveAccessibleDescription("Space saves this result. Enter starts the next test.");
+    expect(screen.getByText("ghost 60")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "30.0s test" })).toBeInTheDocument();
+    rerender(<PracticeResults {...props} saveState="saving" timeline={timeline} />);
+    expect(screen.getByRole("button", { name: "Saving..." })).not.toHaveAttribute("aria-keyshortcuts");
+    expect(screen.getByRole("button", { name: "Next Test" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next Test" })).not.toHaveAttribute("aria-keyshortcuts");
+    expect(screen.queryByText("ghost 60")).not.toBeInTheDocument();
+  });
+
+  it("shows unverified results, verification and quote attribution without a save shortcut", () => {
+    render(<PracticeResults {...resultsProps()} lastResultIsValid={false} lastResultInvalidReason="WPM exceeds limit"
+      settings={{ ...settings, mode: "quote" }} currentQuote={{ quote: "cat", author: "Fixture Author", source: "Fixture Book", context: "", date: "" }} />);
+    expect(screen.getByText("Unverified")).toBeInTheDocument();
+    expect(screen.getByText("Speed exceeded the 300 WPM cap")).toBeInTheDocument();
+    expect(screen.getByText("— Fixture Author, Fixture Book")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Test results" })).toHaveAccessibleDescription("Enter starts the next test.");
+    cleanup();
+    render(<PracticeResults {...resultsProps()} lastResultIsValid />);
+    expect(screen.getByText("Verified")).toBeInTheDocument();
+  });
+
+  it("swaps solo actions for the room's own actions in Connect", () => {
+    const leave = vi.fn();
+    render(<PracticeResults {...resultsProps()} connectMode onLeave={leave} connectActions={<p>Waiting for everyone</p>} />);
+    expect(screen.getByText("Waiting for everyone")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Save Results|Next Test|Repeat Test/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Leave Room" }));
+    expect(leave).toHaveBeenCalledTimes(1);
   });
 });
 

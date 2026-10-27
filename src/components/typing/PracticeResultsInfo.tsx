@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { InfoIcon } from "@phosphor-icons/react";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
-export default function PracticeResultsInfo({ children }: { children: ReactNode }) {
+/** The results heading with an info popover; `meta` sits at the other end of the row. */
+export default function PracticeResultsInfo({ children, meta, className }: { children: ReactNode; meta?: ReactNode; className?: string }) {
   const [mode, setMode] = useState<"closed" | "preview" | "pinned">("closed");
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -28,29 +30,32 @@ export default function PracticeResultsInfo({ children }: { children: ReactNode 
       setMode(open ? "pinned" : "closed");
     }}>
       <PopoverAnchor asChild>
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <h2 className="text-xl font-semibold text-foreground">Results</h2>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-label="About these results"
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:text-foreground"
-              onPointerEnter={(event) => {
-                if (event.pointerType === "touch") return;
-                cancelClose();
-                setMode((current) => current === "closed" ? "preview" : current);
-              }}
-              onPointerLeave={scheduleClose}
-              onClick={(event) => {
-                // Clicking a hover preview pins it instead of toggling it closed.
-                event.preventDefault();
-                cancelClose();
-                setMode((current) => current === "pinned" ? "closed" : "pinned");
-              }}
-            >
-              <InfoIcon className="size-4" aria-hidden="true" />
-            </button>
-          </PopoverTrigger>
+        <div className={cn("flex flex-wrap items-center justify-between gap-x-4 gap-y-1", className)}>
+          <div className="flex items-center gap-1">
+            <h2 className="text-lg font-semibold text-foreground">Results</h2>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="About these results"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:text-foreground"
+                onPointerEnter={(event) => {
+                  if (event.pointerType === "touch") return;
+                  cancelClose();
+                  setMode((current) => current === "closed" ? "preview" : current);
+                }}
+                onPointerLeave={scheduleClose}
+                onClick={(event) => {
+                  // Clicking a hover preview pins it instead of toggling it closed.
+                  event.preventDefault();
+                  cancelClose();
+                  setMode((current) => current === "pinned" ? "closed" : "pinned");
+                }}
+              >
+                <InfoIcon className="size-4" aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+          </div>
+          {meta && <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs text-muted-foreground">{meta}</div>}
         </div>
       </PopoverAnchor>
       <PopoverContent

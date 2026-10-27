@@ -1,7 +1,7 @@
 // Fake finished-test data for the /temp results demo.
 import type { TimelineSample } from "@/lib/result-timeline";
 import { diffWord } from "@/lib/word-diff";
-import type { ResultComparison } from "@/components/typing/ResultStatCard";
+import type { ResultComparison } from "@/components/typing/results/result-stats";
 
 const PAIRS: [string, string][] = [
   ["the", "the"], ["little", "little"], ["robot", "robto"], ["found", "found"], ["a", "a"],

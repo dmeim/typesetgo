@@ -579,7 +579,7 @@ describe("saving completion barriers", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument());
     expect(screen.getByText("40", { exact: true })).toBeInTheDocument();
     expect(screen.getByText("95", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("Duration: 32.0s")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "32.0s test" })).toBeInTheDocument();
     expect(mocks.mutations["typingSessions:recordProgress"]).toHaveBeenCalledWith({ sessionId: "scored-session", typedLength: 7, completed: true });
   });
 });

@@ -158,7 +158,7 @@ function ResultsSection() {
     </div>
   );
   return (
-    <Section id="results" title="Results page" badge="on Home" summary="Speed and accuracy compared with your recent average and best, a two-axis graph with mistakes marked, and chips that morph into word details. Fake 30-second test; toggle Guest to hide the comparison." actions={actions}>
+    <Section id="results" title="Results page" badge="on Home" summary="The shipping Side column layout: speed and accuracy compared with your recent average and best, a two-axis graph with mistakes marked that fills the leftover height, and chips that open over the graph. Fake 30-second test; toggle Guest to hide the comparison." actions={actions}>
       <Stage>
         <LayoutGroup id="results" key={`${run}-${signedIn}`}>
           <ResultsDemo signedIn={signedIn} />

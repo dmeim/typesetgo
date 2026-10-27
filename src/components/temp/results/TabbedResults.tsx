@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChartLineIcon } from "@phosphor-icons/react";
-import type { ChipId } from "@/components/typing/ResultChips";
+import type { ChipId } from "@/components/typing/results/result-details";
 import { cn } from "@/lib/utils";
 import { FitChart } from "./FitChart";
 import { ActionBar, DetailBody } from "./ResultsControls";

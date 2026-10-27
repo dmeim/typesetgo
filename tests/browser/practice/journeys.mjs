@@ -110,7 +110,8 @@ await withFixtureBrowser(async browser => {
   await expect(results).toBeFocused();
   await info.hover();
   await expect(explanation).toContainText("This practice can be saved to your history, but will not appear on leaderboards.");
-  await expectPageCentered(explanation);
+  // The heading sits over the graph column, so the popover stays on screen rather than page-centered.
+  await expect(async () => { await expectWithinViewport(page, explanation); }).toPass();
   await expect(results).toBeFocused();
   await explanation.hover();
   await expect(explanation).toBeVisible();
@@ -190,7 +191,7 @@ await withFixtureBrowser(async browser => {
   await expect(explanation).toBeVisible();
   for (const width of [1920, 1024, 390, 320, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    await expectPageCentered(explanation);
+    await expect(async () => { await expectWithinViewport(page, explanation); }).toPass();
   }
   await page.screenshot({ path: artifactPath("practice-results-info-wide.png") });
 });

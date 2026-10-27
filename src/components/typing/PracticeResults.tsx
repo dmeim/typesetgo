@@ -1,32 +1,17 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import {
-  ArrowClockwiseIcon,
-  ArrowFatRightIcon,
-  CheckCircleIcon,
-  CircleNotchIcon,
-  FloppyDiskIcon,
-  SignOutIcon,
-  WarningCircleIcon,
-} from "@phosphor-icons/react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
+import { ChartLineIcon, SealCheckIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { Quote, SettingsState } from "@/lib/typing-constants";
 import type { TimelineSample } from "@/lib/result-timeline";
 import { tv } from "@/lib/theme-vars";
+import { cn } from "@/lib/utils";
 import PracticeResultsInfo from "@/components/typing/PracticeResultsInfo";
-import { ResultChips } from "@/components/typing/ResultChips";
-import { ResultStatCard, type ResultComparison } from "@/components/typing/ResultStatCard";
-import { ResultTimelineGraph } from "@/components/typing/ResultTimelineGraph";
-import { describePracticeLength, MODIFIER_OPTIONS, selectedModeOption, usesWordOptions } from "@/components/typing/practice-settings-meta";
-
-function describeTest(settings: SettingsState) {
-  const mode = selectedModeOption(settings, false);
-  const parts: (string | null)[] = [mode, describePracticeLength(settings, mode)];
-  if (usesWordOptions(mode)) {
-    parts.push(settings.difficulty);
-    for (const { key, label } of MODIFIER_OPTIONS) if (settings[key]) parts.push(label);
-  }
-  return parts.filter(Boolean).join(" · ");
-}
+import { ResultActions, type ResultSaveState } from "@/components/typing/results/ResultActions";
+import { ResultDetailChips, ResultDetailSlot } from "@/components/typing/results/ResultDetails";
+import { CompareBars, Score } from "@/components/typing/results/ResultScore";
+import { ResultsChart } from "@/components/typing/results/ResultsChart";
+import { resultChips, useResultDetail, type ResultDetailsData } from "@/components/typing/results/result-details";
+import { buildResultStats, describeInvalidReason, describeTest, ghostSpeed, type ResultComparison } from "@/components/typing/results/result-stats";
 
 interface PracticeResultsProps {
   wpm: number;
@@ -43,7 +28,7 @@ interface PracticeResultsProps {
   lastResultIsValid: boolean | null;
   lastResultInvalidReason?: string;
   connectMode: boolean;
-  saveState: "idle" | "saving" | "saved" | "error";
+  saveState: ResultSaveState;
   saveResults: () => void;
   generateTest: () => void;
   onLeave?: () => void;
@@ -58,6 +43,14 @@ interface PracticeResultsProps {
   comparison?: ResultComparison | null;
 }
 
+function Badge({ tone = "text-muted-foreground", children }: { tone?: string; children: ReactNode }) {
+  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 font-medium", tone)}>{children}</span>;
+}
+
+/**
+ * The finished-test screen in the "Side column" layout: scores and buttons on the left, the graph filling the right
+ * with detail chips beneath it. It fills the height it is given and only scrolls when that is too short.
+ */
 export default function PracticeResults({
   wpm,
   accuracy,
@@ -83,15 +76,11 @@ export default function PracticeResults({
 }: PracticeResultsProps) {
   const reducedMotion = useReducedMotion();
   const advancementBlocked = advanceDisabled || saveState === "saving";
+  const canSave = lastResultIsValid !== false && saveState !== "saved" && saveState !== "saving";
   const resultsRef = useRef<HTMLDivElement>(null);
-  const SaveIcon = lastResultIsValid === false || saveState === "error" ? WarningCircleIcon
-    : saveState === "saved" ? CheckCircleIcon : saveState === "saving" ? CircleNotchIcon : FloppyDiskIcon;
-  const saveLabel = lastResultIsValid === false ? "Invalid" : {
-    idle: "Save Results",
-    saving: "Saving...",
-    saved: "Saved",
-    error: "Error - Try Again",
-  }[saveState];
+  const hintId = useId();
+  const scope = useId();
+  const detail = useResultDetail();
   const resultsInfo = connectMode
     ? "Your result is shared with the host."
     : lastResultIsValid === false
@@ -101,239 +90,156 @@ export default function PracticeResults({
       : rankingStatus === "pending"
         ? "Waiting for verification…"
         : "Review your words per minute, accuracy, and typing details below.";
-  const roundedWpm = Math.round(wpm);
-  const roundedAccuracy = Math.round(accuracy);
-  const wpmCeiling = Math.max(40, Math.ceil(Math.max(roundedWpm, comparison?.bestWpm ?? 0, comparison?.averageWpm ?? 0) / 20) * 20);
-  // Accuracy bars start just below the lowest value so small differences stay visible.
-  const accuracyFloor = Math.max(0, Math.min(80, Math.floor(Math.min(roundedAccuracy, comparison?.averageAccuracy ?? 100) / 10) * 10 - 10));
+  const scores = buildResultStats(wpm, accuracy, comparison);
+  const testLabel = describeTest(settings);
+  const details: ResultDetailsData = {
+    correctWords: wordResults.correctWords,
+    incorrectWords: wordResults.incorrectWords,
+    stats,
+    testLabel,
+    seconds: duration === undefined ? null : (duration / 1000).toFixed(1),
+  };
+  const chips = resultChips(details);
+  const ghost = settings.ghostWriterEnabled ? ghostSpeed(settings) : null;
+
   useEffect(() => {
     // Completion moves focus to the result summary, unless a modal currently owns it.
     if (!document.querySelector('[role="dialog"]')) resultsRef.current?.focus({ preventScroll: true });
   }, []);
-  return (
+
+  const meta = (
     <>
-      <div
-        ref={resultsRef}
-        tabIndex={-1}
-        role="region"
-        aria-label="Test results"
-        className="w-full max-w-4xl mx-auto rounded-md outline-2 outline-offset-3 outline-ring"
-        onKeyDown={(event) => {
-          if (
-            connectMode ||
-            event.target !== event.currentTarget ||
-            event.defaultPrevented ||
-            event.nativeEvent.isComposing ||
-            event.ctrlKey ||
-            event.metaKey ||
-            event.altKey ||
-            event.shiftKey
-          )
-            return;
-          if (event.key === "Enter") {
-            event.preventDefault();
-            if (!advancementBlocked) generateTest();
-          }
-          if (event.key === " " && saveState !== "saved" && saveState !== "saving" && lastResultIsValid !== false) {
-            event.preventDefault();
-            saveResults();
-          }
-        }}
-      >
-        <PracticeResultsInfo>{resultsInfo}</PracticeResultsInfo>
-        <motion.div
-          className="mb-8 flex flex-col gap-4"
-          initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.25, ease: "easeOut" }}
-        >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <ResultStatCard
-              label="Words Per Minute"
-              value={roundedWpm}
-              average={comparison?.averageWpm}
-              best={comparison?.bestWpm}
-              tests={comparison?.tests}
-              floor={0}
-              ceiling={wpmCeiling}
-              tone="text-primary"
-              bar="bg-primary"
-              better="faster"
-              worse="slower"
-              delay={0.2}
-            />
-            <ResultStatCard
-              label="Accuracy"
-              value={roundedAccuracy}
-              suffix="%"
-              average={comparison?.averageAccuracy}
-              best={comparison?.bestAccuracy}
-              tests={comparison?.tests}
-              floor={accuracyFloor}
-              ceiling={100}
-              tone="text-(--accent-emphasis)"
-              bar="bg-(--accent-emphasis)"
-              better="more accurate"
-              worse="less accurate"
-              delay={0.3}
-              mirrored
-            />
-          </div>
-          {timeline.length >= 2 && <ResultTimelineGraph samples={timeline} />}
-          <ResultChips
-            correctWords={wordResults.correctWords}
-            incorrectWords={wordResults.incorrectWords}
-            stats={stats}
-            testLabel={describeTest(settings)}
-            durationMs={duration}
-          />
-        </motion.div>
-
-        {/* Quote Attribution */}
-        {settings.mode === "quote" && currentQuote && (
-          <div className="text-center mb-8" style={{ color: tv.ui.mutedForeground }}>
-            — {currentQuote.author}
-            {currentQuote.source && `, ${currentQuote.source}`}
-          </div>
-        )}
-
-        {/* Unverified Test Warning */}
-        {lastResultIsValid === false && (
-          <div
-            className="w-full mb-6 p-4 rounded-lg border"
-            style={{
-              backgroundColor: tv.ui.destructiveSurface,
-              borderColor: tv.ui.destructive,
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <WarningCircleIcon className="size-5 shrink-0" style={{ color: tv.ui.destructive }} aria-hidden="true" />
-              <div className="flex-1">
-                <span className="font-medium" style={{ color: tv.ui.destructive }}>
-                  Unverified
-                </span>
-                <span className="text-sm ml-2" style={{ color: tv.ui.mutedForeground }}>
-                  {lastResultInvalidReason?.includes("progress")
-                    ? "Not enough typing activity reached the server"
-                    : lastResultInvalidReason?.includes("WPM exceeds")
-                      ? "Speed exceeded the 300 WPM cap"
-                      : lastResultInvalidReason?.includes("Burst") || lastResultInvalidReason?.includes("paste")
-                        ? "Input appeared faster than allowed"
-                        : lastResultInvalidReason?.includes("too fast")
-                          ? "Test completed too quickly (need full duration)"
-                          : lastResultInvalidReason?.includes("Session was not established")
-                            ? "Could not verify this test with a server session"
-                            : "Could not verify this test"}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Actions */}
-        <motion.div
-          className="flex flex-col items-center gap-3"
-          initial={reducedMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.2,
-            delay: 0,
-            ease: "easeOut",
-          }}
-        >
-          {/* Save Results Button */}
-          {!connectMode && (
-            <button
-              type="button"
-              onClick={() => saveResults()}
-              disabled={saveState === "saving" || saveState === "saved" || lastResultIsValid === false}
-              className="group relative inline-flex max-w-full items-center justify-center gap-2 px-6 py-3 font-medium transition-all duration-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed sm:px-8"
-              style={{
-                backgroundColor:
-                  lastResultIsValid === false || saveState === "error"
-                    ? tv.ui.destructive
-                    : saveState === "saved"
-                      ? tv.ui.secondary
-                      : tv.ui.primary,
-                color:
-                  lastResultIsValid === false || saveState === "error"
-                    ? tv.ui.destructiveForeground
-                    : saveState === "saved"
-                      ? tv.ui.secondaryForeground
-                      : tv.ui.primaryForeground,
-              }}
-            >
-              <SaveIcon className={`size-[18px] shrink-0 ${saveState === "saving" && lastResultIsValid !== false ? "motion-safe:animate-spin" : ""}`} aria-hidden="true" />
-              {saveLabel}
-            </button>
-          )}
-          {!connectMode && (
-            <div className={`grid w-full max-w-md gap-3 ${repeatTest ? "grid-cols-2" : "grid-cols-1"} sm:flex sm:w-auto sm:max-w-none sm:justify-center`}>
-              {repeatTest && (
-                <button
-                  type="button"
-                  onClick={repeatTest}
-                  disabled={advancementBlocked}
-                  className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-3 font-medium text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-6"
-                >
-                  <ArrowClockwiseIcon className="size-[18px] shrink-0" aria-hidden="true" />
-                  <span>Repeat Test</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => generateTest()}
-                disabled={advancementBlocked}
-                className="group relative inline-flex min-w-0 items-center justify-center gap-2 px-3 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 sm:px-8"
-                style={{
-                  backgroundColor: tv.ui.card,
-                  color: tv.ui.foreground,
-                }}
-              >
-                <ArrowFatRightIcon className="size-[18px] shrink-0" aria-hidden="true" />
-                <span>Next Test</span>
-              </button>
-            </div>
-          )}
-          {connectMode && connectActions}
-          {connectMode && onLeave && (
-            <button
-              type="button"
-              onClick={onLeave}
-              className="inline-flex items-center justify-center gap-2 px-8 py-3 font-medium transition-all duration-200 rounded-lg hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2"
-              style={{
-                color: tv.ui.destructive,
-                backgroundColor: tv.ui.destructiveSurface,
-                borderWidth: 1,
-                borderColor: tv.ui.destructive,
-              }}
-            >
-              <SignOutIcon className="size-[18px] shrink-0" aria-hidden="true" />
-              Leave Room
-            </button>
-          )}
-        </motion.div>
-
-        <motion.div
-          className="mt-6 text-center text-sm"
-          style={{ color: tv.ui.mutedForeground }}
-          initial={reducedMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: reducedMotion ? 0 : 0.2, delay: 0 }}
-        >
-          {duration !== undefined && <p>Duration: {(duration / 1000).toFixed(1)}s</p>}
-          {lastResultIsValid === true && <p>Verified</p>}
-          {saveState === "saved" && lastResultIsValid === null && <p>Saved to history.</p>}
-          {rankingStatus === "pending" && <p>Waiting for verification…</p>}
-          {!connectMode && (
-            <p>
-              With the result summary focused:{" "}
-              {lastResultIsValid !== false && saveState !== "saved" && saveState !== "saving" ? "Space to save · " : ""}
-              {advancementBlocked ? "Next and Repeat are available after saving finishes." : "Enter for the next test."}
-            </p>
-          )}
-        </motion.div>
-      </div>
+      <span className="hidden truncate @min-[38rem]:inline">{testLabel}</span>
+      {comparison && <span className="whitespace-nowrap">Compared with your last {comparison.tests} {comparison.tests === 1 ? "test" : "tests"}</span>}
+      {settings.mode === "quote" && currentQuote && (
+        <span className="min-w-0 truncate">— {currentQuote.author}{currentQuote.source && `, ${currentQuote.source}`}</span>
+      )}
+      {isRepeated && !connectMode && <Badge>Repeated</Badge>}
+      {lastResultIsValid === true && <Badge tone="text-success"><SealCheckIcon className="size-3.5" weight="fill" aria-hidden="true" />Verified</Badge>}
+      {saveState === "saved" && lastResultIsValid === null && <Badge>Saved to history</Badge>}
+      {rankingStatus === "pending" && <Badge>Waiting for verification…</Badge>}
     </>
+  );
+
+  return (
+    <div
+      ref={resultsRef}
+      tabIndex={-1}
+      role="region"
+      aria-label="Test results"
+      aria-describedby={connectMode ? undefined : hintId}
+      className="@container mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 rounded-xl outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+      onKeyDown={(event) => {
+        if (
+          connectMode ||
+          event.target !== event.currentTarget ||
+          event.defaultPrevented ||
+          event.nativeEvent.isComposing ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.altKey ||
+          event.shiftKey
+        )
+          return;
+        if (event.key === "Enter") {
+          event.preventDefault();
+          if (!advancementBlocked) generateTest();
+        }
+        if (event.key === " " && canSave) {
+          event.preventDefault();
+          saveResults();
+        }
+      }}
+    >
+      {!connectMode && (
+        <p id={hintId} className="sr-only">
+          {canSave ? "Space saves this result. " : ""}
+          {advancementBlocked ? "Next and Repeat are available after saving finishes." : "Enter starts the next test."}
+        </p>
+      )}
+      {/*
+        Wide: the heading sits over the graph so the score column gets the full height.
+        Narrow screens drop the two columns (display: contents) and stack everything, buttons last.
+      */}
+      <motion.div
+        className="flex flex-1 flex-col gap-3 @min-[38rem]:grid @min-[38rem]:grid-cols-[minmax(13rem,16rem)_minmax(0,1fr)] @min-[38rem]:grid-rows-[auto_1fr]"
+        initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reducedMotion ? 0 : 0.25, ease: "easeOut" }}
+      >
+        <PracticeResultsInfo meta={meta} className="@min-[38rem]:col-start-2 @min-[38rem]:row-start-1">{resultsInfo}</PracticeResultsInfo>
+        <div className="contents @min-[38rem]:col-start-1 @min-[38rem]:row-span-2 @min-[38rem]:row-start-1 @min-[38rem]:flex @min-[38rem]:flex-col @min-[38rem]:gap-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl border border-border bg-card p-4 @min-[38rem]:flex @min-[38rem]:flex-1 @min-[38rem]:flex-col @min-[38rem]:justify-around">
+            <div className="flex flex-col gap-3">
+              <Score stat={scores.wpm} context={false} />
+              <CompareBars stat={scores.wpm} />
+            </div>
+            <div className="flex flex-col gap-3 @min-[38rem]:border-t @min-[38rem]:border-border @min-[38rem]:pt-3">
+              <Score stat={scores.accuracy} context={false} delay={0.3} />
+              <CompareBars stat={scores.accuracy} delay={0.4} />
+            </div>
+          </div>
+
+          <div className="order-last flex flex-col gap-3 @min-[38rem]:order-none">
+            {lastResultIsValid === false && (
+              <div
+                className="flex items-start gap-2 rounded-xl border p-3 text-sm"
+                style={{ backgroundColor: tv.ui.destructiveSurface, borderColor: tv.ui.destructive }}
+              >
+                <WarningCircleIcon className="mt-0.5 size-4 shrink-0" style={{ color: tv.ui.destructive }} aria-hidden="true" />
+                <p>
+                  <span className="font-medium" style={{ color: tv.ui.destructive }}>Unverified</span>{" "}
+                  <span style={{ color: tv.ui.mutedForeground }}>{describeInvalidReason(lastResultInvalidReason)}</span>
+                </p>
+              </div>
+            )}
+            {connectMode ? (
+              <>
+                {connectActions}
+                {onLeave && (
+                  <button
+                    type="button"
+                    onClick={onLeave}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    style={{ color: tv.ui.destructive, backgroundColor: tv.ui.destructiveSurface, borderColor: tv.ui.destructive }}
+                  >
+                    <SignOutIcon className="size-[18px] shrink-0" aria-hidden="true" />
+                    Leave Room
+                  </button>
+                )}
+              </>
+            ) : (
+              <ResultActions
+                stacked
+                saveState={saveState}
+                invalid={lastResultIsValid === false}
+                onSave={saveResults}
+                onRepeat={repeatTest}
+                onNext={generateTest}
+                advanceBlocked={advancementBlocked}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="contents @min-[38rem]:col-start-2 @min-[38rem]:row-start-2 @min-[38rem]:flex @min-[38rem]:min-h-0 @min-[38rem]:flex-col @min-[38rem]:gap-3">
+          <ResultDetailSlot chips={chips} data={details} detail={detail} scope={scope} swap className="min-h-[9rem] flex-1">
+            {timeline.length >= 2 ? (
+              <ResultsChart
+                samples={timeline}
+                guide={ghost === null ? undefined : { wpm: ghost, label: `ghost ${ghost}` }}
+                className="flex-1 rounded-2xl border border-border bg-card p-3"
+              />
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/50 p-4 text-center text-sm text-muted-foreground">
+                <ChartLineIcon className="size-6" weight="regular" aria-hidden="true" />
+                <p>No graph for this result. The speed and accuracy graph needs at least two seconds of typing.</p>
+              </div>
+            )}
+          </ResultDetailSlot>
+          <ResultDetailChips chips={chips} detail={detail} scope={scope} swap />
+        </div>
+      </motion.div>
+    </div>
   );
 }

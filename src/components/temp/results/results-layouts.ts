@@ -1,8 +1,11 @@
-// Shared data and state for the one-screen results layouts on /temp.
+// Shared data and state for the one-screen results layouts on /temp. The pieces are the real ones in
+// `@/components/typing/results/`, fed with a fake finished test.
 import { useEffect, useRef, useState } from "react";
-import { CheckIcon, TextAaIcon, TimerIcon, XIcon, type Icon } from "@phosphor-icons/react";
-import type { ChipId } from "@/components/typing/ResultChips";
+import { resultChips, useResultDetail, type ResultDetailsData } from "@/components/typing/results/result-details";
+import { buildResultStats } from "@/components/typing/results/result-stats";
 import { MOCK_COMPARISON, MOCK_STATS, MOCK_TIMELINE, MOCK_WORD_RESULTS } from "./mock-results";
+
+export type { StatKind } from "@/components/typing/results/result-stats";
 
 export const RESULT = {
   wpm: 58,
@@ -15,27 +18,17 @@ export const RESULT = {
   comparison: MOCK_COMPARISON,
 };
 
-export type StatKind = "wpm" | "accuracy";
-
-export const STATS: Record<StatKind, { label: string; short: string; value: number; suffix: string; average: number; best: number; floor: number; ceiling: number; tone: string; fill: string }> = {
-  wpm: {
-    label: "Words per minute", short: "wpm", value: RESULT.wpm, suffix: "", average: Math.round(MOCK_COMPARISON.averageWpm), best: MOCK_COMPARISON.bestWpm,
-    floor: 0, ceiling: 80, tone: "text-primary", fill: "bg-primary",
-  },
-  accuracy: {
-    label: "Accuracy", short: "acc", value: RESULT.accuracy, suffix: "%", average: Math.round(MOCK_COMPARISON.averageAccuracy), best: MOCK_COMPARISON.bestAccuracy,
-    floor: 80, ceiling: 100, tone: "text-(--accent-emphasis)", fill: "bg-(--accent-emphasis)",
-  },
+export const DETAILS: ResultDetailsData = {
+  correctWords: RESULT.words.correctWords,
+  incorrectWords: RESULT.words.incorrectWords,
+  stats: RESULT.stats,
+  testLabel: RESULT.testLabel,
+  seconds: RESULT.seconds,
 };
 
-const { correct, incorrect, missed, extra } = MOCK_STATS;
+export const STATS = buildResultStats(RESULT.wpm, RESULT.accuracy, MOCK_COMPARISON);
 
-export const CHIPS: { id: ChipId; title: string; value: string; label: string; Icon: Icon; tone: string; tile: string }[] = [
-  { id: "correct", title: "Correct words", value: String(MOCK_WORD_RESULTS.correctWords.length), label: "correct", Icon: CheckIcon, tone: "text-success", tile: "bg-success text-background" },
-  { id: "mistakes", title: "Mistakes", value: String(MOCK_WORD_RESULTS.incorrectWords.length), label: "mistakes", Icon: XIcon, tone: "text-destructive", tile: "bg-destructive text-background" },
-  { id: "characters", title: "Characters", value: `${correct}/${incorrect}/${missed}/${extra}`, label: "characters", Icon: TextAaIcon, tone: "text-foreground", tile: "bg-(--accent-emphasis) text-background" },
-  { id: "test", title: "Test", value: `${RESULT.seconds}s`, label: "test", Icon: TimerIcon, tone: "text-foreground", tile: "bg-muted-foreground text-background" },
-];
+export const CHIPS = resultChips(DETAILS);
 
 export const LAYOUTS: { name: string; summary: string }[] = [
   { name: "Side column", summary: "Speed and accuracy stacked on the left with the buttons under them. The graph fills the right, with the detail chips beneath it. Open a chip and its spot becomes a Graph pill; click that to bring the graph back." },
@@ -77,22 +70,7 @@ export function useSaveDemo() {
 
 export type SaveDemo = ReturnType<typeof useSaveDemo>;
 
-/** Which detail chip is open; closing hands focus back to its chip. */
-export function useDetail() {
-  const [open, setOpen] = useState<ChipId | null>(null);
-  const chips = useRef<Partial<Record<ChipId, HTMLElement | null>>>({});
-  const close = () => {
-    const last = open;
-    setOpen(null);
-    if (last) requestAnimationFrame(() => chips.current[last]?.focus({ preventScroll: true }));
-  };
-  return {
-    open,
-    close,
-    toggle: (id: ChipId) => (open === id ? close() : setOpen(id)),
-    chipRef: (id: ChipId) => (element: HTMLElement | null) => { chips.current[id] = element; },
-  };
-}
+export const useDetail = useResultDetail;
 
 export type Detail = ReturnType<typeof useDetail>;
 
