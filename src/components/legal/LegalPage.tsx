@@ -16,8 +16,10 @@ export interface LegalSection {
 
 interface LegalPageProps {
   title: string;
-  updated: string;
+  updated?: string;
   intro: string;
+  /** Overrides the note under the intro; legal pages keep the default. */
+  note?: string;
   Icon: Icon;
   sections: LegalSection[];
   other: { to: string; label: string };
@@ -35,8 +37,8 @@ const TILES = [
 
 const SPRING = { type: "spring", stiffness: 420, damping: 34 } as const;
 
-/** Privacy and Terms share this layout: a contents list, then one card per section with a short version on top. */
-export function LegalPage({ title, updated, intro, Icon, sections, other }: LegalPageProps) {
+/** Privacy, Terms and About share this layout: a contents list, then one card per section with a short version on top. */
+export function LegalPage({ title, updated, intro, note = "Each section starts with a short version in plain words. The full text under it is what counts.", Icon, sections, other }: LegalPageProps) {
   useTheme();
   const active = useActiveSection(sections);
 
@@ -58,11 +60,11 @@ export function LegalPage({ title, updated, intro, Icon, sections, other }: Lega
             <Icon className="size-8" weight="fill" aria-hidden="true" />
           </motion.span>
           <h1 className="text-3xl font-bold text-primary sm:text-4xl">{title}</h1>
-          <p className="text-sm text-muted-foreground">Last updated: {updated}</p>
+          {updated && <p className="text-sm text-muted-foreground">Last updated: {updated}</p>}
           <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{intro}</p>
           <p className="inline-flex max-w-2xl items-start gap-2 rounded-2xl bg-accent/60 px-4 py-2.5 text-left text-xs leading-relaxed text-foreground">
             <SparkleIcon className="mt-0.5 size-4 shrink-0 text-primary" weight="fill" aria-hidden="true" />
-            Each section starts with a short version in plain words. The full text under it is what counts.
+            {note}
           </p>
         </header>
 

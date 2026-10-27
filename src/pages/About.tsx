@@ -1,324 +1,169 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react";
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { tv } from "@/lib/theme-vars";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import type { ReactNode } from "react";
+import {
+  FileTextIcon, FlowerLotusIcon, HandHeartIcon, InfoIcon, ListChecksIcon, QuestionIcon, QuotesIcon, SealCheckIcon, ShieldCheckIcon, TextAaIcon, TimerIcon, TrophyIcon, type Icon,
+} from "@phosphor-icons/react";
+import { LegalPage, type LegalSection } from "@/components/legal/LegalPage";
 
-export default function About() {
-  const [activeTab, setActiveTab] = useState("validity");
-
+function Rule({ title, Icon, children }: { title: string; Icon?: Icon; children: ReactNode }) {
   return (
-    <div
-      className="min-h-[100dvh] font-mono px-4 py-12 transition-colors duration-300"
-      style={{
-        backgroundColor: tv.ui.background,
-        color: tv.ui.foreground,
-      }}
-    >
-      <div className="w-full max-w-4xl mx-auto animate-fade-in">
-        <div className="mb-6">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 transition text-sm hover:opacity-100"
-            style={{ color: tv.ui.mutedForeground }}
-          >
-            <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
-            Back to Homepage
-          </Link>
-        </div>
-
-        <div className="text-center mb-12">
-          <h1
-            className="text-4xl font-bold mb-2"
-            style={{ color: tv.ui.primary }}
-          >
-            About TypeSetGo
-          </h1>
-          <p style={{ color: tv.ui.mutedForeground }}>
-            Learn more about how TypeSetGo works
-          </p>
-        </div>
-
-        <Tabs defaultValue="validity" className="w-full" onValueChange={setActiveTab}>
-          <TabsList
-            className="w-full justify-start mb-8 rounded-lg p-1"
-            style={{
-              backgroundColor: tv.ui.secondary,
-            }}
-          >
-            <TabsTrigger
-              value="validity"
-              className="rounded-md px-4 py-2 text-sm font-medium transition-all"
-              style={{
-                color: activeTab === "validity" ? tv.ui.primary : tv.ui.mutedForeground,
-                backgroundColor: activeTab === "validity" ? tv.ui.secondary : "transparent",
-              }}
-            >
-              Test Validity
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="validity">
-            <TestValidityContent />
-          </TabsContent>
-        </Tabs>
-
-      </div>
+    <div className="rounded-2xl bg-muted/50 p-4">
+      <h3 className="mb-1.5 flex items-center gap-2 font-semibold text-foreground">
+        {Icon && <Icon className="size-4 shrink-0 text-primary" weight="fill" aria-hidden="true" />}
+        {title}
+      </h3>
+      {children}
     </div>
   );
 }
 
-function TestValidityContent() {
-  return (
-    <div
-      className="space-y-8 text-sm leading-relaxed"
-      style={{ color: tv.ui.mutedForeground }}
-    >
-      <section>
-        <h2
-          className="text-xl font-semibold mb-4"
-          style={{ color: tv.ui.foreground }}
-        >
-          What is Test Validity?
-        </h2>
-        <p className="mb-3">
-          Solo practice tests are checked on the server after you finish. Tests
-          that pass are marked <strong>verified</strong>. Tests that fail are
-          still saved to your history as <strong>unverified</strong>, but they
-          do not count toward leaderboards, achievements, or streaks.
+const SECTIONS: LegalSection[] = [
+  {
+    id: "what-is-test-validity",
+    title: "What is Test Validity?",
+    Icon: SealCheckIcon,
+    short: "Finished tests get checked. Tests that pass are verified; the rest are still saved, but don't count for leaderboards, achievements or streaks.",
+    body: (
+      <>
+        <p>
+          Solo practice tests are checked on the server after you finish. Tests that pass are marked <strong>verified</strong>. Tests that fail are
+          still saved to your history as <strong>unverified</strong>, but they do not count toward leaderboards, achievements, or streaks.
         </p>
         <p>
-          Leaderboard ranking is a separate, server-enforced filter:{" "}
-          <strong>90%+ accuracy</strong> and either <strong>30 seconds</strong> or{" "}
-          <strong>50 correct words</strong>. A verified 15-second test can still
-          count for history, personal bests, and some achievements — it just
+          Leaderboard ranking is a separate, server-enforced filter: <strong>90%+ accuracy</strong> and either <strong>30 seconds</strong> or{" "}
+          <strong>50 correct words</strong>. A verified 15-second test can still count for history, personal bests, and some achievements — it just
           does not rank.
         </p>
-      </section>
-
-      <section>
-        <h2
-          className="text-xl font-semibold mb-4"
-          style={{ color: tv.ui.foreground }}
-        >
-          Leaderboard Eligibility
-        </h2>
-        <p className="mb-4">
-          These rules are enforced in the leaderboard query (not only in this
-          page&apos;s copy):
-        </p>
-        <div className="space-y-4">
-          <ValidityItem
-            title="Accuracy and length"
-            description="90% or higher accuracy, and either at least 30 seconds or at least 50 correct words. 15-second tests are valid for history but do not appear on the leaderboard."
-          />
-          <ValidityItem
-            title="WPM cap"
-            description="Scores above 300 WPM are excluded. Speeds of 170–200 WPM are allowed — that range is treated as normal fast typing, not as cheating."
-          />
-          <ValidityItem
-            title="Verified only"
-            description="Only verified tests can rank. You must be signed in for a test to be verified. Unsigned tests cannot appear on the leaderboard."
-          />
+      </>
+    ),
+  },
+  {
+    id: "leaderboard-eligibility",
+    title: "Leaderboard Eligibility",
+    Icon: TrophyIcon,
+    short: "To rank: be signed in, get 90% or more right, and type for 30 seconds or 50 correct words. Over 300 WPM doesn't count.",
+    body: (
+      <>
+        <p>These rules are enforced in the leaderboard query (not only in this page&apos;s copy):</p>
+        <div className="space-y-3">
+          <Rule title="Accuracy and length">
+            <p>90% or higher accuracy, and either at least 30 seconds or at least 50 correct words. 15-second tests are valid for history but do not appear on the leaderboard.</p>
+          </Rule>
+          <Rule title="WPM cap">
+            <p>Scores above 300 WPM are excluded. Speeds of 170–200 WPM are allowed — that range is treated as normal fast typing, not as cheating.</p>
+          </Rule>
+          <Rule title="Verified only">
+            <p>Only verified tests can rank. You must be signed in for a test to be verified. Unsigned tests cannot appear on the leaderboard.</p>
+          </Rule>
         </div>
-      </section>
-
-      <section>
-        <h2
-          className="text-xl font-semibold mb-4"
-          style={{ color: tv.ui.foreground }}
-        >
-          Universal Requirements
-        </h2>
-        <p className="mb-4">
-          These checks apply to all solo test modes:
-        </p>
-        <div className="space-y-4">
-          <ValidityItem
-            title="WPM Ceiling"
-            description="Typing speed must not exceed 300 WPM. That cap is well above sustained world-record pace and is the hard limit — 170–200 WPM is fully allowed."
-          />
-          <ValidityItem
-            title="Paste blocking"
-            description="Pasting into the solo typing input is blocked. Type normally; the client does not wait on the network between keystrokes."
-          />
-          <ValidityItem
-            title="Signed-in session"
-            description="Signed-in solo tests open a server session and send progress while you type. Guest tests cannot be verified for ranking."
-          />
+      </>
+    ),
+  },
+  {
+    id: "universal-requirements",
+    title: "Universal Requirements",
+    Icon: ShieldCheckIcon,
+    short: "Every solo test: no more than 300 WPM, no pasting, and sign in so it can be verified.",
+    body: (
+      <>
+        <p>These checks apply to all solo test modes:</p>
+        <div className="space-y-3">
+          <Rule title="WPM Ceiling">
+            <p>Typing speed must not exceed 300 WPM. That cap is well above sustained world-record pace and is the hard limit — 170–200 WPM is fully allowed.</p>
+          </Rule>
+          <Rule title="Paste blocking">
+            <p>Pasting into the solo typing input is blocked. Type normally; the client does not wait on the network between keystrokes.</p>
+          </Rule>
+          <Rule title="Signed-in session">
+            <p>Signed-in solo tests open a server session and send progress while you type. Guest tests cannot be verified for ranking.</p>
+          </Rule>
         </div>
-      </section>
-
-      <section>
-        <h2
-          className="text-xl font-semibold mb-4"
-          style={{ color: tv.ui.foreground }}
-        >
-          Mode-Specific Requirements
-        </h2>
-        <p className="mb-4">
-          Each test mode has additional validation rules:
-        </p>
-
-        <div className="space-y-6">
-          <ModeSection mode="Time Mode">
-            <p className="mb-3">
-              Time mode tests must run for the selected duration (with a small
-              tolerance for latency). A 15-second test can still be verified if
-              it passes these checks, but it does not qualify for the
-              leaderboard.
+      </>
+    ),
+  },
+  {
+    id: "mode-specific-requirements",
+    title: "Mode-Specific Requirements",
+    Icon: ListChecksIcon,
+    short: "Finish what you start: run the full time, reach your word goal, or complete the quote or preset. Zen is relaxed and never ranks.",
+    body: (
+      <>
+        <p>Each test mode has additional validation rules:</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Rule title="Time Mode" Icon={TimerIcon}>
+            <p className="mb-2">
+              Time mode tests must run for the selected duration (with a small tolerance for latency). A 15-second test can still be verified if it
+              passes these checks, but it does not qualify for the leaderboard.
             </p>
+            <p>If you want a ranked time test, use 30 seconds or longer (or combine with the 50-word ranking path in words mode).</p>
+          </Rule>
+          <Rule title="Words Mode" Icon={TextAaIcon}>
             <p>
-              If you want a ranked time test, use 30 seconds or longer (or
-              combine with the 50-word ranking path in words mode).
+              You must reach your selected word target. Tests with at least 50 correct words can rank even if they are shorter than 30 seconds, as long
+              as accuracy is 90%+ and the test is verified.
             </p>
-          </ModeSection>
-
-          <ModeSection mode="Words Mode">
-            <p className="mb-3">
-              You must reach your selected word target. Tests with at least 50
-              correct words can rank even if they are shorter than 30 seconds,
-              as long as accuracy is 90%+ and the test is verified.
+          </Rule>
+          <Rule title="Quote Mode" Icon={QuotesIcon}>
+            <p>You must complete the entire quote. Ranking still requires 90%+ accuracy and either 30 seconds or 50 correct words.</p>
+          </Rule>
+          <Rule title="Preset Mode" Icon={FileTextIcon}>
+            <p>You must complete the entire preset text. The same ranking filter applies: 90%+ accuracy and 30 seconds or 50 correct words.</p>
+          </Rule>
+          <Rule title="Zen Mode" Icon={FlowerLotusIcon}>
+            <p>
+              Zen mode uses relaxed validation — the 300 WPM cap still applies, and there is no duration or word-target failure. Zen tests are not a
+              ranked leaderboard mode.
             </p>
-          </ModeSection>
-
-          <ModeSection mode="Quote Mode">
-            <p className="mb-3">
-              You must complete the entire quote. Ranking still requires 90%+
-              accuracy and either 30 seconds or 50 correct words.
-            </p>
-          </ModeSection>
-
-          <ModeSection mode="Preset Mode">
-            <p className="mb-3">
-              You must complete the entire preset text. The same ranking filter
-              applies: 90%+ accuracy and 30 seconds or 50 correct words.
-            </p>
-          </ModeSection>
-
-          <ModeSection mode="Zen Mode">
-            <p className="mb-3">
-              Zen mode uses relaxed validation — the 300 WPM cap still applies,
-              and there is no duration or word-target failure. Zen tests are
-              not a ranked leaderboard mode.
-            </p>
-          </ModeSection>
+          </Rule>
         </div>
-      </section>
-
-      <section>
-        <h2
-          className="text-xl font-semibold mb-4"
-          style={{ color: tv.ui.foreground }}
-        >
-          Why Was My Test Unverified?
-        </h2>
-        <p className="mb-4">
-          Common reasons a test might be marked as unverified:
-        </p>
-        <ul className="list-disc list-inside space-y-2 ml-4">
-          <li>
-            <strong>Speed over 300 WPM:</strong> The hard cap is 300. 170–200
-            WPM is allowed.
-          </li>
-          <li>
-            <strong>Completed too quickly:</strong> Time mode tests must run
-            for the selected duration.
-          </li>
-          <li>
-            <strong>Paste or instant dump:</strong> Pasting is blocked on solo
-            practice. Unusual instant input can still fail server checks.
-          </li>
-          <li>
-            <strong>Not signed in:</strong> Guest tests cannot be verified for
-            leaderboard eligibility.
-          </li>
-          <li>
-            <strong>Session progress missing:</strong> If the server did not
-            receive enough progress during the test, it may not mark the result
-            verified.
-          </li>
-          <li>
-            <strong>Test not completed:</strong> For words, quote, and preset
-            modes, you must finish the entire test.
-          </li>
+      </>
+    ),
+  },
+  {
+    id: "why-was-my-test-unverified",
+    title: "Why Was My Test Unverified?",
+    Icon: QuestionIcon,
+    short: "Usually it went over 300 WPM, ended too early, was pasted, wasn't finished, or you weren't signed in.",
+    body: (
+      <>
+        <p>Common reasons a test might be marked as unverified:</p>
+        <ul>
+          <li><strong>Speed over 300 WPM:</strong> The hard cap is 300. 170–200 WPM is allowed.</li>
+          <li><strong>Completed too quickly:</strong> Time mode tests must run for the selected duration.</li>
+          <li><strong>Paste or instant dump:</strong> Pasting is blocked on solo practice. Unusual instant input can still fail server checks.</li>
+          <li><strong>Not signed in:</strong> Guest tests cannot be verified for leaderboard eligibility.</li>
+          <li><strong>Session progress missing:</strong> If the server did not receive enough progress during the test, it may not mark the result verified.</li>
+          <li><strong>Test not completed:</strong> For words, quote, and preset modes, you must finish the entire test.</li>
         </ul>
-        <p className="mt-4">
-          A short verified test (for example 15 seconds) is not unverified —
-          it simply does not rank. TypeSetGo does not replay keystrokes or
-          provide live human review of each test.
-        </p>
-      </section>
-
-      <section
-        className="p-4 rounded-lg"
-        style={{
-          backgroundColor: tv.ui.secondary,
-          borderLeft: `3px solid ${tv.ui.primary}`,
-        }}
-      >
-        <h3
-          className="font-semibold mb-2"
-          style={{ color: tv.ui.foreground }}
-        >
-          Note on False Positives
-        </h3>
         <p>
-          The checks are meant to stay out of the way of legitimate fast
-          typists. 170–200 WPM is allowed. Only scores above 300 WPM are
-          over the cap. If a test is unverified, it is still in your history;
-          it just will not rank or award achievements and streaks.
+          A short verified test (for example 15 seconds) is not unverified — it simply does not rank. TypeSetGo does not replay keystrokes or provide
+          live human review of each test.
         </p>
-      </section>
-    </div>
-  );
-}
+      </>
+    ),
+  },
+  {
+    id: "note-on-false-positives",
+    title: "Note on False Positives",
+    Icon: HandHeartIcon,
+    short: "Fast typists are welcome. Anything up to 300 WPM is fine, and unverified tests still stay in your history.",
+    body: (
+      <p>
+        The checks are meant to stay out of the way of legitimate fast typists. 170–200 WPM is allowed. Only scores above 300 WPM are over the cap.
+        If a test is unverified, it is still in your history; it just will not rank or award achievements and streaks.
+      </p>
+    ),
+  },
+];
 
-function ValidityItem({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
+export default function About() {
   return (
-    <div
-      className="p-4 rounded-lg"
-      style={{ backgroundColor: tv.ui.secondary }}
-    >
-      <h4
-        className="font-semibold mb-1"
-        style={{ color: tv.ui.foreground }}
-      >
-        {title}
-      </h4>
-      <p>{description}</p>
-    </div>
-  );
-}
-
-function ModeSection({
-  mode,
-  children,
-}: {
-  mode: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className="p-4 rounded-lg border"
-      style={{
-        backgroundColor: tv.ui.secondary,
-        borderColor: tv.ui.secondary,
-      }}
-    >
-      <h3
-        className="font-semibold mb-3 flex items-center gap-2"
-        style={{ color: tv.ui.primary }}
-      >
-        {mode}
-      </h3>
-      <div style={{ color: tv.ui.mutedForeground }}>{children}</div>
-    </div>
+    <LegalPage
+      title="About TypeSetGo"
+      intro="How TypeSetGo checks your tests, and what it takes for a score to count on the leaderboard."
+      note="Each section starts with the short version. The details follow underneath."
+      Icon={InfoIcon}
+      sections={SECTIONS}
+      other={{ to: "/", label: "Start typing" }}
+    />
   );
 }
