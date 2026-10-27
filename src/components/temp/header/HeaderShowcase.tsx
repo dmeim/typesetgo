@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRightIcon, LockSimpleIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { DockHeader } from "./DockHeader";
-import { ALL_PAGES, GUEST_NOTIFICATIONS, NOTIFICATIONS, type PageId } from "./header-mock";
+import { SplitDockHeader } from "./SplitDockHeader";
+import { ALL_PAGES, GUEST_NOTIFICATIONS, NOTIFICATIONS, type HeaderMockupProps, type PageId } from "./header-mock";
 
 const PATHS: Record<PageId, string> = { type: "/", race: "/race", lessons: "/lessons", connect: "/connect", leaderboard: "/leaderboard", theme: "/profile/theme", settings: "/profile/text" };
 const PAGE_LINKS: Partial<Record<PageId, [string, string]>> = {
@@ -15,13 +16,30 @@ const PAGE_LINKS: Partial<Record<PageId, [string, string]>> = {
 };
 const WORDS = "the quick brown fox jumps over the lazy dog while the class races to type every word".split(" ");
 
-/** The Dock header in a mini browser window, with the toggles the UI Lab section provides. */
+const DESIGNS: [string, string, ComponentType<HeaderMockupProps>][] = [
+  ["Dock", "Everything in one floating pill.", DockHeader],
+  ["Split dock", "The same dock split in two: logo and pages on the left, leaderboard, theme, settings and your buttons on the right.", SplitDockHeader],
+];
+
+/** Each header design in a mini browser window, with the toggles the UI Lab section provides. */
 export function HeaderShowcase({ signedIn, typing, phone }: { signedIn: boolean; typing: boolean; phone: boolean }) {
-  // Remount when signing in or out so the mockup starts fresh.
-  return <MockWindow key={String(signedIn)} signedIn={signedIn} typing={typing} phone={phone} />;
+  return (
+    <div className="flex flex-col gap-6">
+      {DESIGNS.map(([name, summary, Header], index) => (
+        <div key={name} className="flex flex-col gap-2">
+          <div className="flex flex-col gap-0.5 px-1">
+            <span className="text-sm font-semibold"><span className="text-muted-foreground">{String(index + 1).padStart(2, "0")}</span> {name}</span>
+            <span className="text-xs text-muted-foreground">{summary}</span>
+          </div>
+          {/* Remount when signing in or out so each design starts fresh. */}
+          <MockWindow key={String(signedIn)} Header={Header} signedIn={signedIn} typing={typing} phone={phone} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
-function MockWindow({ signedIn, typing, phone }: { signedIn: boolean; typing: boolean; phone: boolean }) {
+function MockWindow({ Header, signedIn, typing, phone }: { Header: ComponentType<HeaderMockupProps>; signedIn: boolean; typing: boolean; phone: boolean }) {
   const [page, setPage] = useState<PageId>("type");
   const [dark, setDark] = useState(true);
   const [notifications, setNotifications] = useState(signedIn ? NOTIFICATIONS : GUEST_NOTIFICATIONS);
@@ -38,7 +56,7 @@ function MockWindow({ signedIn, typing, phone }: { signedIn: boolean; typing: bo
         </span>
       </div>
       <div className="@container flex h-[30rem] flex-col">
-        <DockHeader
+        <Header
           signedIn={signedIn}
           typing={typing}
           page={page}
@@ -49,7 +67,7 @@ function MockWindow({ signedIn, typing, phone }: { signedIn: boolean; typing: bo
           readAll={readAll}
         >
           <MockPage page={page} typing={typing} />
-        </DockHeader>
+        </Header>
       </div>
     </motion.div>
   );

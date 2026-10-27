@@ -66,7 +66,7 @@ function Divider() {
   return <span aria-hidden="true" className="mx-1.5 h-6 w-px bg-border @min-[49rem]:mx-3" />;
 }
 
-function DockItem({ item, page, go, group, compact = false }: { item: NavItem; page: PageId; go: (page: PageId) => void; group: string; compact?: boolean }) {
+export function DockItem({ item, page, go, group, compact = false }: { item: NavItem; page: PageId; go: (page: PageId) => void; group: string; compact?: boolean }) {
   const active = page === item.id;
   return (
     <motion.button

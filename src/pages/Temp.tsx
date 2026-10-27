@@ -113,7 +113,7 @@ function HeaderSection() {
     </div>
   );
   return (
-    <Section id="header" title="Header & navigation" badge="every page" summary="The Dock: logo (home), then Type, Race, Lessons and Connect, then Leaderboard, Theme and Settings, then light/dark, notifications and your account (stats, history, achievements). The page you are on grows its name. Like today, the header is hidden while you type; try the Typing toggle." actions={actions}>
+    <Section id="header" title="Header & navigation" badge="every page" summary="The Dock, as one pill and split in two. Logo (home), then Type, Race, Lessons and Connect, then Leaderboard, Theme and Settings, then light/dark, notifications and your account (stats, history, achievements). The page you are on grows its name. Like today, the header is hidden while you type; try the Typing toggle." actions={actions}>
       <HeaderShowcase signedIn={signedIn} typing={typing} phone={phone} />
     </Section>
   );
