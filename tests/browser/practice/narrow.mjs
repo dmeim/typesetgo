@@ -92,17 +92,15 @@ await withFixtureBrowser(async browser => {
     const panel = p.getByRole("group", { name: "Test settings", exact: true });
     await expect(async () => { await expectWithinViewport(p, panel); }).toPass();
     expect(await noSideways()).toBe(true);
-    await panel.getByRole("radio", { name: "time", exact: true }).click();
-    await expect(panel.getByRole("radio", { name: "time", exact: true })).toHaveAttribute("aria-checked", "true");
-    // The length row swaps from word counts to durations after the mode change; pick once it has settled.
-    await expect(async () => {
-      await panel.getByRole("radio", { name: "60s", exact: true }).click();
-      await expect(panel.getByRole("radio", { name: "60s", exact: true })).toHaveAttribute("aria-checked", "true", { timeout: 1000 });
+    // Each pick loads a new prompt and the centred pill can shift while it does, so retry a pick until it lands.
+    const pick = (control, attribute) => expect(async () => {
+      if (await control.getAttribute(attribute) !== "true") await control.click();
+      await expect(control).toHaveAttribute(attribute, "true", { timeout: 1000 });
     }).toPass();
-    await panel.getByRole("radio", { name: "hard", exact: true }).click();
-    await expect(panel.getByRole("radio", { name: "hard", exact: true })).toHaveAttribute("aria-checked", "true");
-    await panel.getByRole("button", { name: "punctuation" }).click();
-    await expect(panel.getByRole("button", { name: "punctuation" })).toHaveAttribute("aria-pressed", "true");
+    await pick(panel.getByRole("radio", { name: "time", exact: true }), "aria-checked");
+    await pick(panel.getByRole("radio", { name: "60s", exact: true }), "aria-checked");
+    await pick(panel.getByRole("radio", { name: "hard", exact: true }), "aria-checked");
+    await pick(panel.getByRole("button", { name: "punctuation" }), "aria-pressed");
     // Custom length unfolds inside the pill and pushes the test down instead of opening a dialog.
     await panel.getByRole("button", { name: "Custom length" }).click();
     const lengthEditor = p.getByRole("region", { name: "Custom duration", exact: true });

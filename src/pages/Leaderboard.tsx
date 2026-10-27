@@ -61,7 +61,7 @@ function periodSubtitle(period: LeaderboardPeriodId, periodStart: number, now: n
 
 /** Arena leaderboard: one podium; switching period morphs every player to their new place. */
 export default function Leaderboard() {
-  const [periodId, setPeriodId] = useState<LeaderboardPeriodId>("all-time");
+  const [periodId, setPeriodId] = useState<LeaderboardPeriodId>("today");
   const [switched, setSwitched] = useState(false);
   const reducedMotion = useReducedMotion() ?? false;
   const periodStart = useUtcPeriodStart();

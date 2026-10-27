@@ -4,8 +4,8 @@ import { expect } from "@playwright/test";
 
 // Tab label and the accessible title used for the podium and rank list.
 const periods = [
-  { tab: "All time", title: "All time", range: "all-time" },
   { tab: "Today", title: "Today", range: "today" },
+  { tab: "All time", title: "All time", range: "all-time" },
   { tab: "7 days", title: "Last 7 days", range: "week" },
 ];
 const winners = [
@@ -133,9 +133,9 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
     const reducedMotion = width === 390 || width === 1440 ? "no-preference" : "reduce";
     const label = `podium ${width}px ${theme} ${reducedMotion}`;
     await open("/leaderboard", { scenario: "podium", podiumCount: 50, width, height: 1000, theme, reducedMotion });
-    await expect(page.getByRole("tab", { name: "All time", exact: true })).toHaveAttribute("aria-selected", "true");
-    // The first board is in place on load: no entrance movement, fade or crown pop.
-    const loaded = await podiumGeometry(page.getByRole("list", { name: "All time podium", exact: true }));
+    await expect(page.getByRole("tab", { name: "Today", exact: true })).toHaveAttribute("aria-selected", "true");
+    // The first board (Today) is in place on load: no entrance movement, fade or crown pop.
+    const loaded = await podiumGeometry(page.getByRole("list", { name: "Today podium", exact: true }));
     assert.ok(loaded.entries.every((entry) => entry.stationary), `${label}: first board has no entrance animation`);
     for (const period of [...periods.slice(1), periods[0]]) {
       await choosePeriod(page, period.tab);
@@ -171,14 +171,14 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
 
   await open("/leaderboard", { scenario: "podium", podiumCount: 50, width: 390, you: "leaderboard-user-7" });
   const standing = page.getByRole("complementary", { name: "Your standing", exact: true });
+  await expect(standing).toContainText("You’re #7 today");
+  await choosePeriod(page, "All time");
   await expect(standing).toContainText("You’re #7 of all time");
   await expect(standing).toContainText("1 WPM behind all-time ExtremelyLongUnbrokenUsernameNumber6");
   await expect(page.locator('[data-leaderboard-row="7"]').getByText("You", { exact: true })).toBeVisible();
-  await choosePeriod(page, "Today");
-  await expect(standing).toContainText("You’re #7 today");
   await noOverflow("standing bar 390px");
   await open("/leaderboard", { scenario: "podium", podiumCount: 50, width: 390 });
-  await expect(page.getByRole("complementary", { name: "Your standing", exact: true })).toContainText("You’re not in the top 50 of all time yet");
+  await expect(page.getByRole("complementary", { name: "Your standing", exact: true })).toContainText("You’re not in the top 50 today yet");
   await open("/leaderboard", { scenario: "anonymous", width: 390 });
   await expect(page.getByRole("complementary", { name: "Your standing", exact: true })).toHaveCount(0);
   checks.push("signed-in standing bar from the loaded board; absent when signed out");
@@ -186,6 +186,7 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
   for (const scenario of ["visitor", "anonymous"]) {
     for (const rank of [1, 4]) {
       await open("/leaderboard", { scenario, width: 390 });
+      await choosePeriod(page, "All time");
       const panel = page.getByRole("tabpanel");
       const links = panel.getByRole("link");
       await expect(links).toHaveCount(50);

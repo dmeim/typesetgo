@@ -36,6 +36,22 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "polish-after-overhaul",
+    date: "2026-10-27",
+    title: "Kids mode keyboard, Today first, and a calmer results page",
+    kind: "improved",
+    status: "live",
+    area: "Home",
+    summary: "A round of polish after the overhaul. Kids mode now turns on the Finger guide keyboard and puts your own keyboard back when you leave it, the leaderboard opens on Today, and results sit in the middle of the screen instead of stretching to the edges.",
+    highlights: [
+      "Kids mode switches the keyboard on with the Finger guide, then restores what you had",
+      "The leaderboard opens on Today",
+      "Results stay on one screen, centred with room around them",
+      "Settings show one preview card, with a Live Preview window for the real size",
+      "Font cards show just \"Aa\" and the name, in that font",
+    ],
+  },
+  {
     id: "settings-before-the-test",
     date: "2026-10-27",
     title: "Settings before the test, custom lengths in the pill",

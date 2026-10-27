@@ -48,17 +48,18 @@ describe("leaderboard periods", () => {
   it("subscribes to every period and keeps independent loading and empty states", () => {
     queries.ranges = { "all-time": [], today: undefined, week: [] };
     renderLeaderboard();
-    expect(screen.getByRole("tab", { name: "All time" })).toHaveAttribute("aria-selected", "true");
-    let panel = screen.getByRole("tabpanel");
-    expect(within(panel).getByText("No scores yet")).toBeVisible();
-    expect(screen.getByRole("banner", { name: "Site header" })).toBeInTheDocument();
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
-
-    choosePeriod("Today");
-    panel = screen.getByRole("tabpanel");
+    // Today is the board you land on.
     expect(screen.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+    let panel = screen.getByRole("tabpanel");
     expect(within(panel).getByRole("status")).toHaveTextContent("Loading today scores");
     expect(panel).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("banner", { name: "Site header" })).toBeInTheDocument();
+
+    choosePeriod("All time");
+    panel = screen.getByRole("tabpanel");
+    expect(screen.getByRole("tab", { name: "All time" })).toHaveAttribute("aria-selected", "true");
+    expect(within(panel).getByText("No scores yet")).toBeVisible();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
 
     choosePeriod("7 days");
     panel = screen.getByRole("tabpanel");
@@ -76,8 +77,8 @@ describe("leaderboard periods", () => {
   it("replaces loading with received data", () => {
     queries.ranges = {};
     const result = renderLeaderboard();
-    expect(screen.getByRole("status")).toHaveTextContent("Loading all time scores");
-    queries.ranges["all-time"] = [];
+    expect(screen.getByRole("status")).toHaveTextContent("Loading today scores");
+    queries.ranges.today = [];
     result.rerender(<MemoryRouter><Leaderboard /></MemoryRouter>);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-busy", "false");
@@ -92,11 +93,11 @@ describe("leaderboard periods", () => {
     queries.ranges = { "all-time": board([0, 1, 2, 3, 4]), today: board([4, 3, 2]), week: board([1, 0, 2, 3, 4]) };
     renderLeaderboard();
     const winner = () => within(screen.getByRole("list", { name: /podium$/ }).querySelector('[data-podium-rank="1"]') as HTMLElement);
-    expect(winner().getByRole("link", { name: "Ada" })).toBeVisible();
-    choosePeriod("Today");
     expect(winner().getByRole("link", { name: "Barbara" })).toHaveAttribute("href", "/profile/users%3ABarbara");
     expect(screen.getByRole("list", { name: "Today podium" })).toBeVisible();
     expect(screen.queryByRole("list", { name: "Today ranks 4 and below" })).not.toBeInTheDocument();
+    choosePeriod("All time");
+    expect(winner().getByRole("link", { name: "Ada" })).toBeInTheDocument();
     choosePeriod("7 days");
     // Newly placed names fade in after a switch.
     expect(winner().getByRole("link", { name: "Grace" })).toBeInTheDocument();
@@ -107,10 +108,10 @@ describe("leaderboard periods", () => {
 describe("leaderboard board", () => {
   it("shows every score immediately and preserves full long usernames", () => {
     const entries = makeEntries(50);
-    queries.ranges = { "all-time": entries, today: entries.slice(0, 1), week: entries.slice(0, 2) };
+    queries.ranges = { "all-time": entries.slice(0, 1), today: entries, week: entries.slice(0, 2) };
     renderLeaderboard();
-    const podium = screen.getByRole("list", { name: "All time podium" });
-    const ranks = screen.getByRole("list", { name: "All time ranks 4 and below" });
+    const podium = screen.getByRole("list", { name: "Today podium" });
+    const ranks = screen.getByRole("list", { name: "Today ranks 4 and below" });
     expect(within(podium).getAllByRole("listitem")).toHaveLength(3);
     expect(within(ranks).getAllByRole("listitem")).toHaveLength(47);
     expect(ranks).toHaveAttribute("start", "4");
@@ -136,10 +137,10 @@ describe("leaderboard board", () => {
     const entries = makeEntries(count, (index) => ["First with a full wrapping name", "SecondUnbrokenNameThatMustRemainReadable", "Third"][index])
       // The server decides the ranks even when displayed scores are equal.
       .map((entry) => ({ ...entry, wpm: 140 }));
-    queries.ranges = { "all-time": entries, today: [], week: [] };
+    queries.ranges = { "all-time": [], today: entries, week: [] };
     renderLeaderboard();
 
-    const podium = screen.getByRole("list", { name: "All time podium" });
+    const podium = screen.getByRole("list", { name: "Today podium" });
     const items = within(podium).getAllByRole("listitem");
     expect(items).toHaveLength(count);
     for (const [index, item] of items.entries()) {
@@ -148,7 +149,7 @@ describe("leaderboard board", () => {
       expect(within(item).getByText(entries[index].username)).toBeVisible();
       expect(within(item).getByText("140")).toBeVisible();
     }
-    expect(screen.queryByRole("list", { name: "All time ranks 4 and below" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Today ranks 4 and below" })).not.toBeInTheDocument();
     expect(screen.queryByText(`Rank ${count + 1}`)).not.toBeInTheDocument();
   });
 
@@ -161,9 +162,9 @@ describe("leaderboard board", () => {
       wpm: 120,
       createdAt: 1_700_000_000_000,
     };
-    queries.ranges = { "all-time": [entry], today: [], week: [] };
+    queries.ranges = { "all-time": [], today: [entry], week: [] };
     const result = renderLeaderboard();
-    const podium = screen.getByRole("list", { name: "All time podium" });
+    const podium = screen.getByRole("list", { name: "Today podium" });
     const avatar = podium.querySelector("img")!;
     expect(avatar).toHaveAttribute("alt", "");
     fireEvent.error(avatar);
@@ -172,7 +173,7 @@ describe("leaderboard board", () => {
     expect(within(podium).getByText(entry.username)).toBeVisible();
     expect(within(podium).getByText("120")).toBeVisible();
 
-    queries.ranges["all-time"] = [{ ...entry, avatarUrl: "/replacement-avatar.png" }];
+    queries.ranges.today = [{ ...entry, avatarUrl: "/replacement-avatar.png" }];
     result.rerender(<MemoryRouter><Leaderboard /></MemoryRouter>);
     expect(podium.querySelector("img")).toHaveAttribute("src", "/replacement-avatar.png");
   });
@@ -200,9 +201,9 @@ describe("leaderboard board", () => {
   });
 
   it("keeps older deployed responses readable without inventing profile IDs", () => {
-    queries.ranges = { "all-time": [{
+    queries.ranges = { "all-time": [], today: [{
       rank: 1, username: "Legacy response", avatarUrl: null, wpm: 120, createdAt: 1_700_000_000_000,
-    }], today: [], week: [] };
+    }], week: [] };
     renderLeaderboard();
     const panel = screen.getByRole("tabpanel");
     expect(within(panel).getByText("Legacy response")).toBeVisible();
@@ -216,6 +217,7 @@ describe("your standing", () => {
     queries.ranges = { "all-time": entries, today: entries.slice(0, 2), week: [] };
     account.current = { status: "ready", userId: "users:stable-5" };
     renderLeaderboard();
+    choosePeriod("All time");
     const row = screen.getByRole("link", { name: entries[4].username }).closest("li")!;
     expect(within(row).getByText("You")).toBeVisible();
     const standing = screen.getByRole("complementary", { name: "Your standing" });
@@ -233,6 +235,7 @@ describe("your standing", () => {
     queries.ranges = { "all-time": entries, today: [], week: [] };
     account.current = { status: "ready", userId: "users:stable-1" };
     const result = renderLeaderboard();
+    choosePeriod("All time");
     expect(screen.getByRole("complementary", { name: "Your standing" })).toHaveTextContent("Top of the board");
 
     account.current = { status: "loading", userId: null };

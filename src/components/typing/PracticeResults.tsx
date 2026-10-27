@@ -43,13 +43,20 @@ interface PracticeResultsProps {
   comparison?: ResultComparison | null;
 }
 
+/**
+ * The graph's natural height: 24rem at most, under half the window on short screens, and no taller than 60% of the
+ * results width so phones keep a landscape graph. Only the graph shrinks below that (to 8rem) when space runs out.
+ */
+const GRAPH_SIZE = "min-h-[8rem] flex-[1_1_min(24rem,42dvh,60cqw)]";
+
 function Badge({ tone = "text-muted-foreground", children }: { tone?: string; children: ReactNode }) {
   return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 font-medium", tone)}>{children}</span>;
 }
 
 /**
- * The finished-test screen in the "Side column" layout: scores and buttons on the left, the graph filling the right
- * with detail chips beneath it. It fills the height it is given and only scrolls when that is too short.
+ * The finished-test screen in the "Side column" layout: scores and buttons on the left, the graph on the right with
+ * detail chips beneath it. It sits centered at its natural size (the graph has a capped height) and shrinks, graph
+ * first, when the space it is given is shorter; the page only scrolls once even the smallest graph does not fit.
  */
 export default function PracticeResults({
   wpm,
@@ -128,7 +135,7 @@ export default function PracticeResults({
       role="region"
       aria-label="Test results"
       aria-describedby={connectMode ? undefined : hintId}
-      className="@container mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 rounded-xl outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+      className="@container m-auto flex min-h-0 w-full max-w-5xl flex-col gap-3 rounded-xl outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       onKeyDown={(event) => {
         if (
           connectMode ||
@@ -162,7 +169,7 @@ export default function PracticeResults({
         Narrow screens drop the two columns (display: contents) and stack everything, buttons last.
       */}
       <motion.div
-        className="flex flex-1 flex-col gap-3 @min-[38rem]:grid @min-[38rem]:grid-cols-[minmax(13rem,16rem)_minmax(0,1fr)] @min-[38rem]:grid-rows-[auto_1fr]"
+        className="flex min-h-0 flex-1 flex-col gap-3 [@media(max-height:40rem)]:gap-2 @min-[38rem]:grid @min-[38rem]:grid-cols-[minmax(13rem,16rem)_minmax(0,1fr)] @min-[38rem]:grid-rows-[auto_1fr]"
         initial={reducedMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.25, ease: "easeOut" }}
@@ -223,7 +230,7 @@ export default function PracticeResults({
         </div>
 
         <div className="contents @min-[38rem]:col-start-2 @min-[38rem]:row-start-2 @min-[38rem]:flex @min-[38rem]:min-h-0 @min-[38rem]:flex-col @min-[38rem]:gap-3">
-          <ResultDetailSlot chips={chips} data={details} detail={detail} scope={scope} swap className="min-h-[9rem] flex-1">
+          <ResultDetailSlot chips={chips} data={details} detail={detail} scope={scope} swap className={GRAPH_SIZE}>
             {timeline.length >= 2 ? (
               <ResultsChart
                 samples={timeline}

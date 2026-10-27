@@ -112,6 +112,21 @@ await withFixtureBrowser(async browser => {
   await expect(heading).toBeVisible();
   await expect(explanation).toHaveCount(0);
   await expect(results).toBeFocused();
+  // Results sit centered at their natural size with room around them, rather than stretching to fill the page, and never scroll it.
+  for (const [width, height] of [[1440, 1000], [1920, 1080], [1280, 720], [1280, 560]]) {
+    await page.setViewportSize({ width, height });
+    await expect.poll(() => page.evaluate(() => {
+      const main = document.querySelector("main");
+      const area = main.getBoundingClientRect();
+      const box = document.querySelector('[role="region"][aria-label="Test results"]').getBoundingClientRect();
+      const scrolls = [main, main.firstElementChild].some((element) => element.scrollHeight > element.clientHeight);
+      const above = box.top - area.top;
+      const below = area.bottom - box.bottom;
+      return !scrolls && above > 40 && Math.abs(above - below) < 24;
+    }), `results centered without scrolling at ${width}x${height}`).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  console.log("results centered at their natural size without page scroll from 1920x1080 to 1280x560 PASS");
   await info.hover();
   await expect(explanation).toContainText("This practice can be saved to your history, but will not appear on leaderboards.");
   // The heading sits over the graph column, so the popover stays on screen rather than page-centered.

@@ -161,6 +161,44 @@ try {
   assert.deepEqual(await page.evaluate(() => window.profileFixtureCalls), []);
   checks.push("signed out: account tabs ask to sign in; settings still save locally");
 
+  for (const [width, height] of [[320, 740], [1440, 1000]]) {
+    await open("/profile/text", { width, height, scenario: "anonymous" });
+    const previews = page.getByRole("complementary", { name: "Previews" });
+    await expect(previews.getByRole("region", { name: /^Preview/ })).toHaveCount(1);
+    const fontCard = page.getByRole("radio", { name: "Lexend", exact: true });
+    await expect(fontCard).toHaveText("AaLexend");
+    await fontCard.focus();
+    await page.keyboard.press("Enter");
+    await expect(fontCard).toHaveAttribute("aria-checked", "true");
+    const trigger = previews.getByRole("button", { name: "Live Preview", exact: true });
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    const live = page.getByRole("dialog", { name: "Live Preview", exact: true });
+    await expect(live).toBeVisible();
+    await dialogWithinViewport(`live preview ${width}`);
+    const fit = await live.evaluate((dialog) => {
+      const stage = dialog.querySelector("[data-live-preview-stage]");
+      const text = stage.querySelector("[data-practice-sample]");
+      return {
+        dialog: dialog.getBoundingClientRect().width / innerWidth,
+        overflow: stage.scrollWidth - stage.clientWidth,
+        fontFamily: text ? getComputedStyle(text).fontFamily : "",
+      };
+    });
+    assert.ok(fit.dialog > 0.9 && fit.overflow <= 1, `live preview ${width} fills the page without sideways scroll: ${JSON.stringify(fit)}`);
+    assert.match(fit.fontFamily, /Lexend/, `live preview ${width} follows the picked font`);
+    await page.screenshot({ path: path.join(output, `live-preview-${width}.png`) });
+    for (let index = 0; index < 3; index += 1) {
+      await page.keyboard.press("Tab");
+      assert.ok(await live.evaluate((element) => element.contains(document.activeElement)), "Focus must stay inside the live preview");
+    }
+    await page.keyboard.press("Escape");
+    await expect(live).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await noOverflow(`text settings ${width}`);
+  }
+  checks.push("text settings: one preview card, font cards show only Aa and the name, Live Preview opens near full screen, traps and returns focus (320 and 1440)");
+
   await open("/profile/achievements", { width: 320, height: 740, theme: "light" });
   const refresh = page.getByRole("button", { name: "Refresh achievements", exact: true });
   await refresh.click();

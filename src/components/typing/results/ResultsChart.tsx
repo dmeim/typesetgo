@@ -116,7 +116,7 @@ export function ResultsChart({ samples, guide, legend = true, className }: Resul
           <span className="flex items-center gap-2 text-(--accent-emphasis)">accuracy<span className="h-0 w-4 border-t-2 border-dashed border-(--accent-emphasis)" /></span>
         </div>
       )}
-      <div ref={box} className="relative min-h-[5rem] flex-1">
+      <div ref={box} className="relative min-h-[3.5rem] flex-1">
         <svg
           width={width}
           height={height}

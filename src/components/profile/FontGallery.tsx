@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckIcon } from "@phosphor-icons/react";
+import { CheckIcon, TextAlignCenterIcon, TextAlignJustifyIcon, TextAlignLeftIcon, TextAlignRightIcon } from "@phosphor-icons/react";
 import { TEXT_SIZE_MAX, TEXT_SIZE_MIN } from "@/lib/practice-limits";
 import { TYPING_FONT_OPTIONS, type TypingFontOption } from "@/lib/typing-fonts";
 import { SettingSlider, Segmented } from "./settings-controls";
@@ -7,20 +7,29 @@ import { FONT_GROUPS, PROFILE_SPRING } from "./profile-sections";
 import type { ProfileSettings, ProfileSettingsUpdate } from "./profile-settings";
 
 const fontsByValue = new Map(TYPING_FONT_OPTIONS.map((font) => [font.value, font]));
+const ALIGNMENTS = [
+  { value: "left", Icon: TextAlignLeftIcon },
+  { value: "center", Icon: TextAlignCenterIcon },
+  { value: "right", Icon: TextAlignRightIcon },
+  { value: "justify", Icon: TextAlignJustifyIcon },
+] as const;
 
-/** Size and alignment up top, then every typing font laid out as cards written in that font. */
+/** Size and alignment up top, then every typing font as a card showing "Aa" and its name in that font. */
 export function FontGallery({ settings, update }: { settings: ProfileSettings; update: ProfileSettingsUpdate }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap gap-x-8 gap-y-5 rounded-3xl border border-border bg-card p-5">
-        <div className="min-w-56 flex-1"><SettingSlider label="Text size" value={settings.typingFontSize} min={TEXT_SIZE_MIN} max={TEXT_SIZE_MAX} step={0.25} onChange={(typingFontSize) => update({ typingFontSize })} format={(value) => `${value}rem`} /></div>
-        <div className="flex min-w-72 flex-1 flex-col gap-2">
+        <div className="min-w-[min(14rem,100%)] flex-1"><SettingSlider label="Text size" value={settings.typingFontSize} min={TEXT_SIZE_MIN} max={TEXT_SIZE_MAX} step={0.25} onChange={(typingFontSize) => update({ typingFontSize })} format={(value) => `${value}rem`} /></div>
+        <div className="flex min-w-[min(18rem,100%)] flex-1 flex-col gap-2">
           <span className="text-sm">Alignment</span>
           <Segmented
             label="Alignment"
             value={settings.textAlign}
             onChange={(textAlign) => update({ textAlign })}
-            options={(["left", "center", "right", "justify"] as const).map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}
+            options={ALIGNMENTS.map(({ value, Icon }) => ({
+              value,
+              label: <><Icon className="size-4 shrink-0" aria-hidden="true" /><span className="max-[400px]:sr-only">{value[0].toUpperCase() + value.slice(1)}</span></>,
+            }))}
           />
         </div>
       </div>
@@ -56,8 +65,6 @@ function FontCard({ font, selected, onSelect }: { font: TypingFontOption; select
         <span className={`text-4xl leading-none ${selected ? "text-primary" : ""}`}>Aa</span>
         <span className="text-lg leading-tight">{font.label}</span>
       </span>
-      <span className="truncate text-sm text-muted-foreground" style={{ fontFamily: font.fontFamily }}>the quick brown fox jumps</span>
-      <span className="line-clamp-2 text-xs text-muted-foreground">{font.description}</span>
       <AnimatePresence>
         {selected && (
           <motion.span

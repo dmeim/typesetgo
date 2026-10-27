@@ -220,6 +220,7 @@ export default function TypingPractice({
     linePreview: number;
     maxWordsPerLine: number;
     showOnScreenKeyboard: boolean;
+    keyboardStyle: typeof settings.keyboardStyle;
   } | null>(null);
 
   const overlayOpenRef = useRef(false);
@@ -802,12 +803,15 @@ export default function TypingPractice({
       linePreview,
       maxWordsPerLine,
       showOnScreenKeyboard: settings.showOnScreenKeyboard,
+      keyboardStyle: settings.keyboardStyle,
     });
+    // Kids get the keyboard with the finger guide; leaving kids mode puts back whatever was set before.
     updateSettings({
       mode: "zen",
       typingFontSize: 5.5,
       ghostWriterEnabled: false,
       showOnScreenKeyboard: true,
+      keyboardStyle: "finger",
     });
     updateLinePreview(2);
     updateMaxWordsPerLine(5);
@@ -817,6 +821,7 @@ export default function TypingPractice({
     settings.typingFontSize,
     settings.ghostWriterEnabled,
     settings.showOnScreenKeyboard,
+    settings.keyboardStyle,
     linePreview,
     maxWordsPerLine,
     updateSettings,
@@ -831,6 +836,7 @@ export default function TypingPractice({
         typingFontSize: preKidModeSettings.typingFontSize,
         ghostWriterEnabled: preKidModeSettings.ghostWriterEnabled,
         showOnScreenKeyboard: preKidModeSettings.showOnScreenKeyboard,
+        keyboardStyle: preKidModeSettings.keyboardStyle,
       });
       updateLinePreview(preKidModeSettings.linePreview);
       updateMaxWordsPerLine(preKidModeSettings.maxWordsPerLine);
@@ -1069,11 +1075,11 @@ export default function TypingPractice({
       )}
       </div>
 
-      {/* Flexible spacer - balances content vertically; results fill the height instead */}
+      {/* Flexible spacer - balances content vertically; results center themselves in the leftover height instead */}
       <div className={isFinished ? "hidden" : settings.showOnScreenKeyboard ? "shrink-0" : "flex-1"} />
 
       <div
-        className={`w-full flex flex-col items-center transition-transform duration-300 ${isFinished ? "flex-1" : ""}`}
+        className={`w-full flex flex-col items-center transition-transform duration-300 ${isFinished ? "min-h-0 flex-1" : ""}`}
         style={!isCompactMode && !isFinished && !settings.showOnScreenKeyboard && !editor ? { transform: `translateY(${typingCenterOffset}px)` } : undefined}
       >
         {/* Quote Info */}
@@ -1095,7 +1101,7 @@ export default function TypingPractice({
 
         {/* Typing Area */}
         <div 
-          className={`w-[95%] md:w-[80%] max-w-none relative z-0 transition-all duration-300 ${isFinished ? "flex flex-1 flex-col" : ""}`}
+          className={`w-[95%] md:w-[80%] max-w-none relative z-0 transition-all duration-300 ${isFinished ? "flex min-h-0 flex-1 flex-col py-2 md:py-6" : ""}`}
         >
         {!isFinished ? (
           <div className="relative z-0">
@@ -1234,7 +1240,7 @@ export default function TypingPractice({
         <div className={`shrink-0 ${isFinished ? "h-3" : settings.showOnScreenKeyboard && isRunning ? "h-0" : settings.showOnScreenKeyboard ? "h-1" : "h-8"}`} />
       </div>
 
-      {/* Flexible spacer - keeps typing area vertically centered; results fill the height instead */}
+      {/* Flexible spacer - keeps typing area vertically centered; results center themselves in the leftover height instead */}
       <div className={isFinished ? "hidden" : settings.showOnScreenKeyboard ? "shrink-0" : "flex-1"} />
 
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { ArrowsInIcon, ArrowsOutIcon } from "@phosphor-icons/react";
+import { MonitorPlayIcon } from "@phosphor-icons/react";
 import PracticeText from "@/components/typing/PracticeText";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { themeCSSVariables } from "@/lib/theme-css";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
 import type { ThemeColors } from "@/types/theme";
@@ -39,40 +40,108 @@ function useElementSize<T extends HTMLElement>() {
   return [ref, size] as const;
 }
 
+function useThemeStyle(colors: ThemeColors | null) {
+  return useMemo(() => (colors ? themeCSSVariables(colors) : {}) as CSSProperties, [colors]);
+}
+
+/** The practice text (and keyboard) exactly as Home lays it out at this window's typing width. */
+function PracticeSample({ settings, width }: { settings: ProfileSettings; width: number }) {
+  const caretRef = useRef<HTMLSpanElement>(null);
+  const ghostPosition = settings.ghostWriterEnabled ? TYPED.length + 16 : undefined;
+  return (
+    <>
+      <div
+        data-practice-sample
+        className="overflow-hidden"
+        style={{
+          fontSize: `${settings.typingFontSize}rem`,
+          fontFamily: getTypingFontFamily(settings.typingFontFamily),
+          lineHeight: LINE_HEIGHT,
+          maxHeight: `${settings.linePreview * settings.typingFontSize * LINE_HEIGHT}rem`,
+          textAlign: settings.textAlign,
+          width,
+        }}
+      >
+        <PracticeText
+          targetText={SAMPLE}
+          typedText={TYPED}
+          caretRef={caretRef}
+          maxWordsPerLine={settings.maxWordsPerLine}
+          justifyLines={settings.textAlign === "justify"}
+          ghostPosition={ghostPosition}
+        />
+      </div>
+      {settings.showOnScreenKeyboard && (
+        <div className="mt-8" style={{ width }}>
+          <KeyboardPreview style={settings.keyboardStyle} layoutId={settings.keyboardLayout} nextChar={SAMPLE[TYPED.length]} />
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Opens a near full-screen window over the page with the practice text at the exact size it has on Home,
+ * in the picked theme. It follows the settings and the window size while open.
+ */
+export function LivePreviewButton({ colors, settings, themeName }: { colors: ThemeColors | null; settings: ProfileSettings; themeName?: string }) {
+  const homeWidth = useHomeTypingWidth();
+  const themeStyle = useThemeStyle(colors);
+  return (
+    <Dialog>
+      <DialogTrigger className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+        <MonitorPlayIcon className="size-3.5" aria-hidden="true" />Live Preview
+      </DialogTrigger>
+      <DialogContent
+        style={themeStyle}
+        className="flex h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-none max-h-none flex-col gap-0 overflow-hidden rounded-2xl bg-background p-0 text-foreground sm:h-[calc(100dvh-3rem)] sm:w-[calc(100vw-3rem)] sm:max-w-none"
+      >
+        <div className="flex shrink-0 flex-col gap-0.5 border-b border-border px-4 py-3 pr-12 sm:px-6">
+          <DialogTitle className="pr-0 text-base">Live Preview</DialogTitle>
+          <DialogDescription className="text-xs">
+            Your practice text at actual size{themeName ? ` in ${themeName}` : ""}, as Home shows it on this screen.
+          </DialogDescription>
+        </div>
+        <div className="flex min-h-0 flex-1 overflow-auto overscroll-contain" data-live-preview-stage>
+          <div className="m-auto flex flex-col items-center py-10 transition-colors duration-500">
+            <PracticeSample settings={settings} width={homeWidth} />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /**
  * The real practice text (and keyboard) rendered at the exact width, rem size, line height and line count it
  * has on Home for this window, then scaled to fit. Line breaks and proportions match what the player will see.
+ * `livePreview` adds the Live Preview button beside the caption; leave it off when a parent header has one.
  */
-export function TextPreview({ colors, settings, label = "Text preview" }: { colors: ThemeColors | null; settings: ProfileSettings; label?: string }) {
+export function TextPreview({ colors, settings, label = "Text preview", livePreview = true, themeName }: {
+  colors: ThemeColors | null;
+  settings: ProfileSettings;
+  label?: string;
+  livePreview?: boolean;
+  themeName?: string;
+}) {
   const homeWidth = useHomeTypingWidth();
   const [frameRef, frame] = useElementSize<HTMLDivElement>();
   const [stageRef, stage] = useElementSize<HTMLDivElement>();
-  const caretRef = useRef<HTMLSpanElement>(null);
-  const [actualSize, setActualSize] = useState(false);
   const stageWidth = homeWidth + PAGE_PADDING;
-  const scale = actualSize || frame.width === 0 ? 1 : Math.min(1, frame.width / stageWidth);
-  const themeStyle = useMemo(() => (colors ? themeCSSVariables(colors) : {}) as CSSProperties, [colors]);
-  const ghostPosition = settings.ghostWriterEnabled ? TYPED.length + 16 : undefined;
+  const scale = frame.width === 0 ? 1 : Math.min(1, frame.width / stageWidth);
+  const themeStyle = useThemeStyle(colors);
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>{label} · {actualSize ? "actual size" : `${Math.round(scale * 100)}% of your screen`}</span>
-        <button
-          type="button"
-          aria-pressed={actualSize}
-          onClick={() => setActualSize((value) => !value)}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-accent hover:text-foreground"
-        >
-          {actualSize ? <ArrowsInIcon className="size-3.5" aria-hidden="true" /> : <ArrowsOutIcon className="size-3.5" aria-hidden="true" />}
-          {actualSize ? "Fit" : "Actual size"}
-        </button>
+      <div className="flex min-h-7 items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
+        <span>{label} · {Math.round(scale * 100)}% of your screen</span>
+        {livePreview && <LivePreviewButton colors={colors} settings={settings} themeName={themeName} />}
       </div>
       <div
         ref={frameRef}
         role="img"
         aria-label={`${label}: practice text at your current settings`}
-        className={`relative rounded-xl border border-border ${actualSize ? "overflow-x-auto" : "overflow-hidden"}`}
+        className="relative overflow-hidden rounded-xl border border-border"
         style={{ height: stage.height ? stage.height * scale : undefined }}
       >
         <div
@@ -81,31 +150,7 @@ export function TextPreview({ colors, settings, label = "Text preview" }: { colo
           className="bg-background px-4 py-6 text-foreground transition-colors duration-500"
           style={{ ...themeStyle, width: stageWidth, transform: `scale(${scale})`, transformOrigin: "top left" }}
         >
-          <div
-            className="overflow-hidden"
-            style={{
-              fontSize: `${settings.typingFontSize}rem`,
-              fontFamily: getTypingFontFamily(settings.typingFontFamily),
-              lineHeight: LINE_HEIGHT,
-              maxHeight: `${settings.linePreview * settings.typingFontSize * LINE_HEIGHT}rem`,
-              textAlign: settings.textAlign,
-              width: homeWidth,
-            }}
-          >
-            <PracticeText
-              targetText={SAMPLE}
-              typedText={TYPED}
-              caretRef={caretRef}
-              maxWordsPerLine={settings.maxWordsPerLine}
-              justifyLines={settings.textAlign === "justify"}
-              ghostPosition={ghostPosition}
-            />
-          </div>
-          {settings.showOnScreenKeyboard && (
-            <div className="mt-8" style={{ width: homeWidth }}>
-              <KeyboardPreview style={settings.keyboardStyle} layoutId={settings.keyboardLayout} nextChar={SAMPLE[TYPED.length]} />
-            </div>
-          )}
+          <PracticeSample settings={settings} width={homeWidth} />
         </div>
       </div>
     </div>

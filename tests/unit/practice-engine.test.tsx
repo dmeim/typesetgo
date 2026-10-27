@@ -317,6 +317,17 @@ describe("preference hydration and Connect boundaries", () => {
     expect(JSON.parse(localStorage.getItem("typesetgo_layout")!)).toEqual({ linePreview: 2, maxWordsPerLine: 5 });
   });
 
+  it("turns on the Finger guide keyboard for kids mode and puts the old keyboard back afterwards", async () => {
+    setLocal({ showOnScreenKeyboard: false, keyboardStyle: "keycaps" });
+    const { container } = render(<TypingPractice />);
+    await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
+    const stored = () => JSON.parse(localStorage.getItem("typesetgo_settings")!) as SettingsState;
+    chooseSetting("kid");
+    await waitFor(() => expect(stored()).toMatchObject({ showOnScreenKeyboard: true, keyboardStyle: "finger" }));
+    chooseSetting("kid");
+    await waitFor(() => expect(stored()).toMatchObject({ showOnScreenKeyboard: false, keyboardStyle: "keycaps" }));
+  });
+
   it("keeps an active ranked attempt when account prompt preferences arrive, applying them on Next Test", async () => {
     setLocal({ typingFontSize: 2 });
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };
