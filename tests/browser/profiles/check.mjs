@@ -27,7 +27,7 @@ try {
     return route.abort();
   });
 
-  async function open(route, { scenario = "owner", theme = "dark", width = 390, height = 844, zoom = 1, reducedMotion = "reduce", podiumCount, palette } = {}) {
+  async function open(route, { scenario = "owner", theme = "dark", width = 390, height = 844, zoom = 1, reducedMotion = "reduce", podiumCount, palette, you } = {}) {
     // Browser zoom changes the available CSS viewport; CSS zoom does not correctly
     // emulate viewport units in fixed dialogs. Exercise the equivalent reflow size.
     await page.setViewportSize({ width: Math.floor(width / zoom), height: Math.floor(height / zoom) });
@@ -35,6 +35,7 @@ try {
     const query = new URLSearchParams({ scenario, theme });
     if (podiumCount !== undefined) query.set("podiumCount", String(podiumCount));
     if (palette) query.set("palette", palette);
+    if (you) query.set("you", you);
     await page.goto(`${url}${route}?${query}`);
     await page.locator("#root > *").first().waitFor();
     await page.waitForTimeout(200);
@@ -76,8 +77,9 @@ try {
     await page.keyboard.press("Escape");
     await expect(card).toBeFocused();
     await open("/leaderboard", options);
-    for (const name of ["All-Time", "Today", "This Week"]) {
-      await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Leaderboard", exact: true })).toBeVisible();
+    for (const name of ["Today", "7 days", "All time"]) {
+      await expect(page.getByRole("tab", { name, exact: true })).toBeVisible();
     }
     await noOverflow(`leaderboard ${label}`);
     await page.screenshot({ path: path.join(output, `leaderboard-${label}.png`) });
@@ -174,8 +176,10 @@ try {
 
   for (const scenario of ["empty", "loading"]) {
     await open("/leaderboard", { scenario, width: 320 });
-    for (const name of ["All-Time", "Today", "This Week"]) {
-      await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
+    for (const name of ["Today", "7 days", "All time"]) {
+      await page.getByRole("tab", { name, exact: true }).click();
+      await expect(page.getByRole("tabpanel")).toBeVisible();
+      await expect(page.getByRole("tabpanel")).toHaveAttribute("aria-busy", scenario === "loading" ? "true" : "false");
     }
     await noOverflow(`leaderboard ${scenario}`);
   }

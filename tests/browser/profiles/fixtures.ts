@@ -20,7 +20,9 @@ export function useAppAuth() {
 
 export const useUser = useAppAuth;
 export function useAccount() {
-  return { status: scenario === "anonymous" ? "unavailable" : "ready", userId: scenario === "visitor" ? "profile-visitor" : "profile-owner" };
+  // ?you=leaderboard-user-N signs in as a ranked leaderboard player.
+  const userId = options.get("you") ?? (scenario === "visitor" ? "profile-visitor" : "profile-owner");
+  return { status: scenario === "anonymous" ? "unavailable" : "ready", userId };
 }
 
 const now = Date.now();

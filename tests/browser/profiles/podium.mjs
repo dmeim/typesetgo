@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { expect } from "@playwright/test";
 
-const periods = ["All-Time", "Today", "This Week"];
+// Tab label and the accessible title used for the podium and rank list.
+const periods = [
+  { tab: "All time", title: "All time", range: "all-time" },
+  { tab: "Today", title: "Today", range: "today" },
+  { tab: "7 days", title: "Last 7 days", range: "week" },
+];
 const winners = [
   { rank: 1, name: "Maya", wpm: 150 },
   { rank: 2, name: "SecondPlaceWithAnExceptionallyLongUnbrokenName", wpm: 150 },
@@ -15,6 +20,10 @@ async function podiumGeometry(podium) {
       const { x, y, width, height, bottom } = node.getBoundingClientRect();
       return { x, y, width, height, bottom };
     };
+    const settled = (node) => {
+      const style = getComputedStyle(node);
+      return style.transform === "none" && style.animationName === "none" && style.opacity === "1";
+    };
     return {
       podium: bounds(element),
       entries: [...element.querySelectorAll("[data-podium-rank]")].map((item) => {
@@ -23,12 +32,9 @@ async function podiumGeometry(podium) {
         return {
           rank: Number(item.dataset.podiumRank),
           identity: bounds(identity),
-          avatar: bounds(item.querySelector("[data-podium-avatar]")),
+          avatar: bounds(item.querySelector("[data-leaderboard-avatar]")),
           step: bounds(step),
-          stationary: [identity, step].every((node) => {
-            const style = getComputedStyle(node);
-            return style.transform === "none" && style.animationName === "none" && style.opacity === "1";
-          }),
+          stationary: [identity, step, ...identity.querySelectorAll("*")].every(settled),
         };
       }),
     };
@@ -41,7 +47,7 @@ function assertGeometry(geometry, count, label) {
   const [first, second, third] = entries;
   assert.ok(Math.abs(first.step.x + first.step.width / 2 - (podium.x + podium.width / 2)) <= 1, `${label}: first stays centered`);
   for (const entry of entries) {
-    assert.ok(entry.stationary, `${label}: names, scores and steps have no entrance movement or opacity delay`);
+    assert.ok(entry.stationary, `${label}: names, scores, crown and steps are settled`);
     assert.ok(Math.abs(entry.step.bottom - first.step.bottom) <= 1, `${label}: shared pedestal baseline`);
     assert.ok(entry.identity.bottom <= entry.step.y + 1, `${label}: identity is above its independent pedestal`);
     assert.ok(Math.abs(entry.identity.height - first.identity.height) <= 1, `${label}: identities reserve equal room for the longest name`);
@@ -59,17 +65,32 @@ function assertGeometry(geometry, count, label) {
   }
 }
 
-async function assertPodium(page, title, count, label) {
-  const region = page.getByRole("region", { name: title, exact: true });
-  const podium = region.getByRole("list", { name: `${title} podium`, exact: true });
+async function choosePeriod(page, tab) {
+  const trigger = page.getByRole("tab", { name: tab, exact: true });
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-selected", "true");
+}
+
+/** Reduced motion must land on the final state at once; otherwise wait for the morph to settle. */
+async function settledGeometry(podium, reducedMotion) {
+  if (reducedMotion !== "reduce") {
+    await expect.poll(async () => (await podiumGeometry(podium)).entries.every((entry) => entry.stationary), { timeout: 3000 }).toBe(true);
+  }
+  return podiumGeometry(podium);
+}
+
+async function assertPodium(page, period, count, label, reducedMotion = "reduce") {
+  const panel = page.getByRole("tabpanel");
+  const podium = panel.getByRole("list", { name: `${period.title} podium`, exact: true });
   await expect(podium.getByRole("listitem")).toHaveCount(Math.min(count, 3));
+  const geometry = await settledGeometry(podium, reducedMotion);
   for (const winner of winners.slice(0, count)) {
     const item = podium.locator(`[data-podium-rank="${winner.rank}"]`);
     await expect(item.getByText(`Rank ${winner.rank}`, { exact: true })).toHaveCount(1);
     const name = item.getByRole("link", { name: winner.name, exact: true });
     await expect(name).toBeVisible();
     await expect(name).toHaveAttribute("href", `/user/leaderboard-user-${winner.rank}`);
-    await expect(item.getByText(`${winner.wpm} WPM`, { exact: true })).toBeVisible();
+    await expect(item).toContainText(`${winner.wpm}WPM`);
     const text = await name.evaluate((element) => ({
       fontSize: parseFloat(getComputedStyle(element).fontSize),
       width: element.clientWidth,
@@ -82,6 +103,7 @@ async function assertPodium(page, title, count, label) {
   const firstImage = podium.locator('[data-podium-rank="1"] img');
   await expect(firstImage).toHaveAttribute("src", "/assets/Banner-Color.svg");
   await expect.poll(() => firstImage.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect(podium.locator('[data-podium-rank="1"] [data-podium-crown]')).toHaveCount(1);
   if (count >= 2) {
     const second = podium.locator('[data-podium-rank="2"]');
     await expect(second.locator("img")).toHaveCount(0);
@@ -92,16 +114,16 @@ async function assertPodium(page, title, count, label) {
     await expect(third.locator("img")).toHaveCount(0);
     await expect(third.getByText("L", { exact: true })).toBeVisible();
   }
+  const ranks = panel.getByRole("list", { name: `${period.title} ranks 4 and below`, exact: true });
   if (count > 3) {
-    const table = region.getByRole("table", { name: `${title} ranks 4 and below`, exact: true });
-    await expect(table.getByRole("row")).toHaveCount(count - 2);
-    await expect(table.locator("tbody tr").first().locator("td").first()).toHaveText("4");
-    await expect(table.locator("tbody tr").last().locator("td").first()).toHaveText(String(count));
+    const rows = ranks.getByRole("listitem");
+    await expect(rows).toHaveCount(count - 3);
+    await expect(rows.first()).toContainText(/^Rank 4/);
+    await expect(rows.last()).toContainText(new RegExp(`^Rank ${count}`));
   } else {
-    await expect(region.getByRole("table")).toHaveCount(0);
+    await expect(ranks).toHaveCount(0);
   }
-  const geometry = await podiumGeometry(podium);
-  assertGeometry(geometry, Math.min(count, 3), `${label}, ${title}`);
+  assertGeometry(geometry, Math.min(count, 3), `${label}, ${period.title}`);
   return geometry;
 }
 
@@ -111,68 +133,65 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
     const reducedMotion = width === 390 || width === 1440 ? "no-preference" : "reduce";
     const label = `podium ${width}px ${theme} ${reducedMotion}`;
     await open("/leaderboard", { scenario: "podium", podiumCount: 50, width, height: 1000, theme, reducedMotion });
-    const geometry = [];
-    for (const title of periods) geometry.push(await assertPodium(page, title, 50, label));
-    await noOverflow(label);
-
-    const sections = await page.locator("main > div > section").evaluateAll((elements) => elements.map((element) => {
-      const { x, y } = element.getBoundingClientRect();
-      return { x, y };
-    }));
-    if (width < 1440) {
-      assert.ok(sections[0].y < sections[1].y && sections[1].y < sections[2].y, `${label}: all periods stack until there is room`);
-    } else {
-      assert.ok(sections[0].x < sections[1].x && sections[1].x < sections[2].x, `${label}: roomy desktop period columns`);
-    }
-
-    const awards = await page.locator("[data-podium-award]").evaluateAll((elements) => elements.map((element) => {
-      const style = getComputedStyle(element);
-      return { transform: style.transform, animation: style.animationName, duration: parseFloat(style.animationDuration), delay: style.animationDelay, iterations: style.animationIterationCount };
-    }));
-    for (const award of awards) {
-      if (reducedMotion === "reduce") {
-        assert.equal(award.transform, "none", `${label}: reduced motion has no award transform`);
-        assert.equal(award.animation, "none", `${label}: reduced motion disables award entrance`);
-      } else {
-        assert.ok(award.duration > 0 && award.duration <= 0.4 && award.iterations === "1" && award.delay === "0s", `${label}: award entrance is bounded and immediate`);
-      }
-    }
-    await page.locator("[data-podium-award]").evaluateAll((elements) => elements.forEach((element) => element.getAnimations().forEach((animation) => animation.finish())));
-    for (const [index, title] of periods.entries()) {
-      const finalGeometry = await podiumGeometry(page.getByRole("list", { name: `${title} podium`, exact: true }));
-      assert.deepEqual(finalGeometry, geometry[index], `${label}: finishing decoration does not move identity or pedestal geometry`);
+    await expect(page.getByRole("tab", { name: "All time", exact: true })).toHaveAttribute("aria-selected", "true");
+    // The first board is in place on load: no entrance movement, fade or crown pop.
+    const loaded = await podiumGeometry(page.getByRole("list", { name: "All time podium", exact: true }));
+    assert.ok(loaded.entries.every((entry) => entry.stationary), `${label}: first board has no entrance animation`);
+    for (const period of [...periods.slice(1), periods[0]]) {
+      await choosePeriod(page, period.tab);
+      await assertPodium(page, period, 50, label, reducedMotion);
+      await expect(page.getByRole("tabpanel")).toHaveCount(1);
+      await noOverflow(`${label}, ${period.title}`);
     }
     if (width === 390 || width === 1440) {
       await page.screenshot({ path: path.join(output, `leaderboard-podium-${width}-${theme}.png`) });
     }
-    checks.push(`${label}: 2–1–3 geometry, readable names, avatar fallbacks, tied ranks, 50 immediate scores`);
+    checks.push(`${label}: one 2–1–3 podium per period, readable names, avatar fallbacks, tied ranks, 50 immediate scores, settled period morph`);
   }
 
   for (const count of [1, 2, 3]) {
     for (const width of [320, 1440]) {
       const label = `podium ${count} entrants ${width}px`;
       await open("/leaderboard", { scenario: "podium", podiumCount: count, width, height: 1000 });
-      for (const title of periods) await assertPodium(page, title, count, label);
+      for (const period of periods) {
+        await choosePeriod(page, period.tab);
+        await assertPodium(page, period, count, label);
+      }
       await noOverflow(label);
     }
   }
   await open("/leaderboard", { scenario: "empty", width: 320 });
-  for (const title of periods) {
-    const region = page.getByRole("region", { name: title, exact: true });
-    await expect(region.getByText("No scores yet", { exact: true })).toBeVisible();
-    await expect(region.getByRole("list")).toHaveCount(0);
+  for (const period of periods) {
+    await choosePeriod(page, period.tab);
+    const panel = page.getByRole("tabpanel");
+    await expect(panel.getByText("No scores yet", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("list")).toHaveCount(0);
   }
-  checks.push("podium 0/1/2/3 entries: independent empty state, no invented winners, stable sparse slots at 320px and 1440px");
+  checks.push("podium 0/1/2/3 entries: empty state per period, no invented winners, stable sparse slots at 320px and 1440px");
+
+  await open("/leaderboard", { scenario: "podium", podiumCount: 50, width: 390, you: "leaderboard-user-7" });
+  const standing = page.getByRole("complementary", { name: "Your standing", exact: true });
+  await expect(standing).toContainText("You’re #7 of all time");
+  await expect(standing).toContainText("1 WPM behind all-time ExtremelyLongUnbrokenUsernameNumber6");
+  await expect(page.locator('[data-leaderboard-row="7"]').getByText("You", { exact: true })).toBeVisible();
+  await choosePeriod(page, "Today");
+  await expect(standing).toContainText("You’re #7 today");
+  await noOverflow("standing bar 390px");
+  await open("/leaderboard", { scenario: "podium", podiumCount: 50, width: 390 });
+  await expect(page.getByRole("complementary", { name: "Your standing", exact: true })).toContainText("You’re not in the top 50 of all time yet");
+  await open("/leaderboard", { scenario: "anonymous", width: 390 });
+  await expect(page.getByRole("complementary", { name: "Your standing", exact: true })).toHaveCount(0);
+  checks.push("signed-in standing bar from the loaded board; absent when signed out");
 
   for (const scenario of ["visitor", "anonymous"]) {
     for (const rank of [1, 4]) {
       await open("/leaderboard", { scenario, width: 390 });
-      const region = page.getByRole("region", { name: "All-Time", exact: true });
-      const links = region.getByRole("link");
+      const panel = page.getByRole("tabpanel");
+      const links = panel.getByRole("link");
       await expect(links).toHaveCount(50);
       assert.deepEqual(await links.evaluateAll((elements) => elements.map((element) => element.getAttribute("href"))), Array.from({ length: 50 }, (_, index) => `/user/leaderboard-user-${index + 1}`));
       const username = `all-time ExtremelyLongUnbrokenUsernameNumber${rank}`;
-      const link = region.getByRole("link", { name: username, exact: true });
+      const link = panel.getByRole("link", { name: username, exact: true });
       await link.focus();
       await expect(link).toBeFocused();
       await page.keyboard.press("Enter");
@@ -187,5 +206,5 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
       await noOverflow(`${scenario} linked profile rank ${rank}`);
     }
   }
-  checks.push("podium/table profile links use stable IDs and open by keyboard for visitors and anonymous viewers with owner actions withheld");
+  checks.push("podium/list profile links use stable IDs and open by keyboard for visitors and anonymous viewers with owner actions withheld");
 }

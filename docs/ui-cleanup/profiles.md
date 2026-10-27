@@ -1,5 +1,16 @@
 # Profiles UI cleanup
 
+## October 27 Arena leaderboard
+
+The leaderboard is now the Arena design from the UI Lab. It replaces the three stacked or column panels and the ranks table described below.
+- Today, 7 days and All time are Radix tabs above **one** podium. All time is the default.
+- All three queries stay subscribed, so switching is instant and players morph between places. Reduced motion turns the morph off.
+- Ranks 4–50 are a list.
+- A signed-in player gets a "You're #N" standing bar built from the loaded board.
+- The rules text sits behind "How do I get on the board?".
+- Components are in `src/components/leaderboard/`. Shared entry helpers, including `leaderboardProfileHref`, the only place that knows the profile path, are in `src/lib/leaderboard-entries.ts`.
+- `profiles/podium.mjs` covers tabs, sparse podiums and the standing bar. `?you=leaderboard-user-N` sets the fixture account.
+
 ## September 20 charm restoration
 
 The approved [charm restoration plan](charm-restoration-plan.md) changes the earlier matte-only visual direction documented below while preserving its data, ownership, focus and dialog contracts.

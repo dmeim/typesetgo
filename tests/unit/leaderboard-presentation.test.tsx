@@ -8,105 +8,145 @@ const queries = vi.hoisted(() => ({
   ranges: {} as Record<string, unknown>,
   calls: [] as Array<{ timeRange: string; limit: number }>,
 }));
+const account = vi.hoisted(() => ({ current: { status: "unavailable", userId: null as string | null } }));
 vi.mock("convex/react", () => ({
   useQuery: (_query: unknown, args: { timeRange: string; limit: number }) => {
     queries.calls.push(args);
     return queries.ranges[args.timeRange];
   },
 }));
+vi.mock("@/components/layout/useAccount", () => ({ useAccount: () => account.current }));
 afterEach(() => {
   cleanup();
   queries.calls = [];
+  account.current = { status: "unavailable", userId: null };
 });
 
 function renderLeaderboard() {
   return render(<MemoryRouter><Leaderboard /></MemoryRouter>);
 }
 
-describe("leaderboard ranges", () => {
-  it("keeps all ranges available with independent loading and empty states", () => {
+function choosePeriod(label: string) {
+  // Radix tabs activate on mouse down.
+  fireEvent.mouseDown(screen.getByRole("tab", { name: label }), { button: 0 });
+}
+
+function makeEntries(count: number, name = (index: number) => `VeryLongUsernameThatMustRemainReadable${index + 1}`) {
+  return Array.from({ length: count }, (_, index) => ({
+    userId: `users:stable-${index + 1}`,
+    rank: index + 1,
+    username: name(index),
+    avatarUrl: null,
+    wpm: 160 - index,
+    createdAt: 1_700_000_000_000,
+  }));
+}
+
+describe("leaderboard periods", () => {
+  it("subscribes to every period and keeps independent loading and empty states", () => {
     queries.ranges = { "all-time": [], today: undefined, week: [] };
     renderLeaderboard();
-    const allTime = screen.getByRole("region", { name: "All-Time" });
-    const today = screen.getByRole("region", { name: "Today" });
-    const week = screen.getByRole("region", { name: "This Week" });
-    expect(within(allTime).getByText("No scores yet")).toBeVisible();
-    expect(within(today).getByRole("status")).toHaveTextContent("Loading today scores");
-    expect(today).toHaveAttribute("aria-busy", "true");
-    expect(within(week).getByText("No scores yet")).toBeVisible();
+    expect(screen.getByRole("tab", { name: "All time" })).toHaveAttribute("aria-selected", "true");
+    let panel = screen.getByRole("tabpanel");
+    expect(within(panel).getByText("No scores yet")).toBeVisible();
     expect(screen.getByRole("link", { name: "Homepage" })).toHaveAttribute("href", "/");
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+
+    choosePeriod("Today");
+    panel = screen.getByRole("tabpanel");
+    expect(screen.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+    expect(within(panel).getByRole("status")).toHaveTextContent("Loading today scores");
+    expect(panel).toHaveAttribute("aria-busy", "true");
+
+    choosePeriod("7 days");
+    panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAttribute("aria-busy", "false");
+    expect(within(panel).getByText("No scores yet")).toBeVisible();
+
     const refreshLimit = 50 + (Math.floor(utcDayStart(Date.now()) / 86_400_000) % 2);
-    expect(queries.calls).toEqual([
+    expect(queries.calls.slice(0, 3)).toEqual([
       { timeRange: "all-time", limit: 50 },
       { timeRange: "today", limit: refreshLimit },
       { timeRange: "week", limit: refreshLimit },
     ]);
   });
 
-  it("shows every score immediately and preserves full long usernames", () => {
-    const entries = Array.from({ length: 50 }, (_, index) => ({
-      userId: `users:stable-${index + 1}`,
-      rank: index + 1,
-      username: `VeryLongUsernameThatMustRemainReadable${index + 1}`,
-      avatarUrl: null,
-      wpm: 160 - index,
-      createdAt: 1_700_000_000_000,
-    }));
-    queries.ranges = { "all-time": entries, today: entries.slice(0, 1), week: entries.slice(0, 2) };
-    renderLeaderboard();
-    const allTime = screen.getByRole("region", { name: "All-Time" });
-    expect(within(allTime).getAllByRole("listitem")).toHaveLength(3);
-    expect(within(allTime).getAllByRole("row")).toHaveLength(48);
-    expect(within(allTime).getByText(entries[0].username)).toBeVisible();
-    expect(within(allTime).getByText(entries[49].username)).toBeVisible();
-    expect(within(allTime).getByRole("columnheader", { name: "WPM" })).toBeVisible();
-    expect(within(allTime).getAllByRole("link")).toHaveLength(50);
-    for (const entry of entries) {
-      expect(within(allTime).getByRole("link", { name: entry.username })).toHaveAttribute("href", `/user/${entry.userId}`);
-    }
-    for (const [index, item] of within(allTime).getAllByRole("listitem").entries()) {
-      expect(within(item).getByText(`Rank ${index + 1}`)).toBeInTheDocument();
-      expect(within(item).getByText(entries[index].username)).toBeVisible();
-    }
-    // Available data has no per-row entrance opacity or delayed animation.
-    expect(within(allTime).getByText(entries[49].username).closest("tr")).not.toHaveAttribute("style");
-  });
-
-  it("replaces loading with received data independently of other ranges", () => {
+  it("replaces loading with received data", () => {
     queries.ranges = {};
     const result = renderLeaderboard();
-    expect(screen.getAllByRole("status")).toHaveLength(3);
-    queries.ranges.today = [];
+    expect(screen.getByRole("status")).toHaveTextContent("Loading all time scores");
+    queries.ranges["all-time"] = [];
     result.rerender(<MemoryRouter><Leaderboard /></MemoryRouter>);
-    expect(screen.getAllByRole("status")).toHaveLength(2);
-    const today = screen.getByRole("region", { name: "Today" });
-    expect(today).toHaveAttribute("aria-busy", "false");
-    expect(within(today).getByText("No scores yet")).toBeVisible();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-busy", "false");
+    expect(screen.getByText("No scores yet")).toBeVisible();
+  });
+
+  it("moves players to their place on the newly chosen period", () => {
+    const players = ["Ada", "Grace", "Linus", "Ken", "Barbara"];
+    const board = (order: number[]) => order.map((player, index) => ({
+      userId: `users:${players[player]}`, rank: index + 1, username: players[player], avatarUrl: null, wpm: 150 - index, createdAt: 1_700_000_000_000,
+    }));
+    queries.ranges = { "all-time": board([0, 1, 2, 3, 4]), today: board([4, 3, 2]), week: board([1, 0, 2, 3, 4]) };
+    renderLeaderboard();
+    const winner = () => within(screen.getByRole("list", { name: /podium$/ }).querySelector('[data-podium-rank="1"]') as HTMLElement);
+    expect(winner().getByRole("link", { name: "Ada" })).toBeVisible();
+    choosePeriod("Today");
+    expect(winner().getByRole("link", { name: "Barbara" })).toHaveAttribute("href", "/user/users:Barbara");
+    expect(screen.getByRole("list", { name: "Today podium" })).toBeVisible();
+    expect(screen.queryByRole("list", { name: "Today ranks 4 and below" })).not.toBeInTheDocument();
+    choosePeriod("7 days");
+    // Newly placed names fade in after a switch.
+    expect(winner().getByRole("link", { name: "Grace" })).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Last 7 days ranks 4 and below" })).getAllByRole("listitem")).toHaveLength(2);
+  });
+});
+
+describe("leaderboard board", () => {
+  it("shows every score immediately and preserves full long usernames", () => {
+    const entries = makeEntries(50);
+    queries.ranges = { "all-time": entries, today: entries.slice(0, 1), week: entries.slice(0, 2) };
+    renderLeaderboard();
+    const podium = screen.getByRole("list", { name: "All time podium" });
+    const ranks = screen.getByRole("list", { name: "All time ranks 4 and below" });
+    expect(within(podium).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(ranks).getAllByRole("listitem")).toHaveLength(47);
+    expect(ranks).toHaveAttribute("start", "4");
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).getAllByRole("link")).toHaveLength(50);
+    for (const entry of entries) {
+      expect(within(panel).getByRole("link", { name: entry.username })).toHaveAttribute("href", `/user/${entry.userId}`);
+    }
+    for (const [index, item] of within(podium).getAllByRole("listitem").entries()) {
+      expect(within(item).getByText(`Rank ${index + 1}`)).toBeInTheDocument();
+      expect(within(item).getByText(entries[index].username)).toBeVisible();
+      // Scores are shown at their value on load, not counted up from zero.
+      expect(within(item).getByText(String(entries[index].wpm))).toBeVisible();
+    }
+    const lastRow = within(ranks).getAllByRole("listitem").at(-1)!;
+    expect(lastRow).toHaveTextContent(/^Rank 50/);
+    // Available data has no entrance fade or slide on first load.
+    expect(lastRow).not.toHaveStyle({ opacity: "0" });
+    expect(lastRow.style.transform === "" || lastRow.style.transform === "none").toBe(true);
   });
 
   it.each([1, 2, 3])("reads %i podium entrants in rank order without invented winners", (count) => {
-    const entries = Array.from({ length: count }, (_, index) => ({
-      userId: `users:stable-${index + 1}`,
-      rank: index + 1,
-      username: ["First with a full wrapping name", "SecondUnbrokenNameThatMustRemainReadable", "Third"][index],
-      avatarUrl: null,
+    const entries = makeEntries(count, (index) => ["First with a full wrapping name", "SecondUnbrokenNameThatMustRemainReadable", "Third"][index])
       // The server decides the ranks even when displayed scores are equal.
-      wpm: 140,
-      createdAt: 1_700_000_000_000,
-    }));
+      .map((entry) => ({ ...entry, wpm: 140 }));
     queries.ranges = { "all-time": entries, today: [], week: [] };
     renderLeaderboard();
 
-    const podium = screen.getByRole("list", { name: "All-Time podium" });
+    const podium = screen.getByRole("list", { name: "All time podium" });
     const items = within(podium).getAllByRole("listitem");
     expect(items).toHaveLength(count);
     for (const [index, item] of items.entries()) {
+      expect(item).toHaveAttribute("data-podium-rank", String(index + 1));
       expect(within(item).getByText(`Rank ${entries[index].rank}`)).toBeInTheDocument();
       expect(within(item).getByText(entries[index].username)).toBeVisible();
       expect(within(item).getByText("140")).toBeVisible();
     }
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "All time ranks 4 and below" })).not.toBeInTheDocument();
     expect(screen.queryByText(`Rank ${count + 1}`)).not.toBeInTheDocument();
   });
 
@@ -121,7 +161,7 @@ describe("leaderboard ranges", () => {
     };
     queries.ranges = { "all-time": [entry], today: [], week: [] };
     const result = renderLeaderboard();
-    const podium = screen.getByRole("list", { name: "All-Time podium" });
+    const podium = screen.getByRole("list", { name: "All time podium" });
     const avatar = podium.querySelector("img")!;
     expect(avatar).toHaveAttribute("alt", "");
     fireEvent.error(avatar);
@@ -135,32 +175,26 @@ describe("leaderboard ranges", () => {
     expect(podium.querySelector("img")).toHaveAttribute("src", "/replacement-avatar.png");
   });
 
-  it("uses stable profile links for duplicate and renamed podium/table usernames", () => {
-    const entries = Array.from({ length: 4 }, (_, index) => ({
-      userId: `users:stable-${index + 1}`,
-      rank: index + 1,
-      username: index < 2 ? "Same display name" : `Typist ${index + 1}`,
-      avatarUrl: null,
-      wpm: 150 - index,
-      createdAt: 1_700_000_000_000,
-    }));
+  it("uses stable profile links for duplicate and renamed podium and list usernames", () => {
+    const entries = makeEntries(4, (index) => (index < 2 ? "Same display name" : `Typist ${index + 1}`));
     queries.ranges = { "all-time": entries, today: entries, week: entries };
     const result = renderLeaderboard();
-    for (const period of ["All-Time", "Today", "This Week"]) {
-      const region = screen.getByRole("region", { name: period, exact: true });
-      expect(within(region).getAllByRole("link", { name: "Same display name" }).map((link) => link.getAttribute("href"))).toEqual([
+    for (const period of ["Today", "7 days", "All time"]) {
+      choosePeriod(period);
+      const panel = screen.getByRole("tabpanel");
+      expect(within(panel).getAllByRole("link", { name: "Same display name" }).map((link) => link.getAttribute("href"))).toEqual([
         "/user/users:stable-1", "/user/users:stable-2",
       ]);
     }
-    const allTime = screen.getByRole("region", { name: "All-Time" });
-    const firstLink = within(allTime).getAllByRole("link")[0];
-    const tableLink = within(allTime).getByRole("link", { name: "Typist 4" });
+    const panel = screen.getByRole("tabpanel");
+    const firstLink = within(panel).getAllByRole("link")[0];
+    const listLink = within(panel).getByRole("link", { name: "Typist 4" });
     queries.ranges["all-time"] = entries.map((entry) => ({ ...entry, username: `Renamed ${entry.rank}` }));
     result.rerender(<MemoryRouter><Leaderboard /></MemoryRouter>);
-    expect(within(allTime).getByRole("link", { name: "Renamed 1" })).toBe(firstLink);
+    expect(within(panel).getByRole("link", { name: "Renamed 1" })).toBe(firstLink);
     expect(firstLink).toHaveAttribute("href", "/user/users:stable-1");
-    expect(within(allTime).getByRole("link", { name: "Renamed 4" })).toBe(tableLink);
-    expect(tableLink).toHaveAttribute("href", "/user/users:stable-4");
+    expect(within(panel).getByRole("link", { name: "Renamed 4" })).toBe(listLink);
+    expect(listLink).toHaveAttribute("href", "/user/users:stable-4");
   });
 
   it("keeps older deployed responses readable without inventing profile IDs", () => {
@@ -168,8 +202,40 @@ describe("leaderboard ranges", () => {
       rank: 1, username: "Legacy response", avatarUrl: null, wpm: 120, createdAt: 1_700_000_000_000,
     }], today: [], week: [] };
     renderLeaderboard();
-    const allTime = screen.getByRole("region", { name: "All-Time" });
-    expect(within(allTime).getByText("Legacy response")).toBeVisible();
-    expect(within(allTime).queryByRole("link")).not.toBeInTheDocument();
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).getByText("Legacy response")).toBeVisible();
+    expect(within(panel).queryByRole("link")).not.toBeInTheDocument();
+  });
+});
+
+describe("your standing", () => {
+  it("marks the signed-in player and shows the gap to the player above", () => {
+    const entries = makeEntries(6);
+    queries.ranges = { "all-time": entries, today: entries.slice(0, 2), week: [] };
+    account.current = { status: "ready", userId: "users:stable-5" };
+    renderLeaderboard();
+    const row = screen.getByRole("link", { name: entries[4].username }).closest("li")!;
+    expect(within(row).getByText("You")).toBeVisible();
+    const standing = screen.getByRole("complementary", { name: "Your standing" });
+    expect(standing).toHaveTextContent("You’re #5 of all time");
+    expect(standing).toHaveTextContent(`1 WPM behind ${entries[3].username}`);
+    expect(standing).toHaveTextContent("156WPM");
+
+    choosePeriod("Today");
+    expect(screen.getByRole("complementary", { name: "Your standing" })).toHaveTextContent("You’re not in the top 50 today yet");
+    expect(screen.queryByText("You")).not.toBeInTheDocument();
+  });
+
+  it("calls out the top spot and is absent while signed out or still connecting", () => {
+    const entries = makeEntries(2);
+    queries.ranges = { "all-time": entries, today: [], week: [] };
+    account.current = { status: "ready", userId: "users:stable-1" };
+    const result = renderLeaderboard();
+    expect(screen.getByRole("complementary", { name: "Your standing" })).toHaveTextContent("Top of the board");
+
+    account.current = { status: "loading", userId: null };
+    result.rerender(<MemoryRouter><Leaderboard /></MemoryRouter>);
+    expect(screen.queryByRole("complementary", { name: "Your standing" })).not.toBeInTheDocument();
+    expect(screen.queryByText("You")).not.toBeInTheDocument();
   });
 });

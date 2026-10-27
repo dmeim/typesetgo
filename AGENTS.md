@@ -78,7 +78,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | Route | Page |
 |-------|------|
 | `/` | Home/main typing practice |
-| `/leaderboard` | Leaderboard |
+| `/leaderboard` | Arena leaderboard: Today / 7 days / All time tabs over one podium, ranks 4–50 and your standing (`src/components/leaderboard/`) |
 | `/user/:userId` | User stats profile |
 | `/connect`, `/connect/join` | Connect landing: host a room (plus recent rooms) or join with a code |
 | `/connect/host/:roomId` | Host panel for an owned room |
