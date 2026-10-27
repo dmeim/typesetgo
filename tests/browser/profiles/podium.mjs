@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { expect } from "@playwright/test";
 
-// Tab label and the accessible title used for the podium and rank list.
+// Tab label and the accessible title used for the podium and rank list. The first is the board you land on.
 const periods = [
+  { tab: "7 days", title: "Last 7 days", range: "week" },
   { tab: "Today", title: "Today", range: "today" },
   { tab: "All time", title: "All time", range: "all-time" },
-  { tab: "7 days", title: "Last 7 days", range: "week" },
 ];
 const winners = [
   { rank: 1, name: "Maya", wpm: 150 },
@@ -127,15 +127,103 @@ async function assertPodium(page, period, count, label, reducedMotion = "reduce"
   return geometry;
 }
 
+/** Page and list scroll state plus the parts of rows the viewer can actually see. */
+async function layoutState(page) {
+  return page.evaluate(() => {
+    const rect = (element) => element.getBoundingClientRect();
+    const scroller = document.querySelector("[data-leaderboard-scroller]");
+    const panel = scroller ? rect(scroller) : null;
+    const standing = document.querySelector('aside[aria-label="Your standing"]');
+    // Clip each row to the viewport and, where the list scrolls, to its panel; keep the parts still showing.
+    const top = Math.max(0, panel?.top ?? 0);
+    const bottom = Math.min(innerHeight, panel?.bottom ?? innerHeight);
+    const visibleRows = [...document.querySelectorAll("[data-leaderboard-row]")].map(rect)
+      .map((row) => ({ top: Math.max(row.top, top), bottom: Math.min(row.bottom, bottom) }))
+      .filter((row) => row.bottom - row.top > 1);
+    const you = document.querySelector("[data-leaderboard-you]");
+    return {
+      page: { scrollHeight: document.documentElement.scrollHeight, height: innerHeight, scrollY },
+      scroller: scroller && { scrollTop: scroller.scrollTop, scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight, role: scroller.getAttribute("role"), tabIndex: scroller.getAttribute("tabindex"), name: scroller.getAttribute("aria-label") },
+      panel: panel && { top: panel.top, bottom: panel.bottom },
+      footerTop: rect(document.querySelector("footer")).top,
+      standing: standing && { top: rect(standing).top, bottom: rect(standing).bottom },
+      you: you && { top: rect(you).top, bottom: rect(you).bottom },
+      visibleRows,
+    };
+  });
+}
+
+function assertStandingClear(state, label) {
+  assert.ok(state.standing, `${label}: standing bar shown`);
+  for (const row of state.visibleRows) {
+    assert.ok(row.bottom <= state.standing.top + 1 || row.top >= state.standing.bottom - 1, `${label}: standing bar covers a row ${JSON.stringify({ row, standing: state.standing })}`);
+  }
+}
+
+async function checkRankListScrolling({ page, open, noOverflow, output, checks }) {
+  // Desktop and tablet: the page fits the viewport and ranks 4–50 scroll inside their own focusable panel.
+  for (const [width, height] of [[1440, 900], [1280, 720], [1024, 768], [768, 1024]]) {
+    const label = `rank list ${width}x${height}`;
+    await open("/leaderboard", { scenario: "podium", podiumCount: 50, width, height, you: "leaderboard-user-30" });
+    const scroller = page.getByRole("region", { name: "Last 7 days ranks 4 and below, scrollable", exact: true });
+    await expect(scroller).toBeVisible();
+    let state = await layoutState(page);
+    assert.ok(state.page.scrollHeight <= state.page.height + 1, `${label}: page does not scroll ${JSON.stringify(state.page)}`);
+    assert.ok(state.scroller.scrollHeight > state.scroller.clientHeight + 100, `${label}: list overflows its panel ${JSON.stringify(state.scroller)}`);
+    assert.ok(state.panel.bottom <= state.footerTop + 1, `${label}: panel ends above the footer`);
+    // Your row is brought into view inside the panel on load, without moving focus.
+    assert.ok(state.scroller.scrollTop > 0 && state.you.top >= state.panel.top - 1 && state.you.bottom <= state.panel.bottom + 1, `${label}: your row is in view ${JSON.stringify({ you: state.you, panel: state.panel })}`);
+    assert.equal(await page.evaluate(() => document.activeElement === document.body), true, `${label}: focus untouched`);
+    assertStandingClear(state, label);
+    await noOverflow(label);
+    if (width === 1280) await page.screenshot({ path: path.join(output, `leaderboard-split-${width}x${height}.png`) });
+
+    // Keyboard: focus the panel and page through it; only the panel moves.
+    await scroller.focus();
+    await page.keyboard.press("Home");
+    await expect.poll(async () => (await layoutState(page)).scroller.scrollTop).toBe(0);
+    await page.keyboard.press("End");
+    await expect.poll(async () => { const next = await layoutState(page); return next.scroller.scrollTop + next.scroller.clientHeight >= next.scroller.scrollHeight - 1; }).toBe(true);
+    state = await layoutState(page);
+    assert.equal(state.page.scrollY, 0, `${label}: page stays put while the list scrolls`);
+    await expect(page.locator('[data-leaderboard-row="50"]')).toBeInViewport();
+
+    // Switching period keeps the layout and morphs into the other board.
+    await choosePeriod(page, "All time");
+    await expect(page.getByRole("region", { name: "All time ranks 4 and below, scrollable", exact: true })).toBeVisible();
+    state = await layoutState(page);
+    assert.ok(state.page.scrollHeight <= state.page.height + 1, `${label}: page still fits after switching period`);
+    checks.push(`${label}: podium beside an internally scrolling, keyboard-scrollable rank list; page fits the viewport; your row in view; standing bar clear of rows`);
+  }
+
+  // Phones: stacked podium, standing bar and list; the page scrolls and the list is not a nested scroll area.
+  for (const [width, height] of [[390, 844], [320, 568]]) {
+    const label = `rank list ${width}x${height}`;
+    await open("/leaderboard", { scenario: "podium", podiumCount: 50, width, height, you: "leaderboard-user-30" });
+    await expect(page.locator('[data-leaderboard-row="4"]')).toHaveCount(1);
+    await expect(page.getByRole("region", { name: /ranks 4 and below, scrollable$/ })).toHaveCount(0);
+    let state = await layoutState(page);
+    assert.ok(state.page.scrollHeight > state.page.height, `${label}: page scrolls`);
+    assert.equal(state.scroller.scrollHeight, state.scroller.clientHeight, `${label}: list is not a nested scroller`);
+    for (const y of [0, 900, 2400]) {
+      await page.evaluate((top) => scrollTo(0, top), y);
+      state = await layoutState(page);
+      assertStandingClear(state, `${label} at ${y}px`);
+    }
+    await noOverflow(label);
+    checks.push(`${label}: stacked podium, standing bar and rank list scroll with the page without horizontal overflow; standing bar never covers rows`);
+  }
+}
+
 export async function checkPodium({ page, open, noOverflow, output, checks }) {
   for (const width of [320, 390, 768, 1024, 1280, 1439, 1440]) {
     const theme = [320, 768, 1280].includes(width) ? "light" : "dark";
     const reducedMotion = width === 390 || width === 1440 ? "no-preference" : "reduce";
     const label = `podium ${width}px ${theme} ${reducedMotion}`;
     await open("/leaderboard", { scenario: "podium", podiumCount: 50, width, height: 1000, theme, reducedMotion });
-    await expect(page.getByRole("tab", { name: "Today", exact: true })).toHaveAttribute("aria-selected", "true");
-    // The first board (Today) is in place on load: no entrance movement, fade or crown pop.
-    const loaded = await podiumGeometry(page.getByRole("list", { name: "Today podium", exact: true }));
+    await expect(page.getByRole("tab", { name: "7 days", exact: true })).toHaveAttribute("aria-selected", "true");
+    // The first board (7 days) is in place on load: no entrance movement, fade or crown pop.
+    const loaded = await podiumGeometry(page.getByRole("list", { name: "Last 7 days podium", exact: true }));
     assert.ok(loaded.entries.every((entry) => entry.stationary), `${label}: first board has no entrance animation`);
     for (const period of [...periods.slice(1), periods[0]]) {
       await choosePeriod(page, period.tab);
@@ -171,17 +259,19 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
 
   await open("/leaderboard", { scenario: "podium", podiumCount: 50, width: 390, you: "leaderboard-user-7" });
   const standing = page.getByRole("complementary", { name: "Your standing", exact: true });
-  await expect(standing).toContainText("You’re #7 today");
+  await expect(standing).toContainText("You’re #7 in the last 7 days");
   await choosePeriod(page, "All time");
   await expect(standing).toContainText("You’re #7 of all time");
   await expect(standing).toContainText("1 WPM behind all-time ExtremelyLongUnbrokenUsernameNumber6");
   await expect(page.locator('[data-leaderboard-row="7"]').getByText("You", { exact: true })).toBeVisible();
   await noOverflow("standing bar 390px");
   await open("/leaderboard", { scenario: "podium", podiumCount: 50, width: 390 });
-  await expect(page.getByRole("complementary", { name: "Your standing", exact: true })).toContainText("You’re not in the top 50 today yet");
+  await expect(page.getByRole("complementary", { name: "Your standing", exact: true })).toContainText("You’re not in the top 50 in the last 7 days yet");
   await open("/leaderboard", { scenario: "anonymous", width: 390 });
   await expect(page.getByRole("complementary", { name: "Your standing", exact: true })).toHaveCount(0);
   checks.push("signed-in standing bar from the loaded board; absent when signed out");
+
+  await checkRankListScrolling({ page, open, noOverflow, output, checks });
 
   for (const scenario of ["visitor", "anonymous"]) {
     for (const rank of [1, 4]) {

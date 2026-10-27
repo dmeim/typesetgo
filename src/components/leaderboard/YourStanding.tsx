@@ -20,11 +20,12 @@ function gapText(standing: NonNullable<ReturnType<typeof findStanding>>) {
 /**
  * The signed-in player's place on the loaded board. The query returns the top 50 only,
  * so anyone below that is told they are not on the board yet rather than given a guessed rank.
+ * It sits in the page flow above the rank list, so it never covers a row.
  */
 export function YourStanding({ entries, youId, period, entrance }: YourStandingProps) {
   const standing = findStanding(entries, youId);
   return (
-    <aside aria-label="Your standing" className="sticky bottom-4 z-20 mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-primary/40 bg-popover/95 px-3 py-2 text-popover-foreground shadow-2xl backdrop-blur sm:gap-4 sm:px-4 sm:py-3">
+    <aside aria-label="Your standing" className="mx-auto flex w-full max-w-3xl shrink-0 items-center gap-3 rounded-2xl border border-primary/40 bg-popover px-3 py-2 text-popover-foreground shadow-sm sm:gap-4 sm:px-4 sm:py-3">
       {standing ? (
         <PlayerAvatar entry={standing.entry} size="sm" />
       ) : (
@@ -42,7 +43,7 @@ export function YourStanding({ entries, youId, period, entrance }: YourStandingP
         {standing ? (
           <>
             <span className="text-sm">You’re <strong className="text-base sm:text-lg">#{standing.entry.rank}</strong> {period.standingPhrase}</span>
-            <span className="text-xs text-muted-foreground">{gapText(standing)}</span>
+            <span className="min-w-0 text-xs text-muted-foreground [overflow-wrap:anywhere]">{gapText(standing)}</span>
           </>
         ) : (
           <>

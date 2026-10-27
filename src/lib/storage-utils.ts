@@ -9,6 +9,7 @@ import { DEFAULT_KEYBOARD_STYLE } from "@/lib/keyboard-model";
 const STORAGE_KEYS = {
   SETTINGS: "typesetgo_settings",
   LAYOUT: "typesetgo_layout",
+  KID_MODE: "typesetgo_kid_mode",
 } as const;
 
 export interface LayoutSettings {
@@ -117,6 +118,50 @@ export function loadLayoutSettings(): LayoutSettings | null {
       maxWordsPerLine: Number.isFinite(parsed.maxWordsPerLine) ? Math.max(1, Math.min(10, Math.round(parsed.maxWordsPerLine))) : DEFAULT_LAYOUT.maxWordsPerLine,
     };
   } catch {
+    return null;
+  }
+}
+
+/** What kids mode changed, so leaving it puts these back even after Home was left and reopened. */
+export interface KidModeSnapshot {
+  mode: SettingsState["mode"];
+  typingFontSize: number;
+  ghostWriterEnabled: boolean;
+  linePreview: number;
+  maxWordsPerLine: number;
+  showOnScreenKeyboard: boolean;
+  keyboardStyle: SettingsState["keyboardStyle"];
+}
+
+export function saveKidModeSnapshot(snapshot: KidModeSnapshot | null): void {
+  try {
+    if (snapshot) window.localStorage.setItem(STORAGE_KEYS.KID_MODE, JSON.stringify(snapshot));
+    else window.localStorage.removeItem(STORAGE_KEYS.KID_MODE);
+  } catch (error) {
+    console.warn("Failed to save kids mode to localStorage:", error);
+  }
+}
+
+export function loadKidModeSnapshot(): KidModeSnapshot | null {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEYS.KID_MODE);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    // Normalizing through the practice settings keeps a hand-edited or stale value inside the allowed choices.
+    const settings = normalizePracticeSettings({ ...DEFAULT_SETTINGS, ...parsed });
+    const layout = loadLayoutSettings() ?? DEFAULT_LAYOUT;
+    return {
+      mode: settings.mode,
+      typingFontSize: settings.typingFontSize,
+      ghostWriterEnabled: settings.ghostWriterEnabled,
+      linePreview: Number.isFinite(parsed.linePreview) ? Math.max(1, Math.min(6, Math.round(parsed.linePreview))) : layout.linePreview,
+      maxWordsPerLine: Number.isFinite(parsed.maxWordsPerLine) ? Math.max(1, Math.min(10, Math.round(parsed.maxWordsPerLine))) : layout.maxWordsPerLine,
+      showOnScreenKeyboard: settings.showOnScreenKeyboard,
+      keyboardStyle: settings.keyboardStyle,
+    };
+  } catch (error) {
+    console.warn("Failed to load kids mode from localStorage:", error);
     return null;
   }
 }

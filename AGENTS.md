@@ -80,7 +80,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | Route | Page |
 |-------|------|
 | `/` | Home/main typing practice |
-| `/leaderboard` | Arena leaderboard: Today / 7 days / All time tabs over one podium, ranks 4–50 and your standing (`src/components/leaderboard/`) |
+| `/leaderboard` | Arena leaderboard: Today / 7 days / All time tabs (opens on 7 days); the podium sits beside ranks 4–50 in a list that scrolls on its own, with your standing above it (`src/components/leaderboard/`) |
 | `/profile` | Profile page: signed in it redirects to `/profile/:yourId`; signed out it asks you to sign in. Sidebar of account tabs and every practice setting (`src/components/profile/`) |
 | `/profile/:tab` | `history`, `achievements` (your own; sign-in prompt when signed out) and `theme`, `text`, `typing`, `sound`, `keyboard` settings, which work signed out too and save to the same localStorage keys and account preferences Home uses (`src/components/profile/profile-routes.ts`) |
 | `/profile/:userId` | Anyone's public stats (the only public view) |

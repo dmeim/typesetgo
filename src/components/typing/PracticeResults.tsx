@@ -1,11 +1,10 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
-import { ChartLineIcon, SealCheckIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ChartLineIcon, SignOutIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { Quote, SettingsState } from "@/lib/typing-constants";
 import type { TimelineSample } from "@/lib/result-timeline";
 import { tv } from "@/lib/theme-vars";
 import { cn } from "@/lib/utils";
-import PracticeResultsInfo from "@/components/typing/PracticeResultsInfo";
 import { ResultActions, type ResultSaveState } from "@/components/typing/results/ResultActions";
 import { ResultDetailChips, ResultDetailSlot } from "@/components/typing/results/ResultDetails";
 import { CompareBars, Score } from "@/components/typing/results/ResultScore";
@@ -48,10 +47,8 @@ interface PracticeResultsProps {
  * results width so phones keep a landscape graph. Only the graph shrinks below that (to 8rem) when space runs out.
  */
 const GRAPH_SIZE = "min-h-[8rem] flex-[1_1_min(24rem,42dvh,60cqw)]";
-
-function Badge({ tone = "text-muted-foreground", children }: { tone?: string; children: ReactNode }) {
-  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 font-medium", tone)}>{children}</span>;
-}
+/** Wide: the graph shares a grid row with the scores and buttons, so both columns end at the same line. */
+const GRAPH_SIZE_WIDE = "@min-[38rem]:col-start-2 @min-[38rem]:row-start-1 @min-[38rem]:min-h-[max(8rem,min(24rem,42dvh,60cqw))]";
 
 /**
  * The finished-test screen in the "Side column" layout: scores and buttons on the left, the graph on the right with
@@ -76,8 +73,6 @@ export default function PracticeResults({
   onLeave,
   connectActions,
   repeatTest,
-  rankingStatus,
-  isRepeated,
   timeline = [],
   comparison = null,
 }: PracticeResultsProps) {
@@ -88,15 +83,6 @@ export default function PracticeResults({
   const hintId = useId();
   const scope = useId();
   const detail = useResultDetail();
-  const resultsInfo = connectMode
-    ? "Your result is shared with the host."
-    : lastResultIsValid === false
-    ? "This test could not be verified and cannot be saved."
-    : isRepeated || rankingStatus === "unranked"
-      ? "This practice can be saved to your history, but will not appear on leaderboards."
-      : rankingStatus === "pending"
-        ? "Waiting for verification…"
-        : "Review your words per minute, accuracy, and typing details below.";
   const scores = buildResultStats(wpm, accuracy, comparison);
   const testLabel = describeTest(settings);
   const details: ResultDetailsData = {
@@ -113,20 +99,6 @@ export default function PracticeResults({
     // Completion moves focus to the result summary, unless a modal currently owns it.
     if (!document.querySelector('[role="dialog"]')) resultsRef.current?.focus({ preventScroll: true });
   }, []);
-
-  const meta = (
-    <>
-      <span className="hidden truncate @min-[38rem]:inline">{testLabel}</span>
-      {comparison && <span className="whitespace-nowrap">Compared with your last {comparison.tests} {comparison.tests === 1 ? "test" : "tests"}</span>}
-      {settings.mode === "quote" && currentQuote && (
-        <span className="min-w-0 truncate">— {currentQuote.author}{currentQuote.source && `, ${currentQuote.source}`}</span>
-      )}
-      {isRepeated && !connectMode && <Badge>Repeated</Badge>}
-      {lastResultIsValid === true && <Badge tone="text-success"><SealCheckIcon className="size-3.5" weight="fill" aria-hidden="true" />Verified</Badge>}
-      {saveState === "saved" && lastResultIsValid === null && <Badge>Saved to history</Badge>}
-      {rankingStatus === "pending" && <Badge>Waiting for verification…</Badge>}
-    </>
-  );
 
   return (
     <div
@@ -165,17 +137,17 @@ export default function PracticeResults({
         </p>
       )}
       {/*
-        Wide: the heading sits over the graph so the score column gets the full height.
+        Wide: scores and buttons on the left, level with the graph on the right; the chips sit under the graph.
         Narrow screens drop the two columns (display: contents) and stack everything, buttons last.
       */}
       <motion.div
-        className="flex min-h-0 flex-1 flex-col gap-3 [@media(max-height:40rem)]:gap-2 @min-[38rem]:grid @min-[38rem]:grid-cols-[minmax(13rem,16rem)_minmax(0,1fr)] @min-[38rem]:grid-rows-[auto_1fr]"
+        className="flex min-h-0 flex-1 flex-col gap-3 [@media(max-height:40rem)]:gap-2 @min-[38rem]:grid @min-[38rem]:grid-cols-[minmax(13rem,16rem)_minmax(0,1fr)] @min-[38rem]:grid-rows-[auto_auto] @min-[38rem]:gap-x-3"
         initial={reducedMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.25, ease: "easeOut" }}
       >
-        <PracticeResultsInfo meta={meta} className="@min-[38rem]:col-start-2 @min-[38rem]:row-start-1">{resultsInfo}</PracticeResultsInfo>
-        <div className="contents @min-[38rem]:col-start-1 @min-[38rem]:row-span-2 @min-[38rem]:row-start-1 @min-[38rem]:flex @min-[38rem]:flex-col @min-[38rem]:gap-3">
+        <h2 className="sr-only">Results</h2>
+        <div className="contents @min-[38rem]:col-start-1 @min-[38rem]:row-start-1 @min-[38rem]:flex @min-[38rem]:flex-col @min-[38rem]:gap-3">
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl border border-border bg-card p-4 @min-[38rem]:flex @min-[38rem]:flex-1 @min-[38rem]:flex-col @min-[38rem]:justify-around">
             <div className="flex flex-col gap-3">
               <Score stat={scores.wpm} context={false} />
@@ -229,8 +201,8 @@ export default function PracticeResults({
           </div>
         </div>
 
-        <div className="contents @min-[38rem]:col-start-2 @min-[38rem]:row-start-2 @min-[38rem]:flex @min-[38rem]:min-h-0 @min-[38rem]:flex-col @min-[38rem]:gap-3">
-          <ResultDetailSlot chips={chips} data={details} detail={detail} scope={scope} swap className={GRAPH_SIZE}>
+        <div className="contents">
+          <ResultDetailSlot chips={chips} data={details} detail={detail} scope={scope} swap className={cn(GRAPH_SIZE, GRAPH_SIZE_WIDE)}>
             {timeline.length >= 2 ? (
               <ResultsChart
                 samples={timeline}
@@ -244,7 +216,12 @@ export default function PracticeResults({
               </div>
             )}
           </ResultDetailSlot>
-          <ResultDetailChips chips={chips} detail={detail} scope={scope} swap />
+          <ResultDetailChips chips={chips} detail={detail} scope={scope} swap className="@min-[38rem]:col-start-2 @min-[38rem]:row-start-2" />
+          {settings.mode === "quote" && currentQuote && (
+            <p className="text-center text-xs text-muted-foreground @min-[38rem]:col-start-2 @min-[38rem]:row-start-3">
+              — {currentQuote.author}{currentQuote.source ? `, ${currentQuote.source}` : ""}
+            </p>
+          )}
         </div>
       </motion.div>
     </div>

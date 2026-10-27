@@ -3,13 +3,13 @@
 ## October 27 Arena leaderboard
 
 The leaderboard is now the Arena design from the UI Lab. It replaces the three stacked or column panels and the ranks table described below.
-- Today, 7 days and All time are Radix tabs above **one** podium. All time is the default.
+- Today, 7 days and All time are Radix tabs above **one** podium. 7 days is the default.
 - All three queries stay subscribed, so switching is instant and players morph between places. Reduced motion turns the morph off.
-- Ranks 4–50 are a list.
-- A signed-in player gets a "You're #N" standing bar built from the loaded board.
+- Ranks 4–50 are a list. From 48rem wide the podium sits on the left and the list on the right. When the screen is also at least 40rem tall, the page fills the window and only the list scrolls (a focusable region that centres your row on load and on each period switch). Phones and short screens stack podium, standing and list and scroll the page.
+- A signed-in player gets a "You're #N" standing bar built from the loaded board. It sits in the page flow above the list, so it never covers a row.
 - The rules text sits behind "How do I get on the board?".
 - Components are in `src/components/leaderboard/`. Shared entry helpers, including `leaderboardProfileHref`, the only place that knows the profile path, are in `src/lib/leaderboard-entries.ts`.
-- `profiles/podium.mjs` covers tabs, sparse podiums and the standing bar. `?you=leaderboard-user-N` sets the fixture account.
+- `profiles/podium.mjs` covers tabs, sparse podiums, the standing bar and the list's own scrolling (`checkRankListScrolling`). `?you=leaderboard-user-N` sets the fixture account.
 
 ## September 20 charm restoration
 

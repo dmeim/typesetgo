@@ -328,6 +328,24 @@ describe("preference hydration and Connect boundaries", () => {
     await waitFor(() => expect(stored()).toMatchObject({ showOnScreenKeyboard: false, keyboardStyle: "keycaps" }));
   });
 
+  it("still restores the old settings when kids mode ends after leaving Home and coming back", async () => {
+    setLocal({ showOnScreenKeyboard: false, keyboardStyle: "spotlight", typingFontSize: 3, mode: "time" });
+    localStorage.setItem("typesetgo_layout", JSON.stringify({ linePreview: 4, maxWordsPerLine: 9 }));
+    const first = render(<TypingPractice />);
+    await waitFor(() => expect(first.container.querySelectorAll("[data-typing-word]").length).toBeGreaterThan(0));
+    const stored = () => JSON.parse(localStorage.getItem("typesetgo_settings")!) as SettingsState;
+    chooseSetting("kid");
+    await waitFor(() => expect(stored()).toMatchObject({ keyboardStyle: "finger", typingFontSize: 5.5, mode: "zen" }));
+    // Opening the profile page (theme, settings) unmounts Home.
+    first.unmount();
+    const second = render(<TypingPractice />);
+    await waitFor(() => expect(second.container.querySelectorAll("[data-typing-word]").length).toBeGreaterThan(0));
+    chooseSetting("kid");
+    await waitFor(() => expect(stored()).toMatchObject({ showOnScreenKeyboard: false, keyboardStyle: "spotlight", typingFontSize: 3, mode: "time" }));
+    expect(JSON.parse(localStorage.getItem("typesetgo_layout")!)).toEqual({ linePreview: 4, maxWordsPerLine: 9 });
+    expect(localStorage.getItem("typesetgo_kid_mode")).toBeNull();
+  });
+
   it("keeps an active ranked attempt when account prompt preferences arrive, applying them on Next Test", async () => {
     setLocal({ typingFontSize: 2 });
     mocks.auth.isSignedIn = true; mocks.auth.user = { id: "test-user" };

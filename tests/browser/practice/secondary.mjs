@@ -117,19 +117,9 @@ await withFixtureBrowser(async browser => {
   await p.screenshot({
     path: artifactPath("practice-final-results-narrow-light.png")
   });
-  const info = p.getByRole("button", { name: "About these results" });
-  const explanation = p.getByRole("dialog", { name: "About these results" });
-  await info.tap();
-  // Popover positioning settles after the content mounts.
-  await expect(async () => { await expectWithinViewport(p, explanation); }).toPass();
-  await expect(explanation).toContainText("will not appear on leaderboards");
-  await p.screenshot({ path: artifactPath("practice-results-info-narrow-light.png") });
-  await info.tap();
-  await expect(explanation).toHaveCount(0);
-  await info.tap();
-  await p.getByRole("heading", { name: "Results", exact: true }).tap();
-  await expect(explanation).toHaveCount(0);
-  console.log("results info touch toggle, outside dismissal and narrow viewport PASS");
+  // No help text under the buttons on phones either.
+  await expect(p.getByText("will not appear on leaderboards", { exact: false })).toHaveCount(0);
+  console.log("results show no help text on a narrow viewport PASS");
   await save.click();
   await expect(p.getByText("Sign-in is unavailable. Your result is kept here; try saving again when sign-in is available.", {
     exact: true

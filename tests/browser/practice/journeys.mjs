@@ -106,11 +106,10 @@ await withFixtureBrowser(async browser => {
   await expect(input).toHaveValue("cat");
   await input.fill(Array(10).fill("cat").join(" ") + " ");
   await expect(results).toBeVisible();
-  const heading = results.getByRole("heading", { name: "Results", exact: true });
-  const info = results.getByRole("button", { name: "About these results" });
-  const explanation = page.getByRole("dialog", { name: "About these results" });
-  await expect(heading).toBeVisible();
-  await expect(explanation).toHaveCount(0);
+  // No heading row over the graph (the heading is for screen readers) and no help text under the buttons.
+  await expect(results.getByRole("heading", { name: "Results", exact: true })).toHaveClass(/sr-only/);
+  await expect(results.getByRole("button", { name: "About these results" })).toHaveCount(0);
+  await expect(results.getByText("will not appear on leaderboards", { exact: false })).toHaveCount(0);
   await expect(results).toBeFocused();
   // Results sit centered at their natural size with room around them, rather than stretching to fill the page, and never scroll it.
   for (const [width, height] of [[1440, 1000], [1920, 1080], [1280, 720], [1280, 560]]) {
@@ -127,38 +126,15 @@ await withFixtureBrowser(async browser => {
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   console.log("results centered at their natural size without page scroll from 1920x1080 to 1280x560 PASS");
-  await info.hover();
-  await expect(explanation).toContainText("This practice can be saved to your history, but will not appear on leaderboards.");
-  // The heading sits over the graph column, so the popover stays on screen rather than page-centered.
-  await expect(async () => { await expectWithinViewport(page, explanation); }).toPass();
-  await expect(results).toBeFocused();
-  await explanation.hover();
-  await expect(explanation).toBeVisible();
-  await heading.hover();
-  await expect(explanation).toHaveCount(0);
-  await expect(results).toBeFocused();
-  await info.hover();
-  await info.click();
-  await heading.hover();
-  // Wait beyond the hover-dismiss delay to prove that clicking pinned it.
-  await page.waitForTimeout(250);
-  await expect(explanation).toBeVisible();
-  await info.click();
-  await expect(explanation).toHaveCount(0);
-  await info.click();
-  await heading.click();
-  await expect(explanation).toHaveCount(0);
-  await info.focus();
-  await page.keyboard.press("Enter");
-  await expect(explanation).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(explanation).toHaveCount(0);
-  await expect(info).toBeFocused();
-  await page.keyboard.press("Space");
-  await expect(explanation).toBeVisible();
-  await page.keyboard.press("Space");
-  await expect(explanation).toHaveCount(0);
-  console.log("results info hover, pointer transfer, pin, toggle, outside click and keyboard PASS");
+  // The scores card stretches so the buttons end level with the bottom of the graph.
+  await expect.poll(() => page.evaluate(() => {
+    const region = document.querySelector('[role="region"][aria-label="Test results"]');
+    const next = region.querySelector('button[aria-label="Next Test"]');
+    // The graph's card: the bordered box around the chart, or the dashed "no graph" box for an instant test.
+    const graph = region.querySelector('[role="img"]')?.closest(".border") ?? region.querySelector(".border-dashed");
+    return next && graph ? Math.abs(next.getBoundingClientRect().bottom - graph.getBoundingClientRect().bottom) : null;
+  })).toBeLessThan(2);
+  console.log("results show no header line or help text; the buttons end level with the graph PASS");
   const oldText = Array(10).fill("cat").join(" ");
   // Settings are chosen before a test: results show no settings pill.
   await expect(page.getByRole("button", { name: /^Test settings/ })).toHaveCount(0);
@@ -196,11 +172,11 @@ await withFixtureBrowser(async browser => {
   await page.screenshot({
     path: artifactPath("practice-final-results-wide.png")
   });
-  await info.click();
-  await expect(explanation).toBeVisible();
+  // The quote's author stays credited under the graph at every width.
+  const attribution = results.getByText("— Fixture Author", { exact: false });
   for (const width of [1920, 1024, 390, 320, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    await expect(async () => { await expectWithinViewport(page, explanation); }).toPass();
+    await expect(async () => { await expectWithinViewport(page, attribution); }).toPass();
   }
-  await page.screenshot({ path: artifactPath("practice-results-info-wide.png") });
+  console.log("quote attribution under the graph at every width PASS");
 });

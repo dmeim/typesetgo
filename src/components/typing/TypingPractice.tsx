@@ -14,6 +14,9 @@ import { fetchQuotesManifest, type QuotesManifest } from "@/lib/quotes";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
+  loadKidModeSnapshot,
+  saveKidModeSnapshot,
+  type KidModeSnapshot,
 } from "@/lib/storage-utils";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
@@ -211,17 +214,13 @@ export default function TypingPractice({
   // Compact Mode (for zoomed/narrow viewports)
   const [isCompactMode, setIsCompactMode] = useState(false);
 
-  // Kid Mode State
-  const [isKidMode, setIsKidMode] = useState(false);
-  const [preKidModeSettings, setPreKidModeSettings] = useState<{
-    mode: typeof settings.mode;
-    typingFontSize: number;
-    ghostWriterEnabled: boolean;
-    linePreview: number;
-    maxWordsPerLine: number;
-    showOnScreenKeyboard: boolean;
-    keyboardStyle: typeof settings.keyboardStyle;
-  } | null>(null);
+  // Kids mode is saved with what it replaced, so leaving it still restores them after a trip to the profile page.
+  const [preKidModeSettings, setPreKidModeSettingsState] = useState<KidModeSnapshot | null>(() => (connectMode ? null : loadKidModeSnapshot()));
+  const [isKidMode, setIsKidMode] = useState(() => preKidModeSettings !== null);
+  const setPreKidModeSettings = useCallback((snapshot: KidModeSnapshot | null) => {
+    setPreKidModeSettingsState(snapshot);
+    if (!connectMode) saveKidModeSnapshot(snapshot);
+  }, [connectMode]);
 
   const overlayOpenRef = useRef(false);
   useLayoutEffect(() => {
@@ -817,6 +816,7 @@ export default function TypingPractice({
     updateMaxWordsPerLine(5);
     setIsKidMode(true);
   }, [
+    setPreKidModeSettings,
     settings.mode,
     settings.typingFontSize,
     settings.ghostWriterEnabled,
@@ -845,7 +845,7 @@ export default function TypingPractice({
     }
     setPreKidModeSettings(null);
     setIsKidMode(false);
-  }, [preKidModeSettings, updateSettings, updateLinePreview, updateMaxWordsPerLine]);
+  }, [preKidModeSettings, setPreKidModeSettings, updateSettings, updateLinePreview, updateMaxWordsPerLine]);
 
   const handleModeSelect = useCallback((mode: ModeSelectorOption) => {
     setEditor(null);

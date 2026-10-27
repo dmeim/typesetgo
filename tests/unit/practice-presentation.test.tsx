@@ -254,10 +254,9 @@ describe("accessible results", () => {
     fireEvent.click(screen.getByRole("button", { name: "1 correct" }));
     fireEvent.keyDown(screen.getByRole("group", { name: "Correct words" }), { key: "Escape" });
     await waitFor(() => expect(screen.getByRole("button", { name: "1 correct" })).toHaveFocus());
-    expect(screen.getByText("Repeated")).toBeInTheDocument();
+    // No heading row over the graph and no help text under the buttons.
+    expect(screen.queryByRole("button", { name: "About these results" })).not.toBeInTheDocument();
     expect(screen.queryByText(/will not appear on leaderboards/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "About these results" }));
-    expect(screen.getByText(/will not appear on leaderboards/)).toBeVisible();
   });
 });
 
@@ -391,7 +390,6 @@ describe("results comparison and timeline", () => {
       comparison={{ tests: 12, averageWpm: 40, bestWpm: 60, averageAccuracy: 95, bestAccuracy: 99 }} />);
     expect(screen.getByText("+2 faster than your average")).toBeInTheDocument();
     expect(screen.getByText("+3% more accurate than your average")).toBeInTheDocument();
-    expect(screen.getByText("Compared with your last 12 tests")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /Speed ranged from 30 to 50 words per minute; accuracy ended at 93.3%. Mistakes at 2s\./ })).toBeInTheDocument();
   });
 
@@ -404,7 +402,6 @@ describe("results comparison and timeline", () => {
     expect(screen.queryByText(/than your average/)).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /Speed and accuracy/ })).not.toBeInTheDocument();
     expect(screen.getByText(/No graph for this result/)).toBeInTheDocument();
-    expect(screen.queryByText(/Compared with your last/)).not.toBeInTheDocument();
     expect(screen.getByText("Words Per Minute")).toBeInTheDocument();
   });
 
@@ -424,7 +421,7 @@ describe("results comparison and timeline", () => {
     expect(screen.queryByText("ghost 60")).not.toBeInTheDocument();
   });
 
-  it("shows unverified results, verification and quote attribution without a save shortcut", () => {
+  it("shows unverified results and quote attribution without a save shortcut, and no header line", () => {
     render(<PracticeResults {...resultsProps()} lastResultIsValid={false} lastResultInvalidReason="WPM exceeds limit"
       settings={{ ...settings, mode: "quote" }} currentQuote={{ quote: "cat", author: "Fixture Author", source: "Fixture Book", context: "", date: "" }} />);
     expect(screen.getByText("Unverified")).toBeInTheDocument();
@@ -433,7 +430,9 @@ describe("results comparison and timeline", () => {
     expect(screen.getByRole("region", { name: "Test results" })).toHaveAccessibleDescription("Enter starts the next test.");
     cleanup();
     render(<PracticeResults {...resultsProps()} lastResultIsValid />);
-    expect(screen.getByText("Verified")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Results" })).toHaveClass("sr-only");
+    expect(screen.queryByText("Verified")).not.toBeInTheDocument();
+    expect(screen.queryByText(/beginner/)).not.toBeInTheDocument();
   });
 
   it("swaps solo actions for the room's own actions in Connect", () => {

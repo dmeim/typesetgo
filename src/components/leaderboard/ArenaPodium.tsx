@@ -9,10 +9,11 @@ import { PlayerAvatar, PlayerName, YouTag } from "./LeaderboardParts";
 
 // Fixed grid slots read 2–1–3 while the DOM keeps rank order. The top inset of 2nd and 3rd
 // matches their shorter steps, so a long wrapped name can never lift them above 1st.
+// Short side-by-side screens get lower steps so the whole board fits without the page scrolling.
 const PLACES = [
-  { slot: "col-start-2", inset: "", step: "h-32 sm:h-44" },
-  { slot: "col-start-1", inset: "pt-8 sm:pt-12", step: "h-24 sm:h-32" },
-  { slot: "col-start-3", inset: "pt-16 sm:pt-20", step: "h-16 sm:h-24" },
+  { slot: "col-start-2", inset: "", step: "h-32 sm:h-44 [@media(min-width:48rem)_and_(max-height:51rem)]:h-36" },
+  { slot: "col-start-1", inset: "pt-8 sm:pt-12", step: "h-24 sm:h-32 [@media(min-width:48rem)_and_(max-height:51rem)]:h-28" },
+  { slot: "col-start-3", inset: "pt-16 sm:pt-20", step: "h-16 sm:h-24 [@media(min-width:48rem)_and_(max-height:51rem)]:h-20" },
 ] as const;
 
 interface PodiumProps {
@@ -22,6 +23,7 @@ interface PodiumProps {
   /** True once the viewer has switched periods: names fade in and scores count to their new value. */
   entrance: boolean;
   reducedMotion: boolean;
+  className?: string;
 }
 
 function PodiumSpot({ entry, place, isYou, entrance, reducedMotion }: { entry: LeaderboardEntry; place: 0 | 1 | 2; isYou: boolean; entrance: boolean; reducedMotion: boolean }) {
@@ -80,9 +82,9 @@ function PodiumSpot({ entry, place, isYou, entrance, reducedMotion }: { entry: L
 }
 
 /** One podium for the top three; empty places stay empty rather than inventing winners. */
-export function ArenaPodium({ entries, title, youId, entrance, reducedMotion }: PodiumProps) {
+export function ArenaPodium({ entries, title, youId, entrance, reducedMotion, className }: PodiumProps) {
   return (
-    <ol aria-label={`${title} podium`} className="mx-auto grid w-full max-w-2xl grid-cols-3 items-stretch gap-2 border-b border-border pt-8 sm:gap-3">
+    <ol aria-label={`${title} podium`} className={cn("mx-auto grid w-full max-w-2xl grid-cols-3 items-stretch gap-2 border-b border-border pt-8 sm:gap-3", className)}>
       {entries.slice(0, 3).map((entry, place) => (
         <PodiumSpot
           key={place}
