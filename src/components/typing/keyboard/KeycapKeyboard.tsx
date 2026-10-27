@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { HintPill } from "./KeyboardParts";
-import { isWide, keyRole, keyText, type KeyboardModel, type KeyRole, type MockKey } from "./keyboard-mock";
+import { HintPill } from "./KeyboardHint";
+import { isWide, keyRole, keyText, type KeyboardModel, type KeyRole, type BoardKey } from "@/lib/keyboard-model";
 
 const ROLE: Record<Exclude<KeyRole, null>, string> = {
   next: "border-primary bg-primary text-primary-foreground shadow-[0_0.3rem_0_color-mix(in_oklab,var(--primary)_55%,black)]",
@@ -27,10 +27,13 @@ export function KeycapKeyboard({ model, bare = false }: { model: KeyboardModel; 
   );
 }
 
-function Keycap({ keyDef, role, pressed }: { keyDef: MockKey; role: KeyRole; pressed: boolean }) {
+function Keycap({ keyDef, role, pressed }: { keyDef: BoardKey; role: KeyRole; pressed: boolean }) {
   const wide = isWide(keyDef);
   return (
     <motion.div
+      data-key={keyDef.key}
+      data-next-key={role === "next" || role === "fix" || role === "shift" || undefined}
+      data-active-key={pressed || undefined}
       style={{ flex: `${keyDef.width} 1 0%` }}
       animate={pressed
         ? { y: 5, rotate: 0 }

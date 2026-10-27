@@ -51,18 +51,20 @@ await withFixtureBrowser(async browser => {
     exact: true
   });
   await expect(i).toBeEnabled();
-  await expect(p.locator("[data-key]")).toHaveCount(51);
+  // Spotlight is the default style: the full board, with Tab, Enter and a right Shift.
+  await expect(p.locator("[data-key]")).toHaveCount(54);
   const keyboard = p.getByRole("region", { name: "On-screen keyboard" });
+  await expect(keyboard).toHaveAttribute("data-keyboard-style", "spotlight");
   await i.dispatchEvent("keydown", { key: "CapsLock", code: "CapsLock", modifierCapsLock: true });
-  await expect(keyboard.getByRole("status")).toHaveText("Caps Lock is on");
+  await expect(keyboard.getByRole("status")).toContainText("Caps Lock is on");
   await expect(keyboard.locator('[data-key="Shift"]')).not.toHaveAttribute("data-next-key", "true");
-  await expect(keyboard.locator('[data-key="Shift"]')).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-  await expect(keyboard.locator('[data-key="CapsLock"]')).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(keyboard.locator('[data-key="ShiftRight"]')).not.toHaveAttribute("data-next-key", "true");
+  await expect(keyboard.locator('[data-key="CapsLock"]')).toHaveClass(/bg-warning/);
   await expect(keyboard.locator('[data-key="c"]')).toHaveAttribute("data-next-key", "true");
   await p.screenshot({ path: artifactPath("practice-caps-lock-narrow.png") });
   await i.dispatchEvent("keyup", { key: "CapsLock", code: "CapsLock", modifierCapsLock: false });
   await expect(keyboard.getByRole("status")).toBeEmpty();
-  await expect(keyboard.locator('[data-key="CapsLock"]')).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(keyboard.locator('[data-key="CapsLock"]')).not.toHaveClass(/bg-warning/);
   console.log("Keyboard defaults on; Caps Lock highlights only Caps, with next-letter guidance intact PASS");
   expect(themeFetches).toBeLessThanOrEqual(1);
   await i.fill("x ");
@@ -76,13 +78,16 @@ await withFixtureBrowser(async browser => {
     width: 260,
     height: 700
   });
-  await expect(p.locator("[data-key]")).toHaveCount(0);
+  // The styled keyboards scale with their container instead of hiding.
+  await expect(p.locator("[data-key]")).toHaveCount(54);
+  const narrowOverflow = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(narrowOverflow).toBeLessThanOrEqual(0);
   await p.setViewportSize({
     width: 900,
     height: 850
   });
-  await expect(p.locator("[data-key]")).toHaveCount(51);
-  console.log("keyboard260\u2192900 recovery PASS");
+  await expect(p.locator("[data-key]")).toHaveCount(54);
+  console.log("keyboard260\u2192900 fits without sideways scroll PASS");
   await p.setViewportSize({
     width: 390,
     height: 844

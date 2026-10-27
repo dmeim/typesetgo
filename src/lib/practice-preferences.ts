@@ -15,7 +15,7 @@ const fields = {
   ghostWriterEnabled: "ghostWriterEnabled", ghostWriterSpeed: "ghostWriterSpeed",
   typingFontSize: "typingFontSize", typingFontFamily: "typingFontFamily", iconFontSize: "iconFontSize",
   helpFontSize: "helpFontSize", textAlign: "textAlign", showOnScreenKeyboard: "showOnScreenKeyboard",
-  keyboardLayout: "keyboardLayout",
+  keyboardLayout: "keyboardLayout", keyboardStyle: "keyboardStyle",
 } as const satisfies Record<string, keyof SettingsState>;
 
 export function persistablePracticeSettings(settings: Partial<SettingsState>): Partial<SettingsState> {
@@ -46,6 +46,7 @@ export function toAccountPreferences(settings: SettingsState, layout: LayoutSett
     textAlign: settings.textAlign,
     showOnScreenKeyboard: settings.showOnScreenKeyboard,
     keyboardLayout: settings.keyboardLayout,
+    keyboardStyle: settings.keyboardStyle,
     linePreview: Math.max(1, Math.min(6, Math.round(layout.linePreview))),
     maxWordsPerLine: Math.max(1, Math.min(10, Math.round(layout.maxWordsPerLine))),
   };

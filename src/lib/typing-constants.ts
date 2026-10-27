@@ -1,6 +1,7 @@
 import { GLOBAL_COLORS } from "@/lib/colors";
 import type { Plan } from "@/types/plan";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
+import { DEFAULT_KEYBOARD_STYLE, type KeyboardStyle } from "@/lib/keyboard-model";
 import { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED } from "./practice-limits";
 
 export { TEXT_SIZE_MIN, TEXT_SIZE_MAX, MAX_DURATION_SECONDS, MAX_WORD_TARGET, MAX_GHOST_SPEED } from "./practice-limits";
@@ -54,6 +55,7 @@ export type SettingsState = {
   presetModeType: "time" | "finish";
   showOnScreenKeyboard: boolean;
   keyboardLayout: KeyboardLayoutId;
+  keyboardStyle: KeyboardStyle;
   theme?: Theme;
   plan?: Plan;
   planIndex?: number;
@@ -82,6 +84,7 @@ export function normalizePracticeSettings(settings: SettingsState): SettingsStat
     quoteLength: oneOf(settings.quoteLength, ["all", "short", "medium", "long", "xl"], "all"),
     textAlign: oneOf(settings.textAlign, ["left", "center", "right", "justify"], "center"),
     keyboardLayout: oneOf(settings.keyboardLayout, ["qwerty", "dvorak", "colemak"], "qwerty"),
+    keyboardStyle: oneOf(settings.keyboardStyle, ["spotlight", "finger", "keycaps", "legacy"], DEFAULT_KEYBOARD_STYLE),
     presetModeType: oneOf(settings.presetModeType, ["time", "finish"], "finish"),
     typingFontSize: clamp(settings.typingFontSize, TEXT_SIZE_MIN, TEXT_SIZE_MAX, 3.25),
     duration: Math.round(clamp(settings.duration, 1, MAX_DURATION_SECONDS, 30)),

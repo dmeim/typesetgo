@@ -3,6 +3,7 @@ import type { SettingsState } from "@/lib/typing-constants";
 import { normalizePracticeSettings } from "@/lib/typing-constants";
 import { DEFAULT_TYPING_FONT } from "@/lib/typing-fonts";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
+import { DEFAULT_KEYBOARD_STYLE } from "@/lib/keyboard-model";
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: Omit<
   presetModeType: "finish",
   showOnScreenKeyboard: true,
   keyboardLayout: "qwerty" as KeyboardLayoutId,
+  keyboardStyle: DEFAULT_KEYBOARD_STYLE,
 };
 
 /**

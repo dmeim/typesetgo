@@ -1,7 +1,8 @@
 import { useId } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { HINT_STYLE, isWide, keyRole, keyText, showsUpper, type KeyboardModel, type MockKey } from "./keyboard-mock";
+import { HINT_STYLE } from "./keyboard-hint-style";
+import { isWide, keyRole, keyText, showsUpper, type KeyboardModel, type BoardKey } from "@/lib/keyboard-model";
 
 const GLIDE = { type: "spring", stiffness: 520, damping: 38 } as const;
 
@@ -38,19 +39,22 @@ export function SpotlightKeyboard({ model, bare = false }: { model: KeyboardMode
         </div>
       </div>
       {!bare && <p role="status" className={cn("min-h-5 text-center text-sm", tone ? HINT_STYLE[tone].text : "text-muted-foreground")}>
-        {model.hint ? `${model.hint.title}. ${model.hint.detail}.` : model.next ? "Follow the light." : ""}
+        {model.hint ? `${model.hint.title}. ${model.hint.detail}.` : ""}
       </p>}
     </div>
   );
 }
 
-function SpotKey({ keyDef, model, scope }: { keyDef: MockKey; model: KeyboardModel; scope: string }) {
+function SpotKey({ keyDef, model, scope }: { keyDef: BoardKey; model: KeyboardModel; scope: string }) {
   const role = keyRole(model, keyDef);
   const pressed = model.pressed.has(keyDef.id);
   const upper = showsUpper(keyDef, model.caps, !!model.shift);
   const lit = role === "next" || role === "fix";
   return (
     <div
+      data-key={keyDef.key}
+      data-next-key={lit || role === "shift" || undefined}
+      data-active-key={pressed || undefined}
       style={{ flex: `${keyDef.width} 1 0%` }}
       className={cn(
         "relative flex h-[clamp(1.8rem,5.2cqw,3rem)] min-w-0 items-center justify-center rounded-xl border border-border/50 text-muted-foreground/80 transition-colors",

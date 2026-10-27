@@ -601,8 +601,8 @@ describe("theme browsing", () => {
 });
 
 describe("on-screen keyboard sizing", () => {
-  it("retains its observed wrapper and recovers after shrinking below 280px", async () => {
-    render(<OnScreenKeyboard nextChar="a" capsLockOn={false} layoutId="qwerty" activeKey={null} visible />);
+  it("legacy retains its observed wrapper and recovers after shrinking below 280px", async () => {
+    render(<OnScreenKeyboard style="legacy" nextChar="a" capsLockOn={false} layoutId="qwerty" activeKey={null} visible />);
     const container = screen.getByTestId("keyboard-container");
     expect(within(container).getByText("A")).toBeInTheDocument();
     availableWidth = 240;
@@ -669,8 +669,8 @@ describe("dialog focus ownership", () => {
   });
 });
 
-it.each(["qwerty", "dvorak", "colemak"] as const)("does not highlight Shift just because Caps Lock is on in %s", (layoutId) => {
-  const props = { nextChar: "A", capsLockOn: true, layoutId, activeKey: null, visible: true };
+it.each(["qwerty", "dvorak", "colemak"] as const)("legacy does not highlight Shift just because Caps Lock is on in %s", (layoutId) => {
+  const props = { style: "legacy" as const, nextChar: "A", capsLockOn: true, layoutId, activeKey: null, visible: true };
   const { rerender } = render(<OnScreenKeyboard {...props} />);
   const keyboard = screen.getByRole("region", { name: "On-screen keyboard" });
   const shift = keyboard.querySelector('[data-key="Shift"]');
@@ -770,4 +770,26 @@ it.each(["dark", "light"] as const)("keeps every save action state readable in %
     expect(contrastRatio(foreground!, background!), `${label} contrast`).toBeGreaterThanOrEqual(4.5);
     expect(button.className).not.toMatch(/(?:hover|disabled):opacity-/);
   }
+});
+
+it.each(["spotlight", "finger", "keycaps"] as const)("the %s keyboard guides Shift and Caps Lock like the legacy one", (style) => {
+  const props = { style, nextChar: "A", capsLockOn: true, layoutId: "qwerty" as const, activeKey: null, visible: true };
+  const { rerender } = render(<OnScreenKeyboard {...props} />);
+  const keyboard = screen.getByRole("region", { name: "On-screen keyboard" });
+  expect(keyboard).toHaveAttribute("data-keyboard-style", style);
+  expect(keyboard).toHaveAccessibleDescription("Next key: A. Caps Lock is on.");
+  expect(keyboard.querySelector('[data-key="Shift"]')).not.toHaveAttribute("data-next-key");
+  expect(keyboard.querySelector('[data-key="a"], [data-key="A"]')).toHaveAttribute("data-next-key", "true");
+  rerender(<OnScreenKeyboard {...props} nextChar="a" />);
+  expect(keyboard).toHaveAccessibleDescription("Next key: A. Caps Lock is on. Turn Caps Lock off for lowercase letters.");
+  rerender(<OnScreenKeyboard {...props} capsLockOn={false} />);
+  expect(keyboard).toHaveAccessibleDescription("Next key: Shift + A.");
+  expect(keyboard.querySelector('[data-next-key="true"][data-key^="Shift"]')).not.toBeNull();
+});
+
+it("defaults to the Spotlight keyboard and marks the Backspace when letters are wrong", () => {
+  render(<OnScreenKeyboard nextChar="Backspace" toDelete={2} capsLockOn={false} layoutId="qwerty" activeKey={null} visible />);
+  const keyboard = screen.getByRole("region", { name: "On-screen keyboard" });
+  expect(keyboard).toHaveAttribute("data-keyboard-style", "spotlight");
+  expect(keyboard.querySelector('[data-key="Backspace"]')).toHaveAttribute("data-next-key", "true");
 });

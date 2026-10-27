@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
-import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
-import { FingerKeyboard } from "./FingerKeyboard";
-import { KeycapKeyboard } from "./KeycapKeyboard";
-import { SpotlightKeyboard } from "./SpotlightKeyboard";
+import LegacyKeyboard from "@/components/typing/keyboard/LegacyKeyboard";
+import { FingerKeyboard } from "@/components/typing/keyboard/FingerKeyboard";
+import { KeycapKeyboard } from "@/components/typing/keyboard/KeycapKeyboard";
+import { SpotlightKeyboard } from "@/components/typing/keyboard/SpotlightKeyboard";
 import { buildRows, modelFor, type KeyboardStyle } from "./keyboard-mock";
 
 interface KeyboardStyleViewProps {
@@ -18,7 +18,7 @@ interface KeyboardStyleViewProps {
 export function KeyboardStyleView({ style, layoutId, nextChar, bare = false }: KeyboardStyleViewProps) {
   const model = useMemo(() => modelFor(buildRows(layoutId), nextChar), [layoutId, nextChar]);
   if (style === "legacy") {
-    const keyboard = <OnScreenKeyboard nextChar={nextChar} capsLockOn={false} layoutId={layoutId} activeKey={null} visible />;
+    const keyboard = <LegacyKeyboard nextChar={nextChar} capsLockOn={false} layoutId={layoutId} activeKey={null} visible />;
     // Today's keyboard hides itself under 280px, so small previews draw it larger and zoom it out.
     return bare ? <div className="w-full" style={{ zoom: 0.5 }}>{keyboard}</div> : keyboard;
   }

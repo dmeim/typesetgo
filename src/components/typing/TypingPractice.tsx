@@ -27,7 +27,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { PROGRESS_CHAR_THRESHOLD, PROGRESS_INTERVAL_MS } from "../../../convex/lib/antiCheatConstants";
 import { useNotify } from "@/hooks/useNotify";
 import { getAchievementById } from "@/lib/achievement-definitions";
-import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey,
+import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey, getWrongLetterCount,
   hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
 import { usePracticePreferences } from "./usePracticePreferences";
 import { usePracticeClock } from "./usePracticeClock";
@@ -975,6 +975,7 @@ export default function TypingPractice({
   };
 
   const nextChar = isFinished ? null : getNextTypingKey(typedText, words);
+  const wrongLetters = isFinished ? 0 : getWrongLetterCount(typedText, words);
 
   useEffect(() => {
     const handleKeyEvent = (e: KeyboardEvent) => {
@@ -1211,6 +1212,8 @@ export default function TypingPractice({
                 nextChar={nextChar}
                 capsLockOn={capsLockOn}
                 layoutId={settings.keyboardLayout}
+                style={settings.keyboardStyle}
+                toDelete={wrongLetters}
                 activeKey={activeKey}
                 visible={isFocused}
               />

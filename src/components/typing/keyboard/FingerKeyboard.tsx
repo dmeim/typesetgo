@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { HintPill } from "./KeyboardParts";
-import { FINGER_NAMES, isWide, keyRole, keyText, type Finger, type KeyboardModel, type MockKey } from "./keyboard-mock";
+import { HintPill } from "./KeyboardHint";
+import { FINGER_NAMES, isWide, keyRole, keyText, type Finger, type KeyboardModel, type BoardKey } from "@/lib/keyboard-model";
 
 // Mirrored zones: pinkies red, ring fingers amber, middle fingers green; the two index fingers differ so hands read apart.
 const TINT: Record<Finger, string> = {
@@ -66,13 +66,16 @@ export function FingerKeyboard({ model, bare = false }: { model: KeyboardModel; 
   );
 }
 
-function FingerKey({ keyDef, model }: { keyDef: MockKey; model: KeyboardModel }) {
+function FingerKey({ keyDef, model }: { keyDef: BoardKey; model: KeyboardModel }) {
   const role = keyRole(model, keyDef);
   const lit = role === "next" || role === "fix" || role === "caps";
   // The F and J positions, where your index fingers rest.
   const homeBump = keyDef.id === "2-4" || keyDef.id === "2-7";
   return (
     <motion.div
+      data-key={keyDef.key}
+      data-next-key={role === "next" || role === "fix" || role === "shift" || undefined}
+      data-active-key={model.pressed.has(keyDef.id) || undefined}
       style={{ flex: `${keyDef.width} 1 0%` }}
       animate={{ scale: model.pressed.has(keyDef.id) ? 0.9 : lit ? 1.06 : 1 }}
       transition={{ type: "spring", stiffness: 600, damping: 24 }}

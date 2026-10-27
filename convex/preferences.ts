@@ -61,6 +61,7 @@ const preferencesValidator = v.object({
   // On-screen keyboard
   showOnScreenKeyboard: v.optional(v.boolean()),
   keyboardLayout: v.optional(v.string()),
+  keyboardStyle: v.optional(v.string()),
 });
 
 // Save or update user preferences

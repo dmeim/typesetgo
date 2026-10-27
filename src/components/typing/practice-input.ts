@@ -26,6 +26,15 @@ export function getNextTypingKey(typedText: string, targetText: string, strict =
   return targetWord[typedWord.length] ?? " ";
 }
 
+/** Letters typed past the last correct one in the current word: how many deletes fix it. */
+export function getWrongLetterCount(typedText: string, targetText: string, strict = false): number {
+  if (!targetText || getNextTypingKey(typedText, targetText, strict) !== "Backspace") return 0;
+  const { typedWord, targetWord } = strict ? { typedWord: typedText, targetWord: targetText } : getInputPosition(typedText, targetText);
+  let common = 0;
+  while (common < typedWord.length && typedWord[common] === targetWord[common]) common++;
+  return typedWord.length - common;
+}
+
 export function isTimedPractice(settings: Pick<SettingsState, "mode" | "presetModeType">): boolean {
   return settings.mode === "time" || (settings.mode === "preset" && settings.presetModeType === "time");
 }

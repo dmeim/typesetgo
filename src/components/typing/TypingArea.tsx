@@ -1,7 +1,7 @@
 import { ArrowFatLineUpIcon } from "@phosphor-icons/react";
 import { calculateAccuracy, calculateWpm } from "@/lib/typing-metrics";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { computeStats, sanitizeTypingInput, getInputPosition, getNextTypingKey,
+import { computeStats, sanitizeTypingInput, getInputPosition, getNextTypingKey, getWrongLetterCount,
   hasCompletedPrompt, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
 import PracticeText from "./PracticeText";
 import { useTypingScroll } from "./useTypingScroll";
@@ -97,13 +97,14 @@ export default function TypingArea({
   showOnScreenKeyboard: showOnScreenKeyboardProp,
   keyboardLayout: keyboardLayoutProp,
 }: TypingAreaProps) {
-  const { resolvedFontFamily, showOnScreenKeyboard, keyboardLayout } = useMemo(() => {
+  const { resolvedFontFamily, showOnScreenKeyboard, keyboardLayout, keyboardStyle } = useMemo(() => {
     const stored = loadSettings();
     return {
       resolvedFontFamily: getTypingFontFamily(typingFontFamilyProp ?? stored?.typingFontFamily),
       showOnScreenKeyboard: showOnScreenKeyboardProp
         ?? stored?.showOnScreenKeyboard ?? DEFAULT_SETTINGS.showOnScreenKeyboard,
       keyboardLayout: keyboardLayoutProp ?? stored?.keyboardLayout ?? DEFAULT_SETTINGS.keyboardLayout,
+      keyboardStyle: stored?.keyboardStyle ?? DEFAULT_SETTINGS.keyboardStyle,
     };
   }, [typingFontFamilyProp, showOnScreenKeyboardProp, keyboardLayoutProp]);
 
@@ -254,6 +255,7 @@ export default function TypingArea({
   }, [isFinished, isActive, targetText, mode, typedText, isRunning]);
 
   const nextChar = isFinished ? null : getNextTypingKey(typedText, targetText, mode === "race");
+  const wrongLetters = isFinished ? 0 : getWrongLetterCount(typedText, targetText, mode === "race");
 
   useEffect(() => {
     const handleKeyEvent = (e: KeyboardEvent) => {
@@ -431,6 +433,8 @@ export default function TypingArea({
           nextChar={nextChar}
           capsLockOn={capsLockOn}
           layoutId={keyboardLayout}
+          style={keyboardStyle}
+          toDelete={wrongLetters}
           activeKey={activeKey}
           visible={isFocused}
         />

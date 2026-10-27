@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TEXT_SIZE_MIN, TEXT_SIZE_MAX } from "./practice-config";
 import type { SettingsState } from "@/lib/typing-constants";
+import { KEYBOARD_STYLES } from "@/lib/keyboard-model";
 import { type SoundManifest } from "@/lib/sounds";
 import { TYPING_FONT_OPTIONS, getTypingFontFamily } from "@/lib/typing-fonts";
 import { tv } from "@/lib/theme-vars";
@@ -456,6 +457,35 @@ export default function PracticeSettingsDialog({
                   </p>
                 </div>
                 <Switch aria-label="Keyboard" checked={settings.showOnScreenKeyboard} onCheckedChange={(checked) => updateSettings({ showOnScreenKeyboard: checked })} />
+              </div>
+
+              <div className={`mb-4 ${!settings.showOnScreenKeyboard ? "opacity-60" : ""}`}>
+                <Label className="mb-2 block text-sm" style={{ color: tv.ui.mutedForeground }}>
+                  Style
+                </Label>
+                <ToggleGroup type="single" value={settings.keyboardStyle} aria-label="Keyboard style" spacing={1} className="grid w-full grid-cols-2 gap-2">
+                  {KEYBOARD_STYLES.map((option) => {
+                    const selected = settings.keyboardStyle === option.value;
+                    return (
+                      <ToggleGroupItem
+                        value={option.value}
+                        key={option.value}
+                        disabled={!settings.showOnScreenKeyboard}
+                        type="button"
+                        onClick={() => updateSettings({ keyboardStyle: option.value })}
+                        className="h-auto flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors"
+                        style={{
+                          color: selected ? tv.ui.foreground : tv.ui.mutedForeground,
+                          backgroundColor: selected ? tv.ui.popover : tv.ui.card,
+                          borderColor: selected ? tv.ui.primary : tv.border.subtle,
+                        }}
+                      >
+                        <span className="text-sm font-medium">{option.name}</span>
+                        <span className="whitespace-normal text-xs font-normal opacity-80">{option.summary}</span>
+                      </ToggleGroupItem>
+                    );
+                  })}
+                </ToggleGroup>
               </div>
 
               <div className={`${!settings.showOnScreenKeyboard ? "opacity-60" : ""}`}>

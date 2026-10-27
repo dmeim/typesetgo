@@ -280,6 +280,7 @@ export default defineSchema({
     // On-screen keyboard
     showOnScreenKeyboard: v.optional(v.boolean()),
     keyboardLayout: v.optional(v.string()),
+    keyboardStyle: v.optional(v.string()), // spotlight, finger, keycaps or legacy
 
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
