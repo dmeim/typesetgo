@@ -7,7 +7,7 @@ import NotificationCenter from "@/components/layout/NotificationCenter";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { AccountButton } from "@/components/layout/header/AccountButton";
 import { DockDivider, DockItem, HeaderLogo, HeaderTip, ModeIcon } from "@/components/layout/header/DockParts";
-import { LEADERBOARD_PAGE, PRACTICE_PAGES } from "@/components/layout/header/header-nav";
+import { LEADERBOARD_PAGE, PRACTICE_PAGES, PROFILE_SETTINGS_PATH, PROFILE_THEME_PATH, isProfileSettingsPath } from "@/components/layout/header/header-nav";
 import { DOCK_SPRING, iconButton } from "@/components/layout/header/header-utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -109,16 +109,16 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
               <HeaderTip hint={LEADERBOARD_PAGE.label}>
                 <DockItem label={LEADERBOARD_PAGE.label} Icon={LEADERBOARD_PAGE.Icon} to={LEADERBOARD_PAGE.path} active={LEADERBOARD_PAGE.isActive(pathname)} group="header" size="responsive" />
               </HeaderTip>
-              {onOpenThemeModal && (
-                <HeaderTip hint="Change theme">
-                  <DockItem label="Change theme" Icon={PaletteIcon} onClick={onOpenThemeModal} group="header" size="responsive" />
-                </HeaderTip>
-              )}
-              {onOpenSettings && (
-                <HeaderTip hint="Settings">
-                  <DockItem label="Settings" Icon={GearSixIcon} onClick={onOpenSettings} group="header" size="responsive" />
-                </HeaderTip>
-              )}
+              <HeaderTip hint="Change theme">
+                {onOpenThemeModal
+                  ? <DockItem label="Change theme" Icon={PaletteIcon} onClick={onOpenThemeModal} group="header" size="responsive" />
+                  : <DockItem label="Change theme" Icon={PaletteIcon} to={PROFILE_THEME_PATH} active={pathname === PROFILE_THEME_PATH} group="header" size="responsive" />}
+              </HeaderTip>
+              <HeaderTip hint="Settings">
+                {onOpenSettings
+                  ? <DockItem label="Settings" Icon={GearSixIcon} onClick={onOpenSettings} group="header" size="responsive" />
+                  : <DockItem label="Settings" Icon={GearSixIcon} to={PROFILE_SETTINGS_PATH} active={isProfileSettingsPath(pathname)} group="header" size="responsive" />}
+              </HeaderTip>
             </div>
           </div>
 

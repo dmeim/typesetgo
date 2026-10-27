@@ -89,7 +89,7 @@ async function assertPodium(page, period, count, label, reducedMotion = "reduce"
     await expect(item.getByText(`Rank ${winner.rank}`, { exact: true })).toHaveCount(1);
     const name = item.getByRole("link", { name: winner.name, exact: true });
     await expect(name).toBeVisible();
-    await expect(name).toHaveAttribute("href", `/user/leaderboard-user-${winner.rank}`);
+    await expect(name).toHaveAttribute("href", `/profile/leaderboard-user-${winner.rank}`);
     await expect(item).toContainText(`${winner.wpm}WPM`);
     const text = await name.evaluate((element) => ({
       fontSize: parseFloat(getComputedStyle(element).fontSize),
@@ -189,13 +189,13 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
       const panel = page.getByRole("tabpanel");
       const links = panel.getByRole("link");
       await expect(links).toHaveCount(50);
-      assert.deepEqual(await links.evaluateAll((elements) => elements.map((element) => element.getAttribute("href"))), Array.from({ length: 50 }, (_, index) => `/user/leaderboard-user-${index + 1}`));
+      assert.deepEqual(await links.evaluateAll((elements) => elements.map((element) => element.getAttribute("href"))), Array.from({ length: 50 }, (_, index) => `/profile/leaderboard-user-${index + 1}`));
       const username = `all-time ExtremelyLongUnbrokenUsernameNumber${rank}`;
       const link = panel.getByRole("link", { name: username, exact: true });
       await link.focus();
       await expect(link).toBeFocused();
       await page.keyboard.press("Enter");
-      // Leaderboard links still use /user/:userId; the app sends them on to the public Profile view.
+      // Leaderboard names link straight to the public Profile view.
       await expect(page).toHaveURL(new RegExp(`/profile/leaderboard-user-${rank}$`));
       await expect(page.getByRole("heading", { name: username, exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Lifetime statistics", exact: true })).toBeVisible();

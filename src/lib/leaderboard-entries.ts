@@ -1,4 +1,5 @@
 import type { Id } from "../../convex/_generated/dataModel";
+import { publicProfilePath } from "@/components/profile/profile-routes";
 
 /** One row from `testResults.getLeaderboard`; the server decides every rank. */
 export interface LeaderboardEntry {
@@ -57,7 +58,7 @@ export const LEADERBOARD_RULES = "Ranked tests need 90%+ accuracy and at least 3
 
 /** Public profile for a ranked player. Profile routes will move; keep this the single place that knows the path. */
 export function leaderboardProfileHref(userId: Id<"users">): string {
-  return `/user/${userId}`;
+  return publicProfilePath(userId);
 }
 
 /** Stable React/animation identity: the account ID, or rank and name for older responses without one. */

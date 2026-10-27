@@ -1,3 +1,4 @@
+import { PROFILE_BASE, publicProfilePath } from "@/components/profile/profile-routes";
 import { FlagCheckeredIcon, GraduationCapIcon, KeyboardIcon, TrophyIcon, UsersThreeIcon, type Icon } from "@phosphor-icons/react";
 
 export interface HeaderPage {
@@ -20,5 +21,11 @@ export const PRACTICE_PAGES: HeaderPage[] = [
 
 export const LEADERBOARD_PAGE: HeaderPage = { label: "Leaderboard", path: "/leaderboard", Icon: TrophyIcon, isActive: startsWithSegment("/leaderboard") };
 
-/** Where the account button sends you for your stats, history and achievements. Change it here when /profile ships. */
-export const accountStatsPath = (userId: string) => `/user/${userId}`;
+/** Where the account button sends you for your stats, history and achievements. */
+export const accountStatsPath = (userId: string) => publicProfilePath(userId);
+
+/** Pages without their own theme and settings dialogs send these buttons to the matching profile tabs. */
+export const PROFILE_THEME_PATH = `${PROFILE_BASE}/theme`;
+export const PROFILE_SETTINGS_PATH = `${PROFILE_BASE}/typing`;
+const SETTINGS_TABS = ["text", "typing", "sound", "keyboard"].map((tab) => `${PROFILE_BASE}/${tab}`);
+export const isProfileSettingsPath = (pathname: string) => SETTINGS_TABS.includes(pathname);

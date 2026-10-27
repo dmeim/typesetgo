@@ -130,7 +130,7 @@ describe("dock header navigation and account", () => {
     render(<DockShell auth={signedInAuth} account={{ ...unavailableAccount, status: "ready", userId: "abc123" as ShellAccount["userId"] }} />);
     fireEvent.keyDown(screen.getByRole("button", { name: "Account: pixel" }), { key: "Enter" });
     const menu = await screen.findByRole("menu");
-    expect(within(menu).getByRole("menuitem", { name: /Your stats/ })).toHaveAttribute("href", "/user/abc123");
+    expect(within(menu).getByRole("menuitem", { name: /Your stats/ })).toHaveAttribute("href", "/profile/abc123");
     expect(within(menu).getByRole("menuitem", { name: "Account settings" })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Sign out" })).toBeInTheDocument();
   });

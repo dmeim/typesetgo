@@ -93,7 +93,7 @@ describe("leaderboard periods", () => {
     const winner = () => within(screen.getByRole("list", { name: /podium$/ }).querySelector('[data-podium-rank="1"]') as HTMLElement);
     expect(winner().getByRole("link", { name: "Ada" })).toBeVisible();
     choosePeriod("Today");
-    expect(winner().getByRole("link", { name: "Barbara" })).toHaveAttribute("href", "/user/users:Barbara");
+    expect(winner().getByRole("link", { name: "Barbara" })).toHaveAttribute("href", "/profile/users%3ABarbara");
     expect(screen.getByRole("list", { name: "Today podium" })).toBeVisible();
     expect(screen.queryByRole("list", { name: "Today ranks 4 and below" })).not.toBeInTheDocument();
     choosePeriod("7 days");
@@ -116,7 +116,7 @@ describe("leaderboard board", () => {
     const panel = screen.getByRole("tabpanel");
     expect(within(panel).getAllByRole("link")).toHaveLength(50);
     for (const entry of entries) {
-      expect(within(panel).getByRole("link", { name: entry.username })).toHaveAttribute("href", `/user/${entry.userId}`);
+      expect(within(panel).getByRole("link", { name: entry.username })).toHaveAttribute("href", `/profile/${encodeURIComponent(entry.userId)}`);
     }
     for (const [index, item] of within(podium).getAllByRole("listitem").entries()) {
       expect(within(item).getByText(`Rank ${index + 1}`)).toBeInTheDocument();
@@ -184,7 +184,7 @@ describe("leaderboard board", () => {
       choosePeriod(period);
       const panel = screen.getByRole("tabpanel");
       expect(within(panel).getAllByRole("link", { name: "Same display name" }).map((link) => link.getAttribute("href"))).toEqual([
-        "/user/users:stable-1", "/user/users:stable-2",
+        "/profile/users%3Astable-1", "/profile/users%3Astable-2",
       ]);
     }
     const panel = screen.getByRole("tabpanel");
@@ -193,9 +193,9 @@ describe("leaderboard board", () => {
     queries.ranges["all-time"] = entries.map((entry) => ({ ...entry, username: `Renamed ${entry.rank}` }));
     result.rerender(<MemoryRouter><Leaderboard /></MemoryRouter>);
     expect(within(panel).getByRole("link", { name: "Renamed 1" })).toBe(firstLink);
-    expect(firstLink).toHaveAttribute("href", "/user/users:stable-1");
+    expect(firstLink).toHaveAttribute("href", "/profile/users%3Astable-1");
     expect(within(panel).getByRole("link", { name: "Renamed 4" })).toBe(listLink);
-    expect(listLink).toHaveAttribute("href", "/user/users:stable-4");
+    expect(listLink).toHaveAttribute("href", "/profile/users%3Astable-4");
   });
 
   it("keeps older deployed responses readable without inventing profile IDs", () => {

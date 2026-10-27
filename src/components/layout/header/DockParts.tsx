@@ -52,7 +52,7 @@ export type DockItemSize = "wide" | "compact" | "responsive";
 const ITEM_SIZES: Record<DockItemSize, string> = {
   wide: "h-10 px-3",
   compact: "h-9 px-2",
-  responsive: "h-9 px-2 @min-[48rem]:h-10 @min-[48rem]:px-3",
+  responsive: "h-9 px-1.5 @min-[22rem]:px-2 @min-[48rem]:h-10 @min-[48rem]:px-3",
 };
 
 const LABEL_VISIBILITY: Record<DockItemSize, string> = {
