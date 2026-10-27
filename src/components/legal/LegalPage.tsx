@@ -145,7 +145,7 @@ function SectionCard({ section, number, tile }: { section: LegalSection; number:
 
 /** Highlights the section being read in the contents list. */
 function useActiveSection(sections: LegalSection[]) {
-  const [active, setActive] = useState(sections[0]?.id);
+  const [active, setActive] = useState<string | undefined>(sections[0]?.id);
   useEffect(() => {
     const nodes = sections.map((section) => document.getElementById(section.id)).filter((node): node is HTMLElement => !!node);
     // The active section is the last whose top has passed the upper third, or the last one once the page bottoms out.
