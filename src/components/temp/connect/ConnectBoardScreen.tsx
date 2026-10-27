@@ -1,67 +1,20 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
-  ArrowFatRightIcon, ArrowsCounterClockwiseIcon, CheckCircleIcon, DeviceMobileIcon, EyeIcon, EyeSlashIcon, ListIcon, PauseIcon, PlayIcon,
-  ProjectorScreenChartIcon, SquaresFourIcon, UsersIcon,
+  ArrowFatRightIcon, ArrowsCounterClockwiseIcon, CornersInIcon, CornersOutIcon, DeviceMobileIcon, PauseIcon, PlayIcon, ProjectorScreenChartIcon,
 } from "@phosphor-icons/react";
-import { ScrollRow } from "@/components/ui/scroll-row";
+import { useFullscreen } from "@/components/connect/use-fullscreen";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { cn } from "@/lib/utils";
-import { ROOM, testDetail } from "./connect-mock";
-import { Pills, StatusBadge, TestDots } from "./ConnectParts";
-import { KidCard } from "./KidCard";
+import { chip, toggleFullscreen } from "./board-actions";
+import { JOIN_HOST } from "./connect-mock";
+import { CodeTiles, Pills } from "./ConnectParts";
+import { BoardControls, BoardGrid, BoardSummary } from "./LiveBoard";
 import { StudentView } from "./StudentView";
-import { leaderId, selfPacedCounts, sortKids, stepLine, type BoardSort } from "./room-text";
+import { useBoardPrefs } from "./use-board-prefs";
 import type { MockRoom } from "./use-mock-room";
 
 export type BoardView = "board" | "student";
-
-const SORTS: { value: BoardSort; label: string }[] = [
-  { value: "join", label: "Joined" },
-  { value: "wpm", label: "Fastest" },
-  { value: "accuracy", label: "Most accurate" },
-  { value: "progress", label: "Furthest" },
-  { value: "name", label: "A–Z" },
-];
-
-const chip = "flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3.5 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40";
-
-function Summary({ room }: { room: MockRoom }) {
-  const online = room.kids.filter((kid) => kid.online);
-  const hostPaced = room.pacing === "host";
-  const test = room.tests[room.index];
-  const finished = hostPaced ? online.filter((kid) => kid.finished).length : selfPacedCounts(room).done;
-  const heading = room.status === "lobby" ? `${room.tests.length} tests ready`
-    : room.status === "complete" ? "All tests complete"
-      : hostPaced ? `Test ${room.index + 1} of ${room.tests.length} · ${test?.title}` : "Own pace";
-  const detail = room.status === "lobby" ? "Waiting for the host to start"
-    : room.status === "complete" ? "Great typing, everyone!"
-      : hostPaced ? `${test ? testDetail(test) : ""} · ${stepLine(room)}` : "Everyone moves through the list at their own speed";
-  return (
-    <section aria-label="Room progress" className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5 sm:flex-row sm:items-center">
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={room.status} />
-          <h2 className="text-xl font-black">{heading}</h2>
-        </div>
-        <p className="text-sm text-muted-foreground tabular-nums">{detail}</p>
-        {hostPaced && room.status !== "lobby" && <TestDots tests={room.tests} index={room.status === "complete" ? room.tests.length : room.index} className="max-w-md" />}
-      </div>
-      <dl className="flex shrink-0 gap-3">
-        <div className="flex min-w-24 flex-col items-center rounded-2xl bg-muted/50 px-4 py-2">
-          <dt className="flex items-center gap-1 text-xs text-muted-foreground"><UsersIcon className="size-3.5" aria-hidden="true" />Online</dt>
-          <dd className="text-2xl font-black tabular-nums">{online.length}<span className="text-sm font-normal text-muted-foreground">/{room.kids.length}</span></dd>
-        </div>
-        {room.status !== "lobby" && (
-          <div className="flex min-w-24 flex-col items-center rounded-2xl bg-success/10 px-4 py-2">
-            <dt className="flex items-center gap-1 text-xs text-success"><CheckCircleIcon weight="fill" className="size-3.5" aria-hidden="true" />{hostPaced ? "Finished" : "All done"}</dt>
-            <dd className="text-2xl font-black tabular-nums">{finished}</dd>
-          </div>
-        )}
-      </dl>
-    </section>
-  );
-}
 
 /** Lets the mockup be driven from the board, since the real board is a separate window. */
 function DemoRemote({ room }: { room: MockRoom }) {
@@ -81,33 +34,64 @@ function DemoRemote({ room }: { room: MockRoom }) {
   );
 }
 
-function Board({ room }: { room: MockRoom }) {
-  const [sort, setSort] = useState<BoardSort>("join");
-  const [layout, setLayout] = useState<"cards" | "list">("cards");
-  const [showOffline, setShowOffline] = useState(true);
-  const kids = sortKids(room, sort).filter((kid) => showOffline || kid.online);
-  const leader = leaderId(room);
+/** The projector strip: room, live status, where to join, and a big code. */
+function BoardStrip({ room, live }: { room: MockRoom; live: boolean }) {
+  const fullscreen = useFullscreen();
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-3xl border border-border bg-card px-5 py-3">
+      <div className="min-w-0">
+        <h1 className="truncate text-xl font-black sm:text-2xl" title={room.name}>{room.name}</h1>
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <span className={cn("size-2 rounded-full", live ? "bg-success" : "animate-pulse bg-muted-foreground")} aria-hidden="true" />
+          {live ? "Live" : "Connecting…"}<span aria-hidden="true">·</span><span className="truncate">Hosted by {room.host}</span>
+        </p>
+      </div>
+      <div className="ml-auto flex min-w-0 items-center gap-3 sm:gap-4">
+        <p className="min-w-0 text-right text-xs leading-tight text-muted-foreground sm:text-sm">Join at<br /><span className="font-semibold text-foreground">{JOIN_HOST}</span></p>
+        <CodeTiles key={room.code} code={room.code} className="[&>span]:h-12 [&>span]:w-10 [&>span]:rounded-xl [&>span]:text-2xl sm:[&>span]:h-14 sm:[&>span]:w-11 sm:[&>span]:text-3xl" />
+        <button type="button" onClick={() => void toggleFullscreen()} aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"} title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+          className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+          {fullscreen ? <CornersInIcon className="size-5" aria-hidden="true" /> : <CornersOutIcon className="size-5" aria-hidden="true" />}
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function Board({ room, interactive }: { room: MockRoom; interactive: boolean }) {
+  const [prefs, update] = useBoardPrefs();
   return (
     <div className="flex flex-col gap-4">
-      <Summary room={room} />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <ScrollRow aria-label="Sort players" className="min-w-0 flex-1 p-0.5">
-          <Pills<BoardSort> label="Sort by" value={sort} onChange={setSort} options={SORTS} className="shrink-0" />
-        </ScrollRow>
-        <div className="flex flex-wrap items-center gap-2">
-          <Pills<"cards" | "list"> label="Layout" value={layout} onChange={setLayout} className="shrink-0"
-            options={[{ value: "cards", label: "Cards", Icon: SquaresFourIcon }, { value: "list", label: "List", Icon: ListIcon }]} />
-          <button type="button" aria-pressed={showOffline} onClick={() => setShowOffline((value) => !value)} className={chip}>
-            {showOffline ? <EyeIcon className="size-4" aria-hidden="true" /> : <EyeSlashIcon className="size-4" aria-hidden="true" />}Offline
-          </button>
-        </div>
-      </div>
-      <ul className={cn("grid gap-3", layout === "cards" ? "grid-cols-[repeat(auto-fill,minmax(14rem,1fr))]" : "grid-cols-1")}>
-        <AnimatePresence initial={false} mode="popLayout">
-          {kids.map((kid) => <KidCard key={kid.id} room={room} kid={kid} leader={leader === kid.id} layout={layout} />)}
-        </AnimatePresence>
-      </ul>
+      <BoardSummary room={room} />
+      {interactive && <BoardControls room={room} prefs={prefs} update={update} />}
+      <BoardGrid room={room} prefs={prefs} update={update} interactive={interactive} emptyHint={`Go to ${JOIN_HOST} and enter code ${room.code}.`} />
     </div>
+  );
+}
+
+/** The card-only board in its own window or tab. It follows the host tab's room and board settings, so it has no controls. */
+export function PopoutBoard({ room }: { room: MockRoom }) {
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${room.name} · Board`;
+    return () => { document.title = previous; };
+  }, [room.name]);
+  if (room.ended) {
+    return (
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
+        <ProjectorScreenChartIcon className="size-10 text-muted-foreground" aria-hidden="true" />
+        <h1 className="text-2xl font-black">{room.name} has ended</h1>
+        <p className="text-sm text-muted-foreground">The host can reopen it from Connect.</p>
+      </main>
+    );
+  }
+  return (
+    <main className="flex min-h-dvh flex-col gap-4 bg-background p-3 sm:p-5">
+      <BoardStrip room={room} live={room.synced} />
+      {room.synced ? <Board room={room} interactive={false} /> : (
+        <p className="m-auto max-w-sm text-center text-sm text-muted-foreground">Waiting for the host tab. Keep the Connect mockup open in another tab; this board mirrors it.</p>
+      )}
+    </main>
   );
 }
 
@@ -115,19 +99,20 @@ function Board({ room }: { room: MockRoom }) {
 export function ConnectBoardScreen({ room, view, onViewChange, onLeave }: { room: MockRoom; view: BoardView; onViewChange: (view: BoardView) => void; onLeave: () => void }) {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 pt-6 md:px-6 md:pt-10">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{ROOM.name} · code <span className="font-mono font-bold tracking-widest text-foreground">{ROOM.code}</span></p>
-          <h1 className="text-3xl font-black">{view === "board" ? "Live board" : "Student view"}</h1>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <DemoRemote room={room} />
         <Pills<BoardView> label="Whose screen" value={view} onChange={onViewChange} className="sm:w-auto"
           options={[{ value: "board", label: "Teacher", Icon: ProjectorScreenChartIcon }, { value: "student", label: "Student", Icon: DeviceMobileIcon }]} />
-      </header>
-      <DemoRemote room={room} />
+      </div>
       <LayoutGroup>
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={view} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={LAB_SPRING}>
-            {view === "board" ? <Board room={room} /> : <StudentView room={room} onLeave={onLeave} />}
+          <motion.div key={view} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={LAB_SPRING} className="flex flex-col gap-4">
+            {view === "board" ? (
+              <>
+                <BoardStrip room={room} live />
+                <Board room={room} interactive />
+              </>
+            ) : <StudentView room={room} onLeave={onLeave} />}
           </motion.div>
         </AnimatePresence>
       </LayoutGroup>

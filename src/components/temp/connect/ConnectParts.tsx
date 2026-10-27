@@ -1,13 +1,30 @@
-import { useId, type ReactNode } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon, CoffeeIcon, type Icon } from "@phosphor-icons/react";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
+import { describeConnectTest } from "@/lib/connect-types";
 import { cn } from "@/lib/utils";
-import { avatarTone, testDetail, type MockTest, type RoomStatus } from "./connect-mock";
+import { avatarTone, photoHue, type MockTest, type RoomStatus } from "./connect-mock";
 
 const AVATAR_SIZES = { sm: "size-8 text-sm", md: "size-10 text-base", lg: "size-14 text-xl" };
 
-export function KidAvatar({ name, size = "md", className }: { name: string; size?: keyof typeof AVATAR_SIZES; className?: string }) {
+/**
+ * A student's picture: signed-in players show their profile photo (drawn here as a stand-in for the account image);
+ * guests get their first letter on a colour.
+ */
+export function KidAvatar({ name, photo = false, size = "md", className }: { name: string; photo?: boolean; size?: keyof typeof AVATAR_SIZES; className?: string }) {
+  if (photo) {
+    const hue = photoHue(name);
+    return (
+      <span aria-hidden="true" className={cn("flex shrink-0 overflow-hidden rounded-full", AVATAR_SIZES[size], className)}>
+        <svg viewBox="0 0 40 40" className="size-full">
+          <rect width="40" height="40" fill={`hsl(${hue} 55% 62%)`} />
+          <circle cx="20" cy="16" r="7.5" fill={`hsl(${(hue + 25) % 360} 35% 88%)`} />
+          <path d="M6 40c1.5-9 7.5-13 14-13s12.5 4 14 13z" fill={`hsl(${(hue + 180) % 360} 45% 38%)`} />
+        </svg>
+      </span>
+    );
+  }
   return (
     <span aria-hidden="true" className={cn("flex shrink-0 items-center justify-center rounded-full font-bold", avatarTone(name), AVATAR_SIZES[size], className)}>
       {name.slice(0, 1).toUpperCase() || "?"}
@@ -99,8 +116,8 @@ export function ProgressBar({ value, done, label, className }: { value: number; 
   );
 }
 
-export function PresenceDot({ online }: { online: boolean }) {
-  return <span role="img" aria-label={online ? "Online" : "Offline"} className={cn("inline-block size-2.5 shrink-0 rounded-full", online ? "bg-success" : "border-2 border-muted-foreground")} />;
+export function PresenceDot({ online, className }: { online: boolean; className?: string }) {
+  return <span role="img" aria-label={online ? "Online" : "Offline"} className={cn("inline-block size-2.5 shrink-0 rounded-full", online ? "bg-success" : "border-2 border-muted-foreground", className)} />;
 }
 
 const STATUS: Record<RoomStatus, [string, string]> = {
@@ -121,12 +138,12 @@ export function StatusBadge({ status }: { status: RoomStatus }) {
 }
 
 /** One segment per test: filled when done, glowing when current. */
-export function TestDots({ tests, index, className }: { tests: MockTest[]; index: number; className?: string }) {
+export function TestDots({ tests, titles, index, className }: { tests: MockTest[]; titles: string[]; index: number; className?: string }) {
   const id = useId();
   return (
     <ol aria-label={`Test ${Math.min(index + 1, tests.length)} of ${tests.length}`} className={cn("flex w-full gap-1", className)}>
       {tests.map((test, position) => (
-        <li key={test.id} title={test.title} className={cn("relative h-2 flex-1 overflow-hidden rounded-full", test.mode === "break" ? "bg-foreground/5" : "bg-foreground/10")}>
+        <li key={test.id} title={titles[position]} className={cn("relative h-2 flex-1 overflow-hidden rounded-full", test.mode === "break" ? "bg-foreground/5" : "bg-foreground/10")}>
           {position < index && <span className="absolute inset-0 bg-success" />}
           {position === index && <motion.span layoutId={`test-dots-${id}`} transition={LAB_SPRING} className="absolute inset-0 bg-primary" />}
         </li>
@@ -136,7 +153,7 @@ export function TestDots({ tests, index, className }: { tests: MockTest[]; index
 }
 
 /** A read-only test row for participants: number or tick, title, detail. */
-export function TestRow({ test, position, phase, highlightId }: { test: MockTest; position: number; phase: "done" | "current" | "upcoming"; highlightId: string }) {
+export function TestRow({ test, title, position, phase, highlightId }: { test: MockTest; title: string; position: number; phase: "done" | "current" | "upcoming"; highlightId: string }) {
   return (
     <li aria-current={phase === "current" ? "step" : undefined}
       className={cn("relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm", phase === "done" ? "text-muted-foreground" : "text-foreground")}>
@@ -146,9 +163,38 @@ export function TestRow({ test, position, phase, highlightId }: { test: MockTest
         {phase === "done" ? <CheckIcon className="size-3.5" aria-label="Done" /> : position + 1}
       </span>
       <span className="relative flex min-w-0 flex-1 items-center gap-1.5 truncate font-semibold">
-        {test.mode === "break" && <CoffeeIcon className="size-4 shrink-0" aria-hidden="true" />}{test.title}
+        {test.mode === "break" && <CoffeeIcon className="size-4 shrink-0" aria-hidden="true" />}<span className="truncate">{title}</span>
       </span>
-      <span className="relative shrink-0 text-xs text-muted-foreground">{testDetail(test)}</span>
+      <span className="relative shrink-0 text-xs text-muted-foreground">{describeConnectTest(test)}</span>
     </li>
+  );
+}
+
+/** A button that asks "tap again" before acting, so a stray click never ends or resets anything. */
+export function TwoTapButton({ label, confirmLabel, Icon, onConfirm, tone = "destructive", className }: {
+  label: string;
+  confirmLabel: string;
+  Icon: Icon;
+  onConfirm: () => void;
+  tone?: "destructive" | "warning";
+  className?: string;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmed(false), 3000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  return (
+    <motion.button layout type="button" transition={LAB_SPRING} onClick={() => { if (armed) { setArmed(false); onConfirm(); } else setArmed(true); }}
+      className={cn("flex h-10 items-center gap-2 overflow-hidden whitespace-nowrap rounded-full px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-ring",
+        armed ? (tone === "destructive" ? "bg-destructive text-background" : "bg-warning text-background") : "text-muted-foreground hover:bg-accent hover:text-foreground", className)}>
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span key={armed ? "sure" : "idle"} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={LAB_SPRING} aria-live="polite">
+          {armed ? confirmLabel : label}
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
   );
 }

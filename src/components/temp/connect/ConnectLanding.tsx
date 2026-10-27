@@ -2,12 +2,14 @@ import { useId, useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowArcRightIcon, ArrowRightIcon, ChalkboardTeacherIcon, ChartBarIcon, CircleNotchIcon, ClockCounterClockwiseIcon, ListChecksIcon, PlayIcon, PlusIcon,
-  ShareNetworkIcon, UsersThreeIcon,
+  ShareNetworkIcon, SignInIcon, UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { cn } from "@/lib/utils";
+import { CONNECT_ARCHIVE_HOURS, CONNECT_NAME_MAX, CONNECT_ROOM_NAME_MAX } from "@/lib/connect-types";
 import { RECENT_ROOMS, ROOM } from "./connect-mock";
 import { JoinCodeCard } from "./JoinCodeCard";
+import type { MockRoom } from "./use-mock-room";
 import { KidAvatar, LabCard } from "./ConnectParts";
 
 const STEPS = [
@@ -20,16 +22,19 @@ const HERO_FACES = ["Maya", "Jordan", "Priya", "Leo", "Sofia"];
 
 const field = "h-12 w-full rounded-2xl border border-input bg-background px-4 text-base outline-none focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/20";
 
-function HostCard({ onHost }: { onHost: () => void }) {
+function HostCard({ onCreate }: { onCreate: (host: string, name: string) => void }) {
   const id = useId();
   const [hostName, setHostName] = useState(ROOM.host);
   const [roomName, setRoomName] = useState("");
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!hostName.trim() || pending) return;
+    if (pending) return;
+    if (!hostName.trim()) { setError("Enter the name students will see."); return; }
+    setError("");
     setPending(true);
-    setTimeout(onHost, 600);
+    setTimeout(() => onCreate(hostName.trim(), roomName.trim()), 600);
   };
   return (
     <LabCard title="Host a room" description="For teachers, coaches and club leaders." Icon={ChalkboardTeacherIcon} tile="bg-(--accent-emphasis) text-background">
@@ -49,14 +54,17 @@ function HostCard({ onHost }: { onHost: () => void }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5 text-sm font-semibold" htmlFor={`${id}-host`}>
             Your name
-            <input id={`${id}-host`} value={hostName} onChange={(event) => setHostName(event.target.value)} placeholder="Ms. Rivera" className={field} />
+            <input id={`${id}-host`} value={hostName} maxLength={CONNECT_NAME_MAX} autoComplete="name" aria-invalid={error ? true : undefined}
+              onChange={(event) => { setHostName(event.target.value); setError(""); }} placeholder="Ms. Rivera" className={cn(field, error && "border-destructive")} />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-semibold" htmlFor={`${id}-room`}>
             <span>Room name <span className="font-normal text-muted-foreground">(optional)</span></span>
-            <input id={`${id}-room`} value={roomName} onChange={(event) => setRoomName(event.target.value)} placeholder="Period 3 typing" className={field} />
+            <input id={`${id}-room`} value={roomName} maxLength={CONNECT_ROOM_NAME_MAX} onChange={(event) => setRoomName(event.target.value)}
+              placeholder={hostName.trim() ? `${hostName.trim()}'s room` : "Period 3 typing"} className={field} />
           </label>
         </div>
-        <button type="submit" disabled={!hostName.trim() || pending}
+        {error && <p role="alert" className="text-sm font-medium text-destructive">{error}</p>}
+        <button type="submit" disabled={pending}
           className="group flex h-12 items-center justify-center gap-2 rounded-full bg-foreground px-6 font-bold text-background transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-40">
           {pending ? <CircleNotchIcon className="size-5 animate-spin" aria-hidden="true" /> : <PlusIcon className="size-5" aria-hidden="true" />}
           {pending ? "Making your room…" : "Create room"}
@@ -67,34 +75,50 @@ function HostCard({ onHost }: { onHost: () => void }) {
   );
 }
 
-function RecentRoomsCard({ onOpen }: { onOpen: () => void }) {
+type RecentRow = { id: string; name: string; live: boolean; code: string; detail: string; tests: number; onOpen: () => void };
+
+function RecentRoomsCard({ room, onResume, onReopen, onCreate }: { room: MockRoom; onResume: () => void; onReopen: () => void; onCreate: (name: string) => void }) {
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const rows: RecentRow[] = [
+    { id: "current", name: room.name, live: !room.ended, code: room.code, detail: room.ended ? "Ended just now" : "", tests: room.tests.length, onOpen: room.ended ? onReopen : onResume },
+    ...RECENT_ROOMS.map((recent) => ({ ...recent, live: false, code: "", detail: recent.ago, onOpen: () => onCreate(recent.name) })),
+  ];
+  const open = (row: RecentRow) => {
+    setPendingId(row.id);
+    setTimeout(row.onOpen, row.live ? 0 : 500);
+  };
   return (
-    <LabCard title="Your recent rooms" description="Reopening an ended room keeps its tests and gives it a new code." Icon={ClockCounterClockwiseIcon} tile="bg-muted-foreground text-background">
+    <LabCard title="Your recent rooms" description={`From the last ${CONNECT_ARCHIVE_HOURS} hours. Reopening an ended room keeps its tests and gives it a new code.`} Icon={ClockCounterClockwiseIcon} tile="bg-muted-foreground text-background">
       <ul className="flex flex-col gap-2">
-        {RECENT_ROOMS.map((room, index) => (
-          <motion.li key={room.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ ...LAB_SPRING, delay: 0.15 + index * 0.06 }}
-            className={cn("flex items-center gap-3 rounded-2xl border p-3", room.live ? "border-success/40 bg-success/5" : "border-border")}>
+        {rows.map((row, index) => (
+          <motion.li key={row.id} layout initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ ...LAB_SPRING, delay: 0.15 + index * 0.06 }}
+            className={cn("flex items-center gap-3 rounded-2xl border p-3", row.live ? "border-success/40 bg-success/5" : "border-border")}>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold">{room.name}</p>
+              <p className="truncate text-sm font-bold">{row.name}</p>
               <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                {room.live ? (
+                {row.live ? (
                   <>
                     <span className="flex items-center gap-1 font-bold text-success"><span aria-hidden="true" className="size-1.5 animate-pulse rounded-full bg-current" />Live</span>
-                    <span className="rounded-md bg-muted px-1.5 font-mono font-bold tracking-widest text-foreground">{room.code}</span>
+                    <span className="rounded-md bg-muted px-1.5 font-mono font-bold tracking-widest text-foreground">{row.code}</span>
                   </>
-                ) : <span>{room.ago}</span>}
-                <span>{room.tests} tests</span>
+                ) : <span>{row.detail}</span>}
+                <span>{row.tests} tests</span>
               </p>
             </div>
-            <button type="button" onClick={onOpen} aria-label={`${room.live ? "Resume" : "Reopen"} ${room.name}`}
-              className={cn("flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-ring",
-                room.live ? "bg-success text-background hover:opacity-90" : "border border-border hover:bg-accent")}>
-              {room.live ? <PlayIcon weight="fill" className="size-4" aria-hidden="true" /> : <ArrowArcRightIcon className="size-4" aria-hidden="true" />}
-              {room.live ? "Resume" : "Reopen"}
+            <button type="button" onClick={() => open(row)} disabled={pendingId !== null} aria-label={`${row.live ? "Resume" : "Reopen"} ${row.name}`}
+              className={cn("flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60",
+                row.live ? "bg-success text-background hover:opacity-90" : "border border-border hover:bg-accent")}>
+              {pendingId === row.id ? <CircleNotchIcon className="size-4 animate-spin" aria-hidden="true" />
+                : row.live ? <PlayIcon weight="fill" className="size-4" aria-hidden="true" /> : <ArrowArcRightIcon className="size-4" aria-hidden="true" />}
+              {row.live ? "Resume" : "Reopen"}
             </button>
           </motion.li>
         ))}
       </ul>
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <SignInIcon className="size-4 shrink-0" aria-hidden="true" />
+        <span><button type="button" className="font-semibold text-foreground underline underline-offset-4 hover:text-primary">Sign in</button> to reopen rooms you host from any device.</span>
+      </p>
     </LabCard>
   );
 }
@@ -120,15 +144,16 @@ function Hero() {
 }
 
 /** Landing: join with a code (the common case for students), or host and reopen recent rooms. */
-export function ConnectLanding({ onJoin, onHost }: { onJoin: (name: string) => void; onHost: () => void }) {
+export function ConnectLanding({ room, onJoin, onHost }: { room: MockRoom; onJoin: (name: string, signedIn: boolean) => void; onHost: () => void }) {
+  const create = (host: string, name: string) => { room.actions.create(host, name); onHost(); };
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-8 md:px-6 md:pt-12">
       <Hero />
       <div className="grid items-start gap-5 md:grid-cols-2">
-        <JoinCodeCard onJoin={onJoin} className="border-primary/30 shadow-[0_20px_60px_-30px_var(--primary)]" />
+        <JoinCodeCard room={room} onJoin={onJoin} className="border-primary/30 shadow-[0_20px_60px_-30px_var(--primary)]" />
         <div className="flex min-w-0 flex-col gap-5">
-          <HostCard onHost={onHost} />
-          <RecentRoomsCard onOpen={onHost} />
+          <HostCard onCreate={create} />
+          <RecentRoomsCard room={room} onResume={onHost} onReopen={() => { room.actions.reopen(); onHost(); }} onCreate={(name) => create(room.host, name)} />
         </div>
       </div>
     </main>

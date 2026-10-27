@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeftIcon, ChalkboardTeacherIcon, DeviceMobileIcon, DoorOpenIcon, ProjectorScreenChartIcon, type Icon } from "@phosphor-icons/react";
-import { ConnectBoardScreen, type BoardView } from "@/components/temp/connect/ConnectBoardScreen";
+import { ConnectBoardScreen, PopoutBoard, type BoardView } from "@/components/temp/connect/ConnectBoardScreen";
 import { ConnectHostScreen } from "@/components/temp/connect/ConnectHostScreen";
 import { ConnectLanding } from "@/components/temp/connect/ConnectLanding";
 import { useMockRoom } from "@/components/temp/connect/use-mock-room";
@@ -22,8 +22,23 @@ function initialTab(): Tab {
   return TABS.some((tab) => tab.id === value) ? value as Tab : "landing";
 }
 
-/** Connect mockups: landing, host panel and the live board/student screens. One pretend room is shared by all of them; nothing is fetched. */
+const isPopout = () => new URLSearchParams(location.search).get("popout") === "board";
+
+/**
+ * Connect mockups: landing, host panel and the live board/student screens. One pretend room is shared by all of them; nothing is saved.
+ * `?popout=board` is the card-only board the host pops out; it mirrors the room running in the host tab.
+ */
 export default function TempConnect() {
+  const [popout] = useState(isPopout);
+  return popout ? <PopoutRoom /> : <MockupScreens />;
+}
+
+function PopoutRoom() {
+  const room = useMockRoom({ mirror: true });
+  return <div className="min-h-[100dvh] bg-background font-mono text-foreground"><PopoutBoard room={room} /></div>;
+}
+
+function MockupScreens() {
   const room = useMockRoom();
   const [tab, setTab] = useState<Tab>(initialTab);
   const screen = tab === "student" ? "board" : tab;
@@ -35,8 +50,8 @@ export default function TempConnect() {
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
     window.scrollTo({ top: 0 });
   };
-  const join = (name: string) => {
-    room.actions.setYourName(name);
+  const join = (name: string, signedIn: boolean) => {
+    room.actions.join(name, signedIn);
     go("student");
   };
   const setView = (view: BoardView) => go(view === "student" ? "student" : "board");
@@ -45,7 +60,7 @@ export default function TempConnect() {
     <div className="min-h-[100dvh] overflow-x-clip bg-background pb-28 font-mono text-foreground">
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={screen} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }} transition={LAB_SPRING}>
-          {screen === "landing" && <ConnectLanding onJoin={join} onHost={() => go("host")} />}
+          {screen === "landing" && <ConnectLanding room={room} onJoin={join} onHost={() => go("host")} />}
           {screen === "host" && <ConnectHostScreen room={room} onBack={() => go("landing")} onOpenBoard={() => go("board")} />}
           {screen === "board" && <ConnectBoardScreen room={room} view={tab === "student" ? "student" : "board"} onViewChange={setView} onLeave={() => go("landing")} />}
         </motion.div>

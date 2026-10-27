@@ -1,20 +1,24 @@
 // Plain-language status lines shared by the host panel, board and student view.
+import { isTimedConnectTest } from "@/lib/connect-types";
 import { RESULTS_TICKS, average, formatClock, type Kid } from "./connect-mock";
+import type { BoardPrefs } from "./use-board-prefs";
 import type { MockRoom } from "./use-mock-room";
 
-export type KidPhase = "waiting" | "typing" | "finished" | "break" | "done" | "offline";
+export type KidPhase = "waiting" | "late" | "typing" | "finished" | "break" | "done" | "offline";
 
 export function kidPhase(room: MockRoom, kid: Kid): KidPhase {
   if (!kid.online) return "offline";
   if (room.status === "lobby") return "waiting";
   const test = room.tests[room.stepOf(kid)];
   if (room.status === "complete" || !test) return "done";
+  if (room.late(kid)) return "late";
   if (test.mode === "break") return "break";
   return kid.finished ? "finished" : "typing";
 }
 
 export const PHASE_LABELS: Record<KidPhase, string> = {
   waiting: "Ready",
+  late: "Joins next test",
   typing: "Typing",
   finished: "Finished",
   break: "On a break",
@@ -34,10 +38,11 @@ export function kidStats(room: MockRoom, kid: Kid) {
 export function kidProgress(room: MockRoom, kid: Kid) {
   const phase = kidPhase(room, kid);
   if (phase === "done") return 100;
+  if (phase === "late") return 0;
   if (phase === "break") {
     const test = room.tests[room.stepOf(kid)];
     const ticks = room.pacing === "host" ? room.stepTicks : kid.stepTicks;
-    return Math.min(100, (ticks / (test?.seconds ?? 10)) * 100);
+    return Math.min(100, (ticks / (test?.duration ?? 10)) * 100);
   }
   return kid.progress;
 }
@@ -46,11 +51,11 @@ export function kidProgress(room: MockRoom, kid: Kid) {
 export function stepLine(room: MockRoom) {
   const test = room.tests[room.index];
   if (!test) return "";
-  if (test.mode === "break") return `Break, next test in ${formatClock((test.seconds ?? 10) - room.stepTicks)}`;
+  if (test.mode === "break") return `Break, next test in ${formatClock(test.duration - room.stepTicks)}`;
   if (room.resultsTicks !== null) return `Results, ${room.index + 1 >= room.tests.length ? "finishing" : "next test"} in ${formatClock(RESULTS_TICKS - room.resultsTicks)}`;
-  if (test.mode === "time") return `Ends in ${formatClock((test.seconds ?? 30) - room.stepTicks)}`;
-  const online = room.kids.filter((kid) => kid.online);
-  return `${online.filter((kid) => kid.finished).length} of ${online.length} finished`;
+  if (isTimedConnectTest(test)) return `Ends in ${formatClock(test.duration - room.stepTicks)}`;
+  const taking = room.kids.filter((kid) => kid.online && !room.late(kid));
+  return `${taking.filter((kid) => kid.finished).length} of ${taking.length} finished`;
 }
 
 /** Self-paced: how many players are on each test, plus how many finished everything. */
@@ -65,10 +70,9 @@ export function selfPacedCounts(room: MockRoom) {
   return { perTest, done };
 }
 
-export type BoardSort = "join" | "wpm" | "accuracy" | "progress" | "name";
-
-/** Board order; offline players always sink to the bottom. */
-export function sortKids(room: MockRoom, sort: BoardSort): Kid[] {
+/** Board order; offline players always sink to the bottom, except in your own drag order. */
+export function sortKids(room: MockRoom, prefs: BoardPrefs): Kid[] {
+  const { sort, descending, customOrder } = prefs;
   const score = (kid: Kid) => {
     const stats = kidStats(room, kid);
     if (sort === "wpm") return stats?.wpm ?? -1;
@@ -76,12 +80,18 @@ export function sortKids(room: MockRoom, sort: BoardSort): Kid[] {
     if (sort === "progress") return room.stepOf(kid) * 100 + kidProgress(room, kid);
     return 0;
   };
+  const position = (id: string) => {
+    const index = customOrder.indexOf(id);
+    return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+  };
   const order = room.kids.map((kid, index) => ({ kid, index, score: score(kid) }));
+  const direction = descending ? -1 : 1;
   order.sort((a, b) => {
+    if (sort === "custom") return position(a.kid.id) - position(b.kid.id) || a.index - b.index;
     if (a.kid.online !== b.kid.online) return a.kid.online ? -1 : 1;
-    if (sort === "name") return a.kid.name.localeCompare(b.kid.name);
-    if (sort === "join") return a.index - b.index;
-    return b.score - a.score || a.index - b.index;
+    if (sort === "name") return direction * a.kid.name.localeCompare(b.kid.name);
+    if (sort === "join") return direction * (a.index - b.index);
+    return direction * (a.score - b.score) || a.index - b.index;
   });
   return order.map((entry) => entry.kid);
 }

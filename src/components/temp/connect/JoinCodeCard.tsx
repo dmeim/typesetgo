@@ -1,15 +1,18 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircleIcon, CircleNotchIcon, SignInIcon, SparkleIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleNotchIcon, SignInIcon, SparkleIcon, UserCircleIcon, UsersThreeIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { cn } from "@/lib/utils";
-import { CODE_LENGTH, ROOM, lookupCode, sanitizeCode } from "./connect-mock";
-import { KidAvatar, LabCard } from "./ConnectParts";
+import { CODE_LENGTH, YOUR_ACCOUNT, sanitizeCode } from "./connect-mock";
+import { KidAvatar, LabCard, Pills } from "./ConnectParts";
 
 const LOOKUP_MS = 550;
 const SHAKE = { x: [0, -12, 12, -8, 8, -3, 0], transition: { duration: 0.45 } };
 
 type Lookup = "typing" | "checking" | "found" | "missing";
+
+/** The one pretend room a code can find. */
+export interface JoinableRoom { code: string; name: string; host: string; ended: boolean }
 
 /** Big letter boxes over one real input, so typing, pasting and phone keyboards all work as usual. */
 function CodeBoxes({ code, onChange, lookup, inputId, describedBy }: {
@@ -67,21 +70,21 @@ function CodeBoxes({ code, onChange, lookup, inputId, describedBy }: {
   );
 }
 
-function LookupLine({ lookup, id }: { lookup: Lookup; id: string }) {
+function LookupLine({ lookup, id, room }: { lookup: Lookup; id: string; room: JoinableRoom }) {
   const content = {
     typing: (
       <p className="text-sm text-muted-foreground">
-        Ask your teacher for the <span className="whitespace-nowrap">{CODE_LENGTH}-letter</span> code. <span className="whitespace-nowrap">(Psst: try <strong className="font-mono text-foreground">{ROOM.code}</strong>)</span>
+        Ask your teacher for the <span className="whitespace-nowrap">{CODE_LENGTH}-letter</span> code. <span className="whitespace-nowrap">{room.ended ? "(The mockup room has ended; reopen it from Host.)" : <>(Psst: try <strong className="font-mono text-foreground">{room.code}</strong>)</>}</span>
       </p>
     ),
     checking: <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground"><CircleNotchIcon className="size-4 animate-spin" aria-hidden="true" />Looking for that room…</p>,
     missing: <p className="flex items-center justify-center gap-2 text-sm font-medium text-destructive"><WarningCircleIcon weight="fill" className="size-5 shrink-0" aria-hidden="true" />Hmm, no room with that code. Check the letters?</p>,
     found: (
       <div className="flex items-center gap-3 rounded-2xl bg-success/10 p-3 text-left">
-        <KidAvatar name={ROOM.host} />
+        <KidAvatar name={room.host} />
         <p className="min-w-0 flex-1 text-sm">
           <span className="flex items-center gap-1.5 font-bold text-success"><CheckCircleIcon weight="fill" className="size-4" aria-hidden="true" />Found it!</span>
-          <span className="block truncate"><strong>{ROOM.name}</strong> <span className="text-muted-foreground">with {ROOM.host}</span></span>
+          <span className="block truncate"><strong>{room.name}</strong> <span className="text-muted-foreground">with {room.host}</span></span>
         </p>
       </div>
     ),
@@ -97,8 +100,22 @@ function LookupLine({ lookup, id }: { lookup: Lookup; id: string }) {
   );
 }
 
-export function JoinCodeCard({ onJoin, className }: { onJoin: (name: string) => void; className?: string }) {
+/** Signed in: the account name and picture are used, so only the code is needed. */
+function SignedInAs() {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-background p-3">
+      <KidAvatar name={YOUR_ACCOUNT} photo />
+      <p className="min-w-0 flex-1 text-sm">
+        <span className="block truncate">Joining as <strong>{YOUR_ACCOUNT}</strong></span>
+        <span className="block text-xs text-muted-foreground">Your name and profile picture come from your account.</span>
+      </p>
+    </div>
+  );
+}
+
+export function JoinCodeCard({ room, onJoin, className }: { room: JoinableRoom; onJoin: (name: string, signedIn: boolean) => void; className?: string }) {
   const id = useId();
+  const [signedIn, setSignedIn] = useState(true);
   const [code, setCode] = useState("");
   const [checked, setChecked] = useState("");
   const [name, setName] = useState("");
@@ -111,26 +128,32 @@ export function JoinCodeCard({ onJoin, className }: { onJoin: (name: string) => 
     return () => clearTimeout(timer);
   }, [code]);
 
-  const lookup: Lookup = code.length < CODE_LENGTH ? "typing" : checked !== code ? "checking" : lookupCode(code) ? "found" : "missing";
-  const ready = lookup === "found" && name.trim().length > 0;
+  const lookup: Lookup = code.length < CODE_LENGTH ? "typing" : checked !== code ? "checking" : code === room.code && !room.ended ? "found" : "missing";
+  const ready = lookup === "found" && (signedIn || name.trim().length > 0);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!ready || joining) return;
     setJoining(true);
-    setTimeout(() => onJoin(name.trim()), 700);
+    setTimeout(() => onJoin(signedIn ? YOUR_ACCOUNT : name.trim(), signedIn), 700);
   };
 
   return (
-    <LabCard title="Join a room" description="Got a code? Pop it in and type along with your class." Icon={UsersThreeIcon} className={className}>
+    <LabCard title="Join a room" description={signedIn ? "Got a code? Pop it in and type along with your class." : "Got a code? Pop it in, then tell us your name."} Icon={UsersThreeIcon} className={className}>
+      <div role="group" aria-label="Mockup controls" className="flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-border p-1.5 pl-3 text-xs text-muted-foreground">
+        <span>Pretend you're</span>
+        <Pills<"in" | "guest"> label="Signed in or guest" value={signedIn ? "in" : "guest"} onChange={(value) => setSignedIn(value === "in")} className="min-w-0 flex-1"
+          options={[{ value: "in", label: "Signed in", Icon: UserCircleIcon }, { value: "guest", label: "Guest" }]} />
+      </div>
       <form onSubmit={submit} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-3">
           <label htmlFor={`${id}-code`} className="sr-only">Room code</label>
           <CodeBoxes code={code} onChange={setCode} lookup={lookup} inputId={`${id}-code`} describedBy={`${id}-lookup`} />
-          <LookupLine lookup={lookup} id={`${id}-lookup`} />
+          <LookupLine lookup={lookup} id={`${id}-lookup`} room={room} />
         </div>
+        {signedIn && <SignedInAs />}
         <AnimatePresence initial={false}>
-          {lookup === "found" && (
+          {lookup === "found" && !signedIn && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={LAB_SPRING} className="overflow-hidden">
               <div className="flex flex-col gap-2 pb-1">
                 <label htmlFor={`${id}-name`} className="text-sm font-semibold">What should we call you?</label>

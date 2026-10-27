@@ -1,28 +1,23 @@
 // Mock room, tests and players for the /temp-connect mockup. Nothing is fetched or saved.
-import { CoffeeIcon, QuotesIcon, TextAaIcon, TimerIcon, type Icon } from "@phosphor-icons/react";
-import { CONNECT_CODE_ALPHABET, CONNECT_CODE_LENGTH } from "@/lib/connect-types";
+import { CoffeeIcon, FileTextIcon, QuotesIcon, TextAaIcon, TimerIcon, type Icon } from "@phosphor-icons/react";
+import {
+  CONNECT_CODE_ALPHABET, CONNECT_CODE_LENGTH, DEFAULT_CONNECT_BREAK, DEFAULT_CONNECT_TEST, isTimedConnectTest,
+  type ConnectQuoteLength, type ConnectTest, type ConnectTestMode,
+} from "@/lib/connect-types";
 
 export const CODE_LENGTH = CONNECT_CODE_LENGTH;
 export const TICK_MS = 1000;
 /** Ticks the results stay up before a host-led room moves on by itself. */
 export const RESULTS_TICKS = 4;
+/** Self-paced: ticks a player rests on their results before moving on. */
+export const SELF_PACED_REST_TICKS = 5;
 /** Untimed tests run faster than real life so the demo keeps moving. */
 const DEMO_SPEED = 2.5;
 
-export type TestMode = "time" | "words" | "quote" | "break";
+export type MockTest = ConnectTest;
+export type TestMode = ConnectTestMode;
 export type RoomStatus = "lobby" | "running" | "paused" | "complete";
 export type Pacing = "host" | "participant";
-export type ScreenId = "landing" | "host" | "board";
-
-export interface MockTest {
-  id: string;
-  mode: TestMode;
-  title: string;
-  /** Seconds for time tests and breaks. */
-  seconds?: number;
-  /** Word count for words and quote tests. */
-  words?: number;
-}
 
 export interface KidResult { wpm: number; accuracy: number }
 
@@ -33,6 +28,10 @@ export interface Kid {
   baseAccuracy: number;
   online: boolean;
   isYou?: boolean;
+  /** Signed in: joins under their account name and shows their profile picture. */
+  signedIn?: boolean;
+  /** Host-led: joined during this run, so they sit the current test out. */
+  lateForRun?: number;
   /** Test index; only used when the room is self-paced. */
   step: number;
   stepTicks: number;
@@ -47,70 +46,77 @@ export interface Kid {
 
 export const ROOM = { code: "K7QM", name: "Room 12 typing club", host: "Ms. Rivera" };
 export const DEFAULT_YOU = "Alex";
+export const JOIN_HOST = "typesetgo.app/connect/join";
 
-export const MOCK_TESTS: MockTest[] = [
-  { id: "t1", mode: "time", title: "Warm-up", seconds: 15 },
-  { id: "t2", mode: "words", title: "Home row words", words: 15 },
-  { id: "t3", mode: "break", title: "Stretch break", seconds: 10 },
-  { id: "t4", mode: "quote", title: "Famous quote", words: 20 },
-  { id: "t5", mode: "time", title: "Speed round", seconds: 30 },
+const test = (id: string, title: string, changes: Partial<ConnectTest>): ConnectTest => ({ ...DEFAULT_CONNECT_TEST, id, title, ...changes });
+
+export const MOCK_TESTS: ConnectTest[] = [
+  test("t1", "Warm-up", { mode: "time", duration: 15, difficulty: "beginner" }),
+  test("t2", "Home row words", { mode: "words", wordTarget: 15, difficulty: "beginner" }),
+  test("t3", "Stretch break", { ...DEFAULT_CONNECT_BREAK, duration: 10 }),
+  test("t4", "Famous quote", { mode: "quote", quoteLength: "short" }),
+  test("t5", "Speed round", { mode: "time", duration: 30, punctuation: true }),
 ];
 
 /** One-tap additions for the host's test list. */
-export const QUICK_ADD: Omit<MockTest, "id">[] = [
-  { mode: "time", title: "Time · 30s", seconds: 30 },
-  { mode: "time", title: "Time · 60s", seconds: 60 },
-  { mode: "words", title: "25 words", words: 25 },
-  { mode: "words", title: "50 words", words: 50 },
-  { mode: "quote", title: "Short quote", words: 20 },
-  { mode: "break", title: "Break · 30s", seconds: 30 },
+export const QUICK_ADD: { label: string; test: Omit<ConnectTest, "id"> }[] = [
+  { label: "Time · 30s", test: { ...DEFAULT_CONNECT_TEST, mode: "time", duration: 30 } },
+  { label: "Time · 60s", test: { ...DEFAULT_CONNECT_TEST, mode: "time", duration: 60 } },
+  { label: "25 words", test: { ...DEFAULT_CONNECT_TEST, mode: "words", wordTarget: 25 } },
+  { label: "50 words", test: { ...DEFAULT_CONNECT_TEST, mode: "words", wordTarget: 50 } },
+  { label: "Short quote", test: { ...DEFAULT_CONNECT_TEST, mode: "quote", quoteLength: "short" } },
+  { label: "Break · 30s", test: { ...DEFAULT_CONNECT_BREAK } },
 ];
 
-export const MAX_TESTS = 12;
-
-export const MODE_ICONS: Record<TestMode, Icon> = { time: TimerIcon, words: TextAaIcon, quote: QuotesIcon, break: CoffeeIcon };
-
-export function testDetail(test: MockTest) {
-  if (test.mode === "time") return `${test.seconds}s timed`;
-  if (test.mode === "break") return `${test.seconds}s rest`;
-  if (test.mode === "quote") return "Short quote";
-  return `${test.words} words`;
-}
+export const MODE_ICONS: Record<TestMode, Icon> = { time: TimerIcon, words: TextAaIcon, quote: QuotesIcon, preset: FileTextIcon, break: CoffeeIcon };
 
 export const RECENT_ROOMS = [
-  { id: "r1", name: "Room 12 typing club", code: "K7QM", live: true, tests: 5, ago: "" },
-  { id: "r2", name: "Period 3 warm-ups", code: "", live: false, tests: 3, ago: "Ended 2h ago" },
-  { id: "r3", name: "Friday speed race", code: "", live: false, tests: 8, ago: "Ended yesterday" },
+  { id: "r2", name: "Period 3 warm-ups", tests: 3, ago: "Ended 2h ago" },
+  { id: "r3", name: "Friday speed race", tests: 8, ago: "Ended yesterday" },
 ];
 
-const SEED: [string, number, number, boolean][] = [
-  ["Maya", 52, 97, true],
-  ["Jordan", 38, 93, true],
-  ["Priya", 61, 98, true],
-  ["Leo", 29, 90, true],
-  ["Sofia", 45, 95, true],
-  ["Noah", 34, 92, true],
-  ["Zara", 41, 94, false],
+// Name, speed, accuracy, online, signed in. Signed-in players appear under their account name.
+const SEED: [string, number, number, boolean, boolean][] = [
+  ["maya.types", 52, 97, true, true],
+  ["Jordan", 38, 93, true, false],
+  ["priyaflash", 61, 98, true, true],
+  ["Leo", 29, 90, true, false],
+  ["Sofia", 45, 95, true, false],
+  ["noahkeys", 34, 92, true, true],
+  ["Zara", 41, 94, false, false],
 ];
+
+/** The pretend signed-in student's account, used when joining as signed in. */
+export const YOUR_ACCOUNT = "pixelpenguin";
+
+/** Pretend students who join when the host taps "Someone joins". */
+export const LATE_NAMES = ["Ava", "Ethan", "Mila", "Kai", "Ruby", "Omar", "Iris", "Theo", "June", "Felix"];
 
 export function freshKid(kid: Kid): Kid {
   return { ...kid, step: 0, stepTicks: 0, progress: 0, wpm: 0, accuracy: 0, finished: false, restTicks: 0 };
 }
 
+export function newKid(id: string, name: string, baseWpm: number, baseAccuracy: number, extra: Partial<Kid> = {}): Kid {
+  return { id, name, baseWpm, baseAccuracy, online: true, step: 0, stepTicks: 0, progress: 0, wpm: 0, accuracy: 0, finished: false, restTicks: 0, results: [], ...extra };
+}
+
 export function seedKids(you: string): Kid[] {
-  const others = SEED.map(([name, baseWpm, baseAccuracy, online], index) =>
-    freshKid({ id: `k${index}`, name, baseWpm, baseAccuracy, online, step: 0, stepTicks: 0, progress: 0, wpm: 0, accuracy: 0, finished: false, restTicks: 0, results: [] }));
-  const yours = freshKid({ id: "you", name: you, baseWpm: 44, baseAccuracy: 96, online: true, isYou: true, step: 0, stepTicks: 0, progress: 0, wpm: 0, accuracy: 0, finished: false, restTicks: 0, results: [] });
-  return [others[0], others[1], yours, ...others.slice(2)];
+  const others = SEED.map(([name, baseWpm, baseAccuracy, online, signedIn], index) => newKid(`k${index}`, name, baseWpm, baseAccuracy, { online, signedIn }));
+  return [others[0], others[1], youKid(you), ...others.slice(2)];
+}
+
+export const youKid = (name: string, extra: Partial<Kid> = {}) => newKid("you", name, 44, 96, { isYou: true, ...extra });
+
+/** A fresh code that differs from `current`. */
+export function randomCode(current = "") {
+  let code = current;
+  while (code === current) code = Array.from({ length: CODE_LENGTH }, () => CONNECT_CODE_ALPHABET[Math.floor(Math.random() * CONNECT_CODE_ALPHABET.length)]).join("");
+  return code;
 }
 
 /** Uppercase, and only characters a room code can contain. */
 export function sanitizeCode(value: string) {
   return value.toUpperCase().split("").filter((char) => CONNECT_CODE_ALPHABET.includes(char)).join("").slice(0, CODE_LENGTH);
-}
-
-export function lookupCode(code: string) {
-  return code === ROOM.code ? ROOM : null;
 }
 
 export function formatClock(seconds: number) {
@@ -127,22 +133,36 @@ const AVATAR_TONES = [
   "bg-muted-foreground text-background",
 ];
 
-export function avatarTone(name: string) {
+function hashName(name: string) {
   let hash = 0;
   for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return AVATAR_TONES[hash % AVATAR_TONES.length];
+  return hash;
+}
+
+export const avatarTone = (name: string) => AVATAR_TONES[hashName(name) % AVATAR_TONES.length];
+
+/** Stand-in profile photos are tinted per account, like real photos look different from each other. */
+export const photoHue = (name: string) => hashName(name) % 360;
+
+const QUOTE_WORDS: Record<ConnectQuoteLength, number> = { all: 30, short: 20, medium: 40, long: 60, xl: 90 };
+
+/** Roughly how many words an untimed test asks for. */
+function wordGoal(test: ConnectTest) {
+  if (test.mode === "words") return test.wordTarget;
+  if (test.mode === "quote") return QUOTE_WORDS[test.quoteLength];
+  return Math.max(5, (test.presetText ?? "").trim().split(/\s+/).length);
 }
 
 const jitter = (spread: number) => (Math.random() - 0.5) * 2 * spread;
 
 /** One second of typing on `test` for one player. */
-export function typeOneTick(kid: Kid, test: MockTest, ticks: number): Kid {
+export function typeOneTick(kid: Kid, test: ConnectTest, ticks: number): Kid {
   if (!kid.online || kid.finished || test.mode === "break") return kid;
   const wpm = Math.max(8, Math.round(kid.wpm ? kid.wpm * 0.55 + (kid.baseWpm + jitter(8)) * 0.45 : kid.baseWpm + jitter(10)));
   const accuracy = Math.min(100, Math.max(75, Math.round(kid.accuracy ? kid.accuracy * 0.6 + (kid.baseAccuracy + jitter(3)) * 0.4 : kid.baseAccuracy)));
-  const progress = test.mode === "time"
-    ? Math.min(100, (ticks / (test.seconds ?? 30)) * 100)
-    : Math.min(100, kid.progress + (wpm / 60 / (test.words ?? 25)) * 100 * DEMO_SPEED);
+  const progress = isTimedConnectTest(test)
+    ? Math.min(100, (ticks / test.duration) * 100)
+    : Math.min(100, kid.progress + (wpm / 60 / wordGoal(test)) * 100 * DEMO_SPEED);
   const finished = progress >= 100;
   return { ...kid, wpm, accuracy, progress, finished, results: finished ? [...kid.results, { wpm, accuracy }] : kid.results };
 }

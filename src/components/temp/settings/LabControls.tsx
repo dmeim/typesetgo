@@ -198,7 +198,7 @@ export function KeyboardPanel({ settings, update }: { settings: LabSettings; upd
 const STYLE_BADGES: Partial<Record<KeyboardStyle, string>> = { spotlight: "Default", finger: "Kids mode default" };
 
 /** One card per keyboard style, each with a live mini keyboard waiting on the same key. */
-function StylePicker({ value, layoutId, onChange }: { value: KeyboardStyle; layoutId: LabSettings["keyboardLayout"]; onChange: (value: KeyboardStyle) => void }) {
+export function StylePicker({ value, layoutId, onChange }: { value: KeyboardStyle; layoutId: LabSettings["keyboardLayout"]; onChange: (value: KeyboardStyle) => void }) {
   return (
     <div role="radiogroup" aria-label="Keyboard style" className="grid gap-3 sm:grid-cols-2">
       {KEYBOARD_STYLES.map((style) => {
