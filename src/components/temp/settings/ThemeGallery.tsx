@@ -4,6 +4,7 @@ import { CheckIcon, MagnifyingGlassIcon, PaletteIcon } from "@phosphor-icons/rea
 import { CATEGORY_CONFIG } from "@/lib/themes";
 import type { ThemeCatalogEntry, ThemeCategory } from "@/types/theme";
 import { ModeSegmented, Swatches } from "./LabControls";
+import { ScrollRow } from "@/components/ui/scroll-row";
 import { LAB_SPRING } from "./lab-settings";
 import { findVariant, useFilteredThemes, useThemeCatalog, useThemeCategories, type LabState } from "./useLabSettings";
 
@@ -78,9 +79,11 @@ export function ThemeGallery({ lab }: { lab: LabState }) {
       </div>
 
       <LayoutGroup id="split-categories">
-        <div role="radiogroup" aria-label="Theme categories" className="flex gap-2 overflow-x-auto pb-1">
+        <ScrollRow role="radiogroup" aria-label="Theme categories" expandable expandLabel={`All ${categories.length + 1}`}>
           {[{ id: "all" as const, name: "All", count: themes?.length ?? 0 }, ...categories].map((entry) => (
-            <button
+            <motion.button
+              layout="position"
+              transition={LAB_SPRING}
               key={entry.id}
               type="button"
               role="radio"
@@ -89,10 +92,10 @@ export function ThemeGallery({ lab }: { lab: LabState }) {
               className={`relative shrink-0 rounded-full border border-border px-4 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring ${category === entry.id ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               {category === entry.id && <motion.span layoutId="split-category" transition={LAB_SPRING} className="absolute inset-0 rounded-full bg-primary" />}
-              <span className="relative">{entry.name} <span className="opacity-60">{entry.count}</span></span>
-            </button>
+              <span className="relative whitespace-nowrap">{entry.name} <span className="opacity-60">{entry.count}</span></span>
+            </motion.button>
           ))}
-        </div>
+        </ScrollRow>
       </LayoutGroup>
 
       <label className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 focus-within:outline-2 focus-within:outline-ring">

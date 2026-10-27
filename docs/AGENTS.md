@@ -247,6 +247,7 @@ Rules:
   - external first, internal second,
   - prefer `@/` alias for local source imports.
 - Prefer existing UI primitives under `@/components/ui/` before introducing new base components.
+- Sideways-scrolling rows of chips or tabs go in `ScrollRow` (`@/components/ui/scroll-row`), which gives mouse users edge fades and arrow buttons; `expandable` adds an "All" pill that opens the row into a wrapped panel.
 - Use `@phosphor-icons/react` with `Icon`-suffixed exports for all UI icons, including shared Shadcn controls. Custom artwork or text glyphs are fallbacks only when Phosphor has no suitable icon; logos, profile photos, and player-selected avatars remain content.
 - `src/components/ui/icon-provider.tsx` sets the shared defaults to `weight="bold"` and a 24px fallback size. Use `weight="regular"` where lighter artwork is needed (the large WPM/accuracy result icons), and `weight="fill"` for solid indicators such as the dropdown radio dot. Use Phosphor weights rather than SVG `strokeWidth`; CSS size classes and explicit `size` props still control dimensions. Browser fixtures use the same provider as the app.
 - `components.json` selects `"iconLibrary": "phosphor"` for future Shadcn components; it does not rewrite existing components. Check newly generated imports for the `Icon` suffix and replace icon `strokeWidth` styling with the appropriate weight.

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowClockwiseIcon, CheckIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import ThemeSitePreview from "@/components/typing/ThemeSitePreview";
+import { ScrollRow } from "@/components/ui/scroll-row";
 import { CATEGORY_CONFIG } from "@/lib/themes";
 import type { ThemeCatalogEntry } from "@/types/theme";
 import { KeyboardPanel, ModeSegmented, SoundPanel, Swatches, TextPanel, TypingPanel } from "./LabControls";
@@ -56,7 +57,7 @@ export function StudioSettings({ lab }: { lab: LabState }) {
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
-          <div role="tablist" aria-label="Settings sections" className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+          <ScrollRow role="tablist" aria-label="Settings sections" className="gap-1 md:flex-wrap md:overflow-visible">
             {SECTIONS.map(({ id, title, Icon }) => (
               <button
                 key={id}
@@ -71,7 +72,7 @@ export function StudioSettings({ lab }: { lab: LabState }) {
                 <span className="relative">{title}</span>
               </button>
             ))}
-          </div>
+          </ScrollRow>
 
           <div role="tabpanel" aria-label={SECTIONS.find((section) => section.id === tab)?.title} className="relative min-w-0 overflow-x-clip">
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
