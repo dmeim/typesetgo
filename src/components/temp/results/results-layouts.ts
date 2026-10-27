@@ -38,7 +38,7 @@ export const CHIPS: { id: ChipId; title: string; value: string; label: string; I
 ];
 
 export const LAYOUTS: { name: string; summary: string }[] = [
-  { name: "Side column", summary: "Speed and accuracy stacked on the left with the buttons under them. The graph fills the right, with the detail chips beneath it." },
+  { name: "Side column", summary: "Speed and accuracy stacked on the left with the buttons under them. The graph fills the right, with the detail chips beneath it. Open a chip and its spot becomes a Graph pill; click that to bring the graph back." },
   { name: "Scoreboard", summary: "One slim strip across the top holds every number. The graph fills the middle and the buttons sit in a single row." },
   { name: "Graph first", summary: "One big card: speed and accuracy sit in the graph's corners above their own axes, with your average drawn as a line." },
   { name: "Bento", summary: "A grid of tiles: your two scores and the buttons on the left, a big graph, and a tile each for words, mistakes, letters and time." },

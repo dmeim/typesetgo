@@ -4,14 +4,23 @@ import {
 } from "@phosphor-icons/react";
 import { DEFAULT_SETTINGS } from "@/lib/storage-utils";
 import type { SettingsState } from "@/lib/typing-constants";
+import type { KeyboardStyle } from "@/components/temp/keyboard/keyboard-mock";
 
-export type LabSettings = SettingsState & { linePreview: number; maxWordsPerLine: number };
+export type LabSettings = SettingsState & {
+  linePreview: number;
+  maxWordsPerLine: number;
+  /** How the on-screen keyboard looks; Kids mode has its own pick. */
+  keyboardStyle: KeyboardStyle;
+  kidsKeyboardStyle: KeyboardStyle;
+};
 
 export const INITIAL_LAB_SETTINGS: LabSettings = {
   ...DEFAULT_SETTINGS,
   presetText: "",
   linePreview: 3,
   maxWordsPerLine: 8,
+  keyboardStyle: "spotlight",
+  kidsKeyboardStyle: "finger",
 };
 
 export type SectionId = "theme" | "text" | "typing" | "sound" | "keyboard";
@@ -58,6 +67,8 @@ export const SETTING_INDEX: { id: string; section: SectionId; label: string; key
   { id: "typing-sound", section: "sound", label: "Typing sound", keywords: "click clack keys audio" },
   { id: "warning-sound", section: "sound", label: "Warning sound", keywords: "timer alarm beep" },
   { id: "keyboard", section: "keyboard", label: "On-screen keyboard", keywords: "keys guide hands" },
+  { id: "keyboard-style", section: "keyboard", label: "Keyboard style", keywords: "look spotlight finger guide keycaps legacy old classic" },
+  { id: "kids-keyboard", section: "keyboard", label: "Kids mode keyboard", keywords: "children young learner fingers hands" },
   { id: "layout", section: "keyboard", label: "Keyboard layout", keywords: "qwerty dvorak colemak" },
 ];
 

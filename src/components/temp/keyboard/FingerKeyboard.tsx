@@ -20,7 +20,7 @@ const HANDS: { side: string; fingers: [Finger, string][] }[] = [
 ];
 
 /** 02: keys tinted by finger, with two hands underneath that light up the finger to use. */
-export function FingerKeyboard({ model }: { model: KeyboardModel }) {
+export function FingerKeyboard({ model, bare = false }: { model: KeyboardModel; bare?: boolean }) {
   const capsKey = model.rows[2][0];
   const lead = model.caps ? capsKey : model.next;
   const helper = model.caps ? null : model.shift;
@@ -31,7 +31,7 @@ export function FingerKeyboard({ model }: { model: KeyboardModel }) {
 
   return (
     <div className="@container flex w-full flex-col items-center gap-2">
-      <HintPill hint={model.hint} />
+      {!bare && <HintPill hint={model.hint} />}
       <div className="flex w-full max-w-4xl flex-col gap-[0.7cqw] text-[clamp(0.7rem,2.1cqw,1.05rem)]" aria-hidden="true">
         {model.rows.map((row, index) => (
           <div key={index} className="flex justify-center gap-[0.7cqw]">
@@ -61,7 +61,7 @@ export function FingerKeyboard({ model }: { model: KeyboardModel }) {
           </div>
         ))}
       </div>
-      <p className="text-center text-sm text-muted-foreground">Use your <span className="font-semibold text-foreground">{instruction}</span></p>
+      {!bare && <p className="text-center text-sm text-muted-foreground">Use your <span className="font-semibold text-foreground">{instruction}</span></p>}
     </div>
   );
 }

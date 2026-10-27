@@ -162,3 +162,41 @@ export const DESIGNS: { name: string; summary: string }[] = [
   { name: "Compact", summary: "A shorter keyboard: the number row folds away until you need it or delete. An \"up next\" strip shows the next few keys, or how many letters to delete." },
   { name: "Coach", summary: "A speech bubble rides above the key to press and talks you through it: which Shift to hold, how to fix a mistake, or that you can skip the word." },
 ];
+
+/** The Shift on the opposite hand to the key, which is how touch typists are taught. */
+export function oppositeShift(rows: MockKey[][], key: MockKey) {
+  return rows[3].find((candidate) => candidate.key === (isLeftHand(key.finger) ? "ShiftRight" : "Shift")) ?? null;
+}
+
+interface ModelState {
+  caps?: boolean;
+  toDelete?: number;
+  skipped?: boolean;
+  pressed?: Set<string>;
+  upcoming?: KeyboardModel["upcoming"];
+}
+
+/** Everything a keyboard design draws, from the next character and the typing state. */
+export function modelFor(rows: MockKey[][], nextChar: string | null, { caps = false, toDelete = 0, skipped = false, pressed = new Set(), upcoming = [] }: ModelState = {}): KeyboardModel {
+  const match = nextChar ? findMockKey(rows, nextChar) : null;
+  const needsShift = !!match?.shift && !(match.key.type === "letter" && caps);
+  return {
+    rows,
+    next: match?.key ?? null,
+    shift: needsShift && match ? oppositeShift(rows, match.key) : null,
+    pressed,
+    caps,
+    toDelete,
+    hint: describeHint(caps, toDelete, skipped),
+    upcoming,
+  };
+}
+
+export type KeyboardStyle = "spotlight" | "finger" | "keycaps" | "legacy";
+
+export const KEYBOARD_STYLES: { value: KeyboardStyle; name: string; summary: string }[] = [
+  { value: "spotlight", name: "Spotlight", summary: "Quiet keys and one glow that glides to the next key." },
+  { value: "finger", name: "Finger guide", summary: "Keys coloured by finger, with hands that show which finger to use." },
+  { value: "keycaps", name: "Keycaps", summary: "Chunky keys that press down, with a hint above." },
+  { value: "legacy", name: "Legacy", summary: "Today's keyboard, unchanged." },
+];

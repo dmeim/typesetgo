@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowClockwiseIcon, ArrowFatRightIcon, CheckCircleIcon, CircleNotchIcon, FloppyDiskIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, ArrowFatRightIcon, ChartLineIcon, CheckCircleIcon, CircleNotchIcon, FloppyDiskIcon, XIcon } from "@phosphor-icons/react";
 import { ChipDetail, type ChipId } from "@/components/typing/ResultChips";
 import { cn } from "@/lib/utils";
 import { CHIPS, RESULT, type Detail, type ResultsLayoutProps } from "./results-layouts";
@@ -16,11 +16,38 @@ const CHIP_RADIUS = { pill: 999, cell: 14, tile: 18 };
 // Stable, so the panel takes focus once when it opens rather than on every render.
 const focusOnMount = (element: HTMLElement | null) => element?.focus({ preventScroll: true });
 
+interface ChipsProps {
+  detail: Detail;
+  scope: string;
+  variant?: keyof typeof CHIP_STYLES;
+  only?: ChipId[];
+  /** The open chip's spot turns into a Graph pill that brings the graph back, so the order never changes. */
+  swap?: boolean;
+  className?: string;
+}
+
 /** The four result chips. Opening one morphs it into a panel over the graph, so the page never grows. */
-export function Chips({ detail, scope, variant = "pill", only, className }: { detail: Detail; scope: string; variant?: keyof typeof CHIP_STYLES; only?: ChipId[]; className?: string }) {
+export function Chips({ detail, scope, variant = "pill", only, swap = false, className }: ChipsProps) {
   return (
     <div className={cn(variant === "pill" && "flex flex-wrap justify-center gap-2", className)}>
-      {CHIPS.filter((chip) => !only || only.includes(chip.id)).map(({ id, value, label, Icon, tone, tile }) => (
+      {CHIPS.filter((chip) => !only || only.includes(chip.id)).map(({ id, value, label, Icon, tone, tile }) => detail.open === id && swap ? (
+        <motion.button
+          key={id}
+          ref={detail.chipRef(id)}
+          type="button"
+          aria-label="Back to the graph"
+          onClick={detail.close}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={SPRING}
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.96 }}
+          className="flex items-center gap-1.5 rounded-full border border-primary bg-primary/15 px-3 py-1 text-xs font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <ChartLineIcon className="size-3.5 shrink-0" aria-hidden="true" />
+          graph
+        </motion.button>
+      ) : (
         <motion.button
           key={id}
           ref={detail.chipRef(id)}
@@ -70,8 +97,8 @@ export function DetailBody({ id }: { id: ChipId }) {
   );
 }
 
-/** Wraps the graph; an open chip lands here as a panel covering it. */
-export function DetailSlot({ detail, scope, className, children }: { detail: Detail; scope: string; className?: string; children: ReactNode }) {
+/** Wraps the graph; an open chip lands here as a panel covering it. With `swap`, the Graph pill closes it instead of a button inside. */
+export function DetailSlot({ detail, scope, swap = false, className, children }: { detail: Detail; scope: string; swap?: boolean; className?: string; children: ReactNode }) {
   const chip = CHIPS.find((candidate) => candidate.id === detail.open);
   return (
     <div className={cn("relative flex min-h-0 flex-col", className)}>
@@ -80,7 +107,7 @@ export function DetailSlot({ detail, scope, className, children }: { detail: Det
         {chip && (
           <motion.div
             key={chip.id}
-            ref={focusOnMount}
+            ref={swap ? undefined : focusOnMount}
             tabIndex={-1}
             role="group"
             aria-label={chip.title}
@@ -95,15 +122,15 @@ export function DetailSlot({ detail, scope, className, children }: { detail: Det
             className="absolute inset-0 z-10 flex flex-col overflow-hidden border border-border bg-card shadow-lg outline-none"
           >
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.12 } }} exit={{ opacity: 0, transition: { duration: 0.08 } }} className="flex min-h-0 flex-1 flex-col p-4">
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex min-h-7 items-center justify-between">
                 <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <chip.Icon className={cn("size-4", chip.tone)} aria-hidden="true" />
                   {chip.title}
                 </h3>
-                <button type="button" onClick={detail.close} aria-label="Back to the graph" className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+                {!swap && <button type="button" onClick={detail.close} aria-label="Back to the graph" className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
                   <XIcon className="size-3.5" aria-hidden="true" />
                   Graph
-                </button>
+                </button>}
               </div>
               <DetailBody id={chip.id} />
             </motion.div>

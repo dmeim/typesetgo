@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 import { getInputPosition, getNextTypingKey } from "@/components/typing/practice-input";
-import { buildRows, describeHint, findMockKey, isLeftHand, SCRIPT, TARGET, type KeyboardModel, type MockKey } from "./keyboard-mock";
+import { buildRows, findMockKey, modelFor, oppositeShift, SCRIPT, TARGET, type MockKey } from "./keyboard-mock";
 
 interface Step {
   wait: number;
@@ -20,10 +20,6 @@ const TARGET_WORDS = TARGET.split(" ");
 function isDone(typed: string) {
   const words = typed.split(" ");
   return words.length === TARGET_WORDS.length && words[words.length - 1].length >= TARGET_WORDS[TARGET_WORDS.length - 1].length;
-}
-
-function oppositeShift(rows: MockKey[][], key: MockKey) {
-  return rows[3].find((candidate) => candidate.key === (isLeftHand(key.finger) ? "ShiftRight" : "Shift")) ?? null;
 }
 
 /** Drives every keyboard design: a scripted student by default, or your own keys once you type in the stage. */
@@ -142,23 +138,17 @@ export function useKeyboardDemo(layoutId: KeyboardLayoutId) {
 
   const done = isDone(typed);
   const nextChar = done ? null : getNextTypingKey(typed, TARGET);
-  const match = nextChar ? findMockKey(rows, nextChar) : null;
-  const needsShift = !!match?.shift && !(match.key.type === "letter" && caps);
   const { typedWord, targetWord, referencePosition } = getInputPosition(typed, TARGET);
   let common = 0;
   while (common < typedWord.length && typedWord[common] === targetWord[common]) common++;
   const toDelete = nextChar === "Backspace" ? typedWord.length - common : 0;
-
-  const model: KeyboardModel = {
-    rows,
-    next: match?.key ?? null,
-    shift: needsShift && match ? oppositeShift(rows, match.key) : null,
-    pressed,
+  const model = modelFor(rows, nextChar, {
     caps,
     toDelete,
-    hint: describeHint(caps, toDelete, skipped),
+    skipped,
+    pressed,
     upcoming: done || toDelete ? [] : [...TARGET.slice(referencePosition, referencePosition + 4)].map((char, index) => ({ char, at: referencePosition + index })),
-  };
+  });
 
   return {
     model,

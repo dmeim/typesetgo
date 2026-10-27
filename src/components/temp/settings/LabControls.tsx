@@ -1,9 +1,12 @@
 import { useId, type ReactNode } from "react";
 import { motion } from "framer-motion";
-import { MoonIcon, PlayIcon, SunIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, MoonIcon, PlayIcon, SunIcon } from "@phosphor-icons/react";
 import { Slider } from "@/components/ui/slider";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { TYPING_FONT_OPTIONS, getTypingFontFamily } from "@/lib/typing-fonts";
+import { cn } from "@/lib/utils";
+import { KeyboardStyleView } from "@/components/temp/keyboard/KeyboardStyleView";
+import { KEYBOARD_STYLES, type KeyboardStyle } from "@/components/temp/keyboard/keyboard-mock";
 import type { ThemeMode } from "@/types/theme";
 import { LAB_SPRING, type LabSettings } from "./lab-settings";
 import { useSoundPacks } from "./useLabSettings";
@@ -175,13 +178,60 @@ export function KeyboardPanel({ settings, update }: { settings: LabSettings; upd
       <SettingRow label="On-screen keyboard" hint="Lights up the next key to press.">
         <LabSwitch label="On-screen keyboard" checked={settings.showOnScreenKeyboard} onChange={(showOnScreenKeyboard) => update({ showOnScreenKeyboard })} />
       </SettingRow>
-      <motion.div animate={{ opacity: settings.showOnScreenKeyboard ? 1 : 0.45 }}>
+      <motion.div animate={{ opacity: settings.showOnScreenKeyboard ? 1 : 0.45 }} className="divide-y divide-border">
+        <SettingRow label="Style" hint="How the keyboard looks while you practise." stacked>
+          <StylePicker value={settings.keyboardStyle} layoutId={settings.keyboardLayout} onChange={(keyboardStyle) => update({ keyboardStyle })} />
+        </SettingRow>
+        <SettingRow label="In Kids mode" hint="Kids mode always shows the keyboard, in this style." stacked>
+          <Segmented label="Kids mode keyboard style" value={settings.kidsKeyboardStyle} onChange={(kidsKeyboardStyle) => update({ kidsKeyboardStyle })}
+            options={KEYBOARD_STYLES.map((style) => ({ value: style.value, label: style.name }))} />
+        </SettingRow>
         <SettingRow label="Layout" stacked>
           <Segmented label="Keyboard layout" value={settings.keyboardLayout} onChange={(keyboardLayout) => update({ keyboardLayout })}
             options={(["qwerty", "dvorak", "colemak"] as const).map((value) => ({ value, label: value.toUpperCase() }))} />
         </SettingRow>
       </motion.div>
     </RowGroup>
+  );
+}
+
+const STYLE_BADGES: Partial<Record<KeyboardStyle, string>> = { spotlight: "Default", finger: "Kids mode default" };
+
+/** One card per keyboard style, each with a live mini keyboard waiting on the same key. */
+function StylePicker({ value, layoutId, onChange }: { value: KeyboardStyle; layoutId: LabSettings["keyboardLayout"]; onChange: (value: KeyboardStyle) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Keyboard style" className="grid gap-3 sm:grid-cols-2">
+      {KEYBOARD_STYLES.map((style) => {
+        const selected = value === style.value;
+        return (
+          <button
+            key={style.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(style.value)}
+            className={cn(
+              "flex flex-col gap-3 rounded-2xl border bg-background p-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              selected ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-muted-foreground",
+            )}
+          >
+            <span aria-hidden="true" className="pointer-events-none flex min-h-28 flex-1 items-center rounded-xl bg-card px-2 py-3">
+              <KeyboardStyleView style={style.value} layoutId={layoutId} nextChar="t" bare />
+            </span>
+            <span className="flex items-start justify-between gap-2">
+              <span className="flex flex-col gap-0.5">
+                <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                  {style.name}
+                  {STYLE_BADGES[style.value] && <span className="rounded-full bg-accent px-2 py-0.5 text-[0.65rem] font-medium text-primary">{STYLE_BADGES[style.value]}</span>}
+                </span>
+                <span className="text-xs text-muted-foreground">{style.summary}</span>
+              </span>
+              {selected && <CheckCircleIcon className="size-5 shrink-0 text-primary" weight="fill" aria-hidden="true" />}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

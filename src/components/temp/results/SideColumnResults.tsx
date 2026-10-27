@@ -25,10 +25,10 @@ export function SideColumnResults({ save, replay }: ResultsLayoutProps) {
         <ActionBar save={save} replay={replay} stacked className="order-last @min-[38rem]:order-none" />
       </div>
       <div className="contents @min-[38rem]:flex @min-[38rem]:min-h-0 @min-[38rem]:flex-col @min-[38rem]:gap-3">
-        <DetailSlot detail={detail} scope={scope} className="min-h-[8rem] flex-1">
+        <DetailSlot detail={detail} scope={scope} swap className="min-h-[8rem] flex-1">
           <FitChart className="h-full rounded-2xl border border-border bg-card p-3" />
         </DetailSlot>
-        <Chips detail={detail} scope={scope} />
+        <Chips detail={detail} scope={scope} swap />
       </div>
     </div>
   );

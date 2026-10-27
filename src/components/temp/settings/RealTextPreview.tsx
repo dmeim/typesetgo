@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { ArrowsInIcon, ArrowsOutIcon } from "@phosphor-icons/react";
-import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
+import { KeyboardStyleView } from "@/components/temp/keyboard/KeyboardStyleView";
 import PracticeText from "@/components/typing/PracticeText";
 import { themeCSSVariables } from "@/lib/theme-css";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
@@ -103,7 +103,7 @@ export function RealTextPreview({ colors, settings, label = "Text preview" }: { 
           </div>
           {settings.showOnScreenKeyboard && (
             <div className="mt-8" style={{ width: homeWidth }}>
-              <OnScreenKeyboard nextChar={SAMPLE[TYPED.length]} capsLockOn={false} layoutId={settings.keyboardLayout} activeKey={null} visible />
+              <KeyboardStyleView style={settings.keyboardStyle} layoutId={settings.keyboardLayout} nextChar={SAMPLE[TYPED.length]} />
             </div>
           )}
         </div>

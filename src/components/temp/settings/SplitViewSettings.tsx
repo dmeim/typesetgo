@@ -8,6 +8,7 @@ import { AccountCard, SignInButton, SignInPrompt, StatsPanel } from "./AccountPa
 import { AchievementsPanel } from "./AchievementsPanel";
 import { FontGallery } from "./FontGallery";
 import { HistoryPanel } from "./HistoryPanel";
+import { KEYBOARD_STYLES } from "@/components/temp/keyboard/keyboard-mock";
 import { KeyboardPanel, LabSwitch, SoundPanel, TypingPanel } from "./LabControls";
 import { RealTextPreview } from "./RealTextPreview";
 import { ThemeGallery } from "./ThemeGallery";
@@ -61,7 +62,7 @@ export function SplitViewSettings({ lab, basePath }: { lab: LabState; basePath?:
     text: `${getTypingFontOption(settings.typingFontFamily).label} · ${settings.typingFontSize}rem`,
     typing: settings.ghostWriterEnabled ? "Ghost on" : `${settings.linePreview} lines`,
     sound: settings.soundEnabled ? "On" : "Off",
-    keyboard: settings.showOnScreenKeyboard ? settings.keyboardLayout.toUpperCase() : "Off",
+    keyboard: settings.showOnScreenKeyboard ? `${KEYBOARD_STYLES.find((style) => style.value === settings.keyboardStyle)?.name} · ${settings.keyboardLayout.toUpperCase()}` : "Off",
   };
   const groups: PaneId[][] = signedIn ? [ACCOUNT_GROUP, ...SETTING_GROUPS] : SETTING_GROUPS;
   const needle = query.trim().toLowerCase();

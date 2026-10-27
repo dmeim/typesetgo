@@ -6,7 +6,7 @@ import { HINT_STYLE, isWide, keyRole, keyText, showsUpper, type KeyboardModel, t
 const GLIDE = { type: "spring", stiffness: 520, damping: 38 } as const;
 
 /** 03: quiet outline keys and one spotlight that glides to the next key. Labels follow Shift and Caps Lock. */
-export function SpotlightKeyboard({ model }: { model: KeyboardModel }) {
+export function SpotlightKeyboard({ model, bare = false }: { model: KeyboardModel; bare?: boolean }) {
   const scope = useId();
   const tone = model.hint?.tone;
   return (
@@ -37,9 +37,9 @@ export function SpotlightKeyboard({ model }: { model: KeyboardModel }) {
           ))}
         </div>
       </div>
-      <p role="status" className={cn("min-h-5 text-center text-sm", tone ? HINT_STYLE[tone].text : "text-muted-foreground")}>
+      {!bare && <p role="status" className={cn("min-h-5 text-center text-sm", tone ? HINT_STYLE[tone].text : "text-muted-foreground")}>
         {model.hint ? `${model.hint.title}. ${model.hint.detail}.` : model.next ? "Follow the light." : ""}
-      </p>
+      </p>}
     </div>
   );
 }

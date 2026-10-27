@@ -12,10 +12,10 @@ const ROLE: Record<Exclude<KeyRole, null>, string> = {
 };
 
 /** 01: chunky keycaps that press down. The next key bobs; delete wiggles after a mistake. */
-export function KeycapKeyboard({ model }: { model: KeyboardModel }) {
+export function KeycapKeyboard({ model, bare = false }: { model: KeyboardModel; bare?: boolean }) {
   return (
     <div className="@container flex w-full flex-col items-center gap-2">
-      <HintPill hint={model.hint} />
+      {!bare && <HintPill hint={model.hint} />}
       <div className="flex w-full max-w-4xl flex-col gap-[1cqw] text-[clamp(0.7rem,2.1cqw,1.1rem)]" aria-hidden="true">
         {model.rows.map((row, index) => (
           <div key={index} className="flex justify-center gap-[1cqw]">
