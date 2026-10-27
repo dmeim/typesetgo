@@ -195,12 +195,12 @@ export async function checkPodium({ page, open, noOverflow, output, checks }) {
       await link.focus();
       await expect(link).toBeFocused();
       await page.keyboard.press("Enter");
-      await expect(page).toHaveURL(new RegExp(`/user/leaderboard-user-${rank}$`));
+      // Leaderboard links still use /user/:userId; the app sends them on to the public Profile view.
+      await expect(page).toHaveURL(new RegExp(`/profile/leaderboard-user-${rank}$`));
       await expect(page.getByRole("heading", { name: username, exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Lifetime statistics", exact: true })).toBeVisible();
+      await expect(page.getByText(/public profile/)).toBeVisible();
       await expect(page.getByRole("button", { name: "Refresh achievements", exact: true })).toHaveCount(0);
-      await page.getByRole("button", { name: /View details/ }).first().click();
-      await expect(page.getByRole("dialog", { name: "Test details", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Delete test", exact: true })).toHaveCount(0);
       assert.deepEqual(await page.evaluate(() => window.profileFixtureCalls), []);
       await noOverflow(`${scenario} linked profile rank ${rank}`);

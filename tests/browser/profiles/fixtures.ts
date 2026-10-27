@@ -111,6 +111,11 @@ export function useQuery(reference: Parameters<typeof getFunctionName>[0], args:
       createdAt: now - index * 60000,
     }));
   }
+  if (name === "streaks:getUserStreak") {
+    return scenario === "empty" ? { currentStreak: 0, longestStreak: 0, lastActivityDate: null } : { currentStreak: 3, longestStreak: 21, lastActivityDate: null };
+  }
+  // No saved account defaults: the Profile page keeps local settings and saves nothing until an edit.
+  if (name === "preferences:getPreferences") return null;
   throw new Error(`Unmocked profile query: ${name}`);
 }
 

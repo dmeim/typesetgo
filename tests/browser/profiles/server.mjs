@@ -18,7 +18,7 @@ export async function startProfileFixtureServer() {
       name: "isolated-profile-fixtures",
       configureServer(vite) {
         vite.middlewares.use(async (req, res, next) => {
-          if (!/^\/(user\/[^/?]+|leaderboard|notifications)(\?|$)/.test(req.url ?? "")) return next();
+          if (!/^\/(user\/[^/?]+|profile(\/[^?]*)?|leaderboard|notifications)(\?|$)/.test(req.url ?? "")) return next();
           const html = await vite.transformIndexHtml(req.url, '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div><script type="module" src="/tests/browser/profiles/app.tsx"></script></body></html>');
           res.setHeader("Content-Type", "text/html");
           res.end(html);
@@ -42,5 +42,5 @@ export async function startProfileFixtureServer() {
 
 if (process.argv.includes("--serve")) {
   const { url } = await startProfileFixtureServer();
-  console.log(`Isolated profile fixtures: ${url}/user/profile-owner`);
+  console.log(`Isolated profile fixtures: ${url}/profile/profile-owner`);
 }

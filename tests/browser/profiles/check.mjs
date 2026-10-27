@@ -47,7 +47,7 @@ try {
   }
 
   async function dialogWithinViewport(label) {
-    const bounds = await page.getByRole("dialog").last().boundingBox();
+    const bounds = await page.locator('[role="dialog"], [role="alertdialog"]').last().boundingBox();
     const viewport = page.viewportSize();
     assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width + 1 && bounds.y + bounds.height <= viewport.height + 1, `${label}: ${JSON.stringify(bounds)}`);
   }
@@ -61,9 +61,14 @@ try {
   ];
   for (const options of matrix) {
     const label = `${options.width}-${options.theme}-${options.zoom ?? 1}x`;
+    // Old shared links still work: /user/:userId lands on the same player's Profile page.
     await open("/user/profile-owner", options);
+    await expect(page).toHaveURL(/\/profile\/profile-owner\?/);
     await expect(page.getByRole("heading", { name: "Lifetime statistics" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Recent test history" })).toBeVisible();
+    // Phones show one pane at a time with a way back to the list; wider screens keep the sidebar.
+    const sectionsButton = page.getByRole("button", { name: "All profile sections" });
+    if (Math.floor(options.width / (options.zoom ?? 1)) < 768) await expect(sectionsButton).toBeVisible();
+    else await expect(sectionsButton).toBeHidden();
     await noOverflow(`profile ${label}`);
     await page.screenshot({ path: path.join(output, `profile-${label}.png`) });
     const card = page.getByRole("button", { name: /^Best WPM:/ });
@@ -76,6 +81,14 @@ try {
     await page.screenshot({ path: path.join(output, `chart-${label}.png`) });
     await page.keyboard.press("Escape");
     await expect(card).toBeFocused();
+    await open("/profile/history", options);
+    await expect(page.getByRole("heading", { name: "History", exact: true })).toBeVisible();
+    await noOverflow(`history ${label}`);
+    await page.screenshot({ path: path.join(output, `history-${label}.png`) });
+    await open("/profile/keyboard", options);
+    await expect(page.getByRole("radiogroup", { name: "Keyboard style" })).toBeVisible();
+    await noOverflow(`keyboard settings ${label}`);
+    await page.screenshot({ path: path.join(output, `keyboard-settings-${label}.png`) });
     await open("/leaderboard", options);
     await expect(page.getByRole("heading", { name: "Leaderboard", exact: true })).toBeVisible();
     for (const name of ["Today", "7 days", "All time"]) {
@@ -83,10 +96,11 @@ try {
     }
     await noOverflow(`leaderboard ${label}`);
     await page.screenshot({ path: path.join(output, `leaderboard-${label}.png`) });
-    checks.push(`layout, chart keyboard focus, and leaderboard ranges: ${label}`);
+    checks.push(`profile layout, chart keyboard focus, history, keyboard settings and leaderboard ranges: ${label}`);
   }
 
-  await open("/user/profile-owner");
+  await open("/profile");
+  await expect(page).toHaveURL(/\/profile\/profile-owner\?/);
   await page.getByRole("button", { name: /^Best WPM:/ }).click();
   const sampleToggle = page.getByRole("button", { name: "Highest in sample", exact: true });
   await sampleToggle.focus();
@@ -100,35 +114,45 @@ try {
   await expect(dataTable.getByRole("row")).toHaveCount(100);
   await expect(dataTable).toContainText("89 (highest in sample)");
   await page.keyboard.press("Escape");
-  checks.push("lifetime best outside recent sample, sample toggles and keyboard chart-data disclosure");
-  const row = page.getByRole("button", { name: /View details/ }).first();
+  checks.push("/profile opens your shareable link; lifetime best outside recent sample, sample toggles and keyboard chart-data disclosure");
+
+  await open("/profile/history");
+  const row = page.getByRole("button", { name: /Test details$/ }).first();
   await row.focus();
   await page.keyboard.press("Enter");
-  const detail = page.getByRole("dialog", { name: "Test details", exact: true });
-  await expect(detail).toBeVisible();
-  await expect(detail.getByText("Not recorded", { exact: true })).toHaveCount(4);
-  await dialogWithinViewport("test details");
-  const deleteButton = page.getByRole("button", { name: "Delete test", exact: true });
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+  const expanded = row.locator("xpath=..");
+  await expect(expanded.getByText("Not recorded", { exact: true })).toHaveCount(4);
+  const deleteButton = expanded.getByRole("button", { name: "Delete test", exact: true });
   await deleteButton.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("alertdialog", { name: "Delete this test?" })).toBeVisible();
+  await dialogWithinViewport("delete confirmation");
   await page.keyboard.press("Escape");
-  await expect(detail).toBeVisible();
   await expect(deleteButton).toBeFocused();
-  await page.keyboard.press("Escape");
-  await expect(row).toBeFocused();
-  checks.push("legacy values and nested delete dialog keyboard restoration");
+  assert.deepEqual(await page.evaluate(() => window.profileFixtureCalls), []);
+  checks.push("history row opens in place with legacy values; delete confirmation restores keyboard focus");
 
   for (const scenario of ["visitor", "anonymous"]) {
-    await open("/user/profile-owner", { scenario });
+    await open("/profile/profile-owner", { scenario });
+    await expect(page.getByText(/public profile/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Lifetime statistics" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Refresh achievements/i })).toHaveCount(0);
-    await page.getByRole("button", { name: /View details/ }).first().click();
+    await expect(page.getByRole("button", { name: /Test details$/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Delete test", exact: true })).toHaveCount(0);
     assert.deepEqual(await page.evaluate(() => window.profileFixtureCalls), []);
-    checks.push(`${scenario}: public profile is read-only`);
+    checks.push(`${scenario}: public profile shows stats only and is read-only`);
   }
 
-  await open("/user/profile-owner", { width: 320, height: 740, theme: "light" });
+  await open("/profile/history", { scenario: "anonymous" });
+  await expect(page.getByRole("heading", { name: "Sign in to see your history" })).toBeVisible();
+  await open("/profile/keyboard", { scenario: "anonymous" });
+  await page.getByRole("radio", { name: /^Keycaps/ }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("typesetgo_settings") ?? "{}").keyboardStyle)).toBe("keycaps");
+  assert.deepEqual(await page.evaluate(() => window.profileFixtureCalls), []);
+  checks.push("signed out: account tabs ask to sign in; settings still save locally");
+
+  await open("/profile/achievements", { width: 320, height: 740, theme: "light" });
   const refresh = page.getByRole("button", { name: "Refresh achievements", exact: true });
   await refresh.click();
   assert.deepEqual(await page.evaluate(() => window.profileFixtureCalls), [
@@ -137,38 +161,25 @@ try {
   const category = page.getByRole("button", { name: /^Speed Demons:/ });
   await category.focus();
   await page.keyboard.press("Enter");
-  const board = page.getByRole("dialog", { name: "All Achievements", exact: true });
-  await expect(board).toBeVisible();
-  await dialogWithinViewport("achievement board");
+  const journey = page.getByRole("dialog", { name: "Speed Demons", exact: true });
+  await expect(journey).toBeVisible();
+  await expect(journey.getByText(/^You are here/)).toBeVisible();
+  await dialogWithinViewport("achievement journey");
   await page.screenshot({ path: path.join(output, "achievements-320-light.png") });
-  const achievement = board.getByRole("button", { name: /, (?:earned|not yet earned)$/ }).first();
-  await achievement.focus();
-  await page.keyboard.press("Enter");
-  const achievementDetail = page.getByRole("dialog", { name: "Achievement details", exact: true });
-  await expect(achievementDetail).toBeVisible();
-  await dialogWithinViewport("achievement details");
-  await achievementDetail.getByRole("button", { name: "Next achievement", exact: true }).focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(achievementDetail.getByRole("status")).toHaveText(/^2 \//);
-  await achievementDetail.getByRole("combobox", { name: "Choose achievement" }).selectOption("3");
-  await expect(achievementDetail.getByRole("status")).toHaveText(/^4 \//);
-  await page.screenshot({ path: path.join(output, "achievement-detail-320-light.png") });
-  for (let index = 0; index < 8; index += 1) {
+  for (let index = 0; index < 4; index += 1) {
     await page.keyboard.press("Tab");
-    assert.ok(await achievementDetail.evaluate((element) => element.contains(document.activeElement)), "Focus must remain inside nested achievement dialog");
+    assert.ok(await journey.evaluate((element) => element.contains(document.activeElement)), "Focus must remain inside the achievement journey");
   }
   await page.keyboard.press("Escape");
-  await expect(board).toBeVisible();
-  await expect(achievement).toBeFocused();
-  await page.keyboard.press("Escape");
   await expect(category).toBeFocused();
-  checks.push("owner refresh identity and nested achievement keyboard focus at 320px");
+  checks.push("owner refresh identity and achievement journey keyboard focus at 320px");
 
-  await open("/user/profile-owner", { scenario: "error" });
+  await open("/profile/achievements", { scenario: "error" });
   await page.getByRole("button", { name: "Refresh achievements", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Achievements could not be refreshed");
   await expect(page.getByRole("button", { name: "Refresh achievements", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: /View details/ }).first().click();
+  await open("/profile/history", { scenario: "error" });
+  await page.getByRole("button", { name: /Test details$/ }).first().click();
   await page.getByRole("button", { name: "Delete test", exact: true }).click();
   await page.getByRole("button", { name: "Confirm delete", exact: true }).click();
   await expect(page.getByRole("alertdialog", { name: "Delete this test?" }).getByRole("alert")).toBeVisible();
@@ -184,10 +195,14 @@ try {
     await noOverflow(`leaderboard ${scenario}`);
   }
   for (const scenario of ["empty", "loading", "achievements-loading", "missing"]) {
-    await open("/user/profile-owner", { scenario, width: 320 });
-    await noOverflow(`profile ${scenario}`);
-    await page.screenshot({ path: path.join(output, `profile-${scenario}.png`) });
+    for (const tab of ["", "/history", "/achievements"]) {
+      await open(`/profile${tab}`, { scenario, width: 320 });
+      await noOverflow(`profile${tab} ${scenario}`);
+      await page.screenshot({ path: path.join(output, `profile${tab.replace("/", "-")}-${scenario}.png`) });
+    }
   }
+  await open("/profile/profile-owner", { scenario: "missing", width: 320 });
+  await expect(page.getByRole("heading", { name: "We couldn’t find that player" })).toBeVisible();
   checks.push("empty, loading, missing, and independent achievement loading states");
 
   await open("/notifications", { width: 320, theme: "light" });

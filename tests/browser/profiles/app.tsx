@@ -1,10 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { createBrowserRouter, Outlet, RouterProvider, type RouteObject } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { IconProvider } from "@/components/ui/icon-provider";
-import UserStats from "@/pages/UserStats";
+import Profile from "@/pages/Profile";
+import { appRoutes } from "@/components/layout/app-routes";
 import Leaderboard from "@/pages/Leaderboard";
 import NotificationCenter from "@/components/layout/NotificationCenter";
 import { NotificationProvider } from "@/lib/notification-store";
@@ -24,20 +25,25 @@ localStorage.setItem("typesetgo_notifications:" + (query.get("scenario") === "an
   metadata: { achievementId: getAchievementsByCategory("speed")[0].id, achievementTier: "copper" },
 }]));
 
+// The app's own redirect: old /user/:userId links open the same player on the Profile page.
+const userRedirect = (appRoutes[0].children as RouteObject[]).find((route) => route.path === "/user/:userId")!;
+
+const router = createBrowserRouter([{
+  element: <NotificationProvider><Outlet /></NotificationProvider>,
+  children: [
+    userRedirect,
+    { path: "/profile/*", element: <Profile /> },
+    { path: "/leaderboard", element: <Leaderboard /> },
+    { path: "/notifications", element: <main className="min-h-dvh bg-background p-4 text-foreground"><h1>Notification fixture</h1><NotificationCenter /></main> },
+  ],
+}]);
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
       <IconProvider>
         <MotionConfig reducedMotion="user">
-          <BrowserRouter>
-            <NotificationProvider>
-            <Routes>
-              <Route path="/user/:userId" element={<UserStats />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/notifications" element={<main className="min-h-dvh bg-background p-4 text-foreground"><h1>Notification fixture</h1><NotificationCenter /></main>} />
-            </Routes>
-            </NotificationProvider>
-          </BrowserRouter>
+          <RouterProvider router={router} />
         </MotionConfig>
       </IconProvider>
     </ThemeProvider>

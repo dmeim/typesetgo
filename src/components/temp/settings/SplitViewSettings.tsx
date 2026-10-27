@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeftIcon, CaretLeftIcon, CaretRightIcon, EyeIcon, MagnifyingGlassIcon, SidebarSimpleIcon, UserCircleDashedIcon, XIcon } from "@phosphor-icons/react";
@@ -8,7 +8,8 @@ import { AccountCard, SignInButton, SignInPrompt, StatsPanel } from "./AccountPa
 import { AchievementsPanel } from "./AchievementsPanel";
 import { FontGallery } from "./FontGallery";
 import { HistoryPanel } from "./HistoryPanel";
-import { KEYBOARD_STYLES } from "@/components/temp/keyboard/keyboard-mock";
+import { KEYBOARD_STYLES } from "@/lib/keyboard-model";
+import { IconTile, SectionHero as Hero } from "@/components/profile/SectionTiles";
 import { KeyboardPanel, LabSwitch, SoundPanel, TypingPanel } from "./LabControls";
 import { RealTextPreview } from "./RealTextPreview";
 import { ThemeGallery } from "./ThemeGallery";
@@ -239,27 +240,6 @@ function MissingPlayer() {
         <ArrowLeftIcon className="size-4" aria-hidden="true" />Back to the leaderboard
       </Link>
     </section>
-  );
-}
-
-function IconTile({ section, small = false }: { section: SectionMeta; small?: boolean }) {
-  const { Icon } = section;
-  return (
-    <span className={`relative flex shrink-0 items-center justify-center rounded-lg ${section.tile} ${small ? "size-6" : "size-8"}`}>
-      <Icon weight="fill" className={small ? "size-3.5" : "size-[18px]"} aria-hidden="true" />
-    </span>
-  );
-}
-
-function Hero({ section, children }: { section: SectionMeta; children?: ReactNode }) {
-  const { Icon } = section;
-  return (
-    <div className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-6">
-      <span className={`flex size-14 items-center justify-center rounded-2xl ${section.tile}`}><Icon weight="fill" className="size-8" aria-hidden="true" /></span>
-      <h2 className="text-2xl font-bold">{section.title}</h2>
-      <p className="text-sm text-muted-foreground">{section.description}</p>
-      {children}
-    </div>
   );
 }
 

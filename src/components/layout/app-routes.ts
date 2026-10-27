@@ -1,5 +1,10 @@
-import type { RouteObject } from "react-router-dom";
+import { redirect, type RouteObject } from "react-router-dom";
+import { publicProfilePath } from "@/components/profile/profile-routes";
 import { NotFound, RouteError, RouteFrame, RouteLoading } from "./RouteRecovery";
+
+// Old public profile links (/user/:userId) open the same player on the Profile page.
+const redirectToProfile: RouteObject["loader"] = ({ params, request }) =>
+  redirect(`${publicProfilePath(params.userId ?? "")}${new URL(request.url).search}`);
 
 export const appRoutes: RouteObject[] = [{
   Component: RouteFrame,
@@ -8,7 +13,8 @@ export const appRoutes: RouteObject[] = [{
   children: [
     { path: "/", lazy: async () => ({ Component: (await import("@/pages/Home")).default }) },
     { path: "/leaderboard", lazy: async () => ({ Component: (await import("@/pages/Leaderboard")).default }) },
-    { path: "/user/:userId", lazy: async () => ({ Component: (await import("@/pages/UserStats")).default }) },
+    { path: "/user/:userId", loader: redirectToProfile },
+    { path: "/profile/*", lazy: async () => ({ Component: (await import("@/pages/Profile")).default }) },
     { path: "/connect", lazy: async () => ({ Component: (await import("@/pages/Connect")).default }) },
     { path: "/connect/join", lazy: async () => ({ Component: (await import("@/pages/Connect")).default }) },
     { path: "/connect/host/:roomId", lazy: async () => ({ Component: (await import("@/pages/ConnectHost")).default }) },

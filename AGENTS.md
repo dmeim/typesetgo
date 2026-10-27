@@ -54,6 +54,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `src/pages/` | Route-level pages (`Home`, `Connect`, `Race`, `Leaderboard`, `Lessons`, legal/info pages) |
 | `src/components/` | Feature components organized by domain (`typing/`, `race/`, `connect/`, `auth/`, `settings/`, `stats/`, `layout/`) |
 | `src/components/ui/` | Shadcn/Radix-style UI primitives |
+| `src/components/profile/` | Profile page (`/profile`): split view, stats/history/achievements panels, settings panels, theme/font galleries, previews and `useProfileSettings` (local + account sync). The `/temp-settings*` and `/temp-profile` mockups import these pieces |
 | `src/hooks/` | Custom hooks (`useTheme`, `useSoundPreview`, `useAnimatedCounter`, `useSessionId`) |
 | `src/lib/` | Utilities, adapters, constants, stores, content loaders |
 | `src/context/` | React context providers |
@@ -79,7 +80,10 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 |-------|------|
 | `/` | Home/main typing practice |
 | `/leaderboard` | Arena leaderboard: Today / 7 days / All time tabs over one podium, ranks 4–50 and your standing (`src/components/leaderboard/`) |
-| `/user/:userId` | User stats profile |
+| `/profile` | Profile page: signed in it redirects to `/profile/:yourId`; signed out it asks you to sign in. Sidebar of account tabs and every practice setting (`src/components/profile/`) |
+| `/profile/:tab` | `history`, `achievements` (your own; sign-in prompt when signed out) and `theme`, `text`, `typing`, `sound`, `keyboard` settings, which work signed out too and save to the same localStorage keys and account preferences Home uses (`src/components/profile/profile-routes.ts`) |
+| `/profile/:userId` | Anyone's public stats (the only public view) |
+| `/user/:userId` | Old public profile links; redirects to `/profile/:userId` |
 | `/connect`, `/connect/join` | Connect landing: host a room (plus recent rooms) or join with a code |
 | `/connect/host/:roomId` | Host panel for an owned room |
 | `/connect/host/:roomId/board` | Card-only participant board (pop-out window or second tab) |
@@ -93,7 +97,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 | `/admin` | Review route; requires Clerk sign-in and the server-side admin password |
 | `/temp` | UI Lab: interactive mockups for upcoming UI changes, including the header/navigation mockups (the locked-in one-pill Dock plus split and three-pill concepts) five one-screen results layouts in a page-sized frame that reports whether they fit, and five on-screen keyboard designs driven by a scripted student or your own typing (`src/components/temp/`, `src/components/temp/header/`, `src/components/temp/results/`, `src/components/temp/keyboard/`); local state only |
 | `/temp-settings1`, `/temp-settings3` | Full-page settings and themes mockups (split view with account stats/history/achievements tabs, studio) (`src/components/temp/settings/`); local state and mock profile data only |
-| `/temp-profile`, `/temp-profile/:userId`, `/temp-profile/:tab` | Profile page mockup driven by the URL: `:userId` is the public stats view; `history`, `achievements` and settings tabs always show your own (`src/components/temp/settings/profile-routes.ts`); the Keyboard tab picks a keyboard style (Spotlight by default, Finger guide in Kids mode, Keycaps, Legacy) drawn by the real keyboards in `src/components/typing/keyboard/`; mock players only |
+| `/temp-profile`, `/temp-profile/:userId`, `/temp-profile/:tab` | Profile page mockup driven by the URL: `:userId` is the public stats view; `history`, `achievements` and settings tabs always show your own (same URL scheme as the real page, `src/components/profile/profile-routes.ts`); the Keyboard tab picks a keyboard style (Spotlight by default, Finger guide in Kids mode, Keycaps, Legacy) drawn by the real keyboards in `src/components/typing/keyboard/`; mock players only |
 | `/temp-connect` | Connect refresh mockup (landing, host panel, live board and student view; `?screen=`) (`src/components/temp/connect/`): one landing card with a sliding Join (left, default) / Host (right) switch, host side holding create and recent rooms; full test editor, drag/keyboard test reordering, "Everyone gets" groups with their real settings, rename/end/reopen, late arrivals, board sort direction/card size/your-order drag, and signed-in joins (code only, account name and picture) vs guests (name and code, letter avatar). `?popout=board` is the pop-out board; it mirrors the host tab over a BroadcastChannel and follows its board settings through localStorage. One pretend room, mock data only |
 | `/temp-leaderboard1`–`/temp-leaderboard5` | Leaderboard page mockups (arena, three boards, spotlight, race track, standings) (`src/components/temp/leaderboard/`); mock players only |
 | Other paths | Themed not-found recovery |
