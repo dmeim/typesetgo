@@ -15,6 +15,7 @@ import {
   stepAfterResults,
   validateConnectOverrides,
 } from "../src/lib/connect-types";
+import { getAuthedUser } from "./lib/identity";
 import { credentialHash } from "./lib/multiplayer";
 import {
   endRoomStep,
@@ -25,6 +26,7 @@ import {
   scheduleRoomTick,
 } from "./lib/connectFlow";
 import {
+  accountIdentity,
   allocateCode,
   assertLockedPrefix,
   cleanName,
@@ -38,6 +40,7 @@ import {
   connectTestValidator,
   effectiveStep,
   endRoomData,
+  holdsAccountSeat,
   isConnectCode,
   isLiveRoom,
   listParticipants,
@@ -101,6 +104,8 @@ export const participantView = query({
     const participant = participantId ? await ctx.db.get(participantId) : null;
     if (!participant || participant.roomId !== room._id) return { state: "missing" as const };
     if (participant.credentialHash !== await tryCredentialHash(args.credential)) return { state: "forbidden" as const };
+    // A signed-in seat stays with its account, e.g. after that player signs out of a shared computer.
+    if (!await holdsAccountSeat(ctx, participant)) return { state: "account" as const };
     if (participant.removedAt !== undefined) return { state: "removed" as const };
     return { state: "ok" as const, room: participantRoom(room), participant: participantSelf(participant) };
   },
@@ -133,6 +138,17 @@ export const recentRooms = query({
           testCount: room.tests.length,
         };
       });
+  },
+});
+
+/** The name and picture a signed-in join would use, or null without a synced account. */
+export const joinAccount = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthedUser(ctx);
+    if (!user) return null;
+    const { name, avatarUrl } = accountIdentity(user);
+    return { name, avatarUrl };
   },
 });
 
@@ -380,10 +396,23 @@ async function countActive(ctx: MutationCtx, roomId: Id<"connectRooms">) {
   return (await listParticipants(ctx, roomId)).filter((p) => p.removedAt === undefined).length;
 }
 
+// A seat this browser gives up stays on the board as an offline card, under a session id nothing will match.
+// A guest seat without results has nothing worth keeping, so it goes instead of leaving an orphan card.
+async function detachSeat(ctx: MutationCtx, seat: Participant, now: number) {
+  if (seat.userId === undefined && seat.results.length === 0) await ctx.db.delete(seat._id);
+  else await ctx.db.patch(seat._id, { sessionId: `detached:${seat._id}`, isConnected: false, leftAt: seat.leftAt ?? now });
+}
+
 export const join = mutation({
-  args: { code: v.string(), name: v.string(), sessionId: v.string(), credential: v.string() },
+  args: {
+    code: v.string(), name: v.optional(v.string()), sessionId: v.string(), credential: v.string(),
+    // Joins under the signed-in account's name and picture; the typed name is ignored.
+    asAccount: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
-    const name = cleanName(args.name);
+    const account = args.asAccount ? await getAuthedUser(ctx) : null;
+    if (args.asAccount && !account) throw connectError("signed_out", "Sign in again to join with your account");
+    const player = account ? accountIdentity(account) : { userId: undefined, name: cleanName(args.name ?? ""), avatarUrl: undefined };
     const hash = await credentialHash(args.credential);
     if (!args.sessionId || args.sessionId.length > 128) throw new Error("A session id is required");
     const code = normalizeCode(args.code);
@@ -396,28 +425,48 @@ export const join = mutation({
     const midTest = room.pacing === "host" && (room.status === "running" || room.status === "paused") &&
       !isBreakTest(room.tests[room.currentIndex]);
     const lateForRun = midTest ? room.runVersion : undefined;
-    const existing = await ctx.db.query("connectParticipants")
+    const bySession = await ctx.db.query("connectParticipants")
       .withIndex("by_room_session", (q) => q.eq("roomId", room._id).eq("sessionId", args.sessionId)).first();
+    const byAccount = player.userId
+      ? await ctx.db.query("connectParticipants")
+        .withIndex("by_room_user", (q) => q.eq("roomId", room._id).eq("userId", player.userId)).first()
+      : null;
+    // An account's seat follows it to any device. This browser's own seat is reused for the same player,
+    // or upgraded from a guest seat; a seat held by someone else here is set aside.
+    let existing = byAccount;
+    let detached = false;
+    if (bySession && bySession._id !== byAccount?._id) {
+      if (bySession.credentialHash !== hash) throw connectError("forbidden", "This seat belongs to another player");
+      if (!byAccount && (bySession.userId === player.userId || bySession.userId === undefined)) existing = bySession;
+      else {
+        await detachSeat(ctx, bySession, now);
+        detached = true;
+      }
+    }
     if (existing) {
-      if (existing.credentialHash !== hash) throw connectError("forbidden", "This seat belongs to another player");
       if (existing.removedAt !== undefined && await countActive(ctx, room._id) >= CONNECT_MAX_PARTICIPANTS) {
         throw connectError("full", "This room is full");
       }
       await ctx.db.patch(existing._id, {
-        name, isConnected: true, lastSeen: now, removedAt: undefined, leftAt: undefined,
+        sessionId: args.sessionId, credentialHash: hash, name: player.name, userId: player.userId, avatarUrl: player.avatarUrl,
+        isConnected: true, lastSeen: now, removedAt: undefined, leftAt: undefined,
         // Coming back mid-test after removal is a late arrival; reconnecting an existing seat keeps its place.
         ...(existing.removedAt !== undefined && midTest && { lateForRun, ...clearedAttempt(), attempt: existing.attempt + 1 }),
       });
-      return { roomId: room._id, participantId: existing._id };
+      // The seat set aside may have been the last one still typing.
+      if (detached) await endRoomStepIfAllFinished(ctx, room);
+      return { roomId: room._id, participantId: existing._id, name: player.name };
     }
     if (await countActive(ctx, room._id) >= CONNECT_MAX_PARTICIPANTS) throw connectError("full", "This room is full");
     const participantId = await ctx.db.insert("connectParticipants", {
-      roomId: room._id, sessionId: args.sessionId, credentialHash: hash, name,
+      roomId: room._id, sessionId: args.sessionId, credentialHash: hash, name: player.name,
+      userId: player.userId, avatarUrl: player.avatarUrl,
       isConnected: true, lastSeen: now, joinedAt: now,
       stepIndex: room.pacing === "host" ? room.currentIndex : 0,
       attempt: 0, stats: emptyConnectStats(), results: [], stepStartedAt: now, lateForRun,
     });
-    return { roomId: room._id, participantId };
+    if (detached) await endRoomStepIfAllFinished(ctx, room);
+    return { roomId: room._id, participantId, name: player.name };
   },
 });
 
@@ -432,10 +481,12 @@ export const rejoin = mutation({
     if (!isLiveRoom(room, now)) throw connectError("ended", "This room has ended");
     const participant = await ctx.db.query("connectParticipants")
       .withIndex("by_room_session", (q) => q.eq("roomId", room._id).eq("sessionId", args.sessionId)).first();
-    if (!participant || participant.credentialHash !== hash) throw connectError("not_member", "Join this room first");
+    if (!participant || participant.credentialHash !== hash || !await holdsAccountSeat(ctx, participant)) {
+      throw connectError("not_member", "Join this room first");
+    }
     if (participant.removedAt !== undefined) throw connectError("removed", "The host removed you from this room");
     await ctx.db.patch(participant._id, { isConnected: true, lastSeen: now, leftAt: undefined });
-    return { participantId: participant._id };
+    return { participantId: participant._id, signedIn: participant.userId !== undefined };
   },
 });
 
@@ -444,7 +495,9 @@ export const participantHeartbeat = mutation({
   handler: async (ctx, args) => {
     const id = ctx.db.normalizeId("connectParticipants", args.participantId);
     const participant = id ? await ctx.db.get(id) : null;
-    if (!participant || participant.credentialHash !== await tryCredentialHash(args.credential)) return { state: "missing" as const };
+    if (!participant || participant.credentialHash !== await tryCredentialHash(args.credential) || !await holdsAccountSeat(ctx, participant)) {
+      return { state: "missing" as const };
+    }
     const room = await ctx.db.get(participant.roomId);
     const now = Date.now();
     if (!room || !isLiveRoom(room, now)) return { state: "ended" as const };

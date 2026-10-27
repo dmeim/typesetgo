@@ -21,7 +21,8 @@ const RETRY_DELAYS_MS = [1000, 3000, 6000];
  * server rejoin by session id. Transient failures retry quietly; only
  * definitive answers (not a member, removed, ended) leave the member state.
  */
-export function useRoomMembership(roomId: string) {
+/** `ready` holds the first server rejoin until sign-in has settled, so a signed-in seat is not refused while auth loads. */
+export function useRoomMembership(roomId: string, ready = true) {
   const sessionId = useSessionId();
   const credential = useMultiplayerCredential();
   const rejoinMutation = useMutation(api.connect.rejoin);
@@ -74,15 +75,20 @@ export function useRoomMembership(roomId: string) {
     void rejoin();
   }, [rejoin]);
 
-  const initialStatus = useRef(membership.status);
   useEffect(() => {
     mountedRef.current = true;
-    if (initialStatus.current === "resolving") void rejoin();
     return () => {
       mountedRef.current = false;
       clearTimeout(retryTimerRef.current);
     };
-  }, [rejoin]);
+  }, []);
+
+  const needsRejoin = useRef(membership.status === "resolving");
+  useEffect(() => {
+    if (!ready || !needsRejoin.current) return;
+    needsRejoin.current = false;
+    void rejoin();
+  }, [ready, rejoin]);
 
   return { membership, rejoin, recoverStaleSeat, retry };
 }

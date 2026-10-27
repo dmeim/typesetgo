@@ -160,6 +160,8 @@ test.describe("host panel", () => {
     for (const name of ["Bea", "Cam", "Dev"]) await expect(section.getByRole("article", { name })).toBeVisible();
     await expect(section.getByRole("article", { name: "Bea" })).toContainText("52");
     await expect(section.getByRole("button", { name: "Remove Bea" })).toBeVisible();
+    await expect(section.getByRole("article", { name: "Bea" }).locator("[data-avatar=picture] img")).toBeVisible();
+    await expect(section.getByRole("article", { name: "Cam" }).locator("[data-avatar=letter]")).toHaveText("C");
 
     const newTab = section.getByRole("link", { name: "Open in new tab" });
     await expect(newTab).toHaveAttribute("href", "/connect/host/room-live/board");

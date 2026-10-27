@@ -8,10 +8,12 @@ export type BoardPrefs = {
   cardSize: number;
   customOrder: string[];
   showOffline: boolean;
+  /** Account pictures on cards; off shows every player as a letter, e.g. on a projector. */
+  showPictures: boolean;
 };
 
 export const DEFAULT_BOARD_PREFS: BoardPrefs = {
-  layout: "grid", sort: "join", descending: false, cardSize: 1, customOrder: [], showOffline: true,
+  layout: "grid", sort: "join", descending: false, cardSize: 1, customOrder: [], showOffline: true, showPictures: true,
 };
 
 const storageKey = (roomId: string) => `typesetgo_connect_board:${roomId}`;

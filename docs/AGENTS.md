@@ -189,7 +189,7 @@ Primary schema tables in `convex/schema.ts` include:
 - `rooms` (Race and legacy practice rooms)
 - `participants` (Race and legacy practice rooms)
 - `connectRooms` (Connect rooms: code, test list, pacing, overrides, live/archive lifecycle)
-- `connectParticipants` (Connect members: presence, current test, stats, results)
+- `connectParticipants` (Connect members: presence, current test, stats, results; optional account `userId` and picture for signed-in joins)
 - `userPreferences`
 - `userAchievements`
 - `userStreaks`

@@ -16,6 +16,7 @@ import {
   testSegments,
 } from "@/components/connect/board/board-model";
 import { TestStrip } from "@/components/connect/board/TestStrip";
+import { ConnectAvatar } from "@/components/connect/ConnectAvatar";
 
 export type TestLabel = { title: string; detail: string };
 
@@ -28,6 +29,8 @@ export interface ParticipantCardProps {
   now?: number;
   /** Renders a drag handle and joins the surrounding sortable context. */
   sortable?: boolean;
+  /** Shows the account picture; off keeps the letter avatar. */
+  showPicture?: boolean;
   onReset?: (participant: HostParticipant) => void;
   onRemove?: (participant: HostParticipant) => void;
 }
@@ -35,7 +38,7 @@ export interface ParticipantCardProps {
 function PresenceDot({ online }: { online: boolean }) {
   return (
     <span
-      className={cn("size-[0.55em] shrink-0 rounded-full", online ? "bg-success" : "border border-muted-foreground")}
+      className={cn("absolute -right-[0.1em] -bottom-[0.1em] size-[0.6em] rounded-full ring-[0.15em]", online ? "bg-success ring-card" : "border border-muted-foreground bg-muted ring-muted")}
       role="img"
       aria-label={online ? "Online" : "Offline"}
     />
@@ -83,7 +86,7 @@ function useCardSortable(id: string, enabled: boolean) {
   return { ...sortable, style };
 }
 
-export function ParticipantCard({ room, participant, labels, layout, now, sortable = false, onReset, onRemove }: ParticipantCardProps) {
+export function ParticipantCard({ room, participant, labels, layout, now, sortable = false, showPicture = true, onReset, onRemove }: ParticipantCardProps) {
   const { setNodeRef, attributes, listeners, isDragging, style, setActivatorNodeRef } = useCardSortable(participant._id, sortable);
   const status = participantStatus(room, participant);
   const progress = progressDetail(room, participant, now);
@@ -110,7 +113,10 @@ export function ParticipantCard({ room, participant, labels, layout, now, sortab
   const identity = (
     <div className="flex min-w-0 items-center gap-[0.5em]">
       {handle}
-      <PresenceDot online={!away} />
+      <span className="relative shrink-0">
+        <ConnectAvatar name={participant.name} avatarUrl={showPicture ? participant.avatarUrl : undefined} className={cn(away && "opacity-60")} />
+        <PresenceDot online={!away} />
+      </span>
       <h3 className="min-w-0 truncate text-[1.05em] font-semibold" title={participant.name}>{participant.name}</h3>
       {/* Status shows through the presence dot, dimming, and progress colour; keep it for screen readers. */}
       <span className="sr-only">{BOARD_STATUS_LABELS[status]}</span>

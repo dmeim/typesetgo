@@ -15,6 +15,7 @@ import {
   type ConnectStats,
   type ConnectTest,
 } from "../../src/lib/connect-types";
+import { getAuthedUser } from "./identity";
 import { credentialHash } from "./multiplayer";
 
 export const MAX_CONNECT_TEXT_LENGTH = 20_000;
@@ -69,7 +70,7 @@ export const connectResultValidator = v.object({
 type Ctx = QueryCtx | MutationCtx;
 type Room = Doc<"connectRooms">;
 type Participant = Doc<"connectParticipants">;
-export type ConnectErrorCode = "missing" | "forbidden" | "ended" | "not_found" | "full" | "not_member" | "removed";
+export type ConnectErrorCode = "missing" | "forbidden" | "ended" | "not_found" | "full" | "not_member" | "removed" | "signed_out";
 
 export function connectError(code: ConnectErrorCode, message: string) {
   return new ConvexError({ code, message });
@@ -118,6 +119,28 @@ export function cleanName(name: string, max = CONNECT_NAME_MAX, label = "name") 
 
 export const cleanRoomName = (name: string) => cleanName(name, CONNECT_ROOM_NAME_MAX, "room name");
 
+// Avatar URLs are synced from the browser, so only Clerk-hosted pictures reach a host's board.
+const ACCOUNT_AVATAR_HOSTS = new Set(["img.clerk.com", "images.clerk.dev"]);
+
+export function accountAvatar(url: string | undefined) {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && ACCOUNT_AVATAR_HOSTS.has(parsed.hostname) ? parsed.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The name and picture a signed-in player joins with; long usernames are shortened rather than refused. */
+export function accountIdentity(user: Doc<"users">) {
+  return {
+    userId: user._id,
+    name: user.username.trim().slice(0, CONNECT_NAME_MAX).trim() || "Player",
+    avatarUrl: accountAvatar(user.avatarUrl),
+  };
+}
+
 /** Host mutations: verifies the credential, requires a live room, and records host activity. */
 export async function requireHost(ctx: MutationCtx, roomId: Id<"connectRooms">, credential: string) {
   const room = await ctx.db.get(roomId);
@@ -137,11 +160,17 @@ export async function requireRoomParticipant(ctx: MutationCtx, room: Room, parti
   return participant;
 }
 
+/** A seat joined with an account answers only to that account; guest seats answer to the browser credential alone. */
+export async function holdsAccountSeat(ctx: Ctx, participant: Participant) {
+  if (participant.userId === undefined) return true;
+  return (await getAuthedUser(ctx))?._id === participant.userId;
+}
+
 /** Participant mutations: the caller must own the membership. */
 export async function requireParticipant(ctx: MutationCtx, participantId: Id<"connectParticipants">, credential: string) {
   const participant = await ctx.db.get(participantId);
   if (!participant) throw connectError("missing", "Participant not found");
-  if (participant.credentialHash !== await credentialHash(credential)) {
+  if (participant.credentialHash !== await credentialHash(credential) || !await holdsAccountSeat(ctx, participant)) {
     throw connectError("forbidden", "This participant belongs to another player");
   }
   const room = await ctx.db.get(participant.roomId);
@@ -160,9 +189,9 @@ export function publicRoom(room: Room) {
 }
 
 export function publicParticipant(participant: Participant) {
-  const { credentialHash: secret, sessionId, typedText, targetText, ...rest } = participant;
+  const { credentialHash: secret, sessionId, typedText, targetText, userId, ...rest } = participant;
   void secret; void sessionId; void typedText; void targetText;
-  return rest;
+  return { ...rest, signedIn: userId !== undefined };
 }
 
 export function participantRoom(room: Room) {
@@ -176,8 +205,8 @@ export function participantRoom(room: Room) {
 
 export function participantSelf(participant: Participant) {
   return {
-    _id: participant._id, name: participant.name, isConnected: participant.isConnected,
-    stepIndex: participant.stepIndex, attempt: participant.attempt, stats: participant.stats,
+    _id: participant._id, name: participant.name, avatarUrl: participant.avatarUrl, signedIn: participant.userId !== undefined,
+    isConnected: participant.isConnected, stepIndex: participant.stepIndex, attempt: participant.attempt, stats: participant.stats,
     typedText: participant.typedText, targetText: participant.targetText,
     results: participant.results, completedAt: participant.completedAt, stepStartedAt: participant.stepStartedAt,
     lateForRun: participant.lateForRun, finishedAt: participant.finishedAt,

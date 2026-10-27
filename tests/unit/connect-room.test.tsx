@@ -26,6 +26,7 @@ const state = vi.hoisted(() => ({
   mounts: 0,
   props: {} as FixtureProps,
   mutations: {} as Record<string, ReturnType<typeof vi.fn>>,
+  auth: { isLoading: false, isAuthenticated: false },
 }));
 
 vi.mock("@/hooks/useSessionId", () => ({ useSessionId: () => "session-1" }));
@@ -36,6 +37,7 @@ vi.mock("convex/react", () => ({
     return args === "skip" ? undefined : state.view;
   },
   useMutation: (reference: Parameters<typeof getFunctionName>[0]) => state.mutations[getFunctionName(reference)],
+  useConvexAuth: () => state.auth,
 }));
 vi.mock("@/components/typing/TypingPractice", async () => {
   const React = await import("react");
@@ -85,6 +87,7 @@ beforeEach(() => {
   localStorage.clear();
   state.view = okView();
   state.viewArgs = undefined;
+  state.auth = { isLoading: false, isAuthenticated: false };
   state.showResults = false;
   state.mounts = 0;
   state.props = {} as FixtureProps;
@@ -153,6 +156,31 @@ describe("membership and presence", () => {
     expect(await screen.findByLabelText("Practice input")).toBeInTheDocument();
     expect(loadMembership("room-1")?.participantId).toBe("p1");
     expect(state.mutations["connect:rejoin"]).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for sign-in to settle before resuming a seat", async () => {
+    state.auth = { isLoading: true, isAuthenticated: false };
+    const { rerender } = renderRoom();
+    expect(await screen.findByRole("heading", { name: "Joining the room…" })).toBeInTheDocument();
+    expect(state.mutations["connect:rejoin"]).not.toHaveBeenCalled();
+    state.auth = { isLoading: false, isAuthenticated: true };
+    rerender(
+      <MemoryRouter initialEntries={["/connect/room/room-1"]}>
+        <Routes><Route path="/connect/room/:roomId" element={<ConnectRoom />} /></Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(state.mutations["connect:rejoin"]).toHaveBeenCalledTimes(1));
+    expect(await screen.findByLabelText("Practice input")).toBeInTheDocument();
+  });
+
+  it("hands a seat held by another account back to the join form", async () => {
+    saveMembership("room-1", { participantId: "p1", name: "pixelpenguin" });
+    state.view = { state: "account" };
+    state.mutations["connect:rejoin"].mockRejectedValue(failure("not_member"));
+    renderRoom();
+    expect(await screen.findByRole("heading", { name: "You're not in this room yet" })).toBeInTheDocument();
+    expect(loadMembership("room-1")).toBeNull();
+    expect(localStorage.getItem("typesetgo_connect_name")).toBeNull();
   });
 
   it("rejoins automatically when the heartbeat reports the seat offline", async () => {

@@ -5,7 +5,9 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import Connect from "@/pages/Connect";
-import { AppAuthContext, unavailableAuth, type AppAuth } from "@/components/layout/useAppAuth";
+import { AppAuthContext, unavailableAuth, type AppAuth, type AppAuthUser } from "@/components/layout/useAppAuth";
+import { AccountContext, unavailableAccount } from "@/components/layout/useAccount";
+import type { Id } from "../../convex/_generated/dataModel";
 import { readableError } from "@/components/connect/connect-errors";
 import { joinErrorMessage, sanitizeCode } from "@/components/connect/landing/landing-helpers";
 
@@ -34,16 +36,21 @@ function Where() {
   return <p data-testid="location">{location.pathname}</p>;
 }
 
+const signedIn: AppAuth = { ...unavailableAuth, available: true, status: "signed-in", isSignedIn: true, user: { id: "user_1" } as AppAuthUser };
+const readyAccount = { ...unavailableAccount, status: "ready" as const, userId: "user-row" as Id<"users"> };
+
 function view(path = "/connect", auth: AppAuth = unavailableAuth) {
   return render(
     <AppAuthContext.Provider value={auth}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/connect" element={<Connect />} />
-          <Route path="/connect/join" element={<Connect />} />
-          <Route path="*" element={<Where />} />
-        </Routes>
-      </MemoryRouter>
+      <AccountContext.Provider value={auth.isSignedIn ? readyAccount : unavailableAccount}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/connect" element={<Connect />} />
+            <Route path="/connect/join" element={<Connect />} />
+            <Route path="*" element={<Where />} />
+          </Routes>
+        </MemoryRouter>
+      </AccountContext.Provider>
     </AppAuthContext.Provider>,
   );
 }
@@ -108,6 +115,35 @@ it("joins with a sanitized code, saves membership, and opens the room", async ()
   expect(JSON.parse(localStorage.getItem("typesetgo_connect_membership:room-9") ?? "null")).toEqual({ participantId: "p-1", name: "Alex" });
 });
 
+it("joins a signed-in player with their account, or with a typed name on request", async () => {
+  localStorage.setItem("typesetgo_connect_name", "Alex");
+  mocks.queries["connect:joinAccount"] = { name: "pixelpenguin", avatarUrl: "https://img.clerk.com/abc" };
+  mocks.mutations["connect:join"] = vi.fn().mockResolvedValue({ roomId: "room-9", participantId: "p-1", name: "pixelpenguin" });
+  view("/connect/join?code=ABCD", signedIn);
+  const card = joinCard();
+  expect(within(card).queryByLabelText("Your name")).not.toBeInTheDocument();
+  expect(within(card).getByText(/Joining as/)).toHaveTextContent("Joining as pixelpenguin");
+  expect(card.querySelector("[data-avatar=picture] img")).toHaveAttribute("src", "https://img.clerk.com/abc");
+
+  fireEvent.click(within(card).getByRole("button", { name: "Use a name" }));
+  expect(within(card).getByLabelText("Your name")).toHaveValue("Alex");
+  fireEvent.click(within(card).getByRole("button", { name: "Use my account" }));
+  expect(within(card).queryByLabelText("Your name")).not.toBeInTheDocument();
+
+  fireEvent.click(within(card).getByRole("button", { name: "Join room" }));
+  await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/connect/room/room-9"));
+  expect(mocks.mutations["connect:join"]).toHaveBeenCalledWith({ code: "ABCD", sessionId: "session-1", credential: "credential-1", asAccount: true });
+  expect(JSON.parse(localStorage.getItem("typesetgo_connect_membership:room-9") ?? "null")).toEqual({ participantId: "p-1", name: "pixelpenguin" });
+  expect(localStorage.getItem("typesetgo_connect_name")).toBe("Alex");
+});
+
+it("asks a signed-in player for a name when their account has not synced", () => {
+  mocks.queries["connect:joinAccount"] = null;
+  view("/connect/join?code=ABCD", signedIn);
+  expect(within(joinCard()).getByLabelText("Your name")).toHaveFocus();
+  expect(within(joinCard()).queryByRole("button", { name: "Use my account" })).not.toBeInTheDocument();
+});
+
 it("prefills the code from /connect/join and focuses the name field", () => {
   mocks.queries["connect:lookupCode"] = null;
   view("/connect/join?code=wxyz");
@@ -128,6 +164,7 @@ it("maps join error codes to friendly messages", async () => {
 
   expect(joinErrorMessage(new ConvexError({ code: "not_found", message: "No open room uses that code" }))).toMatch(/No live room uses that code/);
   expect(joinErrorMessage(new ConvexError({ code: "forbidden", message: "x" }))).toMatch(/different seat/);
+  expect(joinErrorMessage(new ConvexError({ code: "signed_out", message: "x" }))).toMatch(/Sign in again/);
   expect(joinErrorMessage(new Error("[CONVEX M(connect:join)] Server Error"))).toMatch(/Couldn't join the room/);
   expect(readableError(new ConvexError({ code: "ended", message: "This room has ended" }), "fallback")).toBe("This room has ended");
   expect(sanitizeCode(" o0-il1 ab2c9 ")).toBe("AB2C");

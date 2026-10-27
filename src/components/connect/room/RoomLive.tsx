@@ -189,7 +189,7 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
 
   return (
     <RoomPage style={themeStyle} themeMode={connectThemeMode(roomTheme)}>
-      <RoomTopBar roomName={room.name} participantName={participant.name} dimmed={isTyping && !onBreak && !waiting && room.status !== "lobby" && splashStep === null && !allDone}
+      <RoomTopBar roomName={room.name} participantName={participant.name} avatarUrl={participant.avatarUrl} dimmed={isTyping && !onBreak && !waiting && room.status !== "lobby" && splashStep === null && !allDone}
         leaving={leaving} reconnecting={reconnecting} onLeave={onLeave} />
       {leaveError && <p role="alert" className="shrink-0 px-4 py-2 text-center text-sm text-destructive">{leaveError}</p>}
       {body}

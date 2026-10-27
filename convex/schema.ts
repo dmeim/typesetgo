@@ -197,6 +197,8 @@ export default defineSchema({
     sessionId: v.string(),
     credentialHash: v.string(),
     name: v.string(),
+    userId: v.optional(v.id("users")), // joined with their account; one seat per account per room
+    avatarUrl: v.optional(v.string()), // the account picture when they joined
     isConnected: v.boolean(),
     lastSeen: v.number(),
     joinedAt: v.number(),
@@ -215,6 +217,7 @@ export default defineSchema({
   })
     .index("by_room", ["roomId"])
     .index("by_room_session", ["roomId", "sessionId"])
+    .index("by_room_user", ["roomId", "userId"])
     .index("by_presence", ["isConnected", "lastSeen"]),
 
   // User preferences for syncing settings across devices

@@ -209,6 +209,21 @@ describe("participant board", () => {
     expect(screen.getByRole("button", { name: "Reorder Ana" })).toBeInTheDocument();
   });
 
+  it("shows account pictures, letters for guests, and only letters when pictures are off", () => {
+    const room = makeRoom();
+    const participants = [makeParticipant("maya", { signedIn: true, avatarUrl: "https://img.clerk.com/maya" }), makeParticipant("Leo")];
+    const { rerender } = render(<ParticipantBoard room={room} participants={participants} prefs={prefs()} />);
+    const avatar = (name: string) => screen.getByRole("article", { name }).querySelector("[data-avatar]");
+    expect(avatar("maya")).toHaveAttribute("data-avatar", "picture");
+    expect(avatar("maya")?.querySelector("img")).toHaveAttribute("src", "https://img.clerk.com/maya");
+    expect(avatar("Leo")).toHaveAttribute("data-avatar", "letter");
+    expect(avatar("Leo")).toHaveTextContent("L");
+    fireEvent.error(avatar("maya")!.querySelector("img")!);
+    expect(avatar("maya")).toHaveAttribute("data-avatar", "letter");
+    rerender(<ParticipantBoard room={room} participants={[makeParticipant("noah", { avatarUrl: "https://img.clerk.com/noah" })]} prefs={prefs({ showPictures: false })} />);
+    expect(avatar("noah")).toHaveAttribute("data-avatar", "letter");
+  });
+
   it("explains how to join when the room is empty", () => {
     render(<ParticipantBoard room={makeRoom({ status: "lobby" })} participants={[]} prefs={prefs()} emptyHint="Enter code ABCD" />);
     expect(screen.getByText("No one has joined yet")).toBeInTheDocument();
@@ -228,6 +243,8 @@ describe("board controls", () => {
     expect(onChange).toHaveBeenLastCalledWith({ descending: true });
     fireEvent.click(screen.getByRole("switch", { name: "Show offline" }));
     expect(onChange).toHaveBeenLastCalledWith({ showOffline: false });
+    fireEvent.click(screen.getByRole("switch", { name: "Profile pictures" }));
+    expect(onChange).toHaveBeenLastCalledWith({ showPictures: false });
     expect(screen.getByRole("slider", { name: "Card size" })).toHaveAttribute("aria-valuenow", "1");
   });
 });

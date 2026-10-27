@@ -46,6 +46,8 @@ type Participant = {
   roomId: string;
   sessionId: string;
   name: string;
+  avatarUrl?: string;
+  signedIn?: boolean;
   isConnected: boolean;
   lastSeen: number;
   joinedAt: number;
@@ -90,6 +92,9 @@ function makeParticipant(name: string, patch: Partial<Omit<Participant, "stats">
   };
 }
 
+// A local picture, so the board shows an account avatar without any network request.
+const FIXTURE_AVATAR = `data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><rect width='8' height='8' fill='#7c5cff'/></svg>")}`;
+
 const result = (stepIndex: number, testId: string, wpm: number, accuracy: number): ConnectResult => ({
   stepIndex, testId, wpm, accuracy, progress: 100, wordsTyped: 10, timeElapsed: 30_000, finished: true,
 });
@@ -109,7 +114,7 @@ function seed(name: string): { rooms: Room[]; participants: Participant[] } {
       return {
         rooms: [makeRoom({ _id: "room-live", status: "running", currentIndex: 1 })],
         participants: [
-          makeParticipant("Bea", { stepIndex: 1, stats: { wpm: 52, accuracy: 97, progress: 40, timeElapsed: 12_000, wordsTyped: 10 }, results: [result(0, "t1", 48, 96)] }),
+          makeParticipant("Bea", { stepIndex: 1, signedIn: true, avatarUrl: FIXTURE_AVATAR, stats: { wpm: 52, accuracy: 97, progress: 40, timeElapsed: 12_000, wordsTyped: 10 }, results: [result(0, "t1", 48, 96)] }),
           makeParticipant("Cam", { stepIndex: 1, stats: { wpm: 31, accuracy: 90, progress: 20, timeElapsed: 12_000, wordsTyped: 5 } }),
           makeParticipant("Dev", { stepIndex: 1, isConnected: false }),
         ],

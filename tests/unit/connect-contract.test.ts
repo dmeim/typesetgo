@@ -183,6 +183,98 @@ describe("Connect participants", () => {
     expect((await t.query(api.connect.participantView, self)).state).toBe("ok");
   });
 
+  it("joins with an account's name and Clerk picture, one seat per account", async () => {
+    const { t, roomId, code } = await setup();
+    const userId = await t.run(async (ctx) => await ctx.db.insert("users", {
+      clerkId: "kid", email: "kid@example.com", username: "  pixelpenguin  ", avatarUrl: "https://img.clerk.com/abc",
+      createdAt: Date.now(), updatedAt: Date.now(),
+    }));
+    const kid = t.withIdentity({ subject: "kid" });
+    const asAccount = (sessionId: string, credential: string, name?: string) =>
+      kid.mutation(api.connect.join, { code, sessionId, credential, name, asAccount: true });
+
+    expect(await kid.query(api.connect.joinAccount, {})).toEqual({ name: "pixelpenguin", avatarUrl: "https://img.clerk.com/abc" });
+    expect(await t.query(api.connect.joinAccount, {})).toBeNull();
+    await rejectsCode(t.mutation(api.connect.join, { code, sessionId: "anon", credential: second, asAccount: true }), "signed_out");
+
+    const laptop = await asAccount("laptop", guest, "Typed name");
+    expect(laptop.name).toBe("pixelpenguin");
+    const [card] = (await hostView(t, roomId)).participants;
+    expect(card).toMatchObject({ name: "pixelpenguin", avatarUrl: "https://img.clerk.com/abc", signedIn: true });
+    expect(card).not.toHaveProperty("userId");
+    const self = await kid.query(api.connect.participantView, { roomId, participantId: laptop.participantId, credential: guest });
+    expect(self).toMatchObject({ state: "ok", participant: { avatarUrl: "https://img.clerk.com/abc", signedIn: true } });
+
+    // A second device takes the seat over; the first loses it.
+    const tablet = await asAccount("tablet", second);
+    expect(tablet.participantId).toBe(laptop.participantId);
+    expect((await hostView(t, roomId)).participants).toHaveLength(1);
+    expect((await t.query(api.connect.participantView, { roomId, participantId: laptop.participantId, credential: guest })).state).toBe("forbidden");
+
+    // Only Clerk-hosted https pictures are kept.
+    for (const avatarUrl of ["http://img.clerk.com/abc", "https://evil.example/pixel.gif", "javascript:alert(1)"]) {
+      await t.run(async (ctx) => await ctx.db.patch(userId, { avatarUrl }));
+      await asAccount("tablet", second);
+      expect((await participantRow(t, laptop.participantId))?.avatarUrl).toBeUndefined();
+    }
+
+    // Long usernames are shortened rather than refused.
+    await t.run(async (ctx) => await ctx.db.patch(userId, { username: "x".repeat(50) }));
+    expect((await asAccount("tablet", second)).name).toHaveLength(32);
+  });
+
+  it("upgrades this browser's guest seat to an account and sets other players' seats aside", async () => {
+    const { t, roomId, code } = await setup();
+    await t.run(async (ctx) => {
+      for (const clerkId of ["ana", "ben"]) {
+        await ctx.db.insert("users", { clerkId, email: `${clerkId}@example.com`, username: clerkId, createdAt: Date.now(), updatedAt: Date.now() });
+      }
+    });
+    const guestSeat = await join(t, code, "shared", guest, "Ana");
+    const ana = await t.withIdentity({ subject: "ana" }).mutation(api.connect.join, { code, sessionId: "shared", credential: guest, asAccount: true });
+    expect(ana.participantId).toBe(guestSeat.participantId);
+    expect((await hostView(t, roomId)).participants[0]).toMatchObject({ name: "ana", signedIn: true });
+
+    // Ben signs in on the same computer: Ana's seat goes offline but stays on the board.
+    const ben = await t.withIdentity({ subject: "ben" }).mutation(api.connect.join, { code, sessionId: "shared", credential: guest, asAccount: true });
+    expect(ben.participantId).not.toBe(ana.participantId);
+    const cards = (await hostView(t, roomId)).participants;
+    expect(cards.map((card) => [card.name, card.isConnected])).toEqual([["ana", false], ["ben", true]]);
+
+    // A guest join on that computer leaves Ben's account seat alone too.
+    const typed = await join(t, code, "shared", guest, "Visitor");
+    expect(typed.participantId).not.toBe(ben.participantId);
+    expect((await participantRow(t, ben.participantId))?.isConnected).toBe(false);
+    await rejectsCode(join(t, code, "shared", attacker, "Thief"), "forbidden");
+
+    // Ben coming back removes the empty guest seat instead of leaving an orphan card.
+    await t.withIdentity({ subject: "ben" }).mutation(api.connect.join, { code, sessionId: "shared", credential: guest, asAccount: true });
+    expect(await participantRow(t, typed.participantId)).toBeNull();
+    expect((await hostView(t, roomId)).participants.map((card) => card.name)).toEqual(["ana", "ben"]);
+  });
+
+  it("keeps an account seat from whoever uses the browser after its player signs out", async () => {
+    const { t, roomId, code, hostArgs } = await setup();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", { clerkId: "ana", email: "ana@example.com", username: "ana", createdAt: Date.now(), updatedAt: Date.now() });
+    });
+    const ana = t.withIdentity({ subject: "ana" });
+    const { participantId } = await ana.mutation(api.connect.join, { code, sessionId: "shared", credential: guest, asAccount: true });
+    const seat = { roomId, participantId, credential: guest };
+    await t.mutation(api.connect.start, hostArgs);
+    const progress = { participantId, credential: guest, runVersion: 1, stepIndex: 0, attempt: 0, stats: stats({ wpm: 30, progress: 10, timeElapsed: 1000 }) };
+
+    expect((await ana.query(api.connect.participantView, seat)).state).toBe("ok");
+    expect((await ana.mutation(api.connect.rejoin, { roomId, sessionId: "shared", credential: guest })).signedIn).toBe(true);
+
+    // Signed out (or someone else signed in) on the same browser: same credential, no seat.
+    expect(await t.query(api.connect.participantView, seat)).toEqual({ state: "account" });
+    await rejectsCode(t.mutation(api.connect.rejoin, { roomId, sessionId: "shared", credential: guest }), "not_member");
+    expect(await t.mutation(api.connect.participantHeartbeat, { participantId, credential: guest })).toEqual({ state: "missing" });
+    await rejectsCode(t.mutation(api.connect.reportProgress, progress), "forbidden");
+    expect((await ana.mutation(api.connect.reportProgress, progress)).accepted).toBe(true);
+  });
+
   it("handles leave, rejoin, heartbeat, and view states", async () => {
     const { t, roomId, code, hostArgs } = await setup();
     const { participantId } = await join(t, code);
@@ -203,7 +295,7 @@ describe("Connect participants", () => {
     await rejectsCode(t.mutation(api.connect.rejoin, { roomId, sessionId: "nobody", credential: guest }), "not_member");
     await rejectsCode(t.mutation(api.connect.rejoin, { roomId, sessionId: "guest", credential: attacker }), "not_member");
     await rejectsCode(t.mutation(api.connect.rejoin, { roomId: "nonsense", sessionId: "guest", credential: guest }), "missing");
-    expect(await t.mutation(api.connect.rejoin, { roomId, sessionId: "guest", credential: guest })).toEqual({ participantId });
+    expect(await t.mutation(api.connect.rejoin, { roomId, sessionId: "guest", credential: guest })).toEqual({ participantId, signedIn: false });
     expect(await beat()).toEqual({ state: "ok" });
     const rejoined = await participantRow(t, participantId);
     expect(rejoined?.isConnected).toBe(true);

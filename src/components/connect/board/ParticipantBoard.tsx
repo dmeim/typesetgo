@@ -106,6 +106,7 @@ export function ParticipantBoard({
                   layout={prefs.layout}
                   now={now}
                   sortable={sortable}
+                  showPicture={prefs.showPictures}
                   onReset={onReset}
                   onRemove={onRemove}
                 />

@@ -34,6 +34,7 @@ export function BoardControls({ prefs, onChange, className }: BoardControlsProps
   const sortId = `${id}-sort`;
   const sizeId = `${id}-size`;
   const offlineId = `${id}-offline`;
+  const picturesId = `${id}-pictures`;
   const custom = prefs.sort === "custom";
 
   return (
@@ -100,6 +101,11 @@ export function BoardControls({ prefs, onChange, className }: BoardControlsProps
       <div className="flex items-center gap-2">
         <Switch id={offlineId} checked={prefs.showOffline} onCheckedChange={(checked) => onChange({ showOffline: checked })} />
         <Label htmlFor={offlineId}>Show offline</Label>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Switch id={picturesId} checked={prefs.showPictures} onCheckedChange={(checked) => onChange({ showPictures: checked })} />
+        <Label htmlFor={picturesId}>Profile pictures</Label>
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ const JOIN_ERRORS: Record<string, string> = {
   not_found: "No live room uses that code. Check the code on the host's screen.",
   full: "This room is full. Ask the host to remove someone or open another room.",
   forbidden: "This browser already holds a different seat in that room. Ask the host to remove it, or join from another browser.",
+  signed_out: "Your sign-in has expired. Sign in again, or use a name to join as a guest.",
 };
 
 export function joinErrorMessage(error: unknown) {

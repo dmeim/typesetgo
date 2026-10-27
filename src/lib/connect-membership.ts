@@ -27,9 +27,10 @@ export function loadMembership(roomId: string): ConnectMembership | null {
   }
 }
 
-export function saveMembership(roomId: string, membership: ConnectMembership) {
+/** `rememberName` prefills the next guest join; only a guest join sets it, so an account's username never does. */
+export function saveMembership(roomId: string, membership: ConnectMembership, { rememberName = false } = {}) {
   write(membershipKey(roomId), JSON.stringify(membership));
-  write(NAME_KEY, membership.name);
+  if (rememberName) write(NAME_KEY, membership.name);
 }
 
 export function clearMembership(roomId: string) {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PortalContainerContext } from "@/components/ui/portal-container";
 import type { ThemeMode } from "@/types/theme";
+import { ConnectAvatar } from "@/components/connect/ConnectAvatar";
 
 /**
  * Full-height themed page without the site header. A room theme is scoped here: its variables and
@@ -28,6 +29,7 @@ export function RoomPage({ children, style, themeMode }: { children: ReactNode; 
 interface RoomTopBarProps {
   roomName: string;
   participantName: string;
+  avatarUrl?: string;
   dimmed: boolean;
   leaving: boolean;
   reconnecting: boolean;
@@ -35,9 +37,10 @@ interface RoomTopBarProps {
 }
 
 /** Slim top bar: room, participant, Leave. Fades while typing so it stays out of the way. */
-export function RoomTopBar({ roomName, participantName, dimmed, leaving, reconnecting, onLeave }: RoomTopBarProps) {
+export function RoomTopBar({ roomName, participantName, avatarUrl, dimmed, leaving, reconnecting, onLeave }: RoomTopBarProps) {
   return (
     <header className={cn("flex shrink-0 items-center gap-3 border-b border-border px-4 py-2 transition-opacity duration-300 sm:px-6", dimmed && "opacity-30 hover:opacity-100 focus-within:opacity-100")}>
+      <ConnectAvatar name={participantName} avatarUrl={avatarUrl} className="text-sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{roomName}</p>
         <p className="truncate text-xs text-muted-foreground">Typing as {participantName}</p>

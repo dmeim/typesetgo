@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { ArrowLeftIcon, ArrowsClockwiseIcon, CircleNotchIcon, UserPlusIcon } from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -20,9 +20,11 @@ function RoomSession({ roomId }: { roomId: string }) {
   const navigate = useNavigate();
   const credential = useMultiplayerCredential();
   const leaveMutation = useMutation(api.connect.leave);
-  const { membership, rejoin, recoverStaleSeat, retry } = useRoomMembership(roomId);
+  // Signed-in seats are checked against the account, so wait for sign-in to settle before asking.
+  const { isLoading: authLoading } = useConvexAuth();
+  const { membership, rejoin, recoverStaleSeat, retry } = useRoomMembership(roomId, !authLoading);
   const participantId = membership.status === "member" ? membership.participantId : undefined;
-  const view = useQuery(api.connect.participantView, participantId ? { roomId, participantId, credential } : "skip");
+  const view = useQuery(api.connect.participantView, participantId && !authLoading ? { roomId, participantId, credential } : "skip");
   const [leaving, setLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string>();
 
@@ -31,10 +33,10 @@ function RoomSession({ roomId }: { roomId: string }) {
   const rejoinAfterOffline = useCallback(() => { void rejoin(); }, [rejoin]);
   const { reconnecting } = useParticipantHeartbeat(leaving ? undefined : heartbeatId, rejoinAfterOffline);
 
-  // A stored seat the server does not recognise is replaced once by a session rejoin.
+  // A stored seat the server does not recognise, or one held by another account, is replaced once by a session rejoin.
   const recoveredRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!participantId || (viewState !== "missing" && viewState !== "forbidden")) return;
+    if (!participantId || (viewState !== "missing" && viewState !== "forbidden" && viewState !== "account")) return;
     if (recoveredRef.current === participantId) return;
     recoveredRef.current = participantId;
     recoverStaleSeat();
