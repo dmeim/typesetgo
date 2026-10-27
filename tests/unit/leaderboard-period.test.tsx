@@ -7,6 +7,7 @@ import { resetCountdownUTC } from "@/lib/leaderboard-period";
 const queries = vi.hoisted(() => vi.fn(() => []));
 vi.mock("convex/react", () => ({ useQuery: queries }));
 vi.mock("../../convex/_generated/api", () => ({ api: { testResults: { getLeaderboard: "leaderboard" } } }));
+vi.mock("@/components/layout/Header", () => ({ default: () => null }));
 
 afterEach(() => { cleanup(); vi.useRealTimers(); queries.mockClear(); });
 
