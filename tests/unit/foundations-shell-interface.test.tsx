@@ -29,6 +29,24 @@ function Shell({ hidden = false }: { hidden?: boolean }) {
   return <MemoryRouter><NotificationProvider><Header hidden={hidden} focusTargetRef={mainRef} onOpenSettings={() => {}} /><main ref={mainRef} tabIndex={-1}><input aria-label="Practice input" /></main></NotificationProvider></MemoryRouter>;
 }
 
+type ShellAuth = Parameters<typeof AppAuthContext.Provider>[0]["value"];
+type ShellAccount = Parameters<typeof AccountContext.Provider>[0]["value"];
+const signedInAuth: ShellAuth = { ...unavailableAuth, available: true, status: "signed-in", isSignedIn: true, unavailableReason: null, user: { id: "user_1", username: "pixel" } as AppAuthUser };
+
+function DockShell({ auth = unavailableAuth, account = unavailableAccount, path = "/", tools = true }: { auth?: ShellAuth; account?: ShellAccount; path?: string; tools?: boolean }) {
+  return (
+    <MemoryRouter initialEntries={[path]}>
+      <AppAuthContext.Provider value={auth}>
+        <AccountContext.Provider value={account}>
+          <NotificationProvider>
+            <Header onOpenThemeModal={tools ? () => {} : undefined} onOpenSettings={tools ? () => {} : undefined} />
+          </NotificationProvider>
+        </AccountContext.Provider>
+      </AppAuthContext.Provider>
+    </MemoryRouter>
+  );
+}
+
 const notification = (id: string, title: string): Notification => ({ id, title, type: "info", description: "A notification", timestamp: Date.now(), read: false });
 
 function Notifications() {
@@ -82,6 +100,47 @@ describe("responsive shell semantics and focus", () => {
     expect(input).toHaveFocus();
     rerender(<Shell />);
     expect(input).toHaveFocus();
+  });
+});
+
+describe("dock header navigation and account", () => {
+  it("marks the current page, keeps unopened modes out of the link list and only offers dialogs a page provides", () => {
+    const view = render(<DockShell path="/connect/join" />);
+    const modes = screen.getByRole("navigation", { name: "Practice modes" });
+    expect(within(modes).getByRole("link", { name: "Connect", exact: true })).toHaveAttribute("aria-current", "page");
+    expect(within(modes).getByRole("link", { name: "Type", exact: true })).not.toHaveAttribute("aria-current");
+    expect(within(modes).getByRole("button", { name: "Race (coming soon)" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("link", { name: "Leaderboard", exact: true })).toHaveAttribute("href", "/leaderboard");
+    expect(screen.getByRole("button", { name: "Change theme", exact: true })).toBeInTheDocument();
+    view.unmount();
+    render(<DockShell tools={false} />);
+    expect(screen.queryByRole("button", { name: "Change theme" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
+  });
+
+  it("offers sign-in when signed out", () => {
+    const openSignIn = vi.fn().mockResolvedValue(true);
+    render(<DockShell auth={{ ...unavailableAuth, available: true, status: "signed-out", unavailableReason: null, openSignIn }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(openSignIn).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Sign in to view notifications" })).toBeDisabled();
+  });
+
+  it("links the signed-in account menu to your stats", async () => {
+    render(<DockShell auth={signedInAuth} account={{ ...unavailableAccount, status: "ready", userId: "abc123" as ShellAccount["userId"] }} />);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Account: pixel" }), { key: "Enter" });
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: /Your stats/ })).toHaveAttribute("href", "/user/abc123");
+    expect(within(menu).getByRole("menuitem", { name: "Account settings" })).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Sign out" })).toBeInTheDocument();
+  });
+
+  it("lets a failed account connection be retried from the account menu", async () => {
+    const ensureAccount = vi.fn().mockResolvedValue("abc123");
+    render(<DockShell auth={signedInAuth} account={{ ...unavailableAccount, status: "error", error: "Account sync failed", ensureAccount }} />);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Account: pixel" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /Retry account connection/ }));
+    expect(ensureAccount).toHaveBeenCalledOnce();
   });
 });
 

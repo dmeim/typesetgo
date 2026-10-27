@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
-import { ArrowLeftIcon, TrophyIcon } from "@phosphor-icons/react";
+import { TrophyIcon } from "@phosphor-icons/react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import Header from "@/components/layout/Header";
 import { useAccount } from "@/components/layout/useAccount";
 import { ArenaPodium } from "@/components/leaderboard/ArenaPodium";
 import { ArenaRankList } from "@/components/leaderboard/ArenaRankList";
@@ -76,12 +76,7 @@ export default function Leaderboard() {
 
   return (
     <div className="min-h-[100dvh] bg-background font-mono text-foreground">
-      <div className="mx-auto flex max-w-4xl px-4 pt-5">
-        <Link to="/" className="inline-flex items-center gap-2 rounded text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
-          <ArrowLeftIcon className="size-4 shrink-0" aria-hidden="true" />
-          Homepage
-        </Link>
-      </div>
+      <Header />
       <Tabs
         value={periodId}
         onValueChange={(value) => {

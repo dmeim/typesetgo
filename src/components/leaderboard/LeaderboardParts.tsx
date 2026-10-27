@@ -26,7 +26,7 @@ export function PlayerAvatar({ entry, size = "md", layoutId }: { entry: Leaderbo
     >
       {entry.username.charAt(0).toUpperCase()}
       {entry.avatarUrl && entry.avatarUrl !== failedUrl && (
-        <img src={entry.avatarUrl} alt="" className="absolute inset-0 size-full object-cover" onError={() => setFailedUrl(entry.avatarUrl)} />
+        <img src={entry.avatarUrl} alt="" className="absolute inset-0 size-full bg-card object-cover" onError={() => setFailedUrl(entry.avatarUrl)} />
       )}
     </motion.span>
   );

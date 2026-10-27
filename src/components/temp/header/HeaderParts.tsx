@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { BellIcon, CheckIcon, FireIcon, MoonIcon, SignInIcon, SignOutIcon, SparkleIcon, SunIcon, TrophyIcon, UserCircleIcon } from "@phosphor-icons/react";
+import { BellIcon, CheckIcon, FireIcon, SignInIcon, SignOutIcon, SparkleIcon, TrophyIcon, UserCircleIcon } from "@phosphor-icons/react";
+import { ModeIcon } from "@/components/layout/header/DockParts";
 import { cn } from "@/lib/utils";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { ACCOUNT_LINKS, MOCK_ACCOUNT, type MockNotification } from "./header-mock";
@@ -14,24 +15,6 @@ export function Logo({ variant, onHome, className }: { variant: "icon" | "banner
         ? <img src="/assets/Icon-Color.svg" alt="" className="size-9" />
         : <img src="/assets/Banner-Color.svg" alt="" className="h-auto w-36" />}
     </button>
-  );
-}
-
-/** Sun and moon trade places with a quarter turn. */
-export function ModeIcon({ dark, className = "size-5" }: { dark: boolean; className?: string }) {
-  return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.span
-        key={dark ? "sun" : "moon"}
-        initial={{ rotate: -90, scale: 0.4, opacity: 0 }}
-        animate={{ rotate: 0, scale: 1, opacity: 1 }}
-        exit={{ rotate: 90, scale: 0.4, opacity: 0 }}
-        transition={LAB_SPRING}
-        className="flex"
-      >
-        {dark ? <SunIcon className={className} aria-hidden="true" /> : <MoonIcon className={className} aria-hidden="true" />}
-      </motion.span>
-    </AnimatePresence>
   );
 }
 

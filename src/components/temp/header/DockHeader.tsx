@@ -1,9 +1,9 @@
-import { AnimatePresence, motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { DockDivider, DockItem as RealDockItem } from "@/components/layout/header/DockParts";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { AccountMenu, Avatar, BellButton, Logo, ModeButton, NotificationList, PopoverCard } from "./HeaderParts";
 import { NAV, TOOLS, type HeaderMockupProps, type NavItem, type PageId } from "./header-mock";
-import { iconButton, navProps, useMenus } from "./header-utils";
+import { iconButton, useMenus } from "./header-utils";
 
 /** A floating dock header. The active page grows its label; icons lift under the pointer like a dock. Hidden while typing. */
 export function DockHeader({ children, ...demo }: HeaderMockupProps) {
@@ -52,7 +52,7 @@ export function DockHeader({ children, ...demo }: HeaderMockupProps) {
         </div>
         <nav aria-label="Pages" className="flex items-center gap-0.5 rounded-full border border-border bg-card/80 p-1.5 shadow-lg backdrop-blur @min-[44rem]:hidden">
           {NAV.map((item) => <DockItem key={item.id} item={item} page={page} go={go} group="narrow" compact />)}
-          <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+          <DockDivider className="mx-1" />
           {TOOLS.map((item) => <DockItem key={item.id} item={item} page={page} go={go} group="narrow" compact />)}
         </nav>
       </motion.header>
@@ -63,37 +63,10 @@ export function DockHeader({ children, ...demo }: HeaderMockupProps) {
 }
 
 function Divider() {
-  return <span aria-hidden="true" className="mx-1.5 h-6 w-px bg-border @min-[49rem]:mx-3" />;
+  return <DockDivider className="mx-1.5 @min-[49rem]:mx-3" />;
 }
 
+/** The real dock item, driven by the mockup's in-memory page instead of the router. */
 export function DockItem({ item, page, go, group, compact = false }: { item: NavItem; page: PageId; go: (page: PageId) => void; group: string; compact?: boolean }) {
-  const active = page === item.id;
-  return (
-    <motion.button
-      layout
-      transition={LAB_SPRING}
-      {...navProps(item, page, go)}
-      aria-label={item.label}
-      className={cn("relative flex items-center gap-1.5 rounded-full text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring", compact ? "h-9 px-2" : "h-10 px-3", active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground", item.soon && "opacity-50")}
-    >
-      {active && <motion.span layoutId={`dock-active-${group}`} transition={LAB_SPRING} className="absolute inset-0 rounded-full bg-primary shadow-sm" />}
-      <motion.span whileHover={item.soon ? undefined : { y: -3, scale: 1.18 }} transition={LAB_SPRING} className="relative flex">
-        <item.Icon className="size-5" weight={active ? "fill" : "bold"} aria-hidden="true" />
-      </motion.span>
-      <AnimatePresence initial={false}>
-        {active && !compact && (
-          <motion.span
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: "auto", opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={LAB_SPRING}
-            className="relative overflow-hidden whitespace-nowrap"
-          >
-            {item.label}
-          </motion.span>
-        )}
-      </AnimatePresence>
-      {item.soon && <span aria-hidden="true" className="absolute right-1 top-1 size-1.5 rounded-full bg-muted-foreground" />}
-    </motion.button>
-  );
+  return <RealDockItem label={item.label} Icon={item.Icon} active={page === item.id} soon={item.soon} onClick={() => go(item.id)} group={group} size={compact ? "compact" : "wide"} />;
 }

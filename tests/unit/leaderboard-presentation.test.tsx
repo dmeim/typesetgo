@@ -16,6 +16,7 @@ vi.mock("convex/react", () => ({
   },
 }));
 vi.mock("@/components/layout/useAccount", () => ({ useAccount: () => account.current }));
+vi.mock("@/components/layout/Header", () => ({ default: () => <header aria-label="Site header" /> }));
 afterEach(() => {
   cleanup();
   queries.calls = [];
@@ -49,7 +50,7 @@ describe("leaderboard periods", () => {
     expect(screen.getByRole("tab", { name: "All time" })).toHaveAttribute("aria-selected", "true");
     let panel = screen.getByRole("tabpanel");
     expect(within(panel).getByText("No scores yet")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Homepage" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("banner", { name: "Site header" })).toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
 
     choosePeriod("Today");

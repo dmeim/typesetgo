@@ -32,15 +32,11 @@ async function expectNoHorizontalScroll(page: Page) {
 }
 
 test.describe("landing", () => {
-  test("Connect nav link follows a vertical separator and is active; Host and Join cards render", async ({ page }) => {
+  test("Connect nav link is active; Host and Join cards render", async ({ page }) => {
     await page.goto("/connect?fixture=landing");
     const nav = page.getByRole("navigation", { name: "Practice modes" });
     const link = nav.getByRole("link", { name: "Connect", exact: true });
     await expect(link).toHaveAttribute("aria-current", "page");
-    expect(await link.evaluate((element) => {
-      const previous = element.previousElementSibling;
-      return previous?.getAttribute("role") === "separator" && previous.getAttribute("aria-orientation") === "vertical";
-    })).toBe(true);
     await expect(nav.getByRole("link", { name: "Type", exact: true })).not.toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("heading", { level: 1, name: "Connect" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Host a room" })).toBeVisible();

@@ -17,6 +17,7 @@ import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useNotifications, getRelativeTime, getNotificationColor, type Notification } from "@/lib/notification-store";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import AchievementIcon from "@/components/auth/AchievementIcon";
 import { getAchievementById, TIER_COLORS } from "@/lib/achievement-definitions";
 import AchievementsModal from "@/components/auth/AchievementsModal";
@@ -34,7 +35,8 @@ function NotificationIcon({ notification }: { notification: Notification }) {
   return <Icon className="mt-0.5 size-4 shrink-0" style={{ color }} aria-hidden="true" />;
 }
 
-export default function NotificationCenter({ disabled = false }: { disabled?: boolean }) {
+/** `className` styles the bell trigger so each header can match its own buttons. */
+export default function NotificationCenter({ disabled = false, className }: { disabled?: boolean; className?: string }) {
   const { user, isSignedIn, available } = useAppAuth();
   const account = useAccount();
   const ownerId = isSignedIn ? user?.id ?? null : null;
@@ -80,14 +82,14 @@ export default function NotificationCenter({ disabled = false }: { disabled?: bo
 
   if (disabled) {
     const label = available ? "Sign in to view notifications" : "Notifications unavailable in guest mode";
-    return <button type="button" className="inline-flex size-10 shrink-0 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground" disabled aria-label={label} title={label}><BellIcon className="size-5" aria-hidden="true" /></button>;
+    return <button type="button" className={cn("inline-flex size-10 shrink-0 cursor-not-allowed items-center justify-center rounded-md text-muted-foreground", className)} disabled aria-label={label} title={label}><BellIcon className="size-5" aria-hidden="true" /></button>;
   }
 
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button ref={triggerRef} variant="ghost" size="icon" className="relative size-10" aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`} title="Notifications">
+          <Button ref={triggerRef} variant="ghost" size="icon" className={cn("relative size-10", className)} aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`} title="Notifications">
             <BellIcon className="size-5" aria-hidden="true" />
             {unreadCount > 0 && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground">{unreadCount > 99 ? "99+" : unreadCount}</span>}
           </Button>

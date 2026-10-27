@@ -1,4 +1,4 @@
-import { withFixtureBrowser, artifactPath, routeFixtureRequests, fixtureOrigin } from "../runtime.mjs";
+import { withFixtureBrowser, artifactPath, routeFixtureRequests, fixtureOrigin, expectWithinViewport } from "../runtime.mjs";
 import { expect } from "@playwright/test";
 // Home settings live behind the collapsed summary pill.
 async function openTestSettings(page) {
@@ -42,7 +42,10 @@ await withFixtureBrowser(async browser => {
   });
   await page.goto(fixtureOrigin);
   await expect(input).toBeEnabled();
-  const tabs = page.getByRole("navigation", { name: "Practice modes" }).locator(":scope > div");
+  const modes = page.getByRole("navigation", { name: "Practice modes" });
+  // Wide: one centered pill holds everything. Phones: the logo row sits above a centered pill of pages and tools.
+  const dock = page.locator("[data-header-dock]");
+  const pagesPill = modes.locator("..");
   const expectPageCentered = async (locator) => {
     await expect.poll(async () => {
       const bounds = await locator.boundingBox();
@@ -51,18 +54,22 @@ await withFixtureBrowser(async browser => {
   };
   for (const width of [1920, 1440, 1280, 1024, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
-    await expectPageCentered(tabs);
+    await expectPageCentered(width >= 768 ? dock : pagesPill);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    if (width >= 1024) {
-      const tabBounds = await tabs.boundingBox();
-      const leftBounds = await page.getByRole("button", { name: "Settings", exact: true }).locator("..").boundingBox();
-      const rightBounds = await page.getByRole("link", { name: "Leaderboard", exact: true }).locator("..").boundingBox();
-      expect(leftBounds.x + leftBounds.width).toBeLessThanOrEqual(tabBounds.x);
-      expect(rightBounds.x).toBeGreaterThanOrEqual(tabBounds.x + tabBounds.width);
+    for (const control of [
+      modes.getByRole("link", { name: "Type", exact: true }),
+      page.getByRole("link", { name: "Leaderboard", exact: true }),
+      page.getByRole("button", { name: "Change theme", exact: true }),
+      page.getByRole("button", { name: "Settings", exact: true }),
+    ]) {
+      await expectWithinViewport(page, control);
     }
+    const modesBounds = await modes.boundingBox();
+    const settingsBounds = await page.getByRole("button", { name: "Settings", exact: true }).boundingBox();
+    expect(settingsBounds.x).toBeGreaterThanOrEqual(modesBounds.x + modesBounds.width);
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
-  console.log("header tabs stay page-centered from 320 to 1920px without overlapping side controls PASS");
+  console.log("dock header stays centered from 320 to 1920px with tools after the practice modes PASS");
   await openTestSettings(page);
   await page.getByRole("radio", {
     name: "words",

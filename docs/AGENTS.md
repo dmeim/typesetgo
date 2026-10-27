@@ -178,6 +178,9 @@ Lazy route modules cover Home, leaderboard/profile, Connect landing/host/room/bo
 
 Use React Router links and hooks. Avoid alternate navigation systems. Header now participates in normal page flow; do not reintroduce fixed-header clearance spacers.
 
+### Site header (the Dock)
+`src/components/layout/Header.tsx` is the one-pill Dock header mounted by Home, Race, Lessons and `ConnectShell`. Its parts live in `src/components/layout/header/`: `DockParts.tsx` (dock items, divider, logo, light/dark icon, tooltip wrapper), `AccountButton.tsx` (sign-in, Clerk-unavailable explanation, and the signed-in menu with your stats, account settings and sign-out), `header-nav.ts` (practice-mode and leaderboard routes, and `accountStatsPath`, the single place the account button's stats target is set), and `header-utils.ts` (shared button style and spring). Theme and Settings appear only when the page passes `onOpenThemeModal` / `onOpenSettings` (Home today). `hidden` makes the header inert and aria-hidden while typing and returns focus afterwards. Layout switches on the header's own width (`@container`, 48rem): phones get the logo row above a pill of pages and tools. The `/temp` header mockups import these parts rather than keeping copies.
+
 ---
 
 ## 8) Backend Architecture Notes (Convex)

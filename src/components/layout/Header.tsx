@@ -1,26 +1,15 @@
-import { useLayoutEffect, useRef, type ComponentProps, type RefObject } from "react";
-import { Link, useLocation } from "react-router-dom";
-import {
-  ChartBarIcon,
-  ArrowsClockwiseIcon,
-  FlagCheckeredIcon,
-  GearSixIcon,
-  GraduationCapIcon,
-  KeyboardIcon,
-  MoonIcon,
-  PaletteIcon,
-  SunIcon,
-  TrophyIcon,
-  UsersThreeIcon,
-} from "@phosphor-icons/react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
+import { useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import { GearSixIcon, PaletteIcon } from "@phosphor-icons/react";
 import { useTheme } from "@/hooks/useTheme";
-import UserButton from "@/components/auth/UserButton";
 import NotificationCenter from "@/components/layout/NotificationCenter";
 import { useAppAuth } from "@/components/layout/useAppAuth";
-import { useAccount } from "@/components/layout/useAccount";
-import { toast } from "@/lib/toast-manager";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AccountButton } from "@/components/layout/header/AccountButton";
+import { DockDivider, DockItem, HeaderLogo, HeaderTip, ModeIcon } from "@/components/layout/header/DockParts";
+import { LEADERBOARD_PAGE, PRACTICE_PAGES } from "@/components/layout/header/header-nav";
+import { DOCK_SPRING, iconButton } from "@/components/layout/header/header-utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface HeaderProps {
   hidden?: boolean;
@@ -29,40 +18,37 @@ interface HeaderProps {
   onOpenSettings?: () => void;
 }
 
-const NAV_TABS = [
-  { label: "Type", path: "/", icon: KeyboardIcon, enabled: true },
-  { label: "Race", path: "/race", icon: FlagCheckeredIcon, enabled: false },
-  { label: "Lessons", path: "/lessons", icon: GraduationCapIcon, enabled: false },
-] as const;
+// Phones: logo and your buttons on top, the pages pill below. From a 48rem header up, everything sits in one pill.
+const dockClass = "mx-3 mb-1 mt-3 grid sm:mx-6 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 @min-[48rem]:mx-auto @min-[48rem]:flex @min-[48rem]:w-fit @min-[48rem]:max-w-[calc(100%-3rem)] @min-[48rem]:gap-1 @min-[48rem]:rounded-full @min-[48rem]:border @min-[48rem]:border-border @min-[48rem]:bg-card/80 @min-[48rem]:p-2 @min-[48rem]:shadow-lg @min-[48rem]:backdrop-blur";
+const pagesPillClass = "col-span-2 row-start-2 flex items-center justify-self-center gap-0.5 rounded-full border border-border bg-card/80 p-1.5 shadow-lg backdrop-blur @min-[48rem]:contents";
+const groupClass = "flex items-center gap-0.5 @min-[48rem]:gap-1 @min-[52rem]:gap-1.5";
+const sideDivider = "hidden @min-[48rem]:block @min-[48rem]:mx-1.5 @min-[52rem]:mx-3";
 
-const CONNECT_TAB = { label: "Connect", path: "/connect", icon: UsersThreeIcon };
-
-const navLinkClass = "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-background";
-
-function HeaderAction({ label, hint = label, ...props }: ComponentProps<typeof Button> & { label: string; hint?: string }) {
-  const button = <Button
-  variant="ghost" size="icon-lg" aria-label={label} {...props} />;
+function ThemeModeButton() {
+  const { mode, toggleMode, supportsLightMode } = useTheme();
+  const dark = mode === "dark";
+  const label = supportsLightMode ? `Switch to ${dark ? "light" : "dark"} mode` : "Light mode unavailable for this theme";
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {props.disabled ? <span tabIndex={0} aria-label={label} className="inline-flex rounded-md focus-visible:outline-2 focus-visible:outline-ring">{button}</span> : button}
-      </TooltipTrigger>
-      <TooltipContent>{hint}</TooltipContent>
-    </Tooltip>
+    <HeaderTip hint={supportsLightMode ? label : "This theme supports dark mode only"}>
+      <button type="button" aria-label={label} aria-disabled={!supportsLightMode || undefined} onClick={supportsLightMode ? () => toggleMode() : undefined} className={iconButton}>
+        <ModeIcon dark={dark} />
+      </button>
+    </HeaderTip>
   );
 }
 
+/**
+ * The Dock: one floating pill with the logo, practice modes, leaderboard, theme and settings, then light/dark,
+ * notifications and the account button. The current page grows its name. Hidden and inert while typing.
+ */
 export default function Header({ hidden = false, focusTargetRef, onOpenThemeModal, onOpenSettings }: HeaderProps) {
   const { isSignedIn, isLoaded, available } = useAppAuth();
-  const account = useAccount();
-  const { mode, toggleMode, supportsLightMode } = useTheme();
-  const location = useLocation();
+  const { pathname } = useLocation();
   const headerRef = useRef<HTMLElement>(null);
   const hiddenFocusRef = useRef<HTMLElement | null>(null);
   const chromeFocusRef = useRef<HTMLElement | null>(null);
   const chromeTriggerRef = useRef<HTMLElement | null>(null);
   const accountFeaturesEnabled = available && isLoaded && isSignedIn;
-  const statsUrl = account.userId ? `/user/${account.userId}` : null;
 
   useLayoutEffect(() => {
     const trackOutsideFocus = (event: FocusEvent) => {
@@ -74,6 +60,7 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
     return () => document.removeEventListener("focusin", trackOutsideFocus);
   }, []);
 
+  // Hiding moves focus out of the header (or its portaled menus) and brings it back afterwards.
   useLayoutEffect(() => {
     const focusTarget = focusTargetRef?.current ?? document.querySelector<HTMLElement>("main");
     if (hidden && (headerRef.current?.contains(document.activeElement) || chromeFocusRef.current)) {
@@ -90,7 +77,7 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
 
   return (
     <TooltipProvider>
-      <header
+      <motion.header
         ref={headerRef}
         onFocusCapture={(event) => {
           chromeFocusRef.current = event.target as HTMLElement;
@@ -100,88 +87,49 @@ export default function Header({ hidden = false, focusTargetRef, onOpenThemeModa
         }}
         inert={hidden}
         aria-hidden={hidden || undefined}
-        className="relative z-40 grid shrink-0 grid-cols-2 items-center gap-x-2 gap-y-2 border-b border-transparent px-3 py-3 transition-opacity duration-200 motion-reduce:transition-none sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-4"
-        style={{ opacity: hidden ? 0 : 1 }}
+        initial={false}
+        animate={{ opacity: hidden ? 0 : 1, y: hidden ? -24 : 0 }}
+        transition={DOCK_SPRING}
+        className="@container relative z-40 shrink-0"
       >
-        <div className="contents lg:col-start-1 lg:row-start-1 lg:flex lg:min-w-0 lg:flex-wrap lg:items-center lg:gap-x-4 lg:gap-y-2">
-          <Link to="/" aria-label="TypeSetGo home" className="order-1 w-36 max-w-full rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:w-44">
-            <img src="/assets/Banner-Color.svg" alt="TypeSetGo" className="h-auto w-full" />
-          </Link>
+        <div data-header-dock className={dockClass}>
+          <HeaderLogo className="col-start-1 row-start-1 w-28 @min-[48rem]:px-2 @min-[52rem]:w-34" />
+          <DockDivider className={sideDivider} />
 
-          <div className="order-3 flex flex-wrap items-center gap-1 lg:order-2">
-            {onOpenSettings && (
-              <HeaderAction type="button" onClick={onOpenSettings} label="Settings">
-                <GearSixIcon className="size-5" aria-hidden="true" />
-              </HeaderAction>
-            )}
-            {onOpenThemeModal && (
-              <HeaderAction type="button" onClick={onOpenThemeModal} label="Change theme">
-                <PaletteIcon className="size-5" aria-hidden="true" />
-              </HeaderAction>
-            )}
-            <HeaderAction
-              type="button"
-              onClick={toggleMode}
-              disabled={!supportsLightMode}
-              label={supportsLightMode ? `Switch to ${mode === "dark" ? "light" : "dark"} mode` : "Light mode unavailable for this theme"}
-              hint={supportsLightMode ? `Switch to ${mode === "dark" ? "light" : "dark"} mode` : "This theme supports dark mode only"}
-            >
-              {mode === "dark" ? <SunIcon className="size-5" aria-hidden="true" /> : <MoonIcon className="size-5" aria-hidden="true" />}
-            </HeaderAction>
+          <div className={pagesPillClass}>
+            <nav aria-label="Practice modes" className={groupClass}>
+              {PRACTICE_PAGES.map((page) => (
+                <HeaderTip key={page.path} hint={page.soon ? `${page.label} is coming soon` : page.label}>
+                  <DockItem label={page.label} Icon={page.Icon} to={page.path} soon={page.soon} active={!page.soon && page.isActive(pathname)} group="header" size="responsive" />
+                </HeaderTip>
+              ))}
+            </nav>
+            <DockDivider className="mx-1 @min-[48rem]:mx-1.5 @min-[52rem]:mx-3" />
+            <div className={groupClass}>
+              <HeaderTip hint={LEADERBOARD_PAGE.label}>
+                <DockItem label={LEADERBOARD_PAGE.label} Icon={LEADERBOARD_PAGE.Icon} to={LEADERBOARD_PAGE.path} active={LEADERBOARD_PAGE.isActive(pathname)} group="header" size="responsive" />
+              </HeaderTip>
+              {onOpenThemeModal && (
+                <HeaderTip hint="Change theme">
+                  <DockItem label="Change theme" Icon={PaletteIcon} onClick={onOpenThemeModal} group="header" size="responsive" />
+                </HeaderTip>
+              )}
+              {onOpenSettings && (
+                <HeaderTip hint="Settings">
+                  <DockItem label="Settings" Icon={GearSixIcon} onClick={onOpenSettings} group="header" size="responsive" />
+                </HeaderTip>
+              )}
+            </div>
+          </div>
+
+          <DockDivider className={sideDivider} />
+          <div className="col-start-2 row-start-1 flex items-center justify-self-end gap-1 @min-[52rem]:gap-1.5">
+            <ThemeModeButton />
+            <NotificationCenter disabled={!accountFeaturesEnabled || hidden} className={iconButton} />
+            <AccountButton inactive={hidden} />
           </div>
         </div>
-
-        <nav aria-label="Practice modes" className="order-5 col-span-2 flex min-w-0 justify-center lg:col-span-1 lg:col-start-2 lg:row-start-1">
-          <div className="flex max-w-full flex-wrap items-center justify-center gap-1 rounded-lg bg-muted p-1">
-            {NAV_TABS.map(({ label, path, icon: Icon, enabled }) => enabled ? (
-              <Link
-                key={path}
-                to={path}
-                aria-current={location.pathname === path ? "page" : undefined}
-                className={navLinkClass}
-              >
-                <Icon className="size-4" aria-hidden="true" />{label}
-              </Link>
-            ) : (
-              <span key={path} aria-disabled="true" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground" title="Coming soon">
-                <Icon className="size-4" aria-hidden="true" />{label}<span className="sr-only"> — coming soon</span>
-              </span>
-            ))}
-            <span role="separator" aria-orientation="vertical" className="mx-1 h-6 w-px self-center bg-border" />
-            <Link
-              to={CONNECT_TAB.path}
-              aria-current={location.pathname.startsWith(CONNECT_TAB.path) ? "page" : undefined}
-              className={navLinkClass}
-            >
-              <CONNECT_TAB.icon className="size-4" aria-hidden="true" />{CONNECT_TAB.label}
-            </Link>
-          </div>
-        </nav>
-
-        <div className="contents lg:col-start-3 lg:row-start-1 lg:flex lg:min-w-0 lg:flex-wrap lg:items-center lg:justify-end lg:gap-x-4 lg:gap-y-2">
-          <div className="order-4 flex flex-wrap items-center justify-end gap-1">
-            <HeaderAction asChild label="Leaderboard"><Link to="/leaderboard">
-              <TrophyIcon className="size-5" aria-hidden="true" />
-            </Link></HeaderAction>
-            {accountFeaturesEnabled && statsUrl ? (
-              <HeaderAction asChild label="Your stats"><Link to={statsUrl}>
-                <ChartBarIcon className="size-5" aria-hidden="true" />
-              </Link></HeaderAction>
-            ) : accountFeaturesEnabled && account.status === "error" ? (
-              <HeaderAction type="button" label="Retry account connection" hint={account.error ?? "Try connecting again"}
-                onClick={() => void account.ensureAccount().catch(() => toast.add({ type: "error", title: "Your account could not connect. Try again." }))}>
-                <ArrowsClockwiseIcon className="size-5" aria-hidden="true" />
-              </HeaderAction>
-            ) : (
-              <HeaderAction type="button" disabled label={accountFeaturesEnabled ? "Loading your stats" : "Sign in to view your stats"}>
-                <ChartBarIcon className="size-5" aria-hidden="true" />
-              </HeaderAction>
-            )}
-            <NotificationCenter disabled={!accountFeaturesEnabled || hidden} />
-          </div>
-          <div className="order-2 min-w-0 justify-self-end lg:order-5"><UserButton inactive={hidden} /></div>
-        </div>
-      </header>
+      </motion.header>
     </TooltipProvider>
   );
 }
