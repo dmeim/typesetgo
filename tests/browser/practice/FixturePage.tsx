@@ -1,9 +1,12 @@
 import { useLocation } from "react-router-dom";
+import { NotFound, RouteError, RouteLoading } from "@/components/layout/RouteRecovery";
 import Home from "@/pages/Home";
+import Privacy from "@/pages/Privacy";
 import Temp from "@/pages/Temp";
 import TempLeaderboard from "@/pages/TempLeaderboard";
 import TempProfile from "@/pages/TempProfile";
 import TempSettings from "@/pages/TempSettings";
+import TermsOfService from "@/pages/TermsOfService";
 import AreaFixture from "./AreaFixture";
 import ToastFixture from "./ToastFixture";
 
@@ -13,6 +16,11 @@ export function FixturePage() {
   const query = new URLSearchParams(location.search);
   if (query.has("toasts")) return <ToastFixture />;
   if (query.has("area")) return <AreaFixture />;
+  if (query.has("privacy")) return <Privacy />;
+  if (query.has("tos")) return <TermsOfService />;
+  if (query.has("not-found")) return <NotFound />;
+  if (query.has("route-error")) return <RouteError />;
+  if (query.has("route-loading")) return <RouteLoading />;
   if (pathname.startsWith("/temp-profile")) return <TempProfile />;
   if (query.has("temp-settings") || pathname.startsWith("/temp-settings")) return <TempSettings />;
   if (query.has("temp-leaderboard") || pathname.startsWith("/temp-leaderboard")) return <TempLeaderboard />;
