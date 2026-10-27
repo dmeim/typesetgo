@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { LAB_SPRING } from "@/components/temp/settings/lab-settings";
 import { DockHeader } from "./DockHeader";
 import { SplitDockHeader } from "./SplitDockHeader";
+import { TriDockHeader } from "./TriDockHeader";
 import { ALL_PAGES, GUEST_NOTIFICATIONS, NOTIFICATIONS, type HeaderMockupProps, type PageId } from "./header-mock";
 
 const PATHS: Record<PageId, string> = { type: "/", race: "/race", lessons: "/lessons", connect: "/connect", leaderboard: "/leaderboard", theme: "/profile/theme", settings: "/profile/text" };
@@ -19,6 +20,7 @@ const WORDS = "the quick brown fox jumps over the lazy dog while the class races
 const DESIGNS: [string, string, ComponentType<HeaderMockupProps>][] = [
   ["Dock", "Everything in one floating pill.", DockHeader],
   ["Split dock", "The same dock split in two: logo and pages on the left, leaderboard, theme, settings and your buttons on the right.", SplitDockHeader],
+  ["Three pills", "A big logo on the left, the dock of pages, leaderboard, theme and settings in the centre, and light/dark, notifications and your profile on the right. The side pills match in width.", TriDockHeader],
 ];
 
 /** Each header design in a mini browser window, with the toggles the UI Lab section provides. */
