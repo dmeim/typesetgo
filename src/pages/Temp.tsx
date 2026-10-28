@@ -13,6 +13,7 @@ import { NotificationsShowcase } from "@/components/temp/notifications/Notificat
 import { FooterShowcase } from "@/components/temp/footer/FooterShowcase";
 import { LessonsShowcase } from "@/components/temp/lessons/LessonsShowcase";
 import { PracticeDialogsShowcase } from "@/components/temp/practice-dialogs/PracticeDialogsShowcase";
+import { BoardCardsShowcase } from "@/components/temp/board-cards/BoardCardsShowcase";
 
 const SETTINGS_MOCKUPS: [number, string, string][] = [
   [1, "Split view", "Your stats, history and achievements plus every setting in one place, with live previews. History is a day timeline with rows that open; achievements are collector cards that open a journey of every level."],
@@ -66,7 +67,7 @@ export default function Temp() {
 
         <div className="flex flex-col gap-8">
           <HeaderSection />
-          <Section id="settings-pill" title="Test settings pill" badge="on Home" summary="Difficulty and extras share the top row, then mode, then length.">
+          <Section id="settings-pill" title="Test settings pill" badge="on Home" summary="Mode comes first, then Length (Text for Preset), then Difficulty and Extras.">
             <Stage className="min-h-[19rem] items-start">
               <SettingsPillDemo />
             </Stage>
@@ -113,6 +114,9 @@ export default function Temp() {
                 </Link>
               ))}
             </div>
+          </Section>
+          <Section id="board-cards" title="Live board cards" badge="concepts" summary="Five player-card designs for the Connect live board, each giving names far more room than today's card. A pretend projector shows a full class typing, with Fit sizing the cards to fill the screen; switch the player count, pictures and Fit to compare.">
+            <BoardCardsShowcase />
           </Section>
           <Section id="race-page" title="Race" badge="shipped: Clubhouse + Track map" summary="The whole Race flow still uses the old look. Five concepts, each with a landing, lobby, live race and results; a pretend room races on its own, and pressing a key takes over your racer. The crown in the switcher makes you the host.">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

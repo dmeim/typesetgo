@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import ConnectBoard from "@/pages/ConnectBoard";
 import { ParticipantBoard } from "@/components/connect/board/ParticipantBoard";
-import { BoardControls } from "@/components/connect/board/BoardControls";
+import { BoardSortControls, BoardViewControls } from "@/components/connect/board/BoardControls";
 import {
   averageResults,
   boardCounts,
@@ -175,11 +175,28 @@ describe("participant board", () => {
     const ben = screen.getByRole("article", { name: "Ben" });
     expect(within(ben).getByText("All done")).toBeInTheDocument();
     expect(within(ben).getByRole("list", { name: "All 4 tests done" })).toBeInTheDocument();
-    expect(within(ben).getByText("avg wpm")).toBeInTheDocument();
+    expect(within(ben).getByText("avg ·")).toBeInTheDocument();
     expect(await within(ben).findByText("50")).toBeInTheDocument();
     const summary = screen.getByRole("region", { name: "Room progress" });
     expect(within(summary).getByRole("heading", { name: "4 tests · own pace" })).toBeInTheDocument();
     expect(within(summary).getByText("All done")).toBeInTheDocument();
+  });
+
+  it("draws Ribbon cards by default and Big number cards when the host picks them", async () => {
+    const room = makeRoom({ pacing: "participant" });
+    const results = [{ stepIndex: 0, testId: "t1", wpm: 50, accuracy: 98, progress: 100, wordsTyped: 25, timeElapsed: 30000, finished: true }];
+    const participants = [makeParticipant("Ben", { stepIndex: 4, completedAt: 1, results })];
+    const { container, rerender } = render(<ParticipantBoard room={room} participants={participants} prefs={prefs()} />);
+    expect(container.querySelector("[data-look]")).toHaveAttribute("data-look", "ribbon");
+    expect(within(screen.getByRole("article", { name: "Ben" })).queryByText("avg wpm")).not.toBeInTheDocument();
+    rerender(<ParticipantBoard room={room} participants={participants} prefs={prefs({ cardStyle: "big" })} />);
+    expect(container.querySelector("[data-look]")).toHaveAttribute("data-look", "big");
+    const ben = screen.getByRole("article", { name: "Ben" });
+    expect(within(ben).getByText("avg wpm")).toBeInTheDocument();
+    expect(within(ben).getByText("All done")).toBeInTheDocument();
+    expect(within(ben).getByRole("progressbar", { name: "Ben progress" })).toBeInTheDocument();
+    expect(within(ben).getByRole("list", { name: "All 4 tests done" })).toBeInTheDocument();
+    expect(await within(ben).findByText("50")).toBeInTheDocument();
   });
 
   it("crowns the fastest player who is still here", () => {
@@ -241,10 +258,15 @@ describe("participant board", () => {
 });
 
 describe("board controls", () => {
-  it("changes layout, sort with a natural direction, size, offline visibility and pictures", () => {
+  it("changes card style, layout, sort with a natural direction, size, Fit, offline visibility and pictures", () => {
     const onChange = vi.fn();
-    render(<BoardControls prefs={prefs()} onChange={onChange} currentOrder={() => ["p-b", "p-a"]} />);
-    fireEvent.click(within(screen.getByRole("radiogroup", { name: "Layout" })).getByRole("radio", { name: /List/ }));
+    const controls = { prefs: prefs(), onChange, currentOrder: () => ["p-b", "p-a"] };
+    render(<><BoardSortControls {...controls} /><BoardViewControls {...controls} /></>);
+    const layout = screen.getByRole("radiogroup", { name: "Layout" });
+    expect(within(layout).getByRole("radio", { name: /Ribbon/ })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(layout).getByRole("radio", { name: /Big number/ }));
+    expect(onChange).toHaveBeenLastCalledWith({ layout: "grid", cardStyle: "big" });
+    fireEvent.click(within(layout).getByRole("radio", { name: /List/ }));
     expect(onChange).toHaveBeenLastCalledWith({ layout: "list" });
     const sort = screen.getByRole("radiogroup", { name: "Sort by" });
     fireEvent.click(within(sort).getByRole("radio", { name: "WPM" }));
@@ -257,9 +279,19 @@ describe("board controls", () => {
     expect(onChange).toHaveBeenLastCalledWith({ showOffline: false });
     fireEvent.click(screen.getByRole("button", { name: "Pictures" }));
     expect(onChange).toHaveBeenLastCalledWith({ showPictures: false });
+    fireEvent.click(screen.getByRole("button", { name: "Fit" }));
+    expect(onChange).toHaveBeenLastCalledWith({ fit: true });
+    // Picking a size by hand leaves Fit.
     fireEvent.click(screen.getByRole("button", { name: "Bigger cards" }));
-    expect(onChange).toHaveBeenLastCalledWith({ cardSize: 1.1 });
+    expect(onChange).toHaveBeenLastCalledWith({ cardSize: 1.1, fit: false });
     expect(screen.getByRole("slider", { name: "Card size" })).toHaveAttribute("aria-valuenow", "1");
+  });
+  it("shows Fit in place of the size while the board fits itself", () => {
+    const controls = { prefs: { ...prefs(), fit: true }, onChange: vi.fn() };
+    render(<BoardViewControls {...controls} />);
+    expect(screen.getByRole("button", { name: "Fit" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("group", { name: "Board settings" })).toHaveTextContent("Auto");
+    expect(screen.getByRole("group", { name: "Board settings" })).not.toHaveTextContent("100%");
   });
 });
 

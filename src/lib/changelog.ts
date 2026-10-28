@@ -36,6 +36,25 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "board-fit",
+    date: "2026-10-28",
+    title: "New live board cards, and Fit the whole class on screen",
+    kind: "new",
+    status: "live",
+    area: "Connect",
+    summary: "The live board has two new card designs to pick from, Ribbon and Big number, plus a Fit button that makes the cards as big as they can be with everyone on screen at once.",
+    highlights: [
+      "Ribbon cards (the new default) put each student's name front and centre, and the whole card fills up as they get through the test",
+      "Big number cards make the speed the hero, with the progress bar along the bottom edge",
+      "Pick Ribbon, Big number or List in the board settings; the projector board follows your pick",
+      "Long names shrink to fit instead of being cut off",
+      "Fit sizes the cards to fill the screen without scrolling, and keeps fitting as students join or leave",
+      "The host tab and a popped-out projector board each fit their own screen",
+      "Moving the card-size slider goes back to a size you pick",
+      "Sorting now sits next to the Live board title instead of on its own row",
+    ],
+  },
+  {
     id: "pill-mode-first",
     date: "2026-10-27",
     title: "Mode comes first in the settings pill, so it stops jumping",

@@ -5,11 +5,13 @@ import { cn } from "@/lib/utils";
 import { CONNECT_SPRING } from "@/components/connect/connect-motion";
 
 /** A rounded card with an optional coloured icon tile, title and corner action. */
-export function ConnectCard({ title, description, Icon, tile = "bg-primary text-primary-foreground", action, children, className, bare = false, hideHeader = false }: {
+export function ConnectCard({ title, description, Icon, tile = "bg-primary text-primary-foreground", aside, action, children, className, bare = false, hideHeader = false }: {
   title?: string;
   description?: ReactNode;
   Icon?: Icon;
   tile?: string;
+  /** Controls that share the title row, between the title and the action; they wrap below on narrow cards. */
+  aside?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -23,12 +25,13 @@ export function ConnectCard({ title, description, Icon, tile = "bg-primary text-
     <section aria-labelledby={title ? headingId : undefined}
       className={cn("flex min-w-0 flex-col gap-4", !bare && "rounded-3xl border border-border bg-card p-5 text-card-foreground sm:p-6", className)}>
       {title && (
-        <header className={cn("flex flex-wrap items-start gap-3", hideHeader && "sr-only")}>
+        <header className={cn("flex flex-wrap gap-3", aside ? "items-center" : "items-start", hideHeader && "sr-only")}>
           {Icon && <span aria-hidden="true" className={cn("flex size-10 shrink-0 items-center justify-center rounded-2xl", tile)}><Icon weight="fill" className="size-5" /></span>}
-          <div className="min-w-0 flex-1">
+          <div className={cn("min-w-0", aside ? "shrink-0" : "flex-1")}>
             <h2 id={headingId} className="text-lg font-bold leading-tight">{title}</h2>
             {description && <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">{description}</p>}
           </div>
+          {aside && <div className="order-last min-w-0 basis-full sm:order-none sm:basis-0 sm:min-w-[20rem] sm:flex-1">{aside}</div>}
           {action}
         </header>
       )}

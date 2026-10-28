@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Changelog from "@/pages/Changelog";
@@ -68,13 +68,14 @@ describe("changelog page", () => {
     expect(screen.getByRole("heading", { level: 2, name: /Tuesday, October 27, 2026/ })).toBeInTheDocument();
   });
 
-  it("filters by kind of change", () => {
+  it("filters by kind of change", async () => {
     renderPage();
     const improved = CHANGELOG.filter((item) => item.kind === "improved").length;
     const filters = screen.getByRole("group", { name: "Show changes" });
     fireEvent.click(within(filters).getByRole("button", { name: /^Improved/ }));
     expect(within(filters).getByRole("button", { name: /^Improved/ })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getAllByRole("article")).toHaveLength(improved);
+    // Cards of other kinds animate out first.
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(improved));
   });
 
   it("opens and closes a live demo inside the card", () => {

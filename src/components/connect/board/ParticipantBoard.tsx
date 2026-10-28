@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react";
+import { useMemo, useRef, type CSSProperties } from "react";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { AnimatePresence } from "framer-motion";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { CARD_SIZE, leaderId, onBreak, reorderIds, sortParticipants, visibleParticipants } from "@/components/connect/board/board-model";
 import { ParticipantCard } from "@/components/connect/board/ParticipantCard";
 import { BoardSummary } from "@/components/connect/board/BoardSummary";
+import { BOARD_GRID, useBoardFit } from "@/components/connect/board/use-board-fit";
 
 export interface ParticipantBoardProps {
   room: HostRoom;
@@ -50,14 +51,22 @@ export function ParticipantBoard({
     onReorder(reorderIds(base, String(active.id), String(over.id)));
   };
 
-  const style = { fontSize: `${clampScale(prefs.cardSize)}rem` } as CSSProperties;
+  const listRef = useRef<HTMLUListElement>(null);
+  const list = prefs.layout === "list";
+  const look = list ? "list" : prefs.cardStyle === "big" ? "big" : "ribbon";
+  const grid = BOARD_GRID[look];
+  const chosen = clampScale(prefs.cardSize);
+  const fitted = useBoardFit(prefs.fit && shown.length > 0, listRef, shown.length, list, grid);
+  const scale = fitted ?? chosen;
+  const style = { fontSize: `${scale}rem` } as CSSProperties;
+  const listStyle = list ? { gap: `${grid.gap}em` } : { gap: `${grid.gap}em`, gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${grid.minCardWidth}em), 1fr))` };
   const cards = shown.map((participant) => (
-    <ParticipantCard key={participant._id} room={room} participant={participant} labels={labels} layout={prefs.layout} now={now}
+    <ParticipantCard key={participant._id} room={room} participant={participant} labels={labels} layout={prefs.layout} cardStyle={look === "big" ? "big" : "ribbon"} now={now}
       sortable={sortable} showPicture={prefs.showPictures} leader={leader === participant._id} />
   ));
 
   return (
-    <div className={cn("flex flex-col gap-4", className)} data-layout={prefs.layout}>
+    <div className={cn("flex flex-col gap-4", className)} data-layout={prefs.layout} data-look={look}>
       {showSummary && <BoardSummary room={room} participants={participants} labels={labels} />}
       <div style={style} className="flex flex-col gap-[0.75em]">
         {shown.length === 0 ? (
@@ -71,7 +80,7 @@ export function ParticipantBoard({
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={shown.map((participant) => participant._id)} strategy={prefs.layout === "grid" ? rectSortingStrategy : verticalListSortingStrategy} disabled={!sortable}>
-              <ul aria-label="Players" className={cn("grid gap-[0.75em]", prefs.layout === "grid" ? "grid-cols-[repeat(auto-fill,minmax(min(100%,15em),1fr))]" : "grid-cols-1")}>
+              <ul ref={listRef} aria-label="Players" data-card-size={scale} style={listStyle} className={cn("grid", list && "grid-cols-1")}>
                 {sortable ? cards : <AnimatePresence initial={false} mode="popLayout">{cards}</AnimatePresence>}
               </ul>
             </SortableContext>

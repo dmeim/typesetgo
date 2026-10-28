@@ -1,8 +1,11 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 export type BoardSort = "join" | "name" | "wpm" | "accuracy" | "progress" | "custom";
+/** Grid card designs: the name on a ribbon that fills with progress, or the speed as a big number. */
+export type CardStyle = "ribbon" | "big";
 export type BoardPrefs = {
   layout: "grid" | "list";
+  cardStyle: CardStyle;
   sort: BoardSort;
   descending: boolean;
   cardSize: number;
@@ -10,10 +13,12 @@ export type BoardPrefs = {
   showOffline: boolean;
   /** Account pictures on cards; off shows every player as a letter, e.g. on a projector. */
   showPictures: boolean;
+  /** Cards size themselves to fill the window without scrolling; each window (host, pop-out) fits its own. */
+  fit: boolean;
 };
 
 export const DEFAULT_BOARD_PREFS: BoardPrefs = {
-  layout: "grid", sort: "join", descending: false, cardSize: 1, customOrder: [], showOffline: true, showPictures: true,
+  layout: "grid", cardStyle: "ribbon", sort: "join", descending: false, cardSize: 1, customOrder: [], showOffline: true, showPictures: true, fit: false,
 };
 
 const storageKey = (roomId: string) => `typesetgo_connect_board:${roomId}`;

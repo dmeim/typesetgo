@@ -204,6 +204,39 @@ test.describe("host panel", () => {
     await board.getByRole("button", { name: "Exit fullscreen" }).click();
     await expect(board.getByRole("button", { name: "Fullscreen" })).toBeVisible();
   });
+
+  test("the sort shares the title row, and Fit fills the fullscreen board and the pop-out without scrolling", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/connect/host/room-live?fixture=showcase");
+    const board = page.getByRole("region", { name: "Live board" });
+    const title = await board.getByRole("heading", { name: "Live board" }).boundingBox();
+    const sort = await board.getByRole("radiogroup", { name: "Sort by" }).boundingBox();
+    expect(Math.abs((sort!.y + sort!.height / 2) - (title!.y + title!.height / 2))).toBeLessThan(8);
+    await expect(board.getByText("What the class sees", { exact: false })).toHaveCount(0);
+
+    const list = board.getByRole("list", { name: "Players" });
+    await board.getByRole("button", { name: "Fit" }).click();
+    await expect(board.getByRole("button", { name: "Fit" })).toHaveAttribute("aria-pressed", "true");
+    await board.getByRole("button", { name: "Fullscreen" }).click();
+    await expect(board.getByRole("button", { name: "Exit fullscreen" })).toBeVisible();
+    // Eight cards on a 1440x900 screen fit well above the slider's 100%, with the last row on screen.
+    await expect.poll(async () => Number(await list.getAttribute("data-card-size"))).toBeGreaterThan(1.2);
+    await expect.poll(() => list.evaluate((element) => element.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+    await board.getByRole("button", { name: "Exit fullscreen" }).click();
+
+    // The pop-out follows Fit and sizes the cards for its own window.
+    const popout = await page.context().newPage();
+    await popout.setViewportSize({ width: 1280, height: 720 });
+    await popout.goto("/connect/host/room-live/board?fixture=showcase");
+    const popoutList = popout.getByRole("list", { name: "Players" });
+    await expect.poll(async () => Number(await popoutList.getAttribute("data-card-size"))).toBeGreaterThan(1);
+    await expect.poll(() => popout.evaluate(() => document.scrollingElement!.scrollHeight <= innerHeight)).toBe(true);
+    await popout.close();
+
+    // Picking a size by hand leaves Fit.
+    await board.getByRole("button", { name: "Bigger cards" }).click();
+    await expect(board.getByRole("button", { name: "Fit" })).toHaveAttribute("aria-pressed", "false");
+  });
 });
 
 test.describe("participant room", () => {

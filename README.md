@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/version-2026.10.27.3-blue" alt="Version" /></a>
+  <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/version-2026.10.28.1-blue" alt="Version" /></a>
   <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/platform-Web-orange" alt="Platform" /></a>
   <a href="src/"><img src="https://img.shields.io/badge/stack-React%2019%20%C2%B7%20Vite%20%C2%B7%20TS%20%C2%B7%20Convex%20%C2%B7%20Tailwind%20v4-61dafb" alt="Stack" /></a>
 </p>
