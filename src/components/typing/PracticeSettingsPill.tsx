@@ -115,12 +115,7 @@ export function PracticeSettingsPill(props: PracticeSettingsPillProps) {
                 exit="hidden"
                 className="flex w-[min(46rem,calc(100vw-2rem))] flex-col gap-4 p-4 sm:p-5"
               >
-                {wordOptions && (
-                  <motion.div variants={panelRow} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-                    <Labeled label="Difficulty"><DifficultyChoices {...rowProps} /></Labeled>
-                    <Labeled label="Extras" align="end"><ModifierToggles {...rowProps} /></Labeled>
-                  </motion.div>
-                )}
+                {/* Mode stays on top and length comes next, so switching modes only adds or drops rows below them. */}
                 <Row label="Mode"><ModeChoices {...rowProps} /></Row>
                 {(mode === "time" || mode === "words" || mode === "quote" || mode === "preset") && (
                   <Row label={mode === "preset" ? "Text" : "Length"}><LengthChoices {...rowProps} trigger={trigger} triggerRef={editorTriggerRef} /></Row>
@@ -136,6 +131,12 @@ export function PracticeSettingsPill(props: PracticeSettingsPillProps) {
                   onApplyText={(text) => finish(() => applyPresetText(text))}
                   onCancel={foldEditor}
                 />
+                {wordOptions && (
+                  <motion.div variants={panelRow} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                    <Labeled label="Difficulty"><DifficultyChoices {...rowProps} /></Labeled>
+                    <Labeled label="Extras" align="end"><ModifierToggles {...rowProps} /></Labeled>
+                  </motion.div>
+                )}
                 {!editor && (
                   <motion.div variants={panelRow} className="flex justify-end">
                     <motion.button

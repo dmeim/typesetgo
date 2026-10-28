@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/version-2026.10.27.2-blue" alt="Version" /></a>
+  <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/version-2026.10.27.3-blue" alt="Version" /></a>
   <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/platform-Web-orange" alt="Platform" /></a>
   <a href="src/"><img src="https://img.shields.io/badge/stack-React%2019%20%C2%B7%20Vite%20%C2%B7%20TS%20%C2%B7%20Convex%20%C2%B7%20Tailwind%20v4-61dafb" alt="Stack" /></a>
 </p>
@@ -142,6 +142,16 @@ This uses real UI with local fixture data. For real backend development, follow 
 | `bun run test:e2e` | Run isolated browser acceptance, using installed Chrome |
 | `bun run dev:fixture` | Start isolated UI with local fixture data |
 | `bun run convex:dev --env-file PATH --expect local:NAME` | Watch an explicitly selected local backend |
+
+### Every change: changelog and version
+
+Each change that people can see on the site ships with three things, in the same pull request:
+
+1. **A What's new card.** Add an entry at the top of `CHANGELOG` in [`src/lib/changelog.ts`](src/lib/changelog.ts) (newest first, with a unique `id`, the date, a title, a short summary and highlights). It shows on [typesetgo.app/changelog](https://typesetgo.app/changelog). Screenshots go in `public/changelog/` as WebP (`bun run shots:changelog` recaptures them); `demo` can point at a live demo instead.
+2. **A version bump.** Versions are the date plus a counter for that day: `2026.10.27.1`, `2026.10.27.2`, then `2026.10.28.1` the next day. Change it in `package.json`, `src/lib/app-version.ts` (shown in the footer; a unit test keeps the two in step) and the badge at the top of this README.
+3. **Release notes.** Add `docs/release-notes/vX.md` for the new version with Added / Changed / Fixed sections and deploy notes (say whether Convex must be deployed first).
+
+Behind-the-scenes changes (tests, tooling, docs) don't need a card or a new version.
 
 ### Browser acceptance without live services
 
