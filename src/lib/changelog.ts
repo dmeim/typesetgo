@@ -36,6 +36,21 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "steady-pill-and-mode",
+    date: "2026-10-27",
+    title: "Light or dark sticks on every page, and the settings pill stops nudging the words",
+    kind: "fixed",
+    status: "live",
+    area: "Everywhere",
+    summary: "Light and dark mode is one choice for the whole site, the words sit halfway between the settings pill and the keyboard, and opening the settings pill no longer moves anything.",
+    highlights: [
+      "Switch to light or dark on any page and it stays that way everywhere, and on your account, instead of each page going back to its own mode",
+      "The words sit halfway between the settings pill and the keyboard, or the bottom of the screen when the keyboard is off",
+      "The settings pill, custom length and your own text open over the words instead of pushing them down",
+      "The keyboard fades when you click away but keeps its place, so nothing jumps",
+    ],
+  },
+  {
     id: "last-sweep-touches",
     date: "2026-10-27",
     title: "The profile page meets the header, and new players get a friendlier start",

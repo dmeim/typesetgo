@@ -60,18 +60,6 @@ export function useProfileSettings() {
     if (settings !== initialSettings.current) persistProfileSettings(settings);
   }, [settings]);
 
-  // The account theme applies once per visit unless the player already picked one here.
-  const themeAppliedFor = useRef<string | null>(null);
-  useEffect(() => {
-    if (!hydrated || !stored?.themeId || themeAppliedFor.current === clerkId || themeEdited) return;
-    themeAppliedFor.current = clerkId;
-    const storedMode = stored.themeMode === "light" || stored.themeMode === "dark" ? stored.themeMode : undefined;
-    setThemeSelection({ themeId: stored.themeId, variantId: stored.themeVariantId || undefined, mode: storedMode },
-      { source: "preferences", expectedUserSelectionRevision: themeBaseline }).catch((error: unknown) => {
-      console.warn("Failed to apply the account theme on the profile page:", error);
-    });
-  }, [hydrated, stored, clerkId, themeEdited, themeBaseline, setThemeSelection]);
-
   // Account copy: debounced, dirty-checked and flushed when the page closes or unmounts.
   const preferences = useMemo(() => {
     const [practice, layout] = splitProfileSettings(settings);

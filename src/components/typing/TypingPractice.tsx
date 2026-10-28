@@ -325,6 +325,7 @@ export default function TypingPractice({
   const [idleTopHeight, setIdleTopHeight] = useState(0);
   const regionRef = useRef<HTMLDivElement | null>(null);
   const groupRef = useRef<HTMLDivElement | null>(null);
+  const keyboardRef = useRef<HTMLDivElement | null>(null);
   const [typingCenterOffset, setTypingCenterOffset] = useState(0);
 
   const promptReady = (restoringPrompt || dataset.status === "ready") && matchesPromptRequest && words.length > 0;
@@ -997,15 +998,17 @@ export default function TypingPractice({
     return () => observer.disconnect();
   }, [isRunning, isFinished, editor]);
 
-  // The whole visible text block sits at the middle of the practice screen, whatever is above or below it. When the
-  // pill, an open editor or the keyboard leave too little room, it moves toward the middle by at most half the free
-  // space, so it never presses against the keyboard.
+  // The text sits halfway between the settings pill and the keyboard, or the bottom edge when the keyboard is off; the
+  // hint is left out, so it never pulls the text around. The shift is capped at the free room, so the text never
+  // presses into the pill, the hint or the keyboard.
   useLayoutEffect(() => {
     const root = rootRef.current;
+    const top = topRef.current;
     const region = regionRef.current;
     const group = groupRef.current;
     const text = containerRef.current;
-    if (isFinished || !root || !region || !group || !text) return;
+    if (isFinished || !root || !top || !region || !group || !text) return;
+    const keyboard = keyboardRef.current;
     const update = () => {
       const rootRect = root.getBoundingClientRect();
       const regionRect = region.getBoundingClientRect();
@@ -1013,15 +1016,18 @@ export default function TypingPractice({
       const textCenter = text.getBoundingClientRect().top - group.getBoundingClientRect().top + text.offsetHeight / 2;
       const room = Math.max(0, regionRect.height - group.offsetHeight) / 2;
       const naturalCenter = regionRect.top + room + textCenter;
-      const wanted = rootRect.top + root.clientHeight / 2 - naturalCenter;
-      const next = Math.round(Math.max(-room / 2, Math.min(room / 2, wanted)));
+      const upper = top.getBoundingClientRect().bottom;
+      // The board's own top, below the margin it keeps from the hint.
+      const lower = keyboard ? (keyboard.firstElementChild ?? keyboard).getBoundingClientRect().top : rootRect.top + root.clientHeight;
+      const wanted = (upper + lower) / 2 - naturalCenter;
+      const next = Math.round(Math.max(-room, Math.min(room, wanted)));
       setTypingCenterOffset((current) => (current === next ? current : next));
     };
     update();
     const observer = new ResizeObserver(update);
-    for (const element of [root, region, group, text]) observer.observe(element);
+    for (const element of [root, top, region, group, text, keyboard]) if (element) observer.observe(element);
     return () => observer.disconnect();
-  }, [isFinished]);
+  }, [isFinished, settings.showOnScreenKeyboard]);
 
   const selectedDurationPreset = TIME_PRESETS.find((preset) => preset === settings.duration);
   const selectedWordPreset = WORD_PRESETS.find((preset) => preset === settings.wordTarget);
@@ -1077,8 +1083,8 @@ export default function TypingPractice({
       )}
       </div>
 
-      {/* The room between the pill and the bottom: the text block is centred on the whole screen within it (see the
-          centring effect); results center themselves in it instead. */}
+      {/* The room between the pill and the bottom: the text sits halfway between the pill and the keyboard or bottom edge
+          within it (see the centring effect); results center themselves in it instead. */}
       <div ref={regionRef} className={`w-full flex flex-col items-center ${isFinished ? "min-h-0 flex-1" : "flex-[1_0_auto] justify-center"}`}>
       <div
         ref={groupRef}
@@ -1233,7 +1239,7 @@ export default function TypingPractice({
         )}
 
         {settings.showOnScreenKeyboard && !isFinished && (
-          <div className="w-[95%] md:w-[80%]">
+          <div ref={keyboardRef} className="w-[95%] md:w-[80%]">
             <OnScreenKeyboard
               nextChar={nextChar}
               capsLockOn={capsLockOn}

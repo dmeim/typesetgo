@@ -1,5 +1,5 @@
 import { useId, useMemo } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { buildRows, DEFAULT_KEYBOARD_STYLE, findBoardKey, modelFor, type KeyboardStyle } from "@/lib/keyboard-model";
 import LegacyKeyboard, { type KeyboardGuideProps } from "./LegacyKeyboard";
 import { FingerKeyboard } from "./FingerKeyboard";
@@ -48,20 +48,16 @@ function StyledKeyboard({ style, toDelete, nextChar, capsLockOn, layoutId, activ
         {capsLockOn ? " Caps Lock is on." : ""}
         {needsCapsLockOff ? " Turn Caps Lock off for lowercase letters." : ""}
       </p>
-      <AnimatePresence>
-        {visible && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reducedMotion ? 0 : 0.15 }}
-            // Key height follows width, so cap the width by screen height to keep the whole board on short screens.
-            className="mx-auto w-full max-w-[min(100%,78dvh)]"
-          >
-            {style === "finger" ? <FingerKeyboard model={model} /> : style === "keycaps" ? <KeycapKeyboard model={model} /> : <SpotlightKeyboard model={model} />}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Out of focus the board fades but keeps its space, so the text and settings above it never jump. */}
+      <motion.div
+        initial={false}
+        animate={{ opacity: visible ? 1 : 0 }}
+        transition={{ duration: reducedMotion ? 0 : 0.15 }}
+        // Key height follows width, so cap the width by screen height to keep the whole board on short screens.
+        className={`mx-auto w-full max-w-[min(100%,78dvh)] ${visible ? "" : "pointer-events-none"}`}
+      >
+        {style === "finger" ? <FingerKeyboard model={model} /> : style === "keycaps" ? <KeycapKeyboard model={model} /> : <SpotlightKeyboard model={model} />}
+      </motion.div>
     </div>
   );
 }
