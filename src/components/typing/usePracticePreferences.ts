@@ -26,7 +26,7 @@ interface PreferenceOptions {
 export function usePracticePreferences({ userId, connectMode, settings, settingsRef, setSettings,
   isRunningRef, isFinishedRef, composingRef }: PreferenceOptions) {
   const { themeId: selectedThemeId, variantId: selectedVariantId, mode: selectedMode,
-    userSelectionRevision, setThemeSelection } = useTheme();
+    userSelectionRevision } = useTheme();
   const [linePreview, setLinePreview] = useState(() => loadLayoutSettings()?.linePreview ?? 3);
   const [maxWordsPerLine, setMaxWordsPerLine] = useState(() => loadLayoutSettings()?.maxWordsPerLine ?? 7);
   // Account defaults arriving during an attempt belong to the next prompt, including while results are open.
@@ -105,33 +105,7 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
       void (async () => {
         if (isCancelled) return;
         try {
-          // Apply theme from DB using the context
-          const dbThemeId = dbPreferences.themeId;
-          const dbVariantId = dbPreferences.themeVariantId;
-          const dbThemeMode = dbPreferences.themeMode;
-          if (dbThemeId && !themeEditedRef.current) {
-            try {
-              await setThemeSelection({
-                themeId: dbThemeId,
-                variantId: dbVariantId || undefined,
-                mode: dbThemeMode === "light" || dbThemeMode === "dark" ? dbThemeMode : undefined,
-              }, { source: "preferences", expectedUserSelectionRevision: themeRevisionBaselineRef.current });
-            } catch (error) {
-              console.warn("Failed to apply theme from DB preferences:", error);
-            }
-          } else if (!themeEditedRef.current && dbPreferences.themeName && !dbPreferences.customTheme) {
-            try {
-              await setThemeSelection({ themeId: dbPreferences.themeName.toLowerCase().replace(/\s+/g, "-") },
-                { source: "preferences", expectedUserSelectionRevision: themeRevisionBaselineRef.current });
-            } catch (error) {
-              console.warn("Failed to apply theme from DB preferences:", error);
-            }
-          }
-          if (isCancelled) return;
-
-          // Note: Custom themes are not currently supported in the new theme system
-          // They would need to be stored as theme JSON files
-
+          // The account's theme is applied once for the whole app by AccountThemeSync, not on every visit to Home.
           // Apply settings from DB
           {
             const prev = settingsRef.current;
@@ -170,7 +144,7 @@ export function usePracticePreferences({ userId, connectMode, settings, settings
       isCancelled = true;
       cancelAnimationFrame(hydrationFrame);
     };
-  }, [dbPreferences, hasResolvedDbPrefs, setThemeSelection, userId, connectMode, composingRef, isFinishedRef, isRunningRef, setSettings, settingsRef]);
+  }, [dbPreferences, hasResolvedDbPrefs, userId, connectMode, composingRef, isFinishedRef, isRunningRef, setSettings, settingsRef]);
 
   // --- Save Preferences to DB (debounced, dirty-checked, for logged-in users) ---
   useEffect(() => {

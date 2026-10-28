@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type { KeyboardLayoutId } from "@/lib/keyboard-layouts";
 import { KEYBOARD_LAYOUTS, findKeyForChar } from "@/lib/keyboard-layouts";
 import KeyboardKey from "./KeyboardKey";
@@ -97,48 +97,46 @@ export default function LegacyKeyboard({
         {needsCapsLockOff ? " Turn Caps Lock off for lowercase letters." : ""}
         {tooSmall && visible ? " Keyboard preview is hidden at this width." : ""}
       </p>
-      <AnimatePresence>
-        {visible && !tooSmall && (
-          <motion.div
-            className="flex flex-col items-center"
-            style={{ gap: ROW_GAP }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reducedMotion ? 0 : 0.15 }}
-          >
-            <CapsLockIndicator isActive={capsLockOn} rowHeight={rowHeight} />
-            {layout.rows.map((row, rowIdx) => (
-              <div key={rowIdx} className="relative flex justify-center" style={{ gap: GAP }}>
-                {row.map((keyDef, keyIdx) => {
-                  const isNextKey = match !== null && match.key.key === keyDef.key;
-                  const isShiftHighlight = match !== null && requiresShift && keyDef.type === "shift";
+      {/* Out of focus the board fades but keeps its space, so the text and settings above it never jump. */}
+      {!tooSmall && (
+        <motion.div
+          className={`flex flex-col items-center ${visible ? "" : "pointer-events-none"}`}
+          style={{ gap: ROW_GAP }}
+          initial={false}
+          animate={{ opacity: visible ? 1 : 0 }}
+          transition={{ duration: reducedMotion ? 0 : 0.15 }}
+        >
+          <CapsLockIndicator isActive={capsLockOn} rowHeight={rowHeight} />
+          {layout.rows.map((row, rowIdx) => (
+            <div key={rowIdx} className="relative flex justify-center" style={{ gap: GAP }}>
+              {row.map((keyDef, keyIdx) => {
+                const isNextKey = match !== null && match.key.key === keyDef.key;
+                const isShiftHighlight = match !== null && requiresShift && keyDef.type === "shift";
 
-                  const isActive =
-                    activeKey !== null &&
-                    (keyDef.type === "letter"
-                      ? keyDef.key === activeKey.toLowerCase()
-                      : keyDef.type === "space"
-                        ? activeKey === " "
-                        : keyDef.key === activeKey || keyDef.shiftKey === activeKey);
+                const isActive =
+                  activeKey !== null &&
+                  (keyDef.type === "letter"
+                    ? keyDef.key === activeKey.toLowerCase()
+                    : keyDef.type === "space"
+                      ? activeKey === " "
+                      : keyDef.key === activeKey || keyDef.shiftKey === activeKey);
 
-                  return (
-                    <KeyboardKey
-                      key={`${keyDef.key}-${keyIdx}`}
-                      keyDef={keyDef}
-                      isNext={isNextKey || isShiftHighlight}
-                      isActive={isActive}
-                      isCapsLockOn={capsLockOn}
-                      unitSize={unitSize}
-                      gap={GAP}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                return (
+                  <KeyboardKey
+                    key={`${keyDef.key}-${keyIdx}`}
+                    keyDef={keyDef}
+                    isNext={isNextKey || isShiftHighlight}
+                    isActive={isActive}
+                    isCapsLockOn={capsLockOn}
+                    unitSize={unitSize}
+                    gap={GAP}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </motion.div>
+      )}
     </div>
   );
 }

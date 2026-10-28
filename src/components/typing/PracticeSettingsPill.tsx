@@ -18,8 +18,8 @@ const panelRow = {
 };
 
 /**
- * Test settings as a one-line summary that morphs into the full panel. The panel floats over the prompt;
- * while a custom length or your own text is being edited it joins the page flow and pushes the test down.
+ * Test settings as a one-line summary that morphs into the full panel. The panel, custom length and own-text editors
+ * included, floats over the prompt on its own layer, so nothing below it moves.
  */
 export function PracticeSettingsPill(props: PracticeSettingsPillProps) {
   const { settings, isKidMode, editor, setEditor, applyCustomLength, applyPresetText, estimateSpeed, ...configuration } = props;
@@ -70,18 +70,15 @@ export function PracticeSettingsPill(props: PracticeSettingsPillProps) {
   const wordOptions = usesWordOptions(mode);
   const summary = <Summary settings={settings} isKidMode={isKidMode} />;
   const summaryText = [mode, length, wordOptions ? settings.difficulty : null].filter(Boolean).join(", ");
-  const inFlow = editor !== null;
   const lengthKind = settings.mode === "time" || settings.mode === "words" ? settings.mode : null;
 
   return (
     <div className="relative w-full">
       {/* Reserves the collapsed height so the open panel floats over the prompt instead of pushing it. */}
-      {!inFlow && (
-        <div className="invisible flex justify-center" aria-hidden="true">
-          <span className={`${summaryClass} border border-transparent`}>{summary}</span>
-        </div>
-      )}
-      <div className={inFlow ? "relative z-30 flex justify-center" : "pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center"}>
+      <div className="invisible flex justify-center" aria-hidden="true">
+        <span className={`${summaryClass} border border-transparent`}>{summary}</span>
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center">
         <motion.div
           ref={surfaceRef}
           layout

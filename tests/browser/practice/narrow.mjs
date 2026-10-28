@@ -113,7 +113,13 @@ await withFixtureBrowser(async browser => {
     await pick(panel.getByRole("radio", { name: "60s", exact: true }), "aria-checked");
     await pick(panel.getByRole("radio", { name: "hard", exact: true }), "aria-checked");
     await pick(panel.getByRole("button", { name: "punctuation" }), "aria-pressed");
-    // Custom length unfolds inside the pill and pushes the test down instead of opening a dialog.
+    // Custom length unfolds inside the pill, floating over the test instead of opening a dialog or pushing it down.
+    // Measured inside the scrolling practice screen, since the tall editor may scroll it on phones.
+    const promptTop = () => p.locator(".cursor-text").evaluate((element) => {
+      const screen = element.closest("[class*='overflow-y-auto']");
+      return element.getBoundingClientRect().top - screen.getBoundingClientRect().top + screen.scrollTop;
+    });
+    const restingTop = await promptTop();
     await panel.getByRole("button", { name: "Custom length" }).click();
     const lengthEditor = p.getByRole("region", { name: "Custom duration", exact: true });
     const field = lengthEditor.getByRole("textbox", { name: "Custom duration" });
@@ -124,9 +130,8 @@ await withFixtureBrowser(async browser => {
     await expect(lengthEditor.getByRole("status")).toContainText("About 60 words at 40 wpm");
     await lengthEditor.scrollIntoViewIfNeeded();
     await expect(async () => { await expectWithinViewport(p, lengthEditor); }).toPass();
-    // The open editor pushes the prompt down rather than covering it (once the pill's layout settles).
-    await expect.poll(async () => (await p.locator(".cursor-text").boundingBox()).y
-      - await lengthEditor.evaluate((element) => element.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
+    // The open editor covers the prompt on its own layer; nothing below the pill moves.
+    expect(Math.abs(await promptTop() - restingTop)).toBeLessThan(1);
     expect(await noSideways()).toBe(true);
     await p.screenshot({ path: artifactPath(`practice-pill-custom-length-${width}.png`) });
     await field.press("Escape");
@@ -160,23 +165,29 @@ await withFixtureBrowser(async browser => {
     });
   }
   console.log("phone settings pill at 390/320: mode, length, difficulty, extras, custom length and own text unfold without sideways scroll PASS");
-  // Without the keyboard, the middle of the whole text block sits at the middle of the practice screen.
-  const centred = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
-  await centred.addInitScript(() => localStorage.setItem("typesetgo_settings", JSON.stringify({
-    mode: "words", wordTarget: 25, soundEnabled: false, showOnScreenKeyboard: false,
-  })));
-  await routeFixtureRequests(centred, r => new URL(r.request().url()).hostname === "127.0.0.1" ? r.fallback() : r.abort());
-  await centred.goto(fixtureOrigin);
-  await expect(centred.getByRole("textbox", { name: "Typing practice", exact: true })).toBeEnabled();
-  await expect(centred.locator("[data-testid=keyboard-container]")).toHaveCount(0);
-  for (const [width, height] of [[1440, 900], [1280, 720], [1024, 768]]) {
-    await centred.setViewportSize({ width, height });
-    await expect.poll(() => centred.evaluate(() => {
-      const screen = document.querySelector("main").getBoundingClientRect();
+  // The text sits halfway between the settings pill and the keyboard, or the bottom edge without the keyboard.
+  for (const keyboard of [false, true]) {
+    const centred = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+    await centred.addInitScript((showOnScreenKeyboard) => localStorage.setItem("typesetgo_settings", JSON.stringify({
+      mode: "words", wordTarget: 25, soundEnabled: false, showOnScreenKeyboard,
+    })), keyboard);
+    await routeFixtureRequests(centred, r => new URL(r.request().url()).hostname === "127.0.0.1" ? r.fallback() : r.abort());
+    await centred.goto(fixtureOrigin);
+    await expect(centred.getByRole("textbox", { name: "Typing practice", exact: true })).toBeEnabled();
+    await expect(centred.locator("[data-testid=keyboard-container]")).toHaveCount(keyboard ? 1 : 0);
+    const offCentre = () => centred.evaluate(() => {
+      const pill = document.querySelector("[aria-label^='Test settings']").getBoundingClientRect();
+      const board = document.querySelector("[data-testid=keyboard-container]");
+      const lower = board ? board.getBoundingClientRect().top : document.querySelector("main").getBoundingClientRect().bottom;
       const text = document.querySelector(".cursor-text").getBoundingClientRect();
-      return Math.abs(text.top + text.height / 2 - (screen.top + screen.height / 2));
-    }), `text block centred at ${width}x${height}`).toBeLessThanOrEqual(2);
+      return Math.abs(text.top + text.height / 2 - (pill.bottom + lower) / 2);
+    });
+    for (const [width, height] of [[1440, 900], [1280, 720], [1024, 768]]) {
+      await centred.setViewportSize({ width, height });
+      await expect.poll(offCentre, `text block centred ${keyboard ? "above the keyboard" : "above the bottom edge"} at ${width}x${height}`)
+        .toBeLessThanOrEqual(6);
+    }
+    await centred.close();
   }
-  await centred.close();
-  console.log("text block centred on the practice screen without the keyboard PASS");
+  console.log("text block centred between the pill and the keyboard or bottom edge PASS");
 });

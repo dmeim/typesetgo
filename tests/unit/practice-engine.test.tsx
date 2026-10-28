@@ -450,8 +450,8 @@ describe("preference hydration and Connect boundaries", () => {
     mocks.auth.user = { id: "second" }; mocks.preferences = accountPreferences({ defaultWordTarget: 25, themeId: "second-theme" });
     rerender(<TypingPractice />);
     await waitFor(() => expect(container.querySelectorAll("[data-typing-word]")).toHaveLength(25));
-    expect(mocks.setThemeSelection).toHaveBeenCalledWith(expect.objectContaining({ themeId: "second-theme" }),
-      { source: "preferences", expectedUserSelectionRevision: 0 });
+    // The account theme is applied app-wide by AccountThemeSync, never by Home.
+    expect(mocks.setThemeSelection).not.toHaveBeenCalled();
   });
   it("saves a pick locally at once and flushes the account save when Home unmounts, so the Profile page starts from them", async () => {
     setLocal();
