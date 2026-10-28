@@ -36,6 +36,20 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "pill-mode-first",
+    date: "2026-10-27",
+    title: "Mode comes first in the settings pill, so it stops jumping",
+    kind: "improved",
+    status: "live",
+    area: "Home",
+    summary: "The test settings pill now starts with Mode, so switching modes no longer moves the row you're clicking.",
+    highlights: [
+      "Mode is the top row, then Length (or Text for Preset), then Difficulty and Extras",
+      "Rows a mode doesn't use come and go below Mode instead of pushing it up and down",
+    ],
+    demo: "settings-pill",
+  },
+  {
     id: "steady-pill-and-mode",
     date: "2026-10-27",
     title: "Light or dark sticks on every page, and the settings pill stops nudging the words",
