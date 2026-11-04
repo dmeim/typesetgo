@@ -36,6 +36,20 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "connect-long-timed-tests",
+    date: "2026-11-04",
+    title: "Long timed tests in Connect keep reaching the live board",
+    kind: "fixed",
+    status: "live",
+    area: "Connect",
+    summary: "A student's card could stop updating partway through a long timed test, once they'd typed about 20,000 characters (around 40 minutes at 100 WPM), and their result never reached the host. Timed tests now report for their whole length, on generated text and your own text alike.",
+    highlights: [
+      "Holding a key down can no longer stop a student's updates either",
+      "Refreshing during a very long test brings back the student's speed, accuracy, word count and ghost",
+      "After a refresh that late, the results screen's word lists only cover the words typed since a little before the refresh",
+    ],
+  },
+  {
     id: "connect-word-goal",
     date: "2026-11-04",
     title: "Word goals: the whole class types toward one number",

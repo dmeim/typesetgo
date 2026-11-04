@@ -11,6 +11,7 @@ import {
   type ConnectStats,
   type ConnectTest,
 } from "@/lib/connect-types";
+import { MAX_CONNECT_TEXT_LENGTH } from "@/lib/practice-limits";
 import { SELF_SESSION } from "./identity";
 
 // In-memory stand-in for `convex/connect.ts`. Views mirror the server's
@@ -74,6 +75,7 @@ export const FIXTURE_TESTS = {
   words: test({ id: "t4", mode: "words", wordTarget: 25 }),
   goal: test({ id: "t5", mode: "goal", wordTarget: 5 }),
   bigGoal: test({ id: "t6", mode: "goal", wordTarget: 1000, title: "Class goal" }),
+  hour: test({ id: "t7", mode: "time", duration: 3600 }),
 };
 const fourTests = [FIXTURE_TESTS.warmUp, FIXTURE_TESTS.timed, FIXTURE_TESTS.sprint, FIXTURE_TESTS.words];
 
@@ -183,6 +185,17 @@ function seed(name: string): { rooms: Room[]; participants: Participant[] } {
       return {
         rooms: [makeRoom({ _id: "room-live", status: "running", tests: [FIXTURE_TESTS.goal, FIXTURE_TESTS.timed], goalTally: { runVersion: 1, words: 2, dueAt: 0 } })],
         participants: [self(), makeParticipant("Bea", { stats: { wpm: 40, accuracy: 95, timeElapsed: 5000, wordsTyped: 2 } })],
+      };
+    case "room-long":
+      return { rooms: [makeRoom({ _id: "room-live", status: "running", tests: [FIXTURE_TESTS.hour] })], participants: [self()] };
+    // A very long test as a refresh finds it: only recent text was saved, next to stats for the whole attempt.
+    case "room-long-restored":
+      return {
+        rooms: [makeRoom({ _id: "room-live", status: "running", tests: [FIXTURE_TESTS.hour] })],
+        participants: [self({
+          typedText: "the ".repeat(50), targetText: `${"the ".repeat(150)}the`,
+          stats: { wpm: 102, accuracy: 97.5, progress: 99, wordsTyped: 5100, timeElapsed: 2_400_000 },
+        })],
       };
     case "room-host":
       return { rooms: [makeRoom({ _id: "room-live", status: "running" })], participants: [self()] };
@@ -398,6 +411,9 @@ const mutations: Record<string, (args: Args) => unknown> = {
     return { roomId: room._id, participantId: participant._id };
   },
   "connect:reportProgress": (args) => {
+    for (const text of [args.typedText, args.targetText]) {
+      if (typeof text === "string" && text.length > MAX_CONNECT_TEXT_LENGTH) throw new Error("Typed text is too long");
+    }
     const { participant, room } = participantFor(args);
     const accepted = isLive(room) && room.status === "running" && room.runVersion === args.runVersion &&
       participant.removedAt === undefined && participant.completedAt === undefined && participant.attempt === args.attempt &&

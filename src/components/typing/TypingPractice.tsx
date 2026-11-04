@@ -31,8 +31,8 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { PROGRESS_CHAR_THRESHOLD, PROGRESS_INTERVAL_MS } from "../../../convex/lib/antiCheatConstants";
 import { useNotify } from "@/hooks/useNotify";
 import { getAchievementById } from "@/lib/achievement-definitions";
-import { computeStats, computeWordResults, countCorrectWords, goalSnapshot, sanitizeTypingInput, getInputPosition, getNextTypingKey, getWrongLetterCount,
-  hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
+import { computeCarriedStats, computeWordResults, connectSnapshot, countCorrectWords, countReportedWords, countTypedWords, rollingSnapshot, sanitizeTypingInput, getInputPosition, getNextTypingKey, getWrongLetterCount,
+  hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey, snapshotCarry, type SnapshotCarry } from "./practice-input";
 import { usePracticePreferences } from "./usePracticePreferences";
 import { usePracticeClock } from "./usePracticeClock";
 import { usePracticeDataset } from "./usePracticeDataset";
@@ -100,8 +100,8 @@ interface TypingPracticeProps {
   isTestActive?: boolean;
   /** Connect: the room ended this test (its clock ran out), so show results now. */
   forceFinish?: boolean;
-  /** `wordsTyped` and `wpm` come back with a word goal, whose saved text is only a recent window. */
-  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean; wordsTyped?: number; wpm?: number };
+  /** The saved stats fill in what a word goal or very long test left out: its saved text is only a recent window. */
+  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean; wordsTyped?: number; wpm?: number; accuracy?: number };
   /** Connect: this is a word goal, described this way on the results screen. Only correct words count. */
   goalLabel?: string;
   /** Connect: the host's choices for how the text is laid out, where they made one. */
@@ -127,9 +127,9 @@ interface TypingPracticeProps {
   onTypingStateChange?: (isTyping: boolean) => void;
 }
 
-function readTimeline(typed: string, reference: string, elapsedMs: number): TimelineReading {
-  const { correct, incorrect, missed, extra } = computeStats(typed, reference);
-  return { elapsedMs, typedLength: typed.length, correct, errors: incorrect + missed + extra };
+function readTimeline(typed: string, reference: string, elapsedMs: number, carry: SnapshotCarry): TimelineReading {
+  const { correct, incorrect, missed, extra } = computeCarriedStats(typed, reference, carry);
+  return { elapsedMs, typedLength: typed.length + carry.characters, correct, errors: incorrect + missed + extra };
 }
 
 export default function TypingPractice({
@@ -170,6 +170,9 @@ export default function TypingPractice({
   const { wordPool, quotes } = dataset;
   const promptConfigKey = JSON.stringify(PROMPT_SETTING_KEYS.map((key) => settings[key]));
   const [restoredAttempt, setRestoredAttempt] = useState(() => connectMode && initialAttempt?.targetText ? initialAttempt : undefined);
+  const isGoal = connectMode && goalLabel !== undefined;
+  // A refreshed word goal or very long test may only have its recent text back, so what came before it carries over from the saved stats.
+  const carry = useMemo(() => snapshotCarry(restoredAttempt, isGoal), [restoredAttempt, isGoal]);
   const [restoredConfigKey] = useState(promptConfigKey);
   const restoringPrompt = Boolean(restoredAttempt && restoredConfigKey === promptConfigKey);
   const [promptSeed, setPromptSeed] = useState(() => ({ value: Math.floor(Math.random() * 4294967296) }));
@@ -208,7 +211,8 @@ export default function TypingPractice({
   // A fresh attempt has no elapsed time, including the commit that resets the external clock store.
   const elapsedMs = isRunning || isFinished ? clockElapsedMs : 0;
   const [isRepeated, setIsRepeated] = useState(false);
-  const ghostCharIndex = Math.min(words.length, Math.floor(elapsedMs * settings.ghostWriterSpeed * 5 / 60000));
+  // A ghost still behind a restored window's first word goes negative, which draws nothing.
+  const ghostCharIndex = Math.min(words.length, Math.floor(elapsedMs * settings.ghostWriterSpeed * 5 / 60000) - carry.characters);
   const repeatRef = useRef(false);
   const attemptedSessionEpochRef = useRef(-1);
   const [rankingStatus, setRankingStatus] = useState<"pending" | "ranked" | "unranked">("unranked");
@@ -403,35 +407,21 @@ export default function TypingPractice({
   }, [promptReady, sessionEpoch, isFinished, connectMode, isTestActive]);
 
   // --- Calculated Stats ---
-  const stats = useMemo(() => computeStats(typedText, words), [typedText, words]);
+  const stats = useMemo(() => computeCarriedStats(typedText, words, carry), [typedText, words, carry]);
   const wordResults = useMemo(() => computeWordResults(typedText, words), [typedText, words]);
-  const typedWordCount = useMemo(() => {
-    const trimmed = typedText.trim();
-    if (trimmed === "") return 0;
-    const typedWords = trimmed.split(/\s+/).length;
-    return typedText.endsWith(" ") ? typedWords : Math.max(typedWords - 1, 0);
-  }, [typedText]);
-  const isGoal = connectMode && goalLabel !== undefined;
-  // A refreshed word goal only has its recent text back, so what came before it carries over from the saved stats.
-  const [goalCarry] = useState(() => {
-    const saved = restoredAttempt;
-    if (!isGoal || saved?.wordsTyped === undefined) return { words: 0, characters: 0 };
-    return {
-      words: Math.max(0, saved.wordsTyped - countCorrectWords(saved.typedText, saved.targetText)),
-      characters: Math.max(0, Math.round((saved.wpm ?? 0) * 5 * saved.elapsedMs / 60000) - saved.typedText.length),
-    };
-  });
-  const goalWordCount = useMemo(() => isGoal ? goalCarry.words + countCorrectWords(typedText, words) : 0, [isGoal, goalCarry, typedText, words]);
-  const shownWordCount = isGoal ? goalWordCount : typedWordCount;
-  const accuracy = calculateAccuracy(stats.correct, typedText.length);
-  const wpm = calculateWpm(typedText.length + goalCarry.characters, elapsedMs);
+  const typedWordCount = useMemo(() => countTypedWords(typedText), [typedText]);
+  const goalWordCount = useMemo(() => isGoal ? carry.words + countCorrectWords(typedText, words) : 0, [isGoal, carry, typedText, words]);
+  const shownWordCount = isGoal ? goalWordCount : carry.words + typedWordCount;
+  const typedLength = carry.characters + typedText.length;
+  const accuracy = calculateAccuracy(stats.correct, typedLength);
+  const wpm = calculateWpm(typedLength, elapsedMs);
 
   useEffect(() => {
     if (!isRunning || isFinished) return;
     timelineRef.current = recordTimelineSecond(timelineRef.current, {
-      elapsedMs, typedLength: typedText.length, correct: stats.correct, errors: stats.incorrect + stats.missed + stats.extra,
+      elapsedMs, typedLength, correct: stats.correct, errors: stats.incorrect + stats.missed + stats.extra,
     });
-  }, [isRunning, isFinished, elapsedMs, typedText.length, stats]);
+  }, [isRunning, isFinished, elapsedMs, typedLength, stats]);
 
   const timeRemaining =
     isTimedPractice(settings) ? Math.max(0, settings.duration - Math.floor(elapsedMs / 1000)) : 0;
@@ -486,7 +476,7 @@ export default function TypingPractice({
     completedAtRef.current = Date.now();
     pauseClock();
     elapsedMsRef.current = readElapsed();
-    setTimeline(finishTimeline(timelineRef.current, readTimeline(typedTextRef.current, wordsRef.current, elapsedMsRef.current)));
+    setTimeline(finishTimeline(timelineRef.current, readTimeline(typedTextRef.current, wordsRef.current, elapsedMsRef.current, carry)));
     // Captured before saving, so this test is compared with earlier ones only.
     setComparison(comparisonRef.current ?? null);
     const sessionId = sessionIdRef.current;
@@ -496,7 +486,7 @@ export default function TypingPractice({
     }
     setIsFinished(true);
     setIsRunning(false);
-  }, [readElapsed, pauseClock, recordProgressMutation]);
+  }, [readElapsed, pauseClock, recordProgressMutation, carry]);
 
   const finishSessionRef = useRef(finishSession);
   useEffect(() => { finishSessionRef.current = finishSession; }, [finishSession]);
@@ -901,13 +891,13 @@ export default function TypingPractice({
   useEffect(() => {
     if (!promptReady || (connectMode && !isTestActive)) return;
     if (onStatsUpdateRef.current) {
-      const snapshot = isGoal ? goalSnapshot(typedText, words) : { typedText, targetText: words };
+      const snapshot = isGoal ? rollingSnapshot(typedText, words) : connectSnapshot(typedText, words, settings.mode === "time");
       onStatsUpdateRef.current(
         {
           wpm: Math.round(wpm) || 0,
           accuracy,
-          progress: words.length > 0 ? getInputPosition(typedText, words).referencePosition / words.length * 100 : 0,
-          wordsTyped: isGoal ? goalWordCount : typedWordCount + (hasCompletedPrompt(typedText, words) && !typedText.endsWith(" ") && typedText.trim() ? 1 : 0),
+          progress: words.length > 0 ? (carry.characters + getInputPosition(typedText, words).referencePosition) / (carry.characters + words.length) * 100 : 0,
+          wordsTyped: isGoal ? goalWordCount : carry.words + countReportedWords(typedText, words),
           timeElapsed: elapsedMs,
           isFinished,
         },
@@ -915,7 +905,7 @@ export default function TypingPractice({
         snapshot.targetText
       );
     }
-  }, [wpm, accuracy, typedText, typedWordCount, isGoal, goalWordCount, words, elapsedMs, isFinished, connectMode, isTestActive, promptReady]);
+  }, [wpm, accuracy, typedText, carry, isGoal, goalWordCount, words, settings.mode, elapsedMs, isFinished, connectMode, isTestActive, promptReady]);
 
   const handleInput = (value: string) => {
     if (isFinishedRef.current || !promptReady || (connectMode && !isTestActive)) return;

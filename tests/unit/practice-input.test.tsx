@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TypingArea from "@/components/typing/TypingArea";
 import PracticeText from "@/components/typing/PracticeText";
-import { countCorrectWords, getNextTypingKey, goalSnapshot, hasCompletedPrompt, getInputPosition } from "@/components/typing/practice-input";
+import { connectSnapshot, countCorrectWords, getNextTypingKey, hasCompletedPrompt, getInputPosition, rollingSnapshot, snapshotCarry } from "@/components/typing/practice-input";
+import { MAX_CONNECT_TEXT_LENGTH } from "@/lib/practice-limits";
 import { createPracticeClock, usePracticeClock } from "@/components/typing/usePracticeClock";
 import theme from "../../public/themes/typesetgo.json";
 import { createRef, StrictMode } from "react";
@@ -230,12 +231,12 @@ describe("word goal counting", () => {
   });
 
   it("keeps a short attempt whole in its snapshot", () => {
-    expect(goalSnapshot("the ca", "the cat sat")).toEqual({ typedText: "the ca", targetText: "the cat sat" });
+    expect(rollingSnapshot("the ca", "the cat sat")).toEqual({ typedText: "the ca", targetText: "the cat sat" });
   });
 
   it("keeps a long attempt's snapshot small, with typed and target words still lined up", () => {
     const target = Array.from({ length: 1000 }, (_, index) => `w${index}`);
-    const snapshot = goalSnapshot(`${target.slice(0, 500).join(" ")} w5`, target.join(" "));
+    const snapshot = rollingSnapshot(`${target.slice(0, 500).join(" ")} w5`, target.join(" "));
     const typed = snapshot.typedText.split(" ");
     expect(typed).toHaveLength(51);
     expect(typed[0]).toBe("w450");
@@ -243,5 +244,60 @@ describe("word goal counting", () => {
     expect(snapshot.targetText.split(" ")).toHaveLength(151);
     expect(snapshot.targetText.split(" ").at(-1)).toBe("w600");
     expect(countCorrectWords(snapshot.typedText, snapshot.targetText)).toBe(50);
+  });
+
+  it("holds a held-down key's word to a size the server keeps, without moving later words", () => {
+    const typed = `${"x".repeat(50_000)} cat ${"y".repeat(50_000)}`;
+    const snapshot = rollingSnapshot(typed, "dog cat fish");
+    expect(snapshot.typedText.length).toBeLessThanOrEqual(MAX_CONNECT_TEXT_LENGTH);
+    expect(snapshot.typedText.split(" ")).toHaveLength(3);
+    expect(snapshot.typedText.split(" ")[1]).toBe("cat");
+  });
+
+  describe("connectSnapshot", () => {
+    const longTarget = Array.from({ length: 6000 }, (_, index) => `w${index}`).join(" ");
+
+    it("sends the whole text right up to the server's limit", () => {
+      const atLimit = "x".repeat(MAX_CONNECT_TEXT_LENGTH);
+      expect(connectSnapshot(atLimit, "cat", true)).toEqual({ typedText: atLimit, targetText: "cat" });
+      expect(connectSnapshot("cat", atLimit, true)).toEqual({ typedText: "cat", targetText: atLimit });
+    });
+
+    it("rolls once either text would be refused, and fits a growing prompt to what's near the caret", () => {
+      const snapshot = connectSnapshot("w0 w1 ", longTarget, true);
+      expect(snapshot).toEqual({ typedText: "w0 w1 ", targetText: longTarget.split(" ").slice(0, 103).join(" ") });
+      expect(snapshot.targetText.length).toBeLessThan(MAX_CONNECT_TEXT_LENGTH);
+    });
+
+    it("keeps every word ahead of a prompt that can't grow, so a refresh can't end it early", () => {
+      const target = Array(500).fill("cat").join(" ");
+      const typed = `${"cat ".repeat(100)}${"x".repeat(MAX_CONNECT_TEXT_LENGTH)}`;
+      const snapshot = connectSnapshot(typed, target, false);
+      expect(snapshot.typedText.split(" ")).toHaveLength(51);
+      // 50 words back from the 101st word, then all the way to the end.
+      expect(snapshot.targetText.split(" ")).toHaveLength(450);
+    });
+  });
+
+  describe("snapshotCarry", () => {
+    const window = { typedText: "cat cot ", targetText: "cat cat cat", elapsedMs: 60_000 };
+
+    it("carries nothing without saved stats, or when the whole text came back", () => {
+      expect(snapshotCarry(undefined, false).characters).toBe(0);
+      expect(snapshotCarry(window, false).characters).toBe(0);
+      expect(snapshotCarry({ ...window, wordsTyped: 2, wpm: 90, accuracy: 50 }, false).characters).toBe(0);
+      // The last word of a finished prompt counts without its space, so it isn't a dropped word.
+      expect(snapshotCarry({ typedText: "cat dog", targetText: "cat dog", elapsedMs: 60_000, wordsTyped: 2, wpm: 90, accuracy: 50 }, false).characters).toBe(0);
+    });
+
+    it("works out the words and characters a rolling snapshot dropped", () => {
+      // 100 WPM for a minute is 500 characters, 8 of them back in the window; 90% of 500 is 450, 7 of them in the window.
+      expect(snapshotCarry({ ...window, wordsTyped: 100, wpm: 100, accuracy: 90 }, false)).toEqual({ words: 98, characters: 492, correct: 443 });
+    });
+
+    it("counts a word goal's correct words, and always carries since its text is always cut down", () => {
+      expect(snapshotCarry({ ...window, wordsTyped: 100, wpm: 100, accuracy: 90 }, true).words).toBe(99);
+      expect(snapshotCarry({ ...window, wordsTyped: 0, wpm: 100, accuracy: 90 }, true)).toEqual({ words: 0, characters: 492, correct: 443 });
+    });
   });
 });
