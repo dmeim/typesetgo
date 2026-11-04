@@ -37,7 +37,7 @@ bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm t
 ## Architecture
 
 - **Frontend:** Vite 8 SPA with React 19 + TypeScript 7 (`src/`)
-- **Hosting:** Cloudflare Workers Static Assets (`typesetgo.app`); manual Wrangler deployment; owner-reported Workers Builds connection (unverified), no container build workflow
+- **Hosting:** Cloudflare Workers Static Assets (`typesetgo.app`); a push to `main` publishes through Workers Builds, whose build command also runs the unit tests, so a failing test stops the publish; Wrangler can also deploy by hand; no container build workflow
 - **Live services:** production Clerk + existing Convex development deployment (intentional; do not migrate the database)
 - **Backend:** Convex real-time functions (`convex/`)
 - **Auth:** Clerk, enabled when `VITE_CLERK_PUBLISHABLE_KEY` is set

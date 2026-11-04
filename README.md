@@ -103,7 +103,7 @@ More screenshots, one per change, are in [`public/changelog/`](public/changelog/
 
 Live app: **https://typesetgo.app**. Cloudflare Workers Static Assets serves the frontend; production Clerk handles sign-in, and the existing Convex **development deployment** holds the app's data.
 
-The deployment record reports an owner-configured Workers Builds connection to GitHub `main`; its first successful automated deployment is not recorded. Remote settings were not rechecked during the September 2026 cleanup. Treat a push to `main` as potentially publishing the frontend. Manual deployment remains available.
+A push to `main` publishes the frontend through Cloudflare Workers Builds, which also runs the unit tests and stops if any fail. Manual deployment remains available.
 
 For a manual deployment, first verify your Cloudflare account and ignored local build settings:
 

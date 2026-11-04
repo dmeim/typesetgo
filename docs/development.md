@@ -58,7 +58,7 @@ Local fixture and verification commands do not deploy the backend, migrate data,
 
 Deploy the Convex changes **before publishing this frontend**. Solo completion now sends `completed: true` to `typingSessions.recordProgress`, and unranked Words saves send `wordTarget` to `testResults.saveResult`. A backend without these optional arguments can reject the updated client's saves. The new backend continues accepting older clients that omit them.
 
-A push to `main` may automatically build and publish the Cloudflare Worker, but that pipeline does **not** deploy Convex. Keep production Clerk and the existing cloud Convex **development** deployment; do not switch databases or use the raw `bun run convex:deploy` command to target it.
+A push to `main` builds and publishes the Cloudflare Worker, but that pipeline does **not** deploy Convex. Its build command also runs the unit tests, so a failing test stops the publish and the site stays on its last version, with the backend already deployed; the log is under that build on the Cloudflare dashboard. Keep production Clerk and the existing cloud Convex **development** deployment; do not switch databases or use the raw `bun run convex:deploy` command to target it.
 
 Release order:
 

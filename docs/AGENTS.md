@@ -34,7 +34,7 @@ High-level architecture:
 - **Forms/validation:** React state, typed preference adapters, Convex validators
 - **Testing:** Vitest + Testing Library (`jsdom`), isolated Playwright/browser acceptance
 - **Linting:** ESLint 10 + TypeScript ESLint using the pinned TypeScript 6 JavaScript API; builds retain native TypeScript 7. React Hooks/Refresh rules remain enabled. See [`ui-cleanup/tooling.md`](ui-cleanup/tooling.md).
-- **Hosting:** Cloudflare Workers Static Assets at `typesetgo.app`; manual Wrangler deployment; owner-reported Workers Builds connection (unverified), no container workflow
+- **Hosting:** Cloudflare Workers Static Assets at `typesetgo.app`; a push to `main` publishes through Workers Builds, whose build command also runs the unit tests, so a failing test stops the publish; Wrangler can also deploy by hand; no container workflow
 
 Key alias:
 - `@/` -> `src/` (configured in Vite + TS configs)

@@ -2,7 +2,7 @@
 
 TypeSetGo's frontend runs on Workers Static Assets. React/Vite, Clerk authentication, and the Convex backend remain unchanged. Deploying the Worker does not deploy Convex functions or migrate data.
 
-Current code configuration is in `wrangler.jsonc`. The remote observations below are historical migration records, not fresh September 2026 checks. The owner reported a Workers Builds connection; no successful automatic build is recorded here. Treat pushes to `main` as potentially publishing. See [development targets](../development.md) before starting any Convex watcher.
+Current code configuration is in `wrangler.jsonc`. The remote observations below are historical migration records, not fresh September 2026 checks. Workers Builds publishes pushes to `main`, confirmed by the build of `88db70a` on October 28, 2026. Its build command also runs the unit tests, so a failing test stops the publish, as seen on November 4, 2026. See [development targets](../development.md) before starting any Convex watcher.
 
 ## Current configured target
 
@@ -61,7 +61,7 @@ These initial preview checks did **not** establish authenticated save behavior, 
 
 The initial domain attachment failed with error 100117 despite a conflict-free preflight. The owner removed the old apex VPS A record and deployment then succeeded. Clerk, email, and unrelated DNS records were not changed by the agent.
 
-The owner connected the existing Worker to GitHub `main` and confirmed the required variables were moved into the build settings. The first automatic build/deployment is pending verification. The retired Docker publishing workflow, Dockerfile, Compose/nginx configuration, `.dockerignore`, and Docker guide have been removed. `dist/` is now ignored and untracked; always build it from source before deploying. No GitHub Actions workflow is required for Cloudflare Workers Builds.
+The owner connected the existing Worker to GitHub `main` and confirmed the required variables were moved into the build settings. The retired Docker publishing workflow, Dockerfile, Compose/nginx configuration, `.dockerignore`, and Docker guide have been removed. `dist/` is now ignored and untracked; always build it from source before deploying. No GitHub Actions workflow is required for Cloudflare Workers Builds.
 
 ## Connect the repository to Workers Builds
 
