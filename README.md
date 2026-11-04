@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/version-2026.10.28.1-blue" alt="Version" /></a>
+  <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/version-2026.11.04.1-blue" alt="Version" /></a>
   <a href="https://github.com/dmeim/typesetgo"><img src="https://img.shields.io/badge/platform-Web-orange" alt="Platform" /></a>
   <a href="src/"><img src="https://img.shields.io/badge/stack-React%2019%20%C2%B7%20Vite%20%C2%B7%20TS%20%C2%B7%20Convex%20%C2%B7%20Tailwind%20v4-61dafb" alt="Stack" /></a>
 </p>
@@ -30,7 +30,7 @@ A modern, open-source typing practice platform with a clean, distraction-free in
 - **2,600 theme looks** — 18 categories, light and dark versions, with live previews
 - **72 typing fonts** — all served locally, including OpenDyslexic
 - **Ghost Writer** — race a ghost cursor set to your target WPM
-- **Connect for classrooms** — host a room, share a code, and watch a live board as everyone types
+- **Connect for classrooms** — host a room, share a code, set a word goal for the whole class, and watch a live board as everyone types
 - **Profile page** — stats, a history timeline, achievements and every setting in one place
 - **Leaderboard** — Today, 7 days and All time on one podium, with your own standing
 - **Cloudflare-hosted** — frontend served by Workers Static Assets, with Clerk and Convex

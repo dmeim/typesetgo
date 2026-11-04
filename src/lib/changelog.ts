@@ -36,6 +36,25 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "connect-word-goal",
+    date: "2026-11-04",
+    title: "Word goals: the whole class types toward one number",
+    kind: "new",
+    status: "live",
+    area: "Connect",
+    summary: "Hosts can add a word goal to a Connect room, like 1,000 words. Every student's correct words add to one shared total, everyone sees it climb, and hitting the goal ends the test for the whole room. Hosts can also set more of what students normally pick for themselves.",
+    highlights: [
+      "Add a word goal from the test list; only Together rooms can use one",
+      "Only correct words count, and each student sees the room's total and their own count above their typing",
+      "The live board shows a big tally, in fullscreen and on the pop-out board too, and each card shows that student's words",
+      "The total updates about once a second, and words keep coming until the goal is reached",
+      "Students who join partway through start typing right away",
+      "Everyone gets now covers the theme's look, lines shown, words per line and keyboard style",
+      "Kid-friendly sets big text, short lines, the finger guide and no ghost in one tap",
+    ],
+    shots: [{ src: "/changelog/connect-goal.webp", alt: "The Connect live board with a big tally reading 412 of 1,000 words above the students' cards", caption: "The tally on the projector board. Each card shows how many words that student has added." }],
+  },
+  {
     id: "board-fit",
     date: "2026-10-28",
     title: "New live board cards, and Fit the whole class on screen",

@@ -142,6 +142,7 @@ Notes:
 - Keep related states cohesive: `FloppyDiskIcon` / `CheckCircleIcon` / `WarningCircleIcon` for saving, `CircleNotchIcon` while pending, `ArrowClockwiseIcon` for repeat/reset, `ArrowsClockwiseIcon` for refresh/retry, `ArrowFatRightIcon` for advancing tests, `ArrowLeftIcon` for back navigation, `SignOutIcon` for leaving a room, and `CopyIcon` / `CheckIcon` for copying. Achievement icon keys are shared through `src/lib/achievement-icons.ts`.
 - `components.json` selects `"iconLibrary": "phosphor"` for new Shadcn components. Check generated imports for the `Icon` suffix and replace icon `strokeWidth` styling with the appropriate weight.
 - Every user-facing change ships with a What's new entry in `src/lib/changelog.ts`, a version bump (date plus a counter for that day, in `package.json`, `src/lib/app-version.ts` and the README badge) and `docs/release-notes/vX.md`; see the README's "Every change" section. Screenshots go in `public/changelog/` as WebP; `bun run shots:changelog` recaptures them from the local fixtures.
+- Connect's word goal (`mode: "goal"`, Together rooms only) runs on the engine's Zen mode. `internal.connect.tallyGoal` publishes the shared total to `connectRooms.goalTally` about once a second, and `src/components/connect/GoalMeter.tsx` shows it. See "Word goals" in [`docs/features/Connect_Multiplayer.md`](docs/features/Connect_Multiplayer.md).
 - Keep changes focused; avoid unrelated refactors.
 - Do not run git write operations (`git add`, `commit`, `push`, history rewrites) unless explicitly asked.
 

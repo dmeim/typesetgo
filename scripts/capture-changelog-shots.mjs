@@ -52,7 +52,7 @@ const SHOTS = [
   "settings-pill", "stats-ticker", "keyboard-designs", "results-page", "results-details", "dock-header", "theme-catalog",
   "phone-home", "phone-results", "keyboard-styles", "leaderboard-arena", "profile-stats", "profile-settings",
   "profile-history", "profile-achievements", "fonts", "connect-landing", "connect-host", "connect-board",
-  "connect-pictures", "friendly-legal", "keycap-screens",
+  "connect-pictures", "connect-goal", "friendly-legal", "keycap-screens",
 ];
 const requested = new Set(process.argv.slice(2));
 const unknown = [...requested].filter((name) => !SHOTS.includes(name));
@@ -457,7 +457,7 @@ async function fitHeight(page, max) {
 }
 
 async function connectShots() {
-  if (!wanted("connect-landing", "connect-host", "connect-board", "connect-pictures", "friendly-legal", "keycap-screens")) return;
+  if (!wanted("connect-landing", "connect-host", "connect-board", "connect-pictures", "connect-goal", "friendly-legal", "keycap-screens")) return;
   console.log("Connect fixture");
   const server = await createServer({ configFile: path.join(root, "tests/fixtures/connect-browser/vite.config.ts"), logLevel: "warn" });
   await server.listen();
@@ -513,6 +513,15 @@ async function connectShots() {
           clip: { x: first.x - pad, y: first.y - pad, width: last.x + last.width - first.x + 2 * pad, height: last.y + last.height - first.y + 2 * pad },
         });
       }
+    }
+    if (wanted("connect-goal")) {
+      await open("/connect/host/room-live/board?fixture=host-goal");
+      const players = page.getByRole("list", { name: "Players" });
+      await expect(players.getByRole("article")).toHaveCount(7);
+      await expect(page.getByRole("region", { name: "Room word goal" })).toBeVisible();
+      await settle(page, 1200);
+      const list = await players.boundingBox();
+      await save("connect-goal", page, { clip: { x: 0, y: 0, width: DESKTOP.width, height: Math.ceil(list.y + list.height + 40) } });
     }
     if (wanted("friendly-legal")) {
       await open("/privacy");
