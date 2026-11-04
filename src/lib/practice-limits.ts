@@ -5,6 +5,8 @@ export const MAX_DURATION_SECONDS = 60 * 60;
 export const MAX_WORD_TARGET = 9999;
 export const MAX_PRESET_TEXT_LENGTH = 10000;
 export const MAX_GHOST_SPEED = 200;
+export const MAX_LINE_PREVIEW = 6;
+export const MAX_WORDS_PER_LINE = 10;
 
 // Prepared solo prompts may wait on the page; active sessions use a separate activity timeout.
 export const SOLO_PREPARED_SESSION_TTL_MS = 24 * 60 * 60 * 1000;

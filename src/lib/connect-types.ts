@@ -1,6 +1,6 @@
 // Shared Connect contract: imported by Convex functions and the frontend.
 // Keep this module free of browser APIs and `@/` imports.
-import { MAX_DURATION_SECONDS, MAX_GHOST_SPEED, MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET, TEXT_SIZE_MAX, TEXT_SIZE_MIN } from "./practice-limits";
+import { MAX_DURATION_SECONDS, MAX_GHOST_SPEED, MAX_LINE_PREVIEW, MAX_PRESET_TEXT_LENGTH, MAX_WORD_TARGET, MAX_WORDS_PER_LINE, TEXT_SIZE_MAX, TEXT_SIZE_MIN } from "./practice-limits";
 
 export const CONNECT_CODE_LENGTH = 4;
 // No 0/O, 1/I/L so codes read cleanly off a projector.
@@ -28,9 +28,15 @@ export const CONNECT_BREAK_GRACE_MS = 1500;
 export const CONNECT_RESULTS_MS = CONNECT_BREAK_MIN_SECONDS * 1000;
 /** Host pacing: a timed test ends this long after its duration, so students who start a little late still finish. */
 export const CONNECT_TIMED_GRACE_MS = 5000;
+/** Word goals: the shared total is published at most this often, so typing never floods every student's view. */
+export const CONNECT_GOAL_TALLY_MS = 1000;
+export const CONNECT_GOAL_MAX_WORDS = 100_000;
+/** Faster than anyone can type, so only forged reports ever hit this speed limit. */
+export const CONNECT_GOAL_MAX_WPM = 300;
+const CONNECT_GOAL_GRACE_WORDS = 5;
 
-/** `break` is a timed pause between tests: no typing, nothing recorded. */
-export type ConnectTestMode = "time" | "words" | "quote" | "preset" | "break";
+/** `break` is a timed pause between tests: no typing, nothing recorded. `goal` is a word total the whole room types toward. */
+export type ConnectTestMode = "time" | "words" | "quote" | "preset" | "break" | "goal";
 export type ConnectDifficulty = "beginner" | "easy" | "medium" | "hard" | "expert";
 export type ConnectQuoteLength = "all" | "short" | "medium" | "long" | "xl";
 
@@ -40,7 +46,7 @@ export type ConnectTest = {
   mode: ConnectTestMode;
   /** Seconds; used by `time`, by `break`, and by `preset` when `presetModeType` is "time". */
   duration: number;
-  /** Used by `words`. */
+  /** Used by `words`, and by `goal` as the room's shared total. */
   wordTarget: number;
   difficulty: ConnectDifficulty;
   punctuation: boolean;
@@ -61,11 +67,20 @@ export type ConnectPacing = "host" | "participant";
  * toggling an override back on restores the host's previous choice.
  */
 export type ConnectOverrides = {
-  theme?: { enabled: boolean; themeId: string; mode: "dark" | "light" };
-  typography?: { enabled: boolean; typingFontFamily: string; typingFontSize: number; textAlign: "left" | "center" | "right" | "justify" };
+  /** No `variantId` means the theme's default look. */
+  theme?: { enabled: boolean; themeId: string; mode: "dark" | "light"; variantId?: string };
+  /** No `linePreview` or `maxWordsPerLine` leaves that part to each participant. */
+  typography?: {
+    enabled: boolean; typingFontFamily: string; typingFontSize: number; textAlign: "left" | "center" | "right" | "justify";
+    linePreview?: number; maxWordsPerLine?: number;
+  };
   ghost?: { enabled: boolean; ghostWriterEnabled: boolean; ghostWriterSpeed: number };
   sound?: { enabled: boolean; soundEnabled: boolean; typingSound: string; warningSound: string };
-  keyboard?: { enabled: boolean; showOnScreenKeyboard: boolean; keyboardLayout: "qwerty" | "dvorak" | "colemak" };
+  /** No `keyboardStyle` leaves the style to each participant. */
+  keyboard?: {
+    enabled: boolean; showOnScreenKeyboard: boolean; keyboardLayout: "qwerty" | "dvorak" | "colemak";
+    keyboardStyle?: "spotlight" | "finger" | "keycaps" | "legacy";
+  };
 };
 
 /**
@@ -114,11 +129,29 @@ export const DEFAULT_CONNECT_TEST: Omit<ConnectTest, "id"> = {
 
 export const DEFAULT_CONNECT_BREAK: Omit<ConnectTest, "id"> = { ...DEFAULT_CONNECT_TEST, mode: "break", duration: 30 };
 
-const MODES: readonly ConnectTestMode[] = ["time", "words", "quote", "preset", "break"];
+export const DEFAULT_CONNECT_GOAL: Omit<ConnectTest, "id"> = { ...DEFAULT_CONNECT_TEST, mode: "goal", wordTarget: 1000 };
+
+const MODES: readonly ConnectTestMode[] = ["time", "words", "quote", "preset", "break", "goal"];
 const DIFFICULTIES: readonly ConnectDifficulty[] = ["beginner", "easy", "medium", "hard", "expert"];
 const QUOTE_LENGTHS: readonly ConnectQuoteLength[] = ["all", "short", "medium", "long", "xl"];
 
 export const isBreakTest = (test: Pick<ConnectTest, "mode"> | undefined) => test?.mode === "break";
+export const isGoalTest = (test: Pick<ConnectTest, "mode"> | undefined) => test?.mode === "goal";
+
+/** Words the room has typed toward its goal in this run; a tally from an earlier run counts for nothing. */
+export function goalWords(room: { runVersion: number; goalTally?: { runVersion: number; words: number } }) {
+  return room.goalTally?.runVersion === room.runVersion ? room.goalTally.words : 0;
+}
+
+/** The most words anyone could have typed `activeMs` into a goal test. */
+export function goalWordLimit(activeMs: number) {
+  return Math.ceil(Math.max(0, activeMs) / 60_000 * CONNECT_GOAL_MAX_WPM) + CONNECT_GOAL_GRACE_WORDS;
+}
+
+/** A shared goal needs everyone on the same test at the same time. */
+export function assertGoalPacing(pacing: ConnectPacing, tests: Pick<ConnectTest, "mode">[]) {
+  if (pacing !== "host" && tests.some(isGoalTest)) throw new Error("Word goals only work in Together rooms");
+}
 
 /**
  * Host pacing: someone who joins partway through a test sits it out. `lateForRun` is the run they
@@ -179,6 +212,9 @@ export function validateConnectTest(test: ConnectTest, position?: number) {
   if (test.mode === "words" && (!Number.isInteger(test.wordTarget) || test.wordTarget < 1 || test.wordTarget > MAX_WORD_TARGET)) {
     throw new Error(`${where}: choose a whole word count from 1 to ${MAX_WORD_TARGET}`);
   }
+  if (test.mode === "goal" && (!Number.isInteger(test.wordTarget) || test.wordTarget < 1 || test.wordTarget > CONNECT_GOAL_MAX_WORDS)) {
+    throw new Error(`${where}: choose a whole word goal from 1 to ${CONNECT_GOAL_MAX_WORDS.toLocaleString("en-US")}`);
+  }
   if (test.mode === "preset") {
     if (!test.presetText?.trim()) throw new Error(`${where}: enter the text to type`);
     if (test.presetText.length > MAX_PRESET_TEXT_LENGTH) throw new Error(`${where}: text must be at most ${MAX_PRESET_TEXT_LENGTH} characters`);
@@ -191,12 +227,21 @@ export function validateConnectOverrides(overrides: ConnectOverrides) {
   if (t && (!Number.isFinite(t.typingFontSize) || t.typingFontSize < TEXT_SIZE_MIN || t.typingFontSize > TEXT_SIZE_MAX)) {
     throw new Error(`Choose a text size from ${TEXT_SIZE_MIN} to ${TEXT_SIZE_MAX}`);
   }
+  if (t?.linePreview !== undefined && (!Number.isInteger(t.linePreview) || t.linePreview < 1 || t.linePreview > MAX_LINE_PREVIEW)) {
+    throw new Error(`Choose from 1 to ${MAX_LINE_PREVIEW} lines`);
+  }
+  if (t?.maxWordsPerLine !== undefined && (!Number.isInteger(t.maxWordsPerLine) || t.maxWordsPerLine < 1 || t.maxWordsPerLine > MAX_WORDS_PER_LINE)) {
+    throw new Error(`Choose from 1 to ${MAX_WORDS_PER_LINE} words per line`);
+  }
   const g = overrides.ghost;
   if (g && (!Number.isFinite(g.ghostWriterSpeed) || g.ghostWriterSpeed < 1 || g.ghostWriterSpeed > MAX_GHOST_SPEED)) {
     throw new Error(`Choose a ghost speed from 1 to ${MAX_GHOST_SPEED} WPM`);
   }
   if (overrides.theme && (!overrides.theme.themeId || overrides.theme.themeId.length > 100)) {
     throw new Error("Choose a theme");
+  }
+  if (overrides.theme?.variantId !== undefined && (!overrides.theme.variantId || overrides.theme.variantId.length > 100)) {
+    throw new Error("Choose a theme look");
   }
 }
 
@@ -213,6 +258,7 @@ export function describeConnectTest(test: ConnectTest) {
   if (test.mode === "break") return formatSeconds(test.duration);
   if (test.mode === "time") return `Time · ${test.duration}s`;
   if (test.mode === "words") return `Words · ${test.wordTarget}`;
+  if (test.mode === "goal") return `Word goal · ${test.wordTarget.toLocaleString("en-US")}`;
   if (test.mode === "quote") return `Quote · ${test.quoteLength === "all" ? "any length" : test.quoteLength}`;
   return test.presetModeType === "time" ? `Custom text · ${test.duration}s` : "Custom text";
 }

@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { activityCalendarValidator } from "./lib/activityCalendar";
 import { achievementStateValidator } from "./lib/achievementEvaluator";
 import {
+  connectGoalTallyValidator,
   connectOverridesValidator,
   connectPacingValidator,
   connectResultValidator,
@@ -181,6 +182,7 @@ export default defineSchema({
     stepStartedAt: v.optional(v.number()),
     pausedAt: v.optional(v.number()),
     stepEndedAt: v.optional(v.number()), // host pacing: when the current test ended and results began
+    goalTally: v.optional(connectGoalTallyValidator), // word goals: the published total, and when the next tally may run
     createdAt: v.number(),
     lastActiveAt: v.number(),
     expiresAt: v.number(),

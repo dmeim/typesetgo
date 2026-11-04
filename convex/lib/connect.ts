@@ -23,7 +23,7 @@ export const CONNECT_PARTICIPANT_BATCH = 200;
 
 export const connectTestValidator = v.object({
   id: v.string(),
-  mode: v.union(v.literal("time"), v.literal("words"), v.literal("quote"), v.literal("preset"), v.literal("break")),
+  mode: v.union(v.literal("time"), v.literal("words"), v.literal("quote"), v.literal("preset"), v.literal("break"), v.literal("goal")),
   duration: v.number(),
   wordTarget: v.number(),
   difficulty: v.union(v.literal("beginner"), v.literal("easy"), v.literal("medium"), v.literal("hard"), v.literal("expert")),
@@ -38,11 +38,12 @@ export const connectTestValidator = v.object({
 
 export const connectOverridesValidator = v.object({
   theme: v.optional(v.object({
-    enabled: v.boolean(), themeId: v.string(), mode: v.union(v.literal("dark"), v.literal("light")),
+    enabled: v.boolean(), themeId: v.string(), mode: v.union(v.literal("dark"), v.literal("light")), variantId: v.optional(v.string()),
   })),
   typography: v.optional(v.object({
     enabled: v.boolean(), typingFontFamily: v.string(), typingFontSize: v.number(),
     textAlign: v.union(v.literal("left"), v.literal("center"), v.literal("right"), v.literal("justify")),
+    linePreview: v.optional(v.number()), maxWordsPerLine: v.optional(v.number()),
   })),
   ghost: v.optional(v.object({ enabled: v.boolean(), ghostWriterEnabled: v.boolean(), ghostWriterSpeed: v.number() })),
   sound: v.optional(v.object({
@@ -51,8 +52,11 @@ export const connectOverridesValidator = v.object({
   keyboard: v.optional(v.object({
     enabled: v.boolean(), showOnScreenKeyboard: v.boolean(),
     keyboardLayout: v.union(v.literal("qwerty"), v.literal("dvorak"), v.literal("colemak")),
+    keyboardStyle: v.optional(v.union(v.literal("spotlight"), v.literal("finger"), v.literal("keycaps"), v.literal("legacy"))),
   })),
 });
+
+export const connectGoalTallyValidator = v.object({ runVersion: v.number(), words: v.number(), dueAt: v.number() });
 
 export const connectPacingValidator = v.union(v.literal("host"), v.literal("participant"));
 export const connectStatusValidator = v.union(v.literal("lobby"), v.literal("running"), v.literal("paused"), v.literal("complete"));
@@ -199,7 +203,7 @@ export function participantRoom(room: Room) {
     _id: room._id, code: room.code, name: room.name, hostName: room.hostName, status: room.status,
     pacing: room.pacing, currentIndex: room.currentIndex, runVersion: room.runVersion,
     tests: room.tests, overrides: room.overrides, stepStartedAt: room.stepStartedAt, pausedAt: room.pausedAt,
-    stepEndedAt: room.stepEndedAt,
+    stepEndedAt: room.stepEndedAt, goalTally: room.goalTally,
   };
 }
 

@@ -1,15 +1,18 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  assertGoalPacing,
   breakEndsAt,
   CONNECT_ARCHIVE_MS,
   CONNECT_BREAK_GRACE_MS,
   CONNECT_MAX_PARTICIPANTS,
   DEFAULT_CONNECT_TEST,
   emptyConnectStats,
+  goalWordLimit,
   isBreakTest,
+  isGoalTest,
   isWaitingForNextTest,
   resultsEndAt,
   stepAfterResults,
@@ -20,9 +23,12 @@ import { credentialHash } from "./lib/multiplayer";
 import {
   endRoomStep,
   endRoomStepIfAllFinished,
+  endRoomStepIfGoalReached,
   moveRoomTo,
   nextRoomEvent,
   patchParticipants,
+  publishGoalWords,
+  scheduleGoalTally,
   scheduleRoomTick,
 } from "./lib/connectFlow";
 import {
@@ -214,6 +220,7 @@ export const updateRoom = mutation({
     if (args.hostName !== undefined) patch.hostName = cleanName(args.hostName);
     if (args.pacing !== undefined && args.pacing !== room.pacing) {
       if (room.status !== "lobby") throw new Error("Pacing can only change before the room starts");
+      assertGoalPacing(args.pacing, room.tests);
       patch.pacing = args.pacing;
     }
     if (args.overrides !== undefined) {
@@ -229,6 +236,7 @@ export const setTests = mutation({
   handler: async (ctx, args) => {
     const room = await requireHost(ctx, args.roomId, args.credential);
     validateTests(args.tests);
+    assertGoalPacing(room.pacing, args.tests);
     assertLockedPrefix(room.tests, args.tests, await lockedThrough(ctx, room));
     await ctx.db.patch(room._id, { tests: args.tests });
     if (room.pacing !== "participant") return;
@@ -254,8 +262,9 @@ export const start = mutation({
       const resumed: Room = { ...room, status: "running", pausedAt: undefined, stepStartedAt: shift(room.stepStartedAt), stepEndedAt: shift(room.stepEndedAt) };
       await ctx.db.patch(room._id, { status: "running", pausedAt: undefined, stepStartedAt: resumed.stepStartedAt, stepEndedAt: resumed.stepEndedAt });
       await scheduleRoomTick(ctx, resumed);
-      // Someone may have finished or left while the room was paused.
+      // Someone may have finished or left while the room was paused, or the last tally may have reached the goal.
       await endRoomStepIfAllFinished(ctx, resumed);
+      await endRoomStepIfGoalReached(ctx, resumed);
       return;
     }
     await patchParticipants(ctx, room._id, () => clearedRun(0));
@@ -319,6 +328,35 @@ export const tick = internalMutation({ args: tickArgs, handler: tickRoom });
 /** Jobs scheduled before `tick` existed still name this function. */
 export const endBreak = internalMutation({ args: tickArgs, handler: tickRoom });
 
+/** Word goals: reads every player's count from a snapshot, so a room full of typing can't make the tally retry. */
+export const goalTotal = internalQuery({
+  args: tickArgs,
+  handler: async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room || !isLiveRoom(room) || room.runVersion !== args.runVersion || !isGoalTest(room.tests[room.currentIndex])) return null;
+    const participants = await listParticipants(ctx, room._id);
+    // Words stay after someone leaves; removing or restarting a player takes theirs off the total.
+    return participants.reduce((total, p) => p.removedAt === undefined ? total + p.stats.wordsTyped : total, 0);
+  },
+});
+
+export const publishGoalTally = internalMutation({
+  args: { ...tickArgs, words: v.number() },
+  handler: async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room || !isLiveRoom(room) || room.runVersion !== args.runVersion) return;
+    await endRoomStepIfGoalReached(ctx, await publishGoalWords(ctx, room, args.words));
+  },
+});
+
+export const tallyGoal = internalAction({
+  args: tickArgs,
+  handler: async (ctx, args) => {
+    const words = await ctx.runQuery(internal.connect.goalTotal, args);
+    if (words !== null) await ctx.runMutation(internal.connect.publishGoalTally, { ...args, words });
+  },
+});
+
 export const resetRoom = mutation({
   args: hostArgs,
   handler: async (ctx, args) => {
@@ -337,6 +375,7 @@ export const resetParticipant = mutation({
     const participant = await requireRoomParticipant(ctx, room, args.participantId);
     // Resetting also lets someone who joined late start the current test now.
     await ctx.db.patch(participant._id, { ...clearedAttempt(), attempt: participant.attempt + 1, lateForRun: undefined });
+    await scheduleGoalTally(ctx, room);
   },
 });
 
@@ -347,6 +386,7 @@ export const removeParticipant = mutation({
     const participant = await requireRoomParticipant(ctx, room, args.participantId);
     await ctx.db.patch(participant._id, { removedAt: Date.now(), isConnected: false });
     await endRoomStepIfAllFinished(ctx, room);
+    await scheduleGoalTally(ctx, room);
   },
 });
 
@@ -421,9 +461,11 @@ export const join = mutation({
       : null;
     const now = Date.now();
     if (!room || !isLiveRoom(room, now)) throw connectError("not_found", "No open room uses that code");
-    // Arriving partway through a host-paced test means waiting for the next one; a break can be joined as is.
+    // Arriving partway through a host-paced test means waiting for the next one; a break can be joined as is,
+    // and so can a word goal still in progress, because new typists only help the room get there.
+    const goalOpen = isGoalTest(room.tests[room.currentIndex]) && room.stepEndedAt === undefined;
     const midTest = room.pacing === "host" && (room.status === "running" || room.status === "paused") &&
-      !isBreakTest(room.tests[room.currentIndex]);
+      !isBreakTest(room.tests[room.currentIndex]) && !goalOpen;
     const lateForRun = midTest ? room.runVersion : undefined;
     const bySession = await ctx.db.query("connectParticipants")
       .withIndex("by_room_session", (q) => q.eq("roomId", room._id).eq("sessionId", args.sessionId)).first();
@@ -533,11 +575,15 @@ export const reportProgress = mutation({
     const { participant, room } = await requireParticipant(ctx, args.participantId, args.credential);
     if (!acceptsProgress(room, participant, args)) return { accepted: false };
     const now = Date.now();
+    const goal = isGoalTest(room.tests[args.stepIndex]);
+    // The server can't check typed text cheaply, but it can refuse counts no one could type in the time so far.
+    const stats = goal ? { ...args.stats, wordsTyped: Math.min(args.stats.wordsTyped, goalWordLimit(now - (room.stepStartedAt ?? now))) } : args.stats;
     await ctx.db.patch(participant._id, {
-      stats: args.stats, typedText: args.typedText, targetText: args.targetText,
-      isConnected: true, lastSeen: now, ...(args.stats.isFinished && { finishedAt: now }),
+      stats, typedText: args.typedText, targetText: args.targetText,
+      isConnected: true, lastSeen: now, ...(stats.isFinished && { finishedAt: now }),
     });
-    if (args.stats.isFinished) await endRoomStepIfAllFinished(ctx, room);
+    if (stats.isFinished) await endRoomStepIfAllFinished(ctx, room);
+    if (goal && stats.wordsTyped !== participant.stats.wordsTyped) await scheduleGoalTally(ctx, room, now);
     return { accepted: true };
   },
 });

@@ -847,3 +847,181 @@ describe("Connect lifecycle", () => {
     expect(await t.query(api.connect.hostView, hostArgs)).toEqual({ state: "missing" });
   });
 });
+
+describe("Connect word goals", () => {
+  const goal = (id: string, wordTarget = 100) => test(id, { mode: "goal", wordTarget });
+
+  async function goalRoom(tests: ConnectTest[] = [goal("g1"), test("t2", { mode: "words" })]) {
+    vi.useFakeTimers();
+    const ctx = await setup();
+    await ctx.t.mutation(api.connect.setTests, { ...ctx.hostArgs, tests });
+    const first = await join(ctx.t, ctx.code);
+    const other = await join(ctx.t, ctx.code, "second", second, "Second");
+    await ctx.t.mutation(api.connect.start, ctx.hostArgs);
+    // A minute in, the speed limit is far above anything these tests report.
+    vi.advanceTimersByTime(60_000);
+    const report = (participantId: Id<"connectParticipants">, credential: string, wordsTyped: number, extra: Partial<ConnectStats> = {}) =>
+      ctx.t.mutation(api.connect.reportProgress, {
+        participantId, credential, runVersion: 1, stepIndex: 0, attempt: 0, stats: stats({ wordsTyped, timeElapsed: 5000, wpm: 40, accuracy: 95, ...extra }),
+      });
+    const tally = async (runVersion = 1) => ctx.t.action(internal.connect.tallyGoal, { roomId: ctx.roomId, runVersion });
+    const room = async () => (await hostView(ctx.t, ctx.roomId)).room;
+    const pendingTallies = () => ctx.t.run(async (db) => (await db.db.system.query("_scheduled_functions").collect())
+      .filter((job) => job.name.includes("tallyGoal") && job.state.kind === "pending").length);
+    return { ...ctx, first: first.participantId, other: other.participantId, report, tally, room, pendingTallies };
+  }
+
+  it("rejects bad goals and keeps them out of own-pace rooms", async () => {
+    const { t, hostArgs } = await setup();
+    await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [goal("g1", 0)] })).rejects.toThrow(/word goal/);
+    await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [goal("g1", 100_001)] })).rejects.toThrow(/word goal/);
+    await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [goal("g1", 1.5)] })).rejects.toThrow(/word goal/);
+
+    await t.mutation(api.connect.setTests, { ...hostArgs, tests: [goal("g1", 100_000)] });
+    await expect(t.mutation(api.connect.updateRoom, { ...hostArgs, pacing: "participant" })).rejects.toThrow(/Together/);
+
+    await t.mutation(api.connect.setTests, { ...hostArgs, tests: [test("t1")] });
+    await t.mutation(api.connect.updateRoom, { ...hostArgs, pacing: "participant" });
+    await expect(t.mutation(api.connect.setTests, { ...hostArgs, tests: [goal("g1")] })).rejects.toThrow(/Together/);
+  });
+
+  it("adds everyone's words into one total, then ends the test for the whole room at the goal", async () => {
+    const { t, roomId, first, other, report, room } = await goalRoom();
+    await report(first, guest, 40);
+    await report(other, second, 25);
+    expect((await room()).goalTally).toMatchObject({ runVersion: 1, words: 0 });
+
+    // Runs the booked tally only: the next tally it books is held back by the second it waits.
+    vi.advanceTimersByTime(1000);
+    await t.finishInProgressScheduledFunctions();
+    expect((await room()).goalTally).toMatchObject({ words: 65 });
+    expect((await room()).stepEndedAt).toBeUndefined();
+
+    await report(first, guest, 60);
+    await report(other, second, 45);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    // Reaching the goal started results, and their countdown then moved the room on by itself.
+    expect((await hostView(t, roomId)).room).toMatchObject({ currentIndex: 1, runVersion: 2 });
+    expect((await participantRow(t, first))?.results[0]).toMatchObject({ testId: "g1", wordsTyped: 60 });
+    expect((await participantRow(t, other))?.results[0]).toMatchObject({ testId: "g1", wordsTyped: 45 });
+  });
+
+  it("books one tally at a time and asks for none while the count stands still", async () => {
+    const { first, other, report, tally, pendingTallies, room } = await goalRoom();
+    await report(first, guest, 0);
+    expect(await pendingTallies()).toBe(0);
+    expect((await room()).goalTally).toBeUndefined();
+
+    await report(first, guest, 5);
+    await report(other, second, 5);
+    await report(first, guest, 6);
+    expect(await pendingTallies()).toBe(1);
+
+    // An unchanged total writes nothing and books nothing.
+    await report(first, guest, 6, { timeElapsed: 6000 });
+    expect(await pendingTallies()).toBe(1);
+    const before = (await room()).goalTally;
+    vi.advanceTimersByTime(1000);
+    await tally();
+    expect((await room()).goalTally).toMatchObject({ words: 11 });
+    await report(first, guest, 6, { timeElapsed: 7000 });
+    vi.advanceTimersByTime(1000);
+    const published = (await room()).goalTally;
+    expect(published?.dueAt).toBeGreaterThan(before!.dueAt);
+    await tally();
+    expect((await room()).goalTally).toEqual(published);
+  });
+
+  it("a restart starts the total again, and a tally from the earlier run does nothing", async () => {
+    const { t, hostArgs, first, report, tally, room } = await goalRoom();
+    await report(first, guest, 30);
+    await tally();
+    expect((await room()).goalTally).toMatchObject({ runVersion: 1, words: 30 });
+
+    await t.mutation(api.connect.restartTest, hostArgs);
+    await tally(1);
+    expect(await room()).toMatchObject({ runVersion: 2, goalTally: { runVersion: 1, words: 30 } });
+    await tally(2);
+    expect((await room()).goalTally).toMatchObject({ runVersion: 1, words: 30 });
+  });
+
+  it("keeps the words of someone who left, and takes off those of someone removed or restarted", async () => {
+    const { t, hostArgs, first, other, report, tally, room } = await goalRoom();
+    await report(first, guest, 30);
+    await report(other, second, 20);
+    await tally();
+    await t.mutation(api.connect.leave, { participantId: other, credential: second });
+    await tally();
+    expect((await room()).goalTally).toMatchObject({ words: 50 });
+
+    await t.mutation(api.connect.removeParticipant, { ...hostArgs, participantId: other });
+    await tally();
+    expect((await room()).goalTally).toMatchObject({ words: 30 });
+
+    await t.mutation(api.connect.resetParticipant, { ...hostArgs, participantId: first });
+    await tally();
+    expect((await room()).goalTally).toMatchObject({ words: 0 });
+  });
+
+  it("lets late arrivals type right away, until the goal has been reached", async () => {
+    const { t, code, first, report, tally, room } = await goalRoom();
+    const late = await join(t, code, "late", attacker, "Late");
+    expect((await participantRow(t, late.participantId))?.lateForRun).toBeUndefined();
+
+    await report(first, guest, 100);
+    await tally();
+    expect((await room()).stepEndedAt).toBe(Date.now());
+    const after = await join(t, code, "after", "e".repeat(64), "After");
+    expect((await participantRow(t, after.participantId))?.lateForRun).toBe(1);
+  });
+
+  it("a paused room holds at the goal until it resumes", async () => {
+    const { t, hostArgs, first, report, tally, room } = await goalRoom();
+    await report(first, guest, 100);
+    await t.mutation(api.connect.pause, hostArgs);
+    await tally();
+    expect(await room()).toMatchObject({ status: "paused", goalTally: { words: 100 } });
+    expect((await room()).stepEndedAt).toBeUndefined();
+
+    await t.mutation(api.connect.start, hostArgs);
+    expect(await room()).toMatchObject({ status: "running", stepEndedAt: Date.now() });
+  });
+
+  it("limits a report to what anyone could type, and a finished report can't end the test", async () => {
+    const { t, first, other, report, tally, room } = await goalRoom([goal("g1", 100_000)]);
+    await report(first, guest, 99_999);
+    expect((await participantRow(t, first))?.stats.wordsTyped).toBe(305);
+
+    await report(first, guest, 10, { isFinished: true });
+    await report(other, second, 10, { isFinished: true });
+    await tally();
+    expect(await room()).toMatchObject({ currentIndex: 0, goalTally: { words: 20 } });
+    expect((await room()).stepEndedAt).toBeUndefined();
+  });
+
+  it("shows participants the total", async () => {
+    const { t, roomId, first, report, tally } = await goalRoom();
+    await report(first, guest, 12);
+    await tally();
+    const view = await t.query(api.connect.participantView, { roomId, participantId: first, credential: guest });
+    expect(view).toMatchObject({ state: "ok", room: { goalTally: { runVersion: 1, words: 12 } } });
+  });
+});
+
+describe("Connect overrides", () => {
+  it("stores the keyboard style, line layout and theme look, and checks their ranges", async () => {
+    const { t, roomId, hostArgs } = await setup();
+    const typography = { enabled: true, typingFontFamily: "lexend", typingFontSize: 3, textAlign: "center" as const };
+    const overrides = {
+      typography: { ...typography, linePreview: 2, maxWordsPerLine: 5 },
+      keyboard: { enabled: true, showOnScreenKeyboard: true, keyboardLayout: "qwerty" as const, keyboardStyle: "finger" as const },
+      theme: { enabled: true, themeId: "typesetgo", mode: "dark" as const, variantId: "default" },
+    };
+    await t.mutation(api.connect.updateRoom, { ...hostArgs, overrides });
+    expect((await hostView(t, roomId)).room.overrides).toEqual(overrides);
+
+    await expect(t.mutation(api.connect.updateRoom, { ...hostArgs, overrides: { typography: { ...typography, linePreview: 7 } } })).rejects.toThrow(/lines/);
+    await expect(t.mutation(api.connect.updateRoom, { ...hostArgs, overrides: { typography: { ...typography, maxWordsPerLine: 0 } } })).rejects.toThrow(/words per line/);
+    await expect(t.mutation(api.connect.updateRoom, { ...hostArgs, overrides: { theme: { ...overrides.theme, variantId: "" } } })).rejects.toThrow(/look/);
+  });
+});
