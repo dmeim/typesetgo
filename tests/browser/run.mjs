@@ -101,7 +101,8 @@ try {
     } else {
       const config = suite === "race" ? "tests/fixtures/race/playwright.config.ts"
         : "tests/fixtures/connect-browser/playwright.config.ts";
-      await run(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", config]);
+      // Connect's many full-page flows outgrow two minutes on CI runners.
+      await run(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", config], suite === "connect" ? 300_000 : undefined);
     }
   }
 } finally {
