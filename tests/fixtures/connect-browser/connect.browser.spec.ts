@@ -392,6 +392,38 @@ test.describe("participant room", () => {
     await expect(page.locator("[data-goal-meter]").getByText("You: 0")).toBeVisible();
   });
 
+  test("long timed test: reports keep getting through once the text passes the server's limit", async ({ page }) => {
+    await page.goto("/connect/room/room-live?fixture=room-long");
+    await expect(typingInput(page)).toBeEnabled();
+    await typingInput(page).focus();
+    // In bursts, so the prompt keeps growing ahead of the caret as it does for a real student.
+    for (let burst = 0; burst < 105; burst++) await page.keyboard.insertText("xxxxxxxxx ".repeat(20));
+    await expect(typingInput(page)).toHaveValue("xxxxxxxxx ".repeat(2100));
+    const lastReport = async () => (await callsNamed(page, "connect:reportProgress")).at(-1) as { typedText: string; targetText: string; stats: { wordsTyped: number } };
+    // The mock refuses over-long text as the server does, so a saved count means the report got through.
+    await expect.poll(() => page.evaluate(() => window.__connectFixture.snapshot().participants.find((row) => row._id === "p-self")?.stats.wordsTyped)).toBe(2100);
+    const last = await lastReport();
+    expect(last.typedText.split(" ")).toHaveLength(51);
+    expect(last.targetText.split(" ").length).toBeGreaterThan(51);
+    await expect(page.getByRole("region", { name: "Test results" })).toHaveCount(0);
+  });
+
+  test("long timed test: a refresh keeps the speed, accuracy and word count, and typing carries on", async ({ page }) => {
+    await page.goto("/connect/room/room-live?fixture=room-long-restored");
+    await expect(typingInput(page)).toBeEnabled();
+    await expect(typingInput(page)).toHaveValue("the ".repeat(50));
+    const lastStats = async () => ((await callsNamed(page, "connect:reportProgress")).at(-1)?.stats ?? {}) as { wordsTyped: number; wpm: number; accuracy: number };
+    await expect.poll(async () => (await lastStats()).wordsTyped).toBe(5100);
+    expect((await lastStats()).wpm).toBe(102);
+    expect((await lastStats()).accuracy).toBeCloseTo(97.5, 1);
+    await expect(page.locator("[data-typing-word]").first()).toBeVisible();
+    await typingInput(page).focus();
+    await page.keyboard.insertText("the the ");
+    await expect.poll(async () => (await lastStats()).wordsTyped).toBe(5102);
+    expect((await lastStats()).wpm).toBe(102);
+    expect((await lastStats()).accuracy).toBeCloseTo(97.5, 1);
+  });
+
   test("self-paced: results, Next test, Up next splash, next test and the all-done summary", async ({ page }) => {
     await page.goto("/connect/room/room-live?fixture=room-self");
     await expect(page.getByText("Test 1 of 2")).toBeVisible();

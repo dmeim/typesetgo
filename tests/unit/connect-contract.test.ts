@@ -16,6 +16,7 @@ import {
   type ConnectStats,
   type ConnectTest,
 } from "../../src/lib/connect-types";
+import { connectSnapshot } from "../../src/components/typing/practice-input";
 
 const modules = import.meta.glob("../../convex/**/*.ts");
 const host = "a".repeat(64);
@@ -316,13 +317,23 @@ describe("Connect runs", () => {
     if (pacing === "participant") await ctx.t.mutation(api.connect.updateRoom, { ...ctx.hostArgs, pacing });
     const { participantId } = await join(ctx.t, ctx.code);
     await ctx.t.mutation(api.connect.start, ctx.hostArgs);
-    const report = (overrides: Partial<{ runVersion: number; stepIndex: number; attempt: number; stats: ConnectStats; typedText: string; credential: string }> = {}) =>
+    const report = (overrides: Partial<{ runVersion: number; stepIndex: number; attempt: number; stats: ConnectStats; typedText: string; targetText: string; credential: string }> = {}) =>
       ctx.t.mutation(api.connect.reportProgress, {
         participantId, credential: guest, runVersion: 1, stepIndex: 0, attempt: 0,
         stats: stats({ progress: 10, timeElapsed: 1000, wpm: 40, accuracy: 95 }), ...overrides,
       });
     return { ...ctx, participantId, report };
   }
+
+  it("refuses a long timed test's whole text but keeps its rolling snapshot", async () => {
+    const { t, participantId, report } = await running();
+    const typedText = "cat ".repeat(5100);
+    const targetText = "cat ".repeat(5200).trim();
+    await expect(report({ typedText, targetText })).rejects.toThrow(/too long/);
+    const snapshot = connectSnapshot(typedText, targetText, true);
+    expect(await report(snapshot)).toEqual({ accepted: true });
+    expect(await participantRow(t, participantId)).toMatchObject(snapshot);
+  });
 
   it("accepts progress only for the current run, step, and attempt", async () => {
     const { t, roomId, hostArgs, participantId, report } = await running();

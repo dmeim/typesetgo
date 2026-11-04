@@ -182,7 +182,9 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
               targetText: participant.targetText,
               elapsedMs: participant.stats.timeElapsed,
               isFinished: participant.stats.isFinished,
-              ...(isGoalTest(test) && { wordsTyped: participant.stats.wordsTyped, wpm: participant.stats.wpm }),
+              wordsTyped: participant.stats.wordsTyped,
+              wpm: participant.stats.wpm,
+              accuracy: participant.stats.accuracy,
             } : undefined}
             onStatsUpdate={progress.report}
             onTypingStateChange={setIsTyping}

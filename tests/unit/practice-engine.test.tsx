@@ -4,6 +4,8 @@ import type { CSSProperties } from "react";
 import TypingPractice from "@/components/typing/TypingPractice";
 import type { SettingsState } from "@/lib/typing-constants";
 import { DEFAULT_SETTINGS } from "@/lib/storage-utils";
+import { MAX_CONNECT_TEXT_LENGTH } from "@/lib/practice-limits";
+import { validateSnapshotText } from "../../convex/lib/connect";
 import theme from "../../public/themes/typesetgo.json";
 
 const mocks = vi.hoisted(() => ({
@@ -558,10 +560,11 @@ describe("Connect word goals", () => {
 
   it("carries the count and speed over a refresh, when only recent text comes back", async () => {
     const onStatsUpdate = vi.fn();
-    const initialAttempt = { typedText: "cat cat ", targetText: "cat cat cat cat", elapsedMs: 60000, isFinished: false, wordsTyped: 500, wpm: 100 };
+    const initialAttempt = { typedText: "cat cat ", targetText: "cat cat cat cat", elapsedMs: 60000, isFinished: false, wordsTyped: 500, wpm: 100, accuracy: 90 };
     render(<TypingPractice connectMode {...goal} initialAttempt={initialAttempt} onStatsUpdate={onStatsUpdate} />);
     await waitFor(() => expect(onStatsUpdate).toHaveBeenCalled());
     expect(lastReport(onStatsUpdate)[0]).toMatchObject({ wordsTyped: 500, wpm: 100 });
+    expect(lastReport(onStatsUpdate)[0].accuracy).toBeCloseTo(90, 1);
     fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat cat cat " } });
     await waitFor(() => expect(lastReport(onStatsUpdate)[0].wordsTyped).toBe(501));
   });
@@ -573,6 +576,172 @@ describe("Connect word goals", () => {
     const own = container.querySelectorAll("br").length;
     rerender(<TypingPractice connectMode lockedSettings={{ mode: "zen" }} lockedLayout={{ maxWordsPerLine: 2 }} />);
     await waitFor(() => expect(container.querySelectorAll("br").length).toBeGreaterThan(own));
+  });
+});
+
+describe("Connect long tests", () => {
+  const timed = { lockedSettings: { mode: "time" as const, duration: 3600 } };
+  const customTimed = (presetText: string) => ({ lockedSettings: { mode: "preset" as const, presetModeType: "time" as const, duration: 3600, presetText } });
+  const lastReport = (onStatsUpdate: ReturnType<typeof vi.fn>) => onStatsUpdate.mock.calls.at(-1)!;
+  const wordsOf = (count: number) => Array.from({ length: count }, (_, index) => (index % 10 === 9 ? "cot" : "cat")).join(" ") + " ";
+  // Types in steps, as a student does, so the prompt keeps growing ahead of the caret. A wrong word every ten.
+  function typeInSteps(input: HTMLElement, count: number) {
+    for (let words = 40; words < count; words += 40) fireEvent.change(input, { target: { value: wordsOf(words) } });
+    fireEvent.change(input, { target: { value: wordsOf(count) } });
+  }
+  function restoreFrom(report: unknown[], props: object) {
+    const [stats, typedText, targetText] = report as [{ timeElapsed: number; isFinished: boolean; wordsTyped: number; wpm: number; accuracy: number }, string, string];
+    const onStatsUpdate = vi.fn();
+    render(<TypingPractice connectMode {...props} onStatsUpdate={onStatsUpdate} initialAttempt={{ typedText, targetText,
+      elapsedMs: stats.timeElapsed, isFinished: stats.isFinished, wordsTyped: stats.wordsTyped, wpm: stats.wpm, accuracy: stats.accuracy }} />);
+    return onStatsUpdate;
+  }
+
+  it("keeps sending text the server accepts for the whole of a long timed test", async () => {
+    const onStatsUpdate = vi.fn();
+    render(<TypingPractice connectMode {...timed} onStatsUpdate={onStatsUpdate} />);
+    const input = await screen.findByRole("textbox", { name: "Typing practice" });
+    await waitFor(() => expect(input).toBeEnabled());
+    typeInSteps(input, 5100);
+    expect(wordsOf(5100).length).toBeGreaterThan(MAX_CONNECT_TEXT_LENGTH);
+    for (const [, typed, target] of onStatsUpdate.mock.calls) {
+      expect(() => { validateSnapshotText(typed); validateSnapshotText(target); }).not.toThrow();
+    }
+    expect(lastReport(onStatsUpdate)[0].wordsTyped).toBe(5100);
+  });
+
+  it("keeps sending text the server accepts when a key is held down", async () => {
+    const onStatsUpdate = vi.fn();
+    render(<TypingPractice connectMode {...timed} onStatsUpdate={onStatsUpdate} />);
+    const input = await screen.findByRole("textbox", { name: "Typing practice" });
+    await waitFor(() => expect(input).toBeEnabled());
+    fireEvent.change(input, { target: { value: "x".repeat(MAX_CONNECT_TEXT_LENGTH + 1) } });
+    const [, typed, target] = lastReport(onStatsUpdate);
+    expect(() => { validateSnapshotText(typed); validateSnapshotText(target); }).not.toThrow();
+  });
+
+  it("restores a long timed test with its speed, accuracy, word count and progress intact", async () => {
+    let now = 1000;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    try {
+      const onStatsUpdate = vi.fn();
+      const { unmount } = render(<TypingPractice connectMode {...timed} onStatsUpdate={onStatsUpdate} />);
+      const input = await screen.findByRole("textbox", { name: "Typing practice" });
+      await waitFor(() => expect(input).toBeEnabled());
+      fireEvent.change(input, { target: { value: "c" } });
+      now += 40 * 60 * 1000;
+      typeInSteps(input, 5100);
+      await waitFor(() => expect(lastReport(onStatsUpdate)[0].timeElapsed).toBe(40 * 60 * 1000));
+      const saved = lastReport(onStatsUpdate);
+      expect(saved[0]).toMatchObject({ wordsTyped: 5100, wpm: 102, accuracy: 97.5 });
+      unmount();
+
+      const restored = restoreFrom(saved, timed);
+      await waitFor(() => expect(restored).toHaveBeenCalled());
+      expect(restored.mock.calls[0][0]).toMatchObject({ wordsTyped: 5100, wpm: 102, timeElapsed: saved[0].timeElapsed, isFinished: false });
+      expect(restored.mock.calls[0][0].accuracy).toBeCloseTo(97.5, 1);
+      expect(restored.mock.calls[0][0].progress).toBeCloseTo(saved[0].progress, 0);
+
+      // Words typed after the refresh add to what came back, and the prompt keeps growing.
+      fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: `${saved[1]}cat cat ` } });
+      await waitFor(() => expect(lastReport(restored)[0].wordsTyped).toBe(5102));
+      expect(lastReport(restored)[0].accuracy).toBeCloseTo(97.5, 1);
+      expect(lastReport(restored)[0].wpm).toBe(102);
+      expect(screen.queryByRole("region", { name: "Test results" })).not.toBeInTheDocument();
+    } finally { clock.mockRestore(); }
+  });
+
+  it("charts a restored long test against the whole attempt, not just the text that came back", async () => {
+    let now = 1000;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    try {
+      const onStatsUpdate = vi.fn();
+      const props = { connectMode: true, ...timed, onStatsUpdate, initialAttempt: { typedText: "cat ".repeat(50), targetText: `${"cat ".repeat(150)}cat`,
+        elapsedMs: 40 * 60 * 1000, isFinished: false, wordsTyped: 5100, wpm: 102, accuracy: 97.5 } };
+      const { rerender } = render(<TypingPractice {...props} />);
+      for (const second of [1, 2]) {
+        now += 1000;
+        await waitFor(() => expect(lastReport(onStatsUpdate)[0].timeElapsed).toBe(40 * 60 * 1000 + second * 1000));
+      }
+      rerender(<TypingPractice {...props} forceFinish />);
+      const chart = await screen.findByRole("img", { name: /Speed ranged/ });
+      expect(chart.getAttribute("aria-label")).toContain("from 102 to 102 words per minute; accuracy ended at 97.5%");
+    } finally { clock.mockRestore(); }
+  });
+
+  it("keeps the ghost beside the student after a long test is restored", async () => {
+    const saved = [{ timeElapsed: 40 * 60 * 1000, isFinished: false, wordsTyped: 5100, wpm: 102, accuracy: 100 }, "cat ".repeat(50), `${"cat ".repeat(150)}cat`];
+    const ghost = (ghostWriterSpeed: number) => ({ lockedSettings: { ...timed.lockedSettings, ghostWriterEnabled: true, ghostWriterSpeed } });
+    const wordOf = (selector: string) => document.querySelector(selector)?.closest("[data-typing-word]");
+    const matched = restoreFrom(saved, ghost(102));
+    await waitFor(() => expect(matched).toHaveBeenCalled());
+    expect(wordOf("[data-ghost-caret]")).not.toBeNull();
+    expect(wordOf("[data-ghost-caret]")).toBe(wordOf("[data-typing-caret]"));
+    cleanup();
+    // A slower ghost is back among the words the snapshot left out, so there's nothing to draw.
+    const slower = restoreFrom(saved, ghost(40));
+    await waitFor(() => expect(slower).toHaveBeenCalled());
+    expect(document.querySelector("[data-ghost-caret]")).toBeNull();
+  });
+
+  it("keeps a word-for-word report on tests that stay under the limit", async () => {
+    const onStatsUpdate = vi.fn();
+    render(<TypingPractice connectMode {...timed} onStatsUpdate={onStatsUpdate} />);
+    const input = await screen.findByRole("textbox", { name: "Typing practice" });
+    await waitFor(() => expect(input).toBeEnabled());
+    typeInSteps(input, 300);
+    const [stats, typed, target] = lastReport(onStatsUpdate);
+    expect(typed).toBe(wordsOf(300));
+    expect(target.split(" ").length).toBeGreaterThan(300);
+    expect(target.startsWith("cat cat")).toBe(true);
+    expect(stats.wordsTyped).toBe(300);
+  });
+
+  it("restores whole text exactly, ignoring the rounded stats saved with it", async () => {
+    const reports = restoreFrom([{ timeElapsed: 60000, isFinished: false, wordsTyped: 2, wpm: 9, accuracy: 50 }, "cat cot ", "cat cat cat"], timed);
+    await waitFor(() => expect(reports).toHaveBeenCalled());
+    expect(reports.mock.calls[0][0]).toMatchObject({ wordsTyped: 2, wpm: 2, accuracy: 87.5 });
+  });
+
+  it("restores a finished custom text exactly, counting its last word", async () => {
+    const reports = restoreFrom([{ timeElapsed: 30000, isFinished: true, wordsTyped: 2, wpm: 9, accuracy: 50 }, "cat dog", "cat dog"], customTimed("cat dog"));
+    await waitFor(() => expect(reports).toHaveBeenCalled());
+    expect(reports.mock.calls[0][0]).toMatchObject({ wordsTyped: 2, wpm: 3, accuracy: 100, isFinished: true });
+  });
+
+  it("reports custom text word for word, even at the longest a host can set", async () => {
+    const presetText = Array(2000).fill("cats").join(" ").slice(0, 9999);
+    const onStatsUpdate = vi.fn();
+    render(<TypingPractice connectMode {...customTimed(presetText)} onStatsUpdate={onStatsUpdate} />);
+    const input = await screen.findByRole("textbox", { name: "Typing practice" });
+    await waitFor(() => expect(input).toBeEnabled());
+    fireEvent.change(input, { target: { value: "cats ".repeat(1500) } });
+    expect(lastReport(onStatsUpdate).slice(1)).toEqual(["cats ".repeat(1500), presetText]);
+  });
+
+  it("keeps custom text going to its real end after a refresh, even past a held-down key", async () => {
+    const presetText = Array(300).fill("cat").join(" ");
+    const onStatsUpdate = vi.fn();
+    const { unmount } = render(<TypingPractice connectMode {...customTimed(presetText)} onStatsUpdate={onStatsUpdate} />);
+    const input = await screen.findByRole("textbox", { name: "Typing practice" });
+    await waitFor(() => expect(input).toBeEnabled());
+    fireEvent.change(input, { target: { value: `${"cat ".repeat(60)}cat${"x".repeat(MAX_CONNECT_TEXT_LENGTH)}` } });
+    const saved = lastReport(onStatsUpdate);
+    expect(() => { validateSnapshotText(saved[1]); validateSnapshotText(saved[2]); }).not.toThrow();
+    expect(saved[0].wordsTyped).toBe(60);
+    unmount();
+
+    const restored = restoreFrom(saved, customTimed(presetText));
+    await waitFor(() => expect(restored).toHaveBeenCalled());
+    expect(restored.mock.calls[0][0].wordsTyped).toBe(60);
+    const box = screen.getByRole("textbox", { name: "Typing practice" });
+    // Word 61 onward: well past where a window of 100 words ahead would have stopped.
+    fireEvent.change(box, { target: { value: `${saved[1]} ${"cat ".repeat(200)}` } });
+    await waitFor(() => expect(lastReport(restored)[0].wordsTyped).toBe(261));
+    expect(screen.queryByRole("region", { name: "Test results" })).not.toBeInTheDocument();
+    fireEvent.change(box, { target: { value: `${saved[1]} ${"cat ".repeat(238)}cat` } });
+    expect(await screen.findByRole("region", { name: "Test results" })).toBeInTheDocument();
+    await waitFor(() => expect(lastReport(restored)[0]).toMatchObject({ isFinished: true, wordsTyped: 300 }));
   });
 });
 

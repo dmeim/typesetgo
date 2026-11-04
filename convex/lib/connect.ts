@@ -15,10 +15,10 @@ import {
   type ConnectStats,
   type ConnectTest,
 } from "../../src/lib/connect-types";
+import { MAX_CONNECT_TEXT_LENGTH } from "../../src/lib/practice-limits";
 import { getAuthedUser } from "./identity";
 import { credentialHash } from "./multiplayer";
 
-export const MAX_CONNECT_TEXT_LENGTH = 20_000;
 export const CONNECT_PARTICIPANT_BATCH = 200;
 
 export const connectTestValidator = v.object({

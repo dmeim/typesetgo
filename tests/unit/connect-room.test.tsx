@@ -14,7 +14,7 @@ type View = Record<string, unknown> & { state: string };
 type FixtureProps = {
   lockedSettings: Partial<SettingsState>;
   isTestActive: boolean;
-  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean; wordsTyped?: number; wpm?: number };
+  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean; wordsTyped?: number; wpm?: number; accuracy?: number };
   goalLabel?: string;
   lockedLayout?: { linePreview?: number; maxWordsPerLine?: number };
   onStatsUpdate: (stats: ConnectStats, typedText?: string, targetText?: string) => void;
@@ -253,11 +253,12 @@ describe("room states", () => {
   });
 
   it("locks the current test's settings and pauses input without losing the attempt", async () => {
-    state.view = okView({ participant: { typedText: "cat", targetText: "cat dog", stats: stats({ timeElapsed: 4000 }) } });
+    state.view = okView({ participant: { typedText: "cat", targetText: "cat dog", stats: stats({ timeElapsed: 4000, wordsTyped: 3, wpm: 50, accuracy: 97.5 }) } });
     const view = renderRoom();
     expect(await screen.findByLabelText("Practice input")).toHaveValue("cat");
     expect(state.props.lockedSettings).toMatchObject({ mode: "time", duration: 30 });
-    expect(state.props.initialAttempt).toEqual({ typedText: "cat", targetText: "cat dog", elapsedMs: 4000, isFinished: false });
+    // A very long test only saves its recent text, so the saved stats come back with it.
+    expect(state.props.initialAttempt).toEqual({ typedText: "cat", targetText: "cat dog", elapsedMs: 4000, isFinished: false, wordsTyped: 3, wpm: 50, accuracy: 97.5 });
     expect(state.props.isTestActive).toBe(true);
     state.view = okView({ room: { status: "paused" }, participant: { typedText: "cat", targetText: "cat dog", stats: stats({ timeElapsed: 4000 }) } });
     view.rerender(
@@ -577,11 +578,11 @@ describe("word goal room", () => {
     expect(state.props.forceFinish).toBe(true);
   });
 
-  it("restores with the saved count and speed, which other tests don't need", async () => {
-    state.view = okView({ room: { tests: goalTests }, participant: { typedText: "cat ", targetText: "cat dog", stats: stats({ wordsTyped: 90, wpm: 55, timeElapsed: 4000 }) } });
+  it("restores with the saved count and speed", async () => {
+    state.view = okView({ room: { tests: goalTests }, participant: { typedText: "cat ", targetText: "cat dog", stats: stats({ wordsTyped: 90, wpm: 55, accuracy: 96, timeElapsed: 4000 }) } });
     renderRoom();
     await screen.findByLabelText("Practice input");
-    expect(state.props.initialAttempt).toEqual({ typedText: "cat ", targetText: "cat dog", elapsedMs: 4000, isFinished: false, wordsTyped: 90, wpm: 55 });
+    expect(state.props.initialAttempt).toEqual({ typedText: "cat ", targetText: "cat dog", elapsedMs: 4000, isFinished: false, wordsTyped: 90, wpm: 55, accuracy: 96 });
   });
 
   it("shows no meter on other tests", async () => {
