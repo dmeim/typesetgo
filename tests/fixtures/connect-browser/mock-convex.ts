@@ -76,6 +76,8 @@ export const FIXTURE_TESTS = {
   goal: test({ id: "t5", mode: "goal", wordTarget: 5 }),
   bigGoal: test({ id: "t6", mode: "goal", wordTarget: 1000, title: "Class goal" }),
   hour: test({ id: "t7", mode: "time", duration: 3600 }),
+  longWords: test({ id: "t8", mode: "words", wordTarget: 9999 }),
+  restoredWords: test({ id: "t9", mode: "words", wordTarget: 5300 }),
 };
 const fourTests = [FIXTURE_TESTS.warmUp, FIXTURE_TESTS.timed, FIXTURE_TESTS.sprint, FIXTURE_TESTS.words];
 
@@ -192,6 +194,17 @@ function seed(name: string): { rooms: Room[]; participants: Participant[] } {
     case "room-long-restored":
       return {
         rooms: [makeRoom({ _id: "room-live", status: "running", tests: [FIXTURE_TESTS.hour] })],
+        participants: [self({
+          typedText: "the ".repeat(50), targetText: `${"the ".repeat(150)}the`,
+          stats: { wpm: 102, accuracy: 97.5, progress: 99, wordsTyped: 5100, timeElapsed: 2_400_000 },
+        })],
+      };
+    case "room-long-words":
+      return { rooms: [makeRoom({ _id: "room-live", status: "running", tests: [FIXTURE_TESTS.longWords] })], participants: [self()] };
+    // Only 101 words ahead came back with the snapshot, and the test still has 200 to go.
+    case "room-long-words-restored":
+      return {
+        rooms: [makeRoom({ _id: "room-live", status: "running", tests: [FIXTURE_TESTS.restoredWords] })],
         participants: [self({
           typedText: "the ".repeat(50), targetText: `${"the ".repeat(150)}the`,
           stats: { wpm: 102, accuracy: 97.5, progress: 99, wordsTyped: 5100, timeElapsed: 2_400_000 },

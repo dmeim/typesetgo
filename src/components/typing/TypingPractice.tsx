@@ -891,7 +891,7 @@ export default function TypingPractice({
   useEffect(() => {
     if (!promptReady || (connectMode && !isTestActive)) return;
     if (onStatsUpdateRef.current) {
-      const snapshot = isGoal ? rollingSnapshot(typedText, words) : connectSnapshot(typedText, words, settings.mode === "time");
+      const snapshot = isGoal ? rollingSnapshot(typedText, words) : connectSnapshot(typedText, words, settings.mode === "time" || settings.mode === "words");
       onStatsUpdateRef.current(
         {
           wpm: Math.round(wpm) || 0,
@@ -935,7 +935,13 @@ export default function TypingPractice({
         if (addition) { wordsRef.current += " " + addition; setWords(wordsRef.current); }
       }
     }
-    if (settings.mode === "words" && sanitized.endsWith(" ") && hasCompletedPrompt(sanitized, wordsRef.current)) finishSession();
+    if (settings.mode === "words") {
+      // A long test restores only the words around the caret, so the rest are dealt again, up to the host's target.
+      const missing = restoringPrompt ? settings.wordTarget - carry.words - wordsRef.current.split(" ").length : 0;
+      const addition = missing > 0 ? generateWords(missing, wordPool, settings) : "";
+      if (addition) { wordsRef.current += " " + addition; setWords(wordsRef.current); }
+      if (sanitized.endsWith(" ") && hasCompletedPrompt(sanitized, wordsRef.current)) finishSession();
+    }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {

@@ -93,7 +93,7 @@ The checked-in `.github/workflows/checks.yml` also runs the explicit Convex type
 ### C. Unit tests (current setup)
 - Framework: Vitest (`vitest.config.ts`)
 - Env: `jsdom`
-- Setup file: `tests/setup.ts` (Testing Library jest-dom)
+- Setup file: `tests/setup.ts` (Testing Library jest-dom, a longer wait for slow machines, and animation frames on a real timer, so a fake-timer test can't freeze animations later in its file)
 - Include pattern: `tests/unit/**/*.test.{ts,tsx}`
 
 Current repo state:

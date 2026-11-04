@@ -743,6 +743,94 @@ describe("Connect long tests", () => {
     expect(await screen.findByRole("region", { name: "Test results" })).toBeInTheDocument();
     await waitFor(() => expect(lastReport(restored)[0]).toMatchObject({ isFinished: true, wordsTyped: 300 }));
   });
+
+  describe("long Words tests", () => {
+    const longWords = { lockedSettings: { mode: "words" as const, wordTarget: 6000 } };
+    const results = () => screen.queryByRole("region", { name: "Test results" });
+
+    it("sends text the server accepts from the very first report", async () => {
+      const onStatsUpdate = vi.fn();
+      render(<TypingPractice connectMode {...longWords} onStatsUpdate={onStatsUpdate} />);
+      const input = await screen.findByRole("textbox", { name: "Typing practice" });
+      await waitFor(() => expect(input).toBeEnabled());
+      expect("cat ".repeat(6000).length).toBeGreaterThan(MAX_CONNECT_TEXT_LENGTH);
+      fireEvent.change(input, { target: { value: "cat " } });
+      typeInSteps(input, 300);
+      for (const [, typed, target] of onStatsUpdate.mock.calls) {
+        expect(() => { validateSnapshotText(typed); validateSnapshotText(target); }).not.toThrow();
+      }
+      expect(lastReport(onStatsUpdate)[0].wordsTyped).toBe(300);
+    });
+
+    it("runs to the host's target after a refresh deep into the test", async () => {
+      const onStatsUpdate = vi.fn();
+      const { unmount } = render(<TypingPractice connectMode {...longWords} onStatsUpdate={onStatsUpdate} />);
+      const input = await screen.findByRole("textbox", { name: "Typing practice" });
+      await waitFor(() => expect(input).toBeEnabled());
+      typeInSteps(input, 300);
+      const saved = lastReport(onStatsUpdate);
+      expect(saved[0].wordsTyped).toBe(300);
+      // Only recent text is saved, next to the count for the whole attempt.
+      expect(saved[1].split(" ").length).toBeLessThan(300);
+      unmount();
+
+      const restored = restoreFrom(saved, longWords);
+      await waitFor(() => expect(restored).toHaveBeenCalled());
+      expect(restored.mock.calls[0][0].wordsTyped).toBe(300);
+      const box = screen.getByRole("textbox", { name: "Typing practice" });
+      // Well past the 100 words ahead that came back with the snapshot.
+      fireEvent.change(box, { target: { value: `${saved[1]}cat ` } });
+      fireEvent.change(box, { target: { value: `${saved[1]}${"cat ".repeat(5699)}` } });
+      await waitFor(() => expect(lastReport(restored)[0]).toMatchObject({ wordsTyped: 5999, isFinished: false }));
+      expect(results()).not.toBeInTheDocument();
+      fireEvent.change(box, { target: { value: `${saved[1]}${"cat ".repeat(5700)}` } });
+      expect(await screen.findByRole("region", { name: "Test results" })).toBeInTheDocument();
+      await waitFor(() => expect(lastReport(restored)[0]).toMatchObject({ isFinished: true, wordsTyped: 6000 }));
+    });
+
+    it("runs to the host's target after a refresh in the first few words", async () => {
+      const onStatsUpdate = vi.fn();
+      const { unmount } = render(<TypingPractice connectMode {...longWords} onStatsUpdate={onStatsUpdate} />);
+      const input = await screen.findByRole("textbox", { name: "Typing practice" });
+      await waitFor(() => expect(input).toBeEnabled());
+      fireEvent.change(input, { target: { value: "cat ".repeat(10) } });
+      const saved = lastReport(onStatsUpdate);
+      expect(saved[1]).toBe("cat ".repeat(10));
+      expect(saved[2].split(" ").length).toBeLessThan(6000);
+      unmount();
+
+      const restored = restoreFrom(saved, longWords);
+      await waitFor(() => expect(restored).toHaveBeenCalled());
+      const box = screen.getByRole("textbox", { name: "Typing practice" });
+      fireEvent.change(box, { target: { value: "cat ".repeat(11) } });
+      fireEvent.change(box, { target: { value: "cat ".repeat(5999) } });
+      await waitFor(() => expect(lastReport(restored)[0]).toMatchObject({ wordsTyped: 5999, isFinished: false }));
+      expect(results()).not.toBeInTheDocument();
+      fireEvent.change(box, { target: { value: "cat ".repeat(6000) } });
+      expect(await screen.findByRole("region", { name: "Test results" })).toBeInTheDocument();
+      await waitFor(() => expect(lastReport(restored)[0]).toMatchObject({ isFinished: true, wordsTyped: 6000 }));
+    });
+
+    it("leaves a short test's whole prompt as it was after a refresh", async () => {
+      const short = { lockedSettings: { mode: "words" as const, wordTarget: 5 } };
+      const onStatsUpdate = vi.fn();
+      const { unmount } = render(<TypingPractice connectMode {...short} onStatsUpdate={onStatsUpdate} />);
+      const input = await screen.findByRole("textbox", { name: "Typing practice" });
+      await waitFor(() => expect(input).toBeEnabled());
+      fireEvent.change(input, { target: { value: "cat " } });
+      const saved = lastReport(onStatsUpdate);
+      expect(saved[2]).toBe("cat cat cat cat cat");
+      unmount();
+
+      const restored = restoreFrom(saved, short);
+      await waitFor(() => expect(restored).toHaveBeenCalled());
+      const box = screen.getByRole("textbox", { name: "Typing practice" });
+      fireEvent.change(box, { target: { value: "cat cat " } });
+      await waitFor(() => expect(lastReport(restored)[2]).toBe("cat cat cat cat cat"));
+      fireEvent.change(box, { target: { value: "cat cat cat cat cat " } });
+      await waitFor(() => expect(lastReport(restored)[0]).toMatchObject({ isFinished: true, wordsTyped: 5 }));
+    });
+  });
 });
 
 describe("Connect attempt recovery", () => {

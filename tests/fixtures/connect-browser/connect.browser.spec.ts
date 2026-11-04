@@ -427,6 +427,33 @@ test.describe("participant room", () => {
     expect((await lastStats()).accuracy).toBeCloseTo(97.5, 1);
   });
 
+  test("long Words test: reports get through from the first words, though the whole prompt is over the server's limit", async ({ page }) => {
+    await page.goto("/connect/room/room-live?fixture=room-long-words");
+    await expect(typingInput(page)).toBeEnabled();
+    await typingInput(page).focus();
+    await page.keyboard.insertText("xxxxxxxxx ".repeat(60));
+    // The mock refuses over-long text as the server does, so a saved count means the report got through.
+    await expect.poll(() => page.evaluate(() => window.__connectFixture.snapshot().participants.find((row) => row._id === "p-self")?.stats.wordsTyped)).toBe(60);
+    const last = (await callsNamed(page, "connect:reportProgress")).at(-1) as { targetText: string };
+    expect(last.targetText.split(" ").length).toBeLessThan(200);
+    await expect(page.getByRole("region", { name: "Test results" })).toHaveCount(0);
+  });
+
+  test("long Words test: a refresh deals the missing words again, and it ends at the host's target", async ({ page }) => {
+    await page.goto("/connect/room/room-live?fixture=room-long-words-restored");
+    await expect(typingInput(page)).toBeEnabled();
+    await expect(typingInput(page)).toHaveValue("the ".repeat(50));
+    const wordsSaved = () => page.evaluate(() => window.__connectFixture.snapshot().participants.find((row) => row._id === "p-self")?.stats.wordsTyped);
+    await typingInput(page).focus();
+    // Past the end of the words that came back with the snapshot.
+    await page.keyboard.insertText("the ".repeat(120));
+    await expect.poll(wordsSaved).toBe(5220);
+    await expect(page.getByRole("region", { name: "Test results" })).toHaveCount(0);
+    await page.keyboard.insertText("the ".repeat(80));
+    await expect(page.getByRole("region", { name: "Test results" })).toBeVisible();
+    await expect.poll(wordsSaved).toBe(5300);
+  });
+
   test("self-paced: results, Next test, Up next splash, next test and the all-done summary", async ({ page }) => {
     await page.goto("/connect/room/room-live?fixture=room-self");
     await expect(page.getByText("Test 1 of 2")).toBeVisible();

@@ -36,6 +36,20 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "connect-long-words-tests",
+    date: "2026-11-04",
+    title: "Long Words tests in Connect now work at any length",
+    kind: "fixed",
+    status: "live",
+    area: "Connect",
+    summary: "A Words test could be too long for the live board from its very first word: above about 1,300 words on Expert, 2,400 on Medium or 4,300 on Beginner, a student's card never updated and their result never reached the host. Words tests now report the whole way, up to the 9,999-word limit.",
+    highlights: [
+      "A refresh during a long Words test still ends at exactly the number of words the host set",
+      "After a refresh, the words further ahead are new ones. The words around where the student was stay the same",
+      "After a refresh that late, the results screen's word lists only cover the words typed since a little before the refresh",
+    ],
+  },
+  {
     id: "connect-long-timed-tests",
     date: "2026-11-04",
     title: "Long timed tests in Connect keep reaching the live board",
