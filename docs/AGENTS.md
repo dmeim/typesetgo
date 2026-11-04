@@ -68,7 +68,7 @@ Start with `bun run dev:fixture` (isolated UI on port 4317). For a real backend 
 - **Unit tests (single run):** `bun run test:run`
 - **E2E test command:** `bun run test:e2e` (all isolated browser suites), or append `practice`, `fonts`, `profiles`, `connect`, or `race`. Build first for `fonts` (included in the default run); see the browser guide for fixture environment values.
 - **Convex dev:** `bun run convex:dev --env-file PATH --expect local:NAME` (explicit target required)
-- **Convex deploy:** `bun run convex:deploy`
+- **Convex deploy:** for the live site, follow [Releasing backend-dependent changes](development.md#releasing-backend-dependent-changes). The raw `bun run convex:deploy` targets Convex production, which the live site does not use.
 - **Preview production build:** `bun run preview`
 - **Local Worker:** `bun run cf:dev` (build `dist/` first)
 - **Live Worker deploy:** `bun run cf:deploy` (builds locally and updates `typesetgo.app`; confirm account and build-time backend settings first)

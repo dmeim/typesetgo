@@ -26,7 +26,7 @@ bun run test:e2e        # Isolated browser acceptance (installed Chrome by defau
 bun run lint            # ESLint
 
 # Deployment
-bun run convex:deploy   # Deploy Convex functions
+bun run convex:deploy   # Raw deploy to Convex production, which the live site does NOT use; for live releases follow docs/development.md
 bun run cf:dev          # Serve an existing dist build locally through Wrangler
 bun run cf:deploy       # Build locally and deploy LIVE typesetgo.app (confirm target first)
 ```
