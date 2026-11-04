@@ -4,7 +4,7 @@ import { breakEndsAt, type ConnectTest } from "@/lib/connect-types";
 import { connectTestLabels } from "@/lib/connect-settings";
 import { useNow } from "@/hooks/useNow";
 import { formatClock } from "@/components/connect/board/board-model";
-import { participantTestDetail } from "./test-labels";
+import { detailAfterTitle } from "./test-labels";
 
 const RETRY_MS = 2000;
 const RADIUS = 54;
@@ -65,7 +65,7 @@ export function BreakScreen({ tests, index, startedAt, pausedAt, paused, onExpir
       </div>
       {next && (
         <p className="rounded-full bg-muted px-4 py-1.5 text-sm">
-          Up next: <strong>{labels[nextIndex].title}</strong> <span className="text-muted-foreground">· {participantTestDetail(next)}</span>
+          Up next: <strong>{labels[nextIndex].title}</strong> <span className="text-muted-foreground">· {detailAfterTitle(labels[nextIndex].title, next)}</span>
         </p>
       )}
     </section>

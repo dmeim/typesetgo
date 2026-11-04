@@ -32,6 +32,8 @@ type Room = {
   status: ConnectRoomStatus;
   currentIndex: number;
   runVersion: number;
+  stepEndedAt?: number;
+  goalTally?: { runVersion: number; words: number; dueAt: number };
   createdAt: number;
   lastActiveAt: number;
   expiresAt: number;
@@ -70,6 +72,8 @@ export const FIXTURE_TESTS = {
   timed: test({ id: "t2", mode: "time", duration: 30 }),
   sprint: test({ id: "t3", mode: "preset", presetText: "a dog ran", presetModeType: "finish", title: "Sprint" }),
   words: test({ id: "t4", mode: "words", wordTarget: 25 }),
+  goal: test({ id: "t5", mode: "goal", wordTarget: 5 }),
+  bigGoal: test({ id: "t6", mode: "goal", wordTarget: 1000, title: "Class goal" }),
 };
 const fourTests = [FIXTURE_TESTS.warmUp, FIXTURE_TESTS.timed, FIXTURE_TESTS.sprint, FIXTURE_TESTS.words];
 
@@ -142,6 +146,26 @@ function seed(name: string): { rooms: Room[]; participants: Participant[] } {
         ],
       };
     }
+    // A word goal under way, for the host panel and the projected board.
+    case "host-goal": {
+      const typist = (name: string, wordsTyped: number, wpm: number, patch: Parameters<typeof makeParticipant>[1] = {}) =>
+        makeParticipant(name, { stats: { wpm, accuracy: 96, progress: 20, timeElapsed: 90_000, wordsTyped }, ...patch });
+      return {
+        rooms: [makeRoom({
+          _id: "room-live", status: "running", tests: [FIXTURE_TESTS.bigGoal, FIXTURE_TESTS.timed],
+          goalTally: { runVersion: 1, words: 412, dueAt: 0 },
+        })],
+        participants: [
+          typist("Maya", 86, 64, { signedIn: true, avatarUrl: portrait("#f59e0b", "#ef4444", "#fde7d0") }),
+          typist("Jonah", 54, 48),
+          typist("Priya", 92, 71, { signedIn: true, avatarUrl: portrait("#06b6d4", "#6366f1", "#8d5a3b") }),
+          typist("Leo", 41, 39),
+          typist("Sofia", 66, 57, { signedIn: true, avatarUrl: portrait("#22c55e", "#0ea5e9", "#c68a5e") }),
+          typist("Theo", 28, 33),
+          typist("Ava", 45, 52, { signedIn: true, avatarUrl: portrait("#ec4899", "#8b5cf6", "#f1c7a5") }),
+        ],
+      };
+    }
     case "host-lobby":
       return { rooms: [makeRoom({ _id: "room-live" })], participants: [makeParticipant("Bea")] };
     case "board-self":
@@ -155,6 +179,11 @@ function seed(name: string): { rooms: Room[]; participants: Participant[] } {
       };
     case "room-lobby":
       return { rooms: [makeRoom({ _id: "room-live" })], participants: [self()] };
+    case "room-goal":
+      return {
+        rooms: [makeRoom({ _id: "room-live", status: "running", tests: [FIXTURE_TESTS.goal, FIXTURE_TESTS.timed], goalTally: { runVersion: 1, words: 2, dueAt: 0 } })],
+        participants: [self(), makeParticipant("Bea", { stats: { wpm: 40, accuracy: 95, timeElapsed: 5000, wordsTyped: 2 } })],
+      };
     case "room-host":
       return { rooms: [makeRoom({ _id: "room-live", status: "running" })], participants: [self()] };
     case "room-self":
@@ -235,12 +264,12 @@ function participantView(args: Args) {
   const participant = state.participants.find((p) => p._id === args.participantId && p.roomId === room._id);
   if (!participant) return { state: "missing" as const };
   if (participant.removedAt !== undefined) return { state: "removed" as const };
-  const { _id, code, name, hostName, status, pacing, currentIndex, runVersion, tests, overrides } = room;
+  const { _id, code, name, hostName, status, pacing, currentIndex, runVersion, tests, overrides, stepEndedAt, goalTally } = room;
   const { sessionId, roomId, ...self } = participant;
   void sessionId; void roomId;
   return {
     state: "ok" as const,
-    room: { _id, code, name, hostName, status, pacing, currentIndex, runVersion, tests, overrides },
+    room: { _id, code, name, hostName, status, pacing, currentIndex, runVersion, tests, overrides, stepEndedAt, goalTally },
     participant: { ...self, signedIn: self.signedIn === true },
   };
 }
@@ -378,6 +407,12 @@ const mutations: Record<string, (args: Args) => unknown> = {
       stats: args.stats as ConnectStats, typedText: args.typedText as string | undefined,
       targetText: args.targetText as string | undefined, isConnected: true, lastSeen: Date.now(),
     });
+    // The server tallies a word goal about once a second; here every report tallies straight away.
+    const current = room.tests[room.currentIndex];
+    if (current?.mode === "goal") {
+      const words = membersOf(room._id).filter((p) => p.removedAt === undefined).reduce((total, p) => total + p.stats.wordsTyped, 0);
+      patchRoom(room._id, { goalTally: { runVersion: room.runVersion, words, dueAt: 0 }, stepEndedAt: room.stepEndedAt ?? (words >= current.wordTarget ? Date.now() : undefined) });
+    }
     return { accepted: true };
   },
   "connect:advance": (args) => {

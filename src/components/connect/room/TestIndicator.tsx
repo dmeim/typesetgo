@@ -1,7 +1,7 @@
 import type { ConnectTest } from "@/lib/connect-types";
 import { connectTestLabels } from "@/lib/connect-settings";
 import { cn } from "@/lib/utils";
-import { participantTestDetail, testPhase } from "./test-labels";
+import { detailAfterTitle, testPhase } from "./test-labels";
 
 const SEGMENT_CLASS = { done: "bg-success", current: "bg-primary", upcoming: "bg-foreground/10" } as const;
 
@@ -23,7 +23,7 @@ export function TestIndicator({ tests, currentIndex, className }: { tests: Conne
           </div>
         )}
       </div>
-      <p className="truncate text-xs text-muted-foreground">{label.title} · {participantTestDetail(test)}</p>
+      <p className="truncate text-xs text-muted-foreground">{label.title} · {detailAfterTitle(label.title, test)}</p>
     </div>
   );
 }

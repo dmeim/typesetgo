@@ -1,6 +1,7 @@
 import { CheckCircleIcon, UsersIcon } from "@phosphor-icons/react";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
 import { useNow } from "@/hooks/useNow";
+import { isGoalTest } from "@/lib/connect-types";
 import { cn } from "@/lib/utils";
 import { boardCounts, stepLine } from "@/components/connect/board/board-model";
 import type { TestLabel } from "@/components/connect/board/ParticipantCard";
@@ -25,7 +26,7 @@ export function BoardSummary({ room, participants, labels, className }: {
       : hostPaced ? `Test ${index + 1} of ${total} · ${label?.title ?? ""}` : `${total} ${plural} · own pace`;
   const detail = room.status === "lobby" ? "Waiting for the host to start"
     : room.status === "complete" ? "Great typing, everyone!"
-      : hostPaced ? `${label?.detail ?? ""} · ${room.status === "paused" ? "Paused" : stepLine(room, participants, now)}` : "Everyone moves through the list at their own speed";
+      : hostPaced ? [isGoalTest(room.tests[index]) ? "" : label?.detail, room.status === "paused" ? "Paused" : stepLine(room, participants, now)].filter(Boolean).join(" · ") : "Everyone moves through the list at their own speed";
 
   return (
     <section aria-label="Room progress" className={cn("flex flex-col gap-4 rounded-3xl border border-border bg-card p-5 text-card-foreground sm:flex-row sm:items-center", className)}>

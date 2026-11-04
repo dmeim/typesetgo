@@ -151,7 +151,7 @@ test.describe("host panel", () => {
     await expect(everyone.getByRole("combobox", { name: "Font" })).toHaveCount(0);
     await textGroup.click();
     await expect(textGroup).toHaveAttribute("aria-checked", "true");
-    await expect(everyone.getByText(/Everyone uses this font, size and alignment\./)).toBeVisible();
+    await expect(everyone.getByText(/Everyone uses this font, size and layout\./)).toBeVisible();
     await expect(everyone.getByRole("combobox", { name: "Font" })).toBeEnabled();
     await expect.poll(async () => (await callsNamed(page, "connect:updateRoom")).at(-1)).toEqual(
       expect.objectContaining({ overrides: expect.objectContaining({ typography: expect.objectContaining({ enabled: true }) }) }),
@@ -159,6 +159,82 @@ test.describe("host panel", () => {
     // Pacing is locked once the room runs.
     await run.getByRole("button", { name: "Start" }).click();
     await expect(pacing.getByRole("radio", { name: "Together" })).toBeDisabled();
+  });
+
+  test("adds a word goal, which turns Own pace off", async ({ page }) => {
+    await page.goto("/connect/host/room-live?fixture=host-lobby");
+    const tests = page.getByRole("region", { name: "Tests" });
+    await tests.getByRole("button", { name: "Add a test or break" }).click();
+    const form = page.getByRole("form");
+    await form.getByRole("radio", { name: "Word goal" }).click();
+    await expect(form.getByRole("radio", { name: "1,000" })).toHaveAttribute("aria-checked", "true");
+    await expect(form.getByText("only correct words count", { exact: false })).toBeVisible();
+    await form.getByRole("button", { name: "Add to list" }).click();
+    await expect.poll(async () => ((await callsNamed(page, "connect:setTests")).at(-1)?.tests as { mode: string; wordTarget: number }[])?.at(-1)).toMatchObject({ mode: "goal", wordTarget: 1000 });
+    await expect(tests.getByText("Word goal · 1,000", { exact: true })).toBeVisible();
+    const run = page.getByRole("region", { name: "Run the room" });
+    await expect(run.getByRole("radio", { name: "Own pace" })).toBeDisabled();
+    await expect(run.getByText("Own pace is off while the list has one", { exact: false })).toBeVisible();
+  });
+
+  test("own-pace rooms don't offer word goals", async ({ page }) => {
+    await page.goto("/connect/host/room-live?fixture=board-self");
+    const tests = page.getByRole("region", { name: "Tests" });
+    await expect(tests.getByRole("button", { name: /1,000-word goal/ })).toHaveCount(0);
+    await tests.getByRole("button", { name: "Add a test or break" }).click();
+    await expect(page.getByRole("form").getByRole("radio", { name: "Word goal" })).toBeDisabled();
+  });
+
+  test("the host sets the keyboard style and line layout, or Kid-friendly in one tap", async ({ page }) => {
+    await page.goto("/connect/host/room-live?fixture=host-lobby");
+    const everyone = page.getByRole("region", { name: "Everyone gets" });
+    const lastOverrides = async () => ((await callsNamed(page, "connect:updateRoom")).at(-1)?.overrides ?? {}) as Record<string, Record<string, unknown>>;
+
+    await everyone.getByRole("switch", { name: "Everyone gets the same on-screen keyboard" }).click();
+    await expect(everyone.getByRole("radio", { name: /Spotlight/ })).toHaveAttribute("aria-checked", "true");
+    await everyone.getByRole("radio", { name: /Keycaps/ }).click();
+    await expect.poll(async () => (await lastOverrides()).keyboard?.keyboardStyle).toBe("keycaps");
+    await expect(everyone.getByText("Shown · QWERTY · Keycaps")).toBeVisible();
+
+    await everyone.getByRole("switch", { name: "Everyone gets the same text" }).click();
+    await everyone.getByRole("slider", { name: "Lines shown" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect.poll(async () => (await lastOverrides()).typography?.linePreview).toBe(4);
+    await expect(everyone.getByRole("slider", { name: "Words per line" })).toBeVisible();
+
+    await everyone.getByRole("button", { name: "Kid-friendly" }).click();
+    await expect.poll(lastOverrides).toMatchObject({
+      typography: { enabled: true, typingFontSize: 5.5, linePreview: 2, maxWordsPerLine: 5 },
+      ghost: { enabled: true, ghostWriterEnabled: false },
+      keyboard: { enabled: true, showOnScreenKeyboard: true, keyboardStyle: "finger" },
+    });
+    await expect(everyone.getByRole("radio", { name: /Finger guide/ })).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("a word goal shows its tally on the host panel, in fullscreen and on the pop-out, and Fit still fits", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/connect/host/room-live?fixture=host-goal");
+    await expect(page.getByRole("region", { name: "Run the room" }).getByText("412 of 1,000 words")).toBeVisible();
+
+    const board = page.getByRole("region", { name: "Live board" });
+    const tally = board.getByRole("region", { name: "Room word goal" });
+    await expect(tally.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "412");
+    await expect(tally.getByText("41% · 588 to go")).toBeVisible();
+    await expect(board.getByRole("article", { name: "Priya" })).toContainText("92 words");
+
+    await board.getByRole("button", { name: "Fit" }).click();
+    await board.getByRole("button", { name: "Fullscreen" }).click();
+    await expect(tally).toBeVisible();
+    const list = board.getByRole("list", { name: "Players" });
+    await expect.poll(() => list.evaluate((element) => element.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+    await board.getByRole("button", { name: "Exit fullscreen" }).click();
+
+    const popout = await page.context().newPage();
+    await popout.setViewportSize({ width: 1280, height: 720 });
+    await popout.goto("/connect/host/room-live/board?fixture=host-goal");
+    await expect(popout.getByRole("region", { name: "Room word goal" }).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "412");
+    await expect.poll(() => popout.evaluate(() => document.scrollingElement!.scrollHeight <= innerHeight)).toBe(true);
+    await popout.close();
   });
 
   test("roster removes a player after confirming; End room asks twice", async ({ page }) => {
@@ -272,6 +348,50 @@ test.describe("participant room", () => {
     await expect.poll(async () => (await callsNamed(page, "connect:reportProgress")).some((args) => (args.stats as { isFinished: boolean }).isFinished)).toBe(true);
   });
 
+  test("word goal: only correct words count, the total moves, and reaching the goal ends the test", async ({ page }) => {
+    await page.goto("/connect/room/room-live?fixture=room-goal");
+    const tally = page.getByRole("region", { name: "Room word goal" });
+    await expect(tally.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "2");
+    await expect(tally.getByText("/ 5 words")).toBeVisible();
+    await expect(page.getByText("Word goal · 5", { exact: true })).toBeVisible();
+    await expect(typingInput(page)).toBeEnabled();
+
+    // The first report carries the generated prompt, so the test can type it exactly.
+    await expect.poll(async () => (await callsNamed(page, "connect:reportProgress")).length).toBeGreaterThan(0);
+    const prompt = String((await callsNamed(page, "connect:reportProgress"))[0].targetText).split(" ");
+    await typeIntoTest(page, `${prompt[0]} zzz `);
+    await expect(tally.getByText("You: 1")).toBeVisible();
+    await expect(tally.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "3");
+
+    // A word only counts once it is finished with a space, and Escape never ends the test.
+    await page.keyboard.type(prompt[2], { delay: 30 });
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    await expect(tally.getByText("You: 1")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Test results" })).toHaveCount(0);
+
+    await typingInput(page).focus();
+    await page.keyboard.type(` ${prompt[3]} `, { delay: 30 });
+    await expect(tally.getByText("Goal reached!")).toBeVisible();
+    await expect(tally.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "5");
+    await expect(page.getByRole("region", { name: "Test results" })).toBeVisible();
+    await expect.poll(async () => (await callsNamed(page, "connect:reportProgress")).some((args) => (args.stats as { isFinished: boolean }).isFinished)).toBe(true);
+  });
+
+  test("word goal: the words keep coming on a long run", async ({ page }) => {
+    await page.goto("/connect/room/room-live?fixture=room-goal");
+    await expect(typingInput(page)).toBeEnabled();
+    await expect.poll(async () => (await callsNamed(page, "connect:reportProgress")).length).toBeGreaterThan(0);
+    await typingInput(page).focus();
+    // Wrong words move the caret just as well, so this runs far past the first prompt without reaching the goal.
+    for (let burst = 0; burst < 20; burst++) await page.keyboard.insertText("x ".repeat(20));
+    await expect.poll(async () => String((await callsNamed(page, "connect:reportProgress")).at(-1)?.typedText).split(" ").length).toBe(51);
+    const last = (await callsNamed(page, "connect:reportProgress")).at(-1)!;
+    expect(String(last.targetText).split(" ").length).toBeGreaterThan(51);
+    await expect(page.getByRole("region", { name: "Test results" })).toHaveCount(0);
+    await expect(page.locator("[data-goal-meter]").getByText("You: 0")).toBeVisible();
+  });
+
   test("self-paced: results, Next test, Up next splash, next test and the all-done summary", async ({ page }) => {
     await page.goto("/connect/room/room-live?fixture=room-self");
     await expect(page.getByText("Test 1 of 2")).toBeVisible();
@@ -356,6 +476,8 @@ test.describe("360px width", () => {
     ["room lobby", "/connect/room/room-live?fixture=room-lobby", async (page) => { await expect(page.getByRole("list", { name: "Tests in this room" })).toBeVisible(); }],
     ["room typing", "/connect/room/room-live?fixture=room-host", async (page) => { await expect(typingInput(page)).toBeEnabled(); }],
     ["board", "/connect/host/room-live/board?fixture=board-self", async (page) => { await expect(page.getByRole("article", { name: "Dev" })).toBeVisible(); }],
+    ["room word goal", "/connect/room/room-live?fixture=room-goal", async (page) => { await expect(page.getByRole("region", { name: "Room word goal" })).toBeVisible(); await expect(typingInput(page)).toBeEnabled(); }],
+    ["board word goal", "/connect/host/room-live/board?fixture=host-goal", async (page) => { await expect(page.getByRole("region", { name: "Room word goal" })).toBeVisible(); }],
   ];
   for (const [name, url, ready] of pages) {
     test(`${name} does not scroll horizontally`, async ({ page }) => {
