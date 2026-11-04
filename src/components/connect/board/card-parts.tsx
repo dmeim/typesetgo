@@ -42,10 +42,10 @@ export function CardName({ name, size, reserve, className }: { name: string; siz
   );
 }
 
-/** Speed that counts up as it changes; a dash before any typing. */
-export function CardWpm({ value, title, className }: { value: number; title?: string; className?: string }) {
+/** A card's headline number, speed or words, that counts up as it changes; a dash before any typing. */
+export function CardNumber({ value, title, className }: { value: number; title?: string; className?: string }) {
   const shown = useAnimatedCounter(value, 500);
-  return <span className={cn("font-black leading-none tabular-nums", className)} title={title}>{value > 0 ? shown : "–"}</span>;
+  return <span className={cn("font-black leading-none tabular-nums", className)} title={title}>{value > 0 ? shown.toLocaleString() : "–"}</span>;
 }
 
 /** One em-sized segment per test for self-paced rooms: green when done, primary for the current one. */

@@ -60,13 +60,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     highlights: [
       "Add a word goal from the test list; only Together rooms can use one",
       "Only correct words count, and each student sees the room's total and their own count above their typing",
-      "The live board shows a big tally, in fullscreen and on the pop-out board too, and each card shows that student's words",
+      "The live board shows a big tally, in fullscreen and on the pop-out board too",
+      "Each card leads with that student's words and shows their speed underneath, and the crown goes to whoever has typed the most",
       "The total updates about once a second, and words keep coming until the goal is reached",
       "Students who join partway through start typing right away",
       "Everyone gets now covers the theme's look, lines shown, words per line and keyboard style",
       "Kid-friendly sets big text, short lines, the finger guide and no ghost in one tap",
     ],
-    shots: [{ src: "/changelog/connect-goal.webp", alt: "The Connect live board with a big tally reading 412 of 1,000 words above the students' cards", caption: "The tally on the projector board. Each card shows how many words that student has added." }],
+    shots: [{ src: "/changelog/connect-goal.webp", alt: "The Connect live board with a big tally reading 412 of 1,000 words above the students' cards", caption: "The tally on the projector board. Each card's big number is the words that student has added." }],
   },
   {
     id: "board-fit",

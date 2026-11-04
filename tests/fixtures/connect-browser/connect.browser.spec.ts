@@ -220,7 +220,10 @@ test.describe("host panel", () => {
     const tally = board.getByRole("region", { name: "Room word goal" });
     await expect(tally.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "412");
     await expect(tally.getByText("41% · 588 to go")).toBeVisible();
-    await expect(board.getByRole("article", { name: "Priya" })).toContainText("92 words");
+    const priya = board.getByRole("article", { name: "Priya" });
+    await expect(priya).toContainText("92");
+    await expect(priya).toContainText("71 WPM");
+    await expect(priya.getByLabel("Most words right now")).toBeVisible();
 
     await board.getByRole("button", { name: "Fit" }).click();
     await board.getByRole("button", { name: "Fullscreen" }).click();

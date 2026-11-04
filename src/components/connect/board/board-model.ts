@@ -232,14 +232,15 @@ export function stepLine(room: BoardRoom, participants: BoardParticipant[], now:
   return `${taking.filter((participant) => participant.stats.isFinished).length} of ${taking.length} finished`;
 }
 
-/** The fastest present participant with live or average numbers, once anyone has typed. */
+/** Who is out in front once anyone has typed: the fastest present participant or, on a word goal, whoever has added the most words. */
 export function leaderId(room: BoardRoom, participants: BoardParticipant[]) {
   if (room.status === "lobby") return null;
-  let best: { id: string; wpm: number } | null = null;
+  const goal = isGoalTest(room.tests[room.currentIndex]);
+  let best: { id: string; score: number } | null = null;
   for (const participant of participants) {
     if (isAway(participant)) continue;
-    const { wpm } = headlineStats(room, participant);
-    if (wpm > 0 && (!best || wpm > best.wpm)) best = { id: participant._id, wpm };
+    const score = goal ? participant.stats.wordsTyped : headlineStats(room, participant).wpm;
+    if (score > 0 && (!best || score > best.score)) best = { id: participant._id, score };
   }
   return best?.id ?? null;
 }

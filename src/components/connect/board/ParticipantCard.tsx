@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckIcon, CoffeeIcon, CrownSimpleIcon, DotsSixVerticalIcon, HourglassMediumIcon, PauseIcon, WifiSlashIcon } from "@phosphor-icons/react";
 import type { CardStyle } from "@/hooks/useConnectBoardPrefs";
+import { isGoalTest } from "@/lib/connect-types";
 import { cn } from "@/lib/utils";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
 import {
@@ -11,7 +12,7 @@ import {
 } from "@/components/connect/board/board-model";
 import { ConnectAvatar } from "@/components/connect/ConnectAvatar";
 import { PresenceDot, ProgressBar } from "@/components/connect/ConnectBadges";
-import { CardName, CardWpm, StatusLine, TestPips } from "@/components/connect/board/card-parts";
+import { CardName, CardNumber, StatusLine, TestPips } from "@/components/connect/board/card-parts";
 import { CONNECT_SPRING } from "@/components/connect/connect-motion";
 
 export type TestLabel = { title: string; detail: string };
@@ -21,7 +22,7 @@ export interface ParticipantCardProps {
   participant: HostParticipant;
   labels: TestLabel[];
   layout: "grid" | "list";
-  /** How a card looks in the grid layout: the name on a filling ribbon, or the speed as a big number. */
+  /** How a card looks in the grid layout: the name on a filling ribbon, or the headline stat as a big number. */
   cardStyle?: CardStyle;
   /** Clock for break countdowns. */
   now?: number;
@@ -29,7 +30,7 @@ export interface ParticipantCardProps {
   sortable?: boolean;
   /** Shows the account picture; off keeps the letter avatar. */
   showPicture?: boolean;
-  /** The fastest player right now gets a crown. */
+  /** The player out in front gets a crown: the fastest or, on a word goal, the one with the most words. */
   leader?: boolean;
 }
 
@@ -47,15 +48,15 @@ const CHIP_ICON: Partial<Record<BoardStatus, typeof CheckIcon>> = {
   break: CoffeeIcon, late: HourglassMediumIcon, offline: WifiSlashIcon, left: WifiSlashIcon, paused: PauseIcon, finished: CheckIcon, done: CheckIcon,
 };
 
-/** The player's state; while typing it shows how far through the test they are instead. */
-function StatusChip({ status, progress }: { status: BoardStatus; progress: string }) {
+/** The player's state; while typing, `text` says how they're getting on instead. */
+function StatusChip({ status, text }: { status: BoardStatus; text: string }) {
   const ChipIcon = CHIP_ICON[status];
   return (
     <AnimatePresence mode="popLayout" initial={false}>
       <motion.span key={status} initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={CONNECT_SPRING}
         className={cn("inline-flex shrink-0 items-center gap-[0.3em] whitespace-nowrap rounded-full px-[0.65em] py-[0.25em] text-[0.75em] font-bold tabular-nums", CHIP_TONE[status] ?? "bg-muted text-muted-foreground")}>
         {ChipIcon && <ChipIcon className="size-[1.15em]" aria-hidden="true" />}
-        {status === "typing" ? <><span className="sr-only">Typing, </span>{progress}</> : BOARD_STATUS_LABELS[status]}
+        {status === "typing" && <span className="sr-only">Typing, </span>}{text}
       </motion.span>
     </AnimatePresence>
   );
@@ -85,6 +86,10 @@ export const ParticipantCard = forwardRef<HTMLLIElement, ParticipantCardProps>(f
   const ribbon = cardStyle === "ribbon";
   const index = effectiveTestIndex(room, participant);
   const wpm = Math.round(stats.wpm);
+  // A word goal is about what each student adds, so their words take the headline and their speed moves to the status line.
+  const goal = isGoalTest(room.tests[index]);
+  const headline = goal ? participant.stats.wordsTyped : wpm;
+  const crownLabel = goal ? "Most words right now" : "Fastest right now";
   const accuracy = `${Math.round(stats.accuracy)}%`;
   const statTitle = stats.isAverage ? "Average over all tests" : undefined;
   const { name } = participant;
@@ -112,7 +117,7 @@ export const ParticipantCard = forwardRef<HTMLLIElement, ParticipantCardProps>(f
         {crown && leader && (
           <motion.span initial={{ y: 6, opacity: 0, scale: 0.5 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 6, opacity: 0, scale: 0.5 }} transition={CONNECT_SPRING}
             className="absolute -left-[0.4em] -top-[0.85em] -rotate-12" style={{ color: GOLD }}>
-            <CrownSimpleIcon weight="fill" className="size-[1.2em] drop-shadow" aria-label="Fastest right now" />
+            <CrownSimpleIcon weight="fill" className="size-[1.2em] drop-shadow" aria-label={crownLabel} />
           </motion.span>
         )}
       </AnimatePresence>
@@ -132,7 +137,10 @@ export const ParticipantCard = forwardRef<HTMLLIElement, ParticipantCardProps>(f
     !cards ? "rounded-[1.4em]" : ribbon ? "rounded-[0.9em]" : "rounded-[1.1em]",
     isDragging && "relative z-10 shadow-2xl ring-2 ring-primary");
 
-  const statusText = status === "typing" || status === "break" ? progress.label : BOARD_STATUS_LABELS[status];
+  const statusLabel = BOARD_STATUS_LABELS[status];
+  const goalStatus = status === "typing" ? `${wpm} WPM` : wpm > 0 ? `${statusLabel} · ${wpm} WPM` : statusLabel;
+  const statusText = goal ? goalStatus : status === "typing" || status === "break" ? progress.label : statusLabel;
+  const chipText = goal ? goalStatus : status === "typing" ? progress.label : statusLabel;
   const pips = showSteps && <TestPips tests={room.tests} titles={labels.map((label) => label.title)} index={index} className={ribbon ? "h-[0.4em] w-[3em] shrink-0" : "w-[2.6em] shrink-0"} />;
 
   const content = !cards ? null : ribbon ? (
@@ -144,9 +152,9 @@ export const ParticipantCard = forwardRef<HTMLLIElement, ParticipantCardProps>(f
       {avatar(false)}
       <div className="relative flex min-w-0 flex-1 flex-col gap-[0.15em]">
         <div className="flex min-w-0 items-center gap-[0.5em]">
-          <CardName name={name} size={1.4} reserve={leader ? 7.6 : 6} className="flex-1" />
-          {leader && <CrownSimpleIcon weight="fill" className="size-[1.4em] shrink-0" style={{ color: GOLD }} aria-label="Fastest right now" />}
-          <CardWpm value={wpm} title={statTitle} className="shrink-0 text-[1.75em]" />
+          <CardName name={name} size={1.4} reserve={(leader ? 7.6 : 6) + (goal ? 1.2 : 0)} className="flex-1" />
+          {leader && <CrownSimpleIcon weight="fill" className="size-[1.4em] shrink-0" style={{ color: GOLD }} aria-label={crownLabel} />}
+          <CardNumber value={headline} title={statTitle} className="shrink-0 text-[1.75em]" />
         </div>
         <div className="flex min-w-0 items-center gap-[0.5em] text-[0.8em]">
           {pips}
@@ -167,8 +175,8 @@ export const ParticipantCard = forwardRef<HTMLLIElement, ParticipantCardProps>(f
       </header>
       <div className="flex items-end justify-between gap-[0.5em]">
         <span className="flex items-baseline gap-[0.2em]" title={statTitle}>
-          <CardWpm value={wpm} className="text-[3.1em] tracking-tight" />
-          <span className="text-[0.8em] font-semibold text-muted-foreground">{stats.isAverage ? "avg wpm" : "wpm"}</span>
+          <CardNumber value={headline} className="text-[3.1em] tracking-tight" />
+          <span className="text-[0.8em] font-semibold text-muted-foreground">{goal ? (headline === 1 ? "word" : "words") : stats.isAverage ? "avg wpm" : "wpm"}</span>
         </span>
         <span className="flex flex-col items-end leading-none" title={statTitle}>
           <span className="text-[1.15em] font-bold tabular-nums">{accuracy}</span>
@@ -192,9 +200,9 @@ export const ParticipantCard = forwardRef<HTMLLIElement, ParticipantCardProps>(f
       {avatar(true)}
       <div className="w-[7em] min-w-0 shrink-0 sm:w-[9em]">{nameLine}</div>
       <div className="hidden min-w-0 flex-1 sm:block">{bar}</div>
-      <span className="w-[4em] text-right text-[1.15em] font-black tabular-nums" title={statTitle}>{wpm}<span className="ml-[0.25em] text-[0.65em] font-normal text-muted-foreground">{stats.isAverage ? "avg" : "wpm"}</span></span>
+      <span className={cn("whitespace-nowrap text-right text-[1.15em] font-black tabular-nums", goal ? "w-[5.5em]" : "w-[4em]")} title={statTitle}>{headline.toLocaleString()}<span className="ml-[0.25em] text-[0.65em] font-normal text-muted-foreground">{goal ? (headline === 1 ? "word" : "words") : stats.isAverage ? "avg" : "wpm"}</span></span>
       <span className="hidden w-[3em] text-right text-[0.875em] tabular-nums text-muted-foreground sm:inline" title={statTitle}>{accuracy}</span>
-      <span className="ml-auto sm:ml-0"><StatusChip status={status} progress={progress.label} /></span>
+      <span className="ml-auto sm:ml-0"><StatusChip status={status} text={chipText} /></span>
     </article>
   );
 

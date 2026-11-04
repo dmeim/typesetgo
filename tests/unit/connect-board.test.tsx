@@ -363,6 +363,50 @@ describe("word goal on the board", () => {
     expect(progressDetail(room, makeParticipant("Ben", { stats: { wordsTyped: 1 } }))).toEqual({ percent: 0.1, label: "1 word" });
   });
 
+  describe("cards", () => {
+    const typists = () => [
+      makeParticipant("Zed", { stats: { wordsTyped: 300, wpm: 90, accuracy: 96, timeElapsed: 1000 } }),
+      makeParticipant("Amy", { stats: { wordsTyped: 1204, wpm: 64, accuracy: 98, timeElapsed: 1000 } }),
+    ];
+    const card = (name: string) => within(screen.getByRole("article", { name }));
+
+    it.each(["ribbon", "big"] as const)("lead %s cards with the player's words, with their speed under the name", async (cardStyle) => {
+      render(<ParticipantBoard room={goalRoom()} participants={typists()} prefs={prefs({ cardStyle })} showSummary={false} />);
+      expect(await card("Amy").findByText("1,204")).toBeInTheDocument();
+      expect(card("Amy").getByText("64 WPM")).toBeInTheDocument();
+      expect(card("Amy").queryByText("64")).not.toBeInTheDocument();
+    });
+
+    it("lead list rows with words too", () => {
+      render(<ParticipantBoard room={goalRoom()} participants={typists()} prefs={prefs({ layout: "list" })} showSummary={false} />);
+      expect(screen.getByRole("article", { name: "Amy" })).toHaveTextContent("1,204words");
+      expect(card("Amy").getByText("64 WPM")).toBeInTheDocument();
+    });
+
+    it("keep the speed once the player has finished", () => {
+      const finished = makeParticipant("Amy", { stats: { wordsTyped: 40, wpm: 64, timeElapsed: 1000, isFinished: true } });
+      const { rerender } = render(<ParticipantBoard room={goalRoom()} participants={[finished]} prefs={prefs()} showSummary={false} />);
+      expect(card("Amy").getByText("Finished · 64 WPM")).toBeInTheDocument();
+      rerender(<ParticipantBoard room={goalRoom()} participants={[finished]} prefs={prefs({ layout: "list" })} showSummary={false} />);
+      expect(card("Amy").getByText("Finished · 64 WPM")).toBeInTheDocument();
+    });
+
+    it("crown whoever has typed the most words, not the fastest", () => {
+      render(<ParticipantBoard room={goalRoom()} participants={typists()} prefs={prefs()} showSummary={false} />);
+      expect(card("Amy").getByLabelText("Most words right now")).toBeInTheDocument();
+      expect(screen.getAllByLabelText("Most words right now")).toHaveLength(1);
+      expect(screen.queryByLabelText("Fastest right now")).not.toBeInTheDocument();
+    });
+
+    it("go back to leading with speed on the next test", async () => {
+      const room = makeRoom({ tests: [...goalTests, { ...DEFAULT_CONNECT_TEST, id: "t2", mode: "words", wordTarget: 25 }], currentIndex: 1 });
+      render(<ParticipantBoard room={room} participants={[makeParticipant("Amy", { stats: { wordsTyped: 10, wpm: 64, timeElapsed: 1000 } })]} prefs={prefs()} showSummary={false} />);
+      expect(await card("Amy").findByText("64")).toBeInTheDocument();
+      expect(card("Amy").getByText("10/25 words")).toBeInTheDocument();
+      expect(card("Amy").getByLabelText("Fastest right now")).toBeInTheDocument();
+    });
+  });
+
   it("reads the total in the run summary until results begin, ignoring an earlier run's tally", () => {
     expect(stepLine(goalRoom(), [], 0)).toBe("412 of 1,000 words");
     expect(stepLine(goalRoom({ runVersion: 2 }), [], 0)).toBe("0 of 1,000 words");
