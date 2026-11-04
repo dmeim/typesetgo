@@ -19,7 +19,11 @@ vi.mock("@/components/layout/Header", () => ({ default: () => null }));
 vi.mock("@/lib/toast-manager", () => ({ toast: { add: mocks.toast } }));
 vi.mock("@/hooks/useMultiplayerCredential", () => ({ useMultiplayerCredential: () => "cred" }));
 vi.mock("@/lib/themes", () => ({
-  fetchThemeCatalogIndex: async () => ({ version: 1, themes: [{ id: "typesetgo", name: "TypeSetGo", category: "default", defaultVariantId: "default", variants: [{ id: "default", label: "Default", light: true, swatches: ["#000", "#111", "#222", "#333"] }] }] }),
+  fetchThemeCatalogIndex: async () => ({ version: 1, themes: [{ id: "typesetgo", name: "TypeSetGo", category: "default", defaultVariantId: "default", variants: [{ id: "default", label: "Default", light: true, swatches: ["#000", "#111", "#222", "#333"] }] },
+    { id: "ocean", name: "Ocean", category: "default", defaultVariantId: "tide", variants: [
+      { id: "tide", label: "Tide", light: true, swatches: ["#000", "#111", "#222", "#333"] },
+      { id: "deep", label: "Deep", light: false, swatches: ["#444", "#555", "#666", "#777"] },
+    ] }] }),
 }));
 vi.mock("@/lib/sounds", () => ({
   fetchSoundManifest: async () => ({ typing: { creamy: [] }, warning: { clock: [] } }),
@@ -422,5 +426,111 @@ describe("everyone gets", () => {
     await act(async () => { vi.advanceTimersByTime(450); });
     expect(mutation("updateRoom")).toHaveBeenCalledTimes(1);
     expect(mutation("updateRoom").mock.calls[0][0].overrides.ghost.ghostWriterSpeed).toBe(72);
+  });
+});
+
+describe("word goal tests", () => {
+  const goal: ConnectTest = { ...timed, id: "g1", mode: "goal", wordTarget: 1000 };
+
+  it("adds a word goal with its own totals, starting at 1,000", async () => {
+    setView();
+    renderHost();
+    fireEvent.click(screen.getByRole("button", { name: "Add a test or break" }));
+    const form = within(editor());
+    fireEvent.click(form.getByRole("radio", { name: "Word goal" }));
+    expect(await form.findByRole("radio", { name: "1,000" })).toHaveAttribute("aria-checked", "true");
+    expect(form.getByText(/only correct words count/)).toBeInTheDocument();
+    fireEvent.click(form.getByRole("radio", { name: "5,000" }));
+    fireEvent.click(form.getByRole("button", { name: "Add to list" }));
+    await waitFor(() => expect(lastTests().at(-1)).toMatchObject({ mode: "goal", wordTarget: 5000, difficulty: "medium" }));
+  });
+
+  it("doesn't carry a goal's total over to a word count", async () => {
+    setView();
+    renderHost();
+    fireEvent.click(screen.getByRole("button", { name: "Add a test or break" }));
+    const form = within(editor());
+    fireEvent.click(form.getByRole("radio", { name: "Word goal" }));
+    await form.findByRole("radio", { name: "1,000" });
+    fireEvent.click(form.getByRole("radio", { name: "Words" }));
+    expect(await form.findByRole("radio", { name: "25" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("keeps goals out of own-pace rooms, and own pace out of rooms with a goal", () => {
+    setView({ pacing: "participant" });
+    const view = renderHost();
+    expect(screen.queryByRole("button", { name: /1,000-word goal/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add a test or break" }));
+    expect(within(editor()).getByRole("radio", { name: "Word goal" })).toBeDisabled();
+    view.unmount();
+
+    setView({ tests: [goal] });
+    renderHost();
+    expect(screen.getByRole("radio", { name: "Own pace" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /1,000-word goal/ })).toBeInTheDocument();
+    expect(screen.getByText(/Own pace is off while the list has one/)).toBeInTheDocument();
+  });
+
+  it("shows the total in the run summary and a large meter above the live board", () => {
+    setView({ tests: [goal], status: "running", stepStartedAt: 0, goalTally: { runVersion: 1, words: 412, dueAt: 0 } });
+    renderHost();
+    expect(screen.getByText("412 of 1,000 words")).toBeInTheDocument();
+    const meter = within(screen.getByRole("region", { name: "Room word goal" }));
+    expect(meter.getByText("41% · 588 to go")).toBeInTheDocument();
+  });
+});
+
+describe("more settings for everyone", () => {
+  const everyone = () => within(screen.getByRole("region", { name: "Everyone gets" }));
+  const lastOverrides = () => mutation("updateRoom").mock.calls.at(-1)?.[0].overrides;
+
+  it("sets the keyboard style", async () => {
+    setView({ overrides: { keyboard: { enabled: true, showOnScreenKeyboard: true, keyboardLayout: "dvorak" } } });
+    renderHost();
+    expect(everyone().getByRole("radio", { name: /Spotlight/ })).toHaveAttribute("aria-checked", "true");
+    expect(everyone().getByText("Shown · DVORAK · Spotlight")).toBeInTheDocument();
+    fireEvent.click(everyone().getByRole("radio", { name: /Finger guide/ }));
+    await waitFor(() => expect(lastOverrides().keyboard).toEqual({ enabled: true, showOnScreenKeyboard: true, keyboardLayout: "dvorak", keyboardStyle: "finger" }));
+  });
+
+  it("sets the lines shown and words per line", async () => {
+    vi.useFakeTimers();
+    setView({ overrides: { typography: { enabled: true, typingFontFamily: "lexend", typingFontSize: 3, textAlign: "center" } } });
+    renderHost();
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Lines shown" }), { key: "ArrowRight" });
+    await act(async () => { vi.advanceTimersByTime(450); });
+    expect(lastOverrides().typography).toMatchObject({ linePreview: 4, maxWordsPerLine: 7 });
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Words per line" }), { key: "ArrowLeft" });
+    await act(async () => { vi.advanceTimersByTime(450); });
+    expect(lastOverrides().typography).toMatchObject({ maxWordsPerLine: 6 });
+  });
+
+  it("picks a theme's look, and drops to dark when that look has no light version", async () => {
+    setView({ overrides: { theme: { enabled: true, themeId: "ocean", mode: "light" } } });
+    renderHost();
+    const look = await everyone().findByRole("radiogroup", { name: "Theme look" });
+    expect(within(look).getByRole("radio", { name: "Tide" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(look).getByRole("radio", { name: "Deep" }));
+    await waitFor(() => expect(lastOverrides().theme).toEqual({ enabled: true, themeId: "ocean", mode: "dark", variantId: "deep" }));
+  });
+
+  it("offers no look picker for a theme with one look", async () => {
+    setView({ overrides: { theme: { enabled: true, themeId: "typesetgo", mode: "dark" } } });
+    renderHost();
+    await waitFor(() => expect(everyone().getByRole("button", { name: /Choose theme \(now TypeSetGo\)/ })).toBeInTheDocument());
+    expect(everyone().queryByRole("radiogroup", { name: "Theme look" })).not.toBeInTheDocument();
+  });
+
+  it("Kid-friendly sets the text, ghost and keyboard in one tap and leaves the rest alone", async () => {
+    const sound = { enabled: true, soundEnabled: false, typingSound: "creamy", warningSound: "clock" };
+    setView({ overrides: { sound } });
+    renderHost();
+    fireEvent.click(everyone().getByRole("button", { name: "Kid-friendly" }));
+    await waitFor(() => expect(lastOverrides()).toMatchObject({
+      sound,
+      typography: { enabled: true, typingFontSize: 5.5, linePreview: 2, maxWordsPerLine: 5 },
+      ghost: { enabled: true, ghostWriterEnabled: false },
+      keyboard: { enabled: true, showOnScreenKeyboard: true, keyboardStyle: "finger" },
+    }));
   });
 });

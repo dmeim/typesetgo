@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TypingArea from "@/components/typing/TypingArea";
 import PracticeText from "@/components/typing/PracticeText";
-import { getNextTypingKey, hasCompletedPrompt, getInputPosition } from "@/components/typing/practice-input";
+import { countCorrectWords, getNextTypingKey, goalSnapshot, hasCompletedPrompt, getInputPosition } from "@/components/typing/practice-input";
 import { createPracticeClock, usePracticeClock } from "@/components/typing/usePracticeClock";
 import theme from "../../public/themes/typesetgo.json";
 import { createRef, StrictMode } from "react";
@@ -214,5 +214,34 @@ describe("TypingArea contracts", () => {
     fireEvent.change(input, { target: { value: "c" } });
     fireEvent.change(input, { target: { value: "ca" } });
     expect(input).toHaveValue("ca");
+  });
+});
+
+describe("word goal counting", () => {
+  it("counts finished words that exactly match, and not the one still being typed", () => {
+    expect(countCorrectWords("", "the cat sat")).toBe(0);
+    expect(countCorrectWords("the", "the cat sat")).toBe(0);
+    expect(countCorrectWords("the ", "the cat sat")).toBe(1);
+    expect(countCorrectWords("the cat", "the cat sat")).toBe(1);
+    expect(countCorrectWords("the cot sat ", "the cat sat")).toBe(2);
+    expect(countCorrectWords("The cat ", "the cat sat")).toBe(1);
+    expect(countCorrectWords("th cat ", "the cat sat")).toBe(1);
+    expect(countCorrectWords("the cat sat extra ", "the cat sat")).toBe(3);
+  });
+
+  it("keeps a short attempt whole in its snapshot", () => {
+    expect(goalSnapshot("the ca", "the cat sat")).toEqual({ typedText: "the ca", targetText: "the cat sat" });
+  });
+
+  it("keeps a long attempt's snapshot small, with typed and target words still lined up", () => {
+    const target = Array.from({ length: 1000 }, (_, index) => `w${index}`);
+    const snapshot = goalSnapshot(`${target.slice(0, 500).join(" ")} w5`, target.join(" "));
+    const typed = snapshot.typedText.split(" ");
+    expect(typed).toHaveLength(51);
+    expect(typed[0]).toBe("w450");
+    expect(snapshot.targetText.split(" ")[0]).toBe("w450");
+    expect(snapshot.targetText.split(" ")).toHaveLength(151);
+    expect(snapshot.targetText.split(" ").at(-1)).toBe("w600");
+    expect(countCorrectWords(snapshot.typedText, snapshot.targetText)).toBe(50);
   });
 });

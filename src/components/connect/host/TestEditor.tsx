@@ -2,14 +2,14 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CircleNotchIcon, CopySimpleIcon, FloppyDiskIcon, PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
 import {
-  DEFAULT_CONNECT_BREAK, DEFAULT_CONNECT_TEST, describeConnectTest, validateConnectTest,
+  DEFAULT_CONNECT_BREAK, DEFAULT_CONNECT_GOAL, DEFAULT_CONNECT_TEST, describeConnectTest, validateConnectTest,
   type ConnectDifficulty, type ConnectQuoteLength, type ConnectTest, type ConnectTestMode,
 } from "@/lib/connect-types";
 import { fetchQuotesManifest } from "@/lib/quotes";
 import { fetchWordsManifest } from "@/lib/words";
 import { cn } from "@/lib/utils";
 import { Chips, CustomText, Field, ModeTiles, ToggleChip, WordChips, DurationChips, field } from "./editor-fields";
-import { BREAKS, DURATIONS } from "./test-presets";
+import { BREAKS, DURATIONS, GOALS } from "./test-presets";
 
 type Draft = Omit<ConnectTest, "id" | "title"> & { title: string };
 
@@ -73,13 +73,15 @@ function useManifestOptions() {
 const roundButton = "flex size-10 items-center justify-center rounded-full text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-30";
 
 /** Adds or edits one test or break. */
-export function TestEditor({ editing, autoTitle, canRemove, full, onSave, onCancel, onDuplicate, onRemove }: {
+export function TestEditor({ editing, autoTitle, canRemove, full, goalAllowed = true, onSave, onCancel, onDuplicate, onRemove }: {
   /** The test being edited, or null when adding. */
   editing: ConnectTest | null;
   /** What participants see when the title is left empty. */
   autoTitle: (test: ConnectTest) => string;
   canRemove: boolean;
   full: boolean;
+  /** Word goals only work in Together rooms. */
+  goalAllowed?: boolean;
   onSave: (test: ConnectTest) => Promise<boolean>;
   onCancel: () => void;
   onDuplicate?: () => void;
@@ -95,14 +97,16 @@ export function TestEditor({ editing, autoTitle, canRemove, full, onSave, onCanc
   const error = validationError(test);
   // Empty custom text only complains after a save attempt; other problems show straight away.
   const shownError = error && (tried || draft.mode !== "preset" || Boolean(draft.presetText?.trim())) ? error : null;
-  const wordOptions = draft.mode === "time" || draft.mode === "words";
+  const wordOptions = draft.mode === "time" || draft.mode === "words" || draft.mode === "goal";
   const noun = draft.mode === "break" ? "break" : "test";
   const blocked = full && !editing;
 
   const setMode = (mode: ConnectTestMode) => {
     if (mode === draft.mode) return;
-    if (mode === "break") update({ mode, duration: DEFAULT_CONNECT_BREAK.duration });
-    else update({ mode, duration: draft.mode === "break" ? DEFAULT_CONNECT_TEST.duration : draft.duration });
+    // A goal's total and a test's word count are far apart, so neither carries over to the other.
+    const wordTarget = mode === "goal" ? DEFAULT_CONNECT_GOAL.wordTarget : draft.mode === "goal" ? DEFAULT_CONNECT_TEST.wordTarget : draft.wordTarget;
+    if (mode === "break") update({ mode, wordTarget, duration: DEFAULT_CONNECT_BREAK.duration });
+    else update({ mode, wordTarget, duration: draft.mode === "break" ? DEFAULT_CONNECT_TEST.duration : draft.duration });
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -133,7 +137,7 @@ export function TestEditor({ editing, autoTitle, canRemove, full, onSave, onCanc
         </button>
       </header>
 
-      <ModeTiles value={draft.mode} onChange={setMode} />
+      <ModeTiles value={draft.mode} onChange={setMode} goalAllowed={goalAllowed} />
 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={draft.mode} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }} className="flex flex-col gap-5">
@@ -141,6 +145,12 @@ export function TestEditor({ editing, autoTitle, canRemove, full, onSave, onCanc
           {draft.mode === "break" && <DurationChips label="Break length" value={draft.duration} presets={BREAKS} onChange={(duration) => update({ duration })} />}
           {draft.mode === "break" && <p className="-mt-2 text-sm text-muted-foreground">Everyone sees a countdown, then the next test starts on its own. Breaks freeze while the room is paused.</p>}
           {draft.mode === "words" && <WordChips value={draft.wordTarget} onChange={(wordTarget) => update({ wordTarget })} />}
+          {draft.mode === "goal" && (
+            <>
+              <WordChips label="Word goal" presets={GOALS} value={draft.wordTarget} onChange={(wordTarget) => update({ wordTarget })} />
+              <p className="-mt-2 text-sm text-muted-foreground">Everyone types toward one total, and only correct words count. The test ends for the whole room when the total is reached, and late arrivals can join in right away.</p>
+            </>
+          )}
           {wordOptions && (
             <>
               <Field label="Difficulty">

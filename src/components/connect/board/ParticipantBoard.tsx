@@ -6,11 +6,13 @@ import { UsersThreeIcon } from "@phosphor-icons/react";
 import type { BoardPrefs } from "@/hooks/useConnectBoardPrefs";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
 import { connectTestLabels } from "@/lib/connect-settings";
+import { goalWords, isGoalTest } from "@/lib/connect-types";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 import { CARD_SIZE, leaderId, onBreak, reorderIds, sortParticipants, visibleParticipants } from "@/components/connect/board/board-model";
 import { ParticipantCard } from "@/components/connect/board/ParticipantCard";
 import { BoardSummary } from "@/components/connect/board/BoardSummary";
+import { GoalMeter } from "@/components/connect/GoalMeter";
 import { BOARD_GRID, useBoardFit } from "@/components/connect/board/use-board-fit";
 
 export interface ParticipantBoardProps {
@@ -58,6 +60,10 @@ export function ParticipantBoard({
   const chosen = clampScale(prefs.cardSize);
   const fitted = useBoardFit(prefs.fit && shown.length > 0, listRef, shown.length, list, grid);
   const scale = fitted ?? chosen;
+  const running = room.status === "running" || room.status === "paused";
+  const test = room.pacing === "host" && running ? room.tests[room.currentIndex] : undefined;
+  const goal = test && isGoalTest(test) ? test.wordTarget : undefined;
+  const typed = goalWords(room);
   const style = { fontSize: `${scale}rem` } as CSSProperties;
   const listStyle = list ? { gap: `${grid.gap}em` } : { gap: `${grid.gap}em`, gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${grid.minCardWidth}em), 1fr))` };
   const cards = shown.map((participant) => (
@@ -68,6 +74,9 @@ export function ParticipantBoard({
   return (
     <div className={cn("flex flex-col gap-4", className)} data-layout={prefs.layout} data-look={look}>
       {showSummary && <BoardSummary room={room} participants={participants} labels={labels} />}
+      {goal !== undefined && (
+        <GoalMeter large words={typed} goal={goal} detail={`${Math.round((Math.min(typed, goal) / goal) * 100)}% · ${Math.max(0, goal - typed).toLocaleString()} to go`} />
+      )}
       <div style={style} className="flex flex-col gap-[0.75em]">
         {shown.length === 0 ? (
           <div className="flex flex-col items-center gap-[0.5em] rounded-[1.4em] border border-dashed border-border px-[1em] py-[3em] text-center text-muted-foreground">

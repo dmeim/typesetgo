@@ -6,16 +6,17 @@ import { cn } from "@/lib/utils";
 import { Pills } from "@/components/connect/ConnectParts";
 import { formatThemeId, type ThemeCatalog } from "./theme-catalog";
 
-type ThemeValue = { themeId: string; mode: "dark" | "light" };
+type ThemeValue = { themeId: string; mode: "dark" | "light"; variantId?: string };
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
-function defaultVariant(entry: ThemeCatalogEntry) {
-  return entry.variants.find((variant) => variant.id === entry.defaultVariantId) ?? entry.variants[0];
+function findVariant(entry: ThemeCatalogEntry, variantId?: string) {
+  return entry.variants.find((variant) => variant.id === variantId)
+    ?? entry.variants.find((variant) => variant.id === entry.defaultVariantId) ?? entry.variants[0];
 }
 
-function Swatches({ entry, className }: { entry: ThemeCatalogEntry | undefined; className?: string }) {
-  const swatches = entry ? defaultVariant(entry)?.swatches : undefined;
+function Swatches({ entry, variantId, className }: { entry: ThemeCatalogEntry | undefined; variantId?: string; className?: string }) {
+  const swatches = entry ? findVariant(entry, variantId)?.swatches : undefined;
   if (!swatches) return <PaletteIcon className="size-5 text-muted-foreground" aria-hidden="true" />;
   return (
     <span className={cn("flex shrink-0 overflow-hidden rounded-md", className)} aria-hidden="true">
@@ -78,12 +79,13 @@ function ThemeBrowser({ open, onOpenChange, selected, onSelect, catalog }: {
 export function ThemeOverride({ value, onChange, catalog }: { value: ThemeValue; onChange: (value: ThemeValue) => void; catalog: ThemeCatalog }) {
   const [browsing, setBrowsing] = useState(false);
   const entry = catalog.themes?.find((theme) => theme.id === value.themeId);
-  const hasLight = entry ? Boolean(defaultVariant(entry)?.light) : true;
+  const look = entry ? findVariant(entry, value.variantId) : undefined;
+  const hasLight = entry ? Boolean(look?.light) : true;
   return (
     <div className="flex flex-col gap-3">
       <button type="button" onClick={() => setBrowsing(true)} aria-label={`Choose theme (now ${entry?.name ?? formatThemeId(value.themeId)})`}
         className="flex items-center gap-3 rounded-2xl border border-border bg-background p-3 text-left hover:border-primary focus-visible:outline-2 focus-visible:outline-ring">
-        <Swatches entry={entry} className="h-10 w-16 rounded-xl" />
+        <Swatches entry={entry} variantId={value.variantId} className="h-10 w-16 rounded-xl" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{entry?.name ?? formatThemeId(value.themeId)}</span>
           <span className="block text-xs text-muted-foreground">Tap to browse every theme</span>
@@ -93,11 +95,26 @@ export function ThemeOverride({ value, onChange, catalog }: { value: ThemeValue;
       <Pills<ThemeValue["mode"]> label="Light or dark" value={hasLight ? value.mode : "dark"} onChange={(mode) => onChange({ ...value, mode })}
         options={[{ value: "dark", label: "Dark", Icon: MoonIcon }, { value: "light", label: "Light", Icon: SunIcon, disabled: !hasLight }]} />
       {!hasLight && <p className="text-xs text-muted-foreground">This theme has no light version.</p>}
+      {entry && entry.variants.length > 1 && (
+        <div role="radiogroup" aria-label="Theme look" className="flex flex-wrap gap-1.5">
+          {entry.variants.map((variant) => {
+            const selected = variant.id === look?.id;
+            return (
+              <button key={variant.id} type="button" role="radio" aria-checked={selected} onClick={() => onChange({ ...value, variantId: variant.id, mode: variant.light ? value.mode : "dark" })}
+                className={cn("flex h-9 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+                  selected ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground")}>
+                <Swatches entry={entry} variantId={variant.id} className="h-4 w-8" />
+                {variant.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <ThemeBrowser open={browsing} onOpenChange={setBrowsing} selected={value.themeId} catalog={catalog}
         onSelect={(themeId) => {
           const next = catalog.themes?.find((theme) => theme.id === themeId);
-          const light = next ? Boolean(defaultVariant(next)?.light) : true;
-          onChange({ themeId, mode: light ? value.mode : "dark" });
+          if (!next) return;
+          onChange({ themeId, variantId: next.defaultVariantId, mode: findVariant(next)?.light ? value.mode : "dark" });
         }} />
     </div>
   );

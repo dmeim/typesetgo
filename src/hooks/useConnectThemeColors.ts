@@ -10,7 +10,8 @@ export function useConnectThemeColors(theme: ConnectOverrides["theme"]): Connect
   const enabled = Boolean(theme?.enabled);
   const themeId = theme?.themeId;
   const mode = theme?.mode ?? "dark";
-  const key = enabled && themeId ? `${themeId}:${mode}` : "";
+  const variantId = theme?.variantId;
+  const key = enabled && themeId ? `${themeId}:${variantId ?? ""}:${mode}` : "";
   const [loaded, setLoaded] = useState<{ key: string; theme: ConnectRoomTheme | null }>({ key: "", theme: null });
 
   useEffect(() => {
@@ -20,13 +21,14 @@ export function useConnectThemeColors(theme: ConnectOverrides["theme"]): Connect
       .then((definition) => {
         if (!current) return;
         if (!definition) { setLoaded({ key, theme: null }); return; }
-        // Themes without a light palette stay dark.
-        const light = mode === "light" && definition.light;
-        setLoaded({ key, theme: light ? { colors: light, mode: "light" } : { colors: definition.dark, mode: "dark" } });
+        const look = definition.variants.find((variant) => variant.id === variantId) ?? definition;
+        // Looks without a light palette stay dark.
+        const light = mode === "light" && look.light;
+        setLoaded({ key, theme: light ? { colors: light, mode: "light" } : { colors: look.dark, mode: "dark" } });
       })
       .catch(() => { if (current) setLoaded({ key, theme: null }); });
     return () => { current = false; };
-  }, [key, themeId, mode]);
+  }, [key, themeId, variantId, mode]);
 
   return key && loaded.key === key ? loaded.theme : null;
 }

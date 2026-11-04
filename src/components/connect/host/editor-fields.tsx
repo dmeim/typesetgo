@@ -69,19 +69,19 @@ export function DurationChips({ label, value, presets, onChange }: { label: stri
   );
 }
 
-export function WordChips({ value, onChange }: { value: number; onChange: (words: number) => void }) {
-  const [custom, setCustom] = useState(() => !WORDS.includes(value));
+export function WordChips({ value, onChange, label = "Word count", presets = WORDS }: { value: number; onChange: (words: number) => void; label?: string; presets?: number[] }) {
+  const [custom, setCustom] = useState(() => !presets.includes(value));
   return (
-    <Field label="Word count">
-      <Chips label="Word count" value={custom ? "custom" : String(value)}
-        options={[...WORDS.map((words) => ({ value: String(words), label: String(words) })), { value: "custom", label: "Custom" }]}
+    <Field label={label}>
+      <Chips label={label} value={custom ? "custom" : String(value)}
+        options={[...presets.map((words) => ({ value: String(words), label: words.toLocaleString() })), { value: "custom", label: "Custom" }]}
         onChange={(next) => {
           if (next === "custom") { setCustom(true); return; }
           setCustom(false);
           onChange(Number(next));
         }} />
       {custom && (
-        <input type="number" min={1} autoFocus aria-label="Custom word count" inputMode="numeric" value={Number.isFinite(value) ? value : ""} className={cn(field, "w-28 font-mono")}
+        <input type="number" min={1} autoFocus aria-label={`Custom ${label.toLowerCase()}`} inputMode="numeric" value={Number.isFinite(value) ? value : ""} className={cn(field, "w-28 font-mono")}
           onChange={(event) => onChange(event.target.value === "" ? Number.NaN : Number(event.target.value))} />
       )}
     </Field>
@@ -106,19 +106,21 @@ const MODES: { value: ConnectTestMode; label: string }[] = [
   { value: "words", label: "Words" },
   { value: "quote", label: "Quote" },
   { value: "preset", label: "Custom text" },
+  { value: "goal", label: "Word goal" },
   { value: "break", label: "Break" },
 ];
 
-export function ModeTiles({ value, onChange }: { value: ConnectTestMode; onChange: (mode: ConnectTestMode) => void }) {
+export function ModeTiles({ value, onChange, goalAllowed = true }: { value: ConnectTestMode; onChange: (mode: ConnectTestMode) => void; goalAllowed?: boolean }) {
   const id = useId();
   return (
-    <div role="radiogroup" aria-label="Test type" className="grid grid-cols-3 gap-1.5 @min-[30rem]:grid-cols-5">
+    <div role="radiogroup" aria-label="Test type" className="grid grid-cols-3 gap-1.5 @min-[30rem]:grid-cols-6">
       {MODES.map((mode) => {
         const selected = mode.value === value;
         const ModeIcon = MODE_ICONS[mode.value];
+        const blocked = mode.value === "goal" && !goalAllowed;
         return (
-          <button key={mode.value} type="button" role="radio" aria-checked={selected} onClick={() => onChange(mode.value)}
-            className={cn("relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+          <button key={mode.value} type="button" role="radio" aria-checked={selected} disabled={blocked} title={blocked ? "Word goals only work in Together rooms" : undefined} onClick={() => onChange(mode.value)}
+            className={cn("relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-40",
               selected ? "text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground")}>
             {selected && <motion.span layoutId={`mode-${id}`} transition={CONNECT_SPRING} className="absolute inset-0 rounded-2xl bg-primary shadow-sm" />}
             <ModeIcon weight={selected ? "fill" : "bold"} className="relative size-5" aria-hidden="true" />

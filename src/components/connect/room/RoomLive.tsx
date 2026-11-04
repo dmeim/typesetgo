@@ -4,12 +4,13 @@ import { motion } from "framer-motion";
 import { HourglassMediumIcon, PauseCircleIcon } from "@phosphor-icons/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { isBreakTest, isWaitingForNextTest, stepAfterResults, type ConnectOverrides, type ConnectTest } from "@/lib/connect-types";
+import { goalWords, isBreakTest, isGoalTest, isWaitingForNextTest, stepAfterResults, type ConnectOverrides, type ConnectTest } from "@/lib/connect-types";
 import { connectTestLabels } from "@/lib/connect-settings";
-import { connectAttemptKey, connectThemeMode, connectThemeStyle, effectiveStep, resolveConnectSettings } from "@/lib/connect-settings";
+import { connectAttemptKey, connectThemeMode, connectThemeStyle, effectiveStep, resolveConnectLayout, resolveConnectSettings } from "@/lib/connect-settings";
 import { useConnectThemeColors } from "@/hooks/useConnectThemeColors";
 import { useMultiplayerCredential } from "@/hooks/useMultiplayerCredential";
 import TypingPractice from "@/components/typing/TypingPractice";
+import { GoalMeter } from "@/components/connect/GoalMeter";
 import type { ParticipantRoom, ParticipantSelf } from "@/components/connect/types";
 import { RoomPage, RoomTopBar } from "./RoomChrome";
 import { TestIndicator } from "./TestIndicator";
@@ -19,6 +20,7 @@ import { RoomSummary } from "./RoomSummary";
 import { RoomResultsActions } from "./RoomResultsActions";
 import { BreakScreen } from "./BreakScreen";
 import { LateJoinScreen } from "./LateJoinScreen";
+import { participantTestDetail } from "./test-labels";
 import { useConnectProgress } from "./use-connect-progress";
 import { readableError } from "@/components/connect/connect-errors";
 import { CONNECT_SPRING } from "@/components/connect/connect-motion";
@@ -160,12 +162,18 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
       <main className="flex min-h-0 flex-1 flex-col">
         <TestIndicator tests={room.tests} currentIndex={step}
           className={`mx-auto shrink-0 px-4 pt-3 transition-opacity duration-300 ${isTyping ? "opacity-40" : ""}`} />
+        {test && isGoalTest(test) && (
+          <GoalMeter words={goalWords(room)} goal={test.wordTarget} detail={`You: ${participant.stats.wordsTyped.toLocaleString()}`}
+            className="mx-auto max-w-2xl shrink-0 px-4 pt-3" />
+        )}
         <div className="relative min-h-0 flex-1">
           <TypingPractice
             key={attemptKey}
             connectMode
             fitToParentHeight
             lockedSettings={lockedSettings}
+            lockedLayout={resolveConnectLayout(room.overrides)}
+            goalLabel={test && isGoalTest(test) ? participantTestDetail(test) : undefined}
             isTestActive={isRunning && !leaving}
             forceFinish={testEnded}
             roomThemeStyle={themeStyle}
@@ -174,6 +182,7 @@ export function RoomLive({ roomId, participantId, room, participant, reconnectin
               targetText: participant.targetText,
               elapsedMs: participant.stats.timeElapsed,
               isFinished: participant.stats.isFinished,
+              ...(isGoalTest(test) && { wordsTyped: participant.stats.wordsTyped, wpm: participant.stats.wpm }),
             } : undefined}
             onStatsUpdate={progress.report}
             onTypingStateChange={setIsTyping}

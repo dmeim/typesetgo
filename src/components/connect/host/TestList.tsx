@@ -4,7 +4,7 @@ import { CheckIcon, CopySimpleIcon, DotsSixVerticalIcon, LockSimpleIcon, PencilS
 import { ScrollRow } from "@/components/ui/scroll-row";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
 import { connectTestLabels } from "@/lib/connect-settings";
-import { CONNECT_MAX_TESTS, describeConnectTest, type ConnectTest } from "@/lib/connect-types";
+import { CONNECT_MAX_TESTS, describeConnectTest, isGoalTest, type ConnectTest } from "@/lib/connect-types";
 import { cn } from "@/lib/utils";
 import { ConnectCard, ICON_BUTTON } from "@/components/connect/ConnectParts";
 import { CONNECT_SPRING } from "@/components/connect/connect-motion";
@@ -150,7 +150,7 @@ export function TestsCard({ room, tests, participants, onSave, className }: {
     return connectTestLabels(draft)[position].title;
   };
   const editor = (test: ConnectTest | null, position: number) => (
-    <TestEditor key={test?.id ?? NEW} editing={test} full={full} canRemove={tests.length > 1} autoTitle={autoTitle(position)}
+    <TestEditor key={test?.id ?? NEW} editing={test} full={full} goalAllowed={room.pacing === "host"} canRemove={tests.length > 1} autoTitle={autoTitle(position)}
       onCancel={() => setEditingId(null)}
       onSave={async (saved) => {
         const ok = await save(test ? tests.map((item) => (item.id === saved.id ? saved : item)) : [...tests, saved]);
@@ -201,7 +201,7 @@ export function TestsCard({ room, tests, participants, onSave, className }: {
             </button>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Or quick add</p>
             <ScrollRow aria-label="Quick add tests" expandable expandLabel="All" className="p-0.5">
-              {QUICK_ADD.map(({ label, test }) => {
+              {QUICK_ADD.filter(({ test }) => room.pacing === "host" || !isGoalTest(test)).map(({ label, test }) => {
                 const ModeIcon = MODE_ICONS[test.mode];
                 return (
                   <motion.button key={label} type="button" whileTap={{ scale: 0.92 }} disabled={full} onClick={() => void save([...tests, { ...test, id: crypto.randomUUID() }])}

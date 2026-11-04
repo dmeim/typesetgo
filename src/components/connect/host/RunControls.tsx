@@ -4,7 +4,7 @@ import {
 } from "@phosphor-icons/react";
 import type { HostParticipant, HostRoom } from "@/components/connect/types";
 import { connectTestLabels } from "@/lib/connect-settings";
-import type { ConnectPacing, ConnectTest } from "@/lib/connect-types";
+import { isGoalTest, type ConnectPacing, type ConnectTest } from "@/lib/connect-types";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 import { stepLine } from "@/components/connect/board/board-model";
@@ -88,6 +88,7 @@ export function RunCard({ room, tests, participants, actions, className }: {
   const active = room.status === "running" || room.status === "paused";
   const last = room.currentIndex >= tests.length - 1;
   const titles = connectTestLabels(tests).map((label) => label.title);
+  const hasGoal = tests.some(isGoalTest);
   return (
     <ConnectCard title="Run the room" Icon={PlayIcon} action={<StatusBadge status={room.status} />} className={className}>
       <Headline room={room} tests={tests} participants={participants} pacing={pacing} />
@@ -122,8 +123,10 @@ export function RunCard({ room, tests, participants, actions, className }: {
       <div className="flex flex-col gap-2 border-t border-border pt-4">
         <Pills<ConnectPacing> label="Pacing" value={pacing} onChange={(value) => void actions.setPacing(value)}
           disabled={room.status !== "lobby" || actions.busy === "pacing"} className="sm:max-w-sm"
-          options={[{ value: "host", label: "Together" }, { value: "participant", label: "Own pace" }]} />
-        <p className="text-xs text-muted-foreground">{PACING_HELP[pacing]}{room.status !== "lobby" && " Reset the room to change this."}</p>
+          options={[{ value: "host", label: "Together" }, { value: "participant", label: "Own pace", disabled: hasGoal }]} />
+        <p className="text-xs text-muted-foreground">
+          {PACING_HELP[pacing]}{room.status !== "lobby" && " Reset the room to change this."}{hasGoal && " Word goals need everyone together, so Own pace is off while the list has one."}
+        </p>
       </div>
     </ConnectCard>
   );

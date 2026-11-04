@@ -514,6 +514,68 @@ describe("paste blocking", () => {
   });
 });
 
+describe("Connect word goals", () => {
+  const goal = { goalLabel: "Word goal · 100", lockedSettings: { mode: "zen" as const } };
+  const lastReport = (onStatsUpdate: ReturnType<typeof vi.fn>) => onStatsUpdate.mock.calls.at(-1)!;
+
+  it("counts only correct words that have been finished with a space", async () => {
+    const onStatsUpdate = vi.fn();
+    render(<TypingPractice connectMode {...goal} onStatsUpdate={onStatsUpdate} />);
+    const input = await screen.findByRole("textbox", { name: "Typing practice" });
+    fireEvent.change(input, { target: { value: "cat dog cat " } });
+    await waitFor(() => expect(lastReport(onStatsUpdate)[0].wordsTyped).toBe(2));
+    fireEvent.change(input, { target: { value: "cat dog cat cat" } });
+    await waitFor(() => expect(lastReport(onStatsUpdate)[1]).toBe("cat dog cat cat"));
+    expect(lastReport(onStatsUpdate)[0].wordsTyped).toBe(2);
+    fireEvent.change(input, { target: { value: "cat " } });
+    await waitFor(() => expect(lastReport(onStatsUpdate)[0].wordsTyped).toBe(1));
+  });
+
+  it("keeps words coming and reports only the text around the caret", async () => {
+    const onStatsUpdate = vi.fn();
+    render(<TypingPractice connectMode {...goal} onStatsUpdate={onStatsUpdate} />);
+    const input = await screen.findByRole("textbox", { name: "Typing practice" });
+    fireEvent.change(input, { target: { value: "cat ".repeat(170) } });
+    await waitFor(() => expect(lastReport(onStatsUpdate)[0].wordsTyped).toBe(170));
+    const [, typed, target] = lastReport(onStatsUpdate);
+    // 50 words back; the 200-word prompt grew past the caret instead of running out.
+    expect(typed.split(" ")).toHaveLength(51);
+    expect(target.split(" ")).toHaveLength(130);
+    expect(screen.queryByRole("region", { name: "Test results" })).not.toBeInTheDocument();
+  });
+
+  it("only the room ends a word goal", async () => {
+    const onStatsUpdate = vi.fn();
+    const { rerender } = render(<TypingPractice connectMode {...goal} onStatsUpdate={onStatsUpdate} />);
+    const input = await screen.findByRole("textbox", { name: "Typing practice" });
+    fireEvent.change(input, { target: { value: "cat cat " } });
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("region", { name: "Test results" })).not.toBeInTheDocument();
+    rerender(<TypingPractice connectMode {...goal} forceFinish onStatsUpdate={onStatsUpdate} />);
+    expect(await screen.findByRole("region", { name: "Test results" })).toBeInTheDocument();
+    await waitFor(() => expect(lastReport(onStatsUpdate)[0]).toMatchObject({ isFinished: true, wordsTyped: 2 }));
+  });
+
+  it("carries the count and speed over a refresh, when only recent text comes back", async () => {
+    const onStatsUpdate = vi.fn();
+    const initialAttempt = { typedText: "cat cat ", targetText: "cat cat cat cat", elapsedMs: 60000, isFinished: false, wordsTyped: 500, wpm: 100 };
+    render(<TypingPractice connectMode {...goal} initialAttempt={initialAttempt} onStatsUpdate={onStatsUpdate} />);
+    await waitFor(() => expect(onStatsUpdate).toHaveBeenCalled());
+    expect(lastReport(onStatsUpdate)[0]).toMatchObject({ wordsTyped: 500, wpm: 100 });
+    fireEvent.change(screen.getByRole("textbox", { name: "Typing practice" }), { target: { value: "cat cat cat " } });
+    await waitFor(() => expect(lastReport(onStatsUpdate)[0].wordsTyped).toBe(501));
+  });
+
+  it("uses the host's line layout over the participant's own", async () => {
+    const { container, rerender } = render(<TypingPractice connectMode lockedSettings={{ mode: "zen" }} />);
+    await screen.findByRole("textbox", { name: "Typing practice" });
+    await waitFor(() => expect(promptWords(container)).not.toBe(""));
+    const own = container.querySelectorAll("br").length;
+    rerender(<TypingPractice connectMode lockedSettings={{ mode: "zen" }} lockedLayout={{ maxWordsPerLine: 2 }} />);
+    await waitFor(() => expect(container.querySelectorAll("br").length).toBeGreaterThan(own));
+  });
+});
+
 describe("Connect attempt recovery", () => {
   it("restores input, prompt, and elapsed milliseconds before reporting any progress", async () => {
     const onStatsUpdate = vi.fn();

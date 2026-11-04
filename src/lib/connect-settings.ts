@@ -14,7 +14,8 @@ export function resolveConnectSettings(test: ConnectTest, overrides: ConnectOver
   // Breaks have no typing surface; callers show a countdown instead.
   if (test.mode === "break") throw new Error("Breaks have no typing settings");
   const settings: Partial<SettingsState> = {
-    mode: test.mode,
+    // A word goal is open-ended typing for each student; the room decides when it ends.
+    mode: test.mode === "goal" ? "zen" : test.mode,
     duration: test.duration,
     wordTarget: test.wordTarget,
     difficulty: test.difficulty,
@@ -39,8 +40,17 @@ export function resolveConnectSettings(test: ConnectTest, overrides: ConnectOver
   }
   if (ghost?.enabled) Object.assign(settings, { ghostWriterEnabled: ghost.ghostWriterEnabled, ghostWriterSpeed: ghost.ghostWriterSpeed });
   if (sound?.enabled) Object.assign(settings, { soundEnabled: sound.soundEnabled, typingSound: sound.typingSound, warningSound: sound.warningSound });
-  if (keyboard?.enabled) Object.assign(settings, { showOnScreenKeyboard: keyboard.showOnScreenKeyboard, keyboardLayout: keyboard.keyboardLayout });
+  if (keyboard?.enabled) {
+    Object.assign(settings, { showOnScreenKeyboard: keyboard.showOnScreenKeyboard, keyboardLayout: keyboard.keyboardLayout });
+    if (keyboard.keyboardStyle) settings.keyboardStyle = keyboard.keyboardStyle;
+  }
   return settings;
+}
+
+/** How the host wants the text laid out; anything left out stays with the participant. */
+export function resolveConnectLayout({ typography }: ConnectOverrides) {
+  if (!typography?.enabled) return undefined;
+  return { linePreview: typography.linePreview, maxWordsPerLine: typography.maxWordsPerLine };
 }
 
 /** Remounts the executor whenever the attempt identity changes. */
@@ -58,7 +68,7 @@ export function connectTestLabels(tests: ConnectTest[]) {
   const totals = new Map<string, number>();
   for (const test of tests) totals.set(test.mode, (totals.get(test.mode) ?? 0) + 1);
   const seen = new Map<string, number>();
-  const kind: Record<ConnectTest["mode"], string> = { time: "timed test", words: "word test", quote: "quote", preset: "custom text", break: "break" };
+  const kind: Record<ConnectTest["mode"], string> = { time: "timed test", words: "word test", quote: "quote", preset: "custom text", break: "break", goal: "word goal" };
   return tests.map((test) => {
     const count = (seen.get(test.mode) ?? 0) + 1;
     seen.set(test.mode, count);

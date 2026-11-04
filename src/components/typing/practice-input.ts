@@ -35,6 +35,28 @@ export function getWrongLetterCount(typedText: string, targetText: string, stric
   return typedWord.length - common;
 }
 
+/** Words finished with a space that exactly match the target; the word still being typed doesn't count yet. */
+export function countCorrectWords(typedText: string, targetText: string): number {
+  const typed = typedText.split(" ");
+  const target = targetText.split(" ");
+  let count = 0;
+  for (let index = 0; index < typed.length - 1; index++) if (typed[index] === target[index]) count++;
+  return count;
+}
+
+const GOAL_SNAPSHOT_WORDS_BACK = 50;
+const GOAL_SNAPSHOT_WORDS_AHEAD = 100;
+
+/** A word goal can run far longer than any test, so progress reports carry only the words around the caret. */
+export function goalSnapshot(typedText: string, targetText: string) {
+  const typed = typedText.split(" ");
+  const start = Math.max(0, typed.length - 1 - GOAL_SNAPSHOT_WORDS_BACK);
+  return {
+    typedText: typed.slice(start).join(" "),
+    targetText: targetText.split(" ").slice(start, typed.length + GOAL_SNAPSHOT_WORDS_AHEAD).join(" "),
+  };
+}
+
 export function isTimedPractice(settings: Pick<SettingsState, "mode" | "presetModeType">): boolean {
   return settings.mode === "time" || (settings.mode === "preset" && settings.presetModeType === "time");
 }

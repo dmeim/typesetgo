@@ -1,7 +1,7 @@
 import type { BoardPrefs } from "@/hooks/useConnectBoardPrefs";
 import type { ConnectPacing, ConnectResult, ConnectRoomStatus, ConnectStats, ConnectTest } from "@/lib/connect-types";
 import {
-  breakEndsAt, isBreakTest, isTimedConnectTest, isWaitingForNextTest, resultsEndAt, stepAfterResults, timedTestEndsAt,
+  breakEndsAt, goalWords, isBreakTest, isGoalTest, isTimedConnectTest, isWaitingForNextTest, resultsEndAt, stepAfterResults, timedTestEndsAt,
 } from "@/lib/connect-types";
 import { effectiveStep } from "@/lib/connect-settings";
 
@@ -15,6 +15,7 @@ export type BoardRoom = {
   stepStartedAt?: number;
   pausedAt?: number;
   stepEndedAt?: number;
+  goalTally?: { runVersion: number; words: number };
 };
 
 /** The parts of a participant the board derives state from. */
@@ -124,6 +125,8 @@ export function progressDetail(room: BoardRoom, participant: BoardParticipant, n
     if (stats.isFinished) return { percent: 100, label: "Time's up" };
     return { percent: clamp((stats.timeElapsed / total) * 100), label: `${formatClock(total - stats.timeElapsed)} left` };
   }
+  // Everyone counts toward one total, so a card shows that player's share of the goal.
+  if (isGoalTest(test)) return { percent: clamp((stats.wordsTyped / test.wordTarget) * 100), label: `${stats.wordsTyped.toLocaleString()} ${stats.wordsTyped === 1 ? "word" : "words"}` };
   if (test.mode === "words") {
     const typed = Math.min(stats.wordsTyped, test.wordTarget);
     const percent = stats.isFinished ? 100 : clamp((typed / test.wordTarget) * 100);
@@ -223,6 +226,7 @@ export function stepLine(room: BoardRoom, participants: BoardParticipant[], now:
     const next = stepAfterResults(room.tests, index) >= room.tests.length ? "finishing" : "next test";
     return `${isBreakTest(room.tests[index + 1]) ? "Break" : "Results"}, ${next} in ${endsAt}`;
   }
+  if (isGoalTest(test)) return `${Math.min(goalWords(room), test.wordTarget).toLocaleString()} of ${test.wordTarget.toLocaleString()} words`;
   if (isTimedConnectTest(test)) return `Ends in ${left(timedTestEndsAt(test, startedAt, pausedAt, now))}`;
   const taking = participants.filter((participant) => !isAway(participant) && !isWaitingForNextTest(room, participant));
   return `${taking.filter((participant) => participant.stats.isFinished).length} of ${taking.length} finished`;

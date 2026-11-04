@@ -1,19 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import type { ReactNode } from "react";
 import ConnectRoom from "@/pages/ConnectRoom";
 import { loadMembership, saveMembership } from "@/lib/connect-membership";
-import { DEFAULT_CONNECT_TEST, emptyConnectStats, type ConnectStats, type ConnectTest } from "@/lib/connect-types";
+import { DEFAULT_CONNECT_GOAL, DEFAULT_CONNECT_TEST, emptyConnectStats, type ConnectStats, type ConnectTest } from "@/lib/connect-types";
+import { resolveConnectLayout, resolveConnectSettings } from "@/lib/connect-settings";
 import type { SettingsState } from "@/lib/typing-constants";
 
 type View = Record<string, unknown> & { state: string };
 type FixtureProps = {
   lockedSettings: Partial<SettingsState>;
   isTestActive: boolean;
-  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean };
+  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean; wordsTyped?: number; wpm?: number };
+  goalLabel?: string;
+  lockedLayout?: { linePreview?: number; maxWordsPerLine?: number };
   onStatsUpdate: (stats: ConnectStats, typedText?: string, targetText?: string) => void;
   connectResultsActions?: ReactNode;
   forceFinish?: boolean;
@@ -539,5 +542,70 @@ describe("progress delivery", () => {
     await screen.findByLabelText("Practice input");
     await act(async () => state.props.onStatsUpdate(stats(), "c", "cat"));
     expect(state.mutations["connect:reportProgress"]).not.toHaveBeenCalled();
+  });
+});
+
+describe("word goal room", () => {
+  const goalTests = [{ ...DEFAULT_CONNECT_GOAL, id: "g1" }, test("t2", { mode: "words" })];
+  const meter = () => within(screen.getByRole("region", { name: "Room word goal" }));
+
+
+  it("types as open-ended practice while showing the room's total and the student's own words", async () => {
+    state.view = okView({ room: { tests: goalTests, goalTally: { runVersion: 1, words: 412, dueAt: 0 } }, participant: { stats: stats({ wordsTyped: 37 }) } });
+    renderRoom();
+    await screen.findByLabelText("Practice input");
+    expect(state.props.lockedSettings).toMatchObject({ mode: "zen", difficulty: "medium" });
+    expect(state.props.goalLabel).toBe("Word goal · 1,000");
+    expect(meter().getByRole("progressbar")).toHaveAttribute("aria-valuenow", "412");
+    expect(meter().getByText("/ 1,000 words")).toBeInTheDocument();
+    expect(meter().getByText("You: 37")).toBeInTheDocument();
+  });
+
+  it("ignores a total from an earlier run and stops at the goal", async () => {
+    state.view = okView({ room: { tests: goalTests, runVersion: 2, goalTally: { runVersion: 1, words: 900, dueAt: 0 } } });
+    const view = renderRoom();
+    await screen.findByLabelText("Practice input");
+    expect(meter().getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
+    state.view = okView({ room: { tests: goalTests, runVersion: 2, stepEndedAt: 5, goalTally: { runVersion: 2, words: 1012, dueAt: 0 } } });
+    view.rerender(
+      <MemoryRouter initialEntries={["/connect/room/room-1"]}>
+        <Routes><Route path="/connect/room/:roomId" element={<ConnectRoom />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect(await meter().findByText("Goal reached!")).toBeInTheDocument();
+    expect(meter().getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1000");
+    expect(state.props.forceFinish).toBe(true);
+  });
+
+  it("restores with the saved count and speed, which other tests don't need", async () => {
+    state.view = okView({ room: { tests: goalTests }, participant: { typedText: "cat ", targetText: "cat dog", stats: stats({ wordsTyped: 90, wpm: 55, timeElapsed: 4000 }) } });
+    renderRoom();
+    await screen.findByLabelText("Practice input");
+    expect(state.props.initialAttempt).toEqual({ typedText: "cat ", targetText: "cat dog", elapsedMs: 4000, isFinished: false, wordsTyped: 90, wpm: 55 });
+  });
+
+  it("shows no meter on other tests", async () => {
+    state.view = okView();
+    renderRoom();
+    await screen.findByLabelText("Practice input");
+    expect(screen.queryByRole("region", { name: "Room word goal" })).not.toBeInTheDocument();
+    expect(state.props.goalLabel).toBeUndefined();
+  });
+});
+
+describe("resolving the host's settings", () => {
+  const typography = { enabled: true, typingFontFamily: "lexend", typingFontSize: 3, textAlign: "center" as const };
+  const keyboard = { enabled: true, showOnScreenKeyboard: true, keyboardLayout: "dvorak" as const };
+
+  it("applies the keyboard style only when the host chose one", () => {
+    expect(resolveConnectSettings(test("t1"), { keyboard: { ...keyboard, keyboardStyle: "finger" } })).toMatchObject({ keyboardLayout: "dvorak", keyboardStyle: "finger" });
+    expect(resolveConnectSettings(test("t1"), { keyboard })).not.toHaveProperty("keyboardStyle");
+    expect(resolveConnectSettings(test("t1"), { keyboard: { ...keyboard, enabled: false, keyboardStyle: "finger" } })).not.toHaveProperty("keyboardStyle");
+  });
+
+  it("applies the line layout only while the Text group is on", () => {
+    expect(resolveConnectLayout({ typography: { ...typography, linePreview: 2, maxWordsPerLine: 5 } })).toEqual({ linePreview: 2, maxWordsPerLine: 5 });
+    expect(resolveConnectLayout({ typography: { ...typography, enabled: false, linePreview: 2 } })).toBeUndefined();
+    expect(resolveConnectLayout({})).toBeUndefined();
   });
 });

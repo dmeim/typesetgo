@@ -31,7 +31,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { PROGRESS_CHAR_THRESHOLD, PROGRESS_INTERVAL_MS } from "../../../convex/lib/antiCheatConstants";
 import { useNotify } from "@/hooks/useNotify";
 import { getAchievementById } from "@/lib/achievement-definitions";
-import { computeStats, computeWordResults, sanitizeTypingInput, getInputPosition, getNextTypingKey, getWrongLetterCount,
+import { computeStats, computeWordResults, countCorrectWords, goalSnapshot, sanitizeTypingInput, getInputPosition, getNextTypingKey, getWrongLetterCount,
   hasCompletedPrompt, isTimedPractice, placeCaretAtEnd, constrainEditingKey } from "./practice-input";
 import { usePracticePreferences } from "./usePracticePreferences";
 import { usePracticeClock } from "./usePracticeClock";
@@ -100,7 +100,12 @@ interface TypingPracticeProps {
   isTestActive?: boolean;
   /** Connect: the room ended this test (its clock ran out), so show results now. */
   forceFinish?: boolean;
-  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean };
+  /** `wordsTyped` and `wpm` come back with a word goal, whose saved text is only a recent window. */
+  initialAttempt?: { typedText: string; targetText: string; elapsedMs: number; isFinished: boolean; wordsTyped?: number; wpm?: number };
+  /** Connect: this is a word goal, described this way on the results screen. Only correct words count. */
+  goalLabel?: string;
+  /** Connect: the host's choices for how the text is laid out, where they made one. */
+  lockedLayout?: { linePreview?: number; maxWordsPerLine?: number };
   onStatsUpdate?: (
     stats: {
       wpm: number;
@@ -134,6 +139,8 @@ export default function TypingPractice({
   isTestActive = true,
   forceFinish = false,
   initialAttempt,
+  goalLabel,
+  lockedLayout,
   onStatsUpdate,
   onLeave,
   roomThemeStyle,
@@ -311,9 +318,11 @@ export default function TypingPractice({
   const composingRef = useRef(false);
   const [compositionDraft, setCompositionDraft] = useState<string | null>(null);
   const { pendingPromptPreferences, setQueuedPromptPreferences, markEdited,
-    linePreview, maxWordsPerLine, updateLinePreview, updateMaxWordsPerLine } = usePracticePreferences({
+    linePreview: ownLinePreview, maxWordsPerLine: ownMaxWordsPerLine, updateLinePreview, updateMaxWordsPerLine } = usePracticePreferences({
     userId: user?.id, connectMode, settings, settingsRef, setSettings, isRunningRef, isFinishedRef, composingRef,
   });
+  const linePreview = (connectMode ? lockedLayout?.linePreview : undefined) ?? ownLinePreview;
+  const maxWordsPerLine = (connectMode ? lockedLayout?.maxWordsPerLine : undefined) ?? ownMaxWordsPerLine;
   // A prompt shorter than the line count gets a block its own height, so a short quote is centred too.
   const [promptLines, setPromptLines] = useState(linePreview);
   const visibleLines = Math.min(linePreview, promptLines);
@@ -402,8 +411,20 @@ export default function TypingPractice({
     const typedWords = trimmed.split(/\s+/).length;
     return typedText.endsWith(" ") ? typedWords : Math.max(typedWords - 1, 0);
   }, [typedText]);
+  const isGoal = connectMode && goalLabel !== undefined;
+  // A refreshed word goal only has its recent text back, so what came before it carries over from the saved stats.
+  const [goalCarry] = useState(() => {
+    const saved = restoredAttempt;
+    if (!isGoal || saved?.wordsTyped === undefined) return { words: 0, characters: 0 };
+    return {
+      words: Math.max(0, saved.wordsTyped - countCorrectWords(saved.typedText, saved.targetText)),
+      characters: Math.max(0, Math.round((saved.wpm ?? 0) * 5 * saved.elapsedMs / 60000) - saved.typedText.length),
+    };
+  });
+  const goalWordCount = useMemo(() => isGoal ? goalCarry.words + countCorrectWords(typedText, words) : 0, [isGoal, goalCarry, typedText, words]);
+  const shownWordCount = isGoal ? goalWordCount : typedWordCount;
   const accuracy = calculateAccuracy(stats.correct, typedText.length);
-  const wpm = calculateWpm(typedText.length, elapsedMs);
+  const wpm = calculateWpm(typedText.length + goalCarry.characters, elapsedMs);
 
   useEffect(() => {
     if (!isRunning || isFinished) return;
@@ -880,20 +901,21 @@ export default function TypingPractice({
   useEffect(() => {
     if (!promptReady || (connectMode && !isTestActive)) return;
     if (onStatsUpdateRef.current) {
+      const snapshot = isGoal ? goalSnapshot(typedText, words) : { typedText, targetText: words };
       onStatsUpdateRef.current(
         {
           wpm: Math.round(wpm) || 0,
           accuracy,
           progress: words.length > 0 ? getInputPosition(typedText, words).referencePosition / words.length * 100 : 0,
-          wordsTyped: typedWordCount + (hasCompletedPrompt(typedText, words) && !typedText.endsWith(" ") && typedText.trim() ? 1 : 0),
+          wordsTyped: isGoal ? goalWordCount : typedWordCount + (hasCompletedPrompt(typedText, words) && !typedText.endsWith(" ") && typedText.trim() ? 1 : 0),
           timeElapsed: elapsedMs,
           isFinished,
         },
-        typedText,
-        words
+        snapshot.typedText,
+        snapshot.targetText
       );
     }
-  }, [wpm, accuracy, typedText, typedWordCount, words, elapsedMs, isFinished, connectMode, isTestActive, promptReady]);
+  }, [wpm, accuracy, typedText, typedWordCount, isGoal, goalWordCount, words, elapsedMs, isFinished, connectMode, isTestActive, promptReady]);
 
   const handleInput = (value: string) => {
     if (isFinishedRef.current || !promptReady || (connectMode && !isTestActive)) return;
@@ -1078,7 +1100,7 @@ export default function TypingPractice({
           accuracy={accuracy}
           elapsedMs={elapsedMs}
           timeRemaining={timeRemaining}
-          typedWordCount={typedWordCount}
+          typedWordCount={shownWordCount}
         />
       )}
       </div>
@@ -1161,7 +1183,7 @@ export default function TypingPractice({
                 style={{ transform: `translateY(-${scrollOffset}px)` }}>
                 {promptReady && <PracticeText targetText={words} typedText={compositionDraft ?? typedText} caretRef={caretRef}
                   maxWordsPerLine={maxWordsPerLine} justifyLines={settings.textAlign === "justify"}
-                  maxVisibleWords={settings.mode === "time" ? 300 : undefined}
+                  maxVisibleWords={settings.mode === "time" || isGoal ? 300 : undefined}
                   ghostPosition={settings.ghostWriterEnabled ? ghostCharIndex : undefined} />}
               </div>
             </div>
@@ -1213,6 +1235,7 @@ export default function TypingPractice({
             generateTest={generateTest}
             onLeave={onLeave}
             connectActions={connectResultsActions}
+            testLabelOverride={isGoal ? goalLabel : undefined}
             {...{ repeatTest: () => resetSession(true), rankingStatus, isRepeated, timeline, comparison }}
           />
         )}

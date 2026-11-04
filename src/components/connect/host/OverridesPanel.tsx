@@ -1,17 +1,19 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { GhostIcon, KeyboardIcon, PaletteIcon, SlidersHorizontalIcon, SpeakerHighIcon, TextAaIcon, type Icon } from "@phosphor-icons/react";
+import { GhostIcon, KeyboardIcon, PaletteIcon, SlidersHorizontalIcon, SmileyIcon, SpeakerHighIcon, TextAaIcon, type Icon } from "@phosphor-icons/react";
 import type { ConnectOverrides } from "@/lib/connect-types";
-import { MAX_GHOST_SPEED, TEXT_SIZE_MAX, TEXT_SIZE_MIN } from "@/lib/practice-limits";
+import { KEYBOARD_STYLES } from "@/lib/keyboard-model";
+import { MAX_GHOST_SPEED, MAX_LINE_PREVIEW, MAX_WORDS_PER_LINE, TEXT_SIZE_MAX, TEXT_SIZE_MIN } from "@/lib/practice-limits";
 import { fetchSoundManifest, getSoundPacks, type SoundManifest } from "@/lib/sounds";
 import { TYPING_FONT_OPTIONS, getTypingFontFamily, getTypingFontOption } from "@/lib/typing-fonts";
 import { cn } from "@/lib/utils";
-import { ConnectCard, ConnectSwitch, Pills } from "@/components/connect/ConnectParts";
+import { StylePicker } from "@/components/profile/settings-panels";
+import { CHIP, ConnectCard, ConnectSwitch, Pills } from "@/components/connect/ConnectParts";
 import { CONNECT_SPRING } from "@/components/connect/connect-motion";
 import { RowGroup, SelectControl, SettingRow, SliderRow } from "./override-controls";
 import { ThemeOverride } from "./ThemeOverride";
 import { formatThemeId, useThemeCatalog } from "./theme-catalog";
-import { OVERRIDE_DEFAULTS, type OverrideGroups as Groups } from "./override-defaults";
+import { KID_FRIENDLY, OVERRIDE_DEFAULTS, type OverrideGroups as Groups } from "./override-defaults";
 
 type GroupKey = keyof Groups;
 type Change = (next: ConnectOverrides, options?: { debounce?: boolean }) => void;
@@ -20,7 +22,7 @@ const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slic
 
 const GROUPS: { key: GroupKey; label: string; on: string; Icon: Icon }[] = [
   { key: "theme", label: "Theme", on: "Everyone sees the room's colours.", Icon: PaletteIcon },
-  { key: "typography", label: "Text", on: "Everyone uses this font, size and alignment.", Icon: TextAaIcon },
+  { key: "typography", label: "Text", on: "Everyone uses this font, size and layout.", Icon: TextAaIcon },
   { key: "ghost", label: "Ghost racer", on: "A pacing cursor shows the target speed.", Icon: GhostIcon },
   { key: "sound", label: "Sounds", on: "Everyone hears the same typing sounds.", Icon: SpeakerHighIcon },
   { key: "keyboard", label: "On-screen keyboard", on: "The keyboard follows the room's setting.", Icon: KeyboardIcon },
@@ -93,14 +95,18 @@ export function OverridesPanel({ overrides, onChange, className }: { overrides: 
   const ghost = group("ghost");
   const sound = group("sound");
   const keyboard = group("keyboard");
-  const themeName = catalog.themes?.find((entry) => entry.id === theme.themeId)?.name ?? formatThemeId(theme.themeId);
+  const themeEntry = catalog.themes?.find((entry) => entry.id === theme.themeId);
+  const themeName = themeEntry?.name ?? formatThemeId(theme.themeId);
+  const themeLook = themeEntry && themeEntry.variants.length > 1 ? themeEntry.variants.find((variant) => variant.id === theme.variantId)?.label : undefined;
+  const styleName = KEYBOARD_STYLES.find((style) => style.value === keyboard.keyboardStyle)?.name ?? keyboard.keyboardStyle;
+  const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
   const summaries: Record<GroupKey, string> = {
-    theme: `${themeName} · ${theme.mode}`,
-    typography: `${getTypingFontOption(text.typingFontFamily).label} · ${text.typingFontSize}rem · ${text.textAlign}`,
+    theme: [themeName, themeLook, theme.mode].filter(Boolean).join(" · "),
+    typography: `${getTypingFontOption(text.typingFontFamily).label} · ${text.typingFontSize}rem · ${text.textAlign} · ${plural(text.linePreview, "line")}`,
     ghost: ghost.ghostWriterEnabled ? `Ghost at ${ghost.ghostWriterSpeed} wpm` : "Ghost hidden",
     sound: sound.soundEnabled ? `${capitalize(sound.typingSound)} keys · ${sound.warningSound} warning` : "Muted",
-    keyboard: keyboard.showOnScreenKeyboard ? `Shown · ${keyboard.keyboardLayout.toUpperCase()}` : "Keyboard hidden",
+    keyboard: keyboard.showOnScreenKeyboard ? `Shown · ${keyboard.keyboardLayout.toUpperCase()} · ${styleName}` : "Keyboard hidden",
   };
   const bodies: Record<GroupKey, ReactNode> = {
     theme: <ThemeOverride value={theme} catalog={catalog} onChange={(value) => set("theme", value)} />,
@@ -121,6 +127,10 @@ export function OverridesPanel({ overrides, onChange, className }: { overrides: 
             <Pills<Groups["typography"]["textAlign"]> label="Text alignment" value={text.textAlign} onChange={(textAlign) => set("typography", { textAlign })}
               options={(["left", "center", "right", "justify"] as const).map((value) => ({ value, label: capitalize(value) }))} />
           </SettingRow>
+          <SliderRow label="Lines shown" value={text.linePreview} min={1} max={MAX_LINE_PREVIEW} step={1} format={(value) => plural(value, "line")}
+            onChange={(linePreview) => set("typography", { linePreview }, true)} />
+          <SliderRow label="Words per line" value={text.maxWordsPerLine} min={1} max={MAX_WORDS_PER_LINE} step={1} format={(value) => plural(value, "word")}
+            onChange={(maxWordsPerLine) => set("typography", { maxWordsPerLine }, true)} />
         </RowGroup>
       </div>
     ),
@@ -155,18 +165,34 @@ export function OverridesPanel({ overrides, onChange, className }: { overrides: 
         <SettingRow label="Show the keyboard" hint="Lights up the next key to press.">
           <ConnectSwitch label="Show the keyboard" checked={keyboard.showOnScreenKeyboard} onChange={(showOnScreenKeyboard) => set("keyboard", { showOnScreenKeyboard })} />
         </SettingRow>
-        <SettingRow label="Layout" stacked>
-          <Pills<Groups["keyboard"]["keyboardLayout"]> label="Keyboard layout" value={keyboard.keyboardLayout} onChange={(keyboardLayout) => set("keyboard", { keyboardLayout })}
-            options={[{ value: "qwerty", label: "QWERTY" }, { value: "dvorak", label: "Dvorak" }, { value: "colemak", label: "Colemak" }]} />
-        </SettingRow>
+        <motion.div animate={{ opacity: keyboard.showOnScreenKeyboard ? 1 : 0.45 }} className="divide-y divide-border">
+          <SettingRow label="Style" hint="How the keyboard looks while students type." stacked>
+            <StylePicker value={keyboard.keyboardStyle} layoutId={keyboard.keyboardLayout} badges={{}} onChange={(keyboardStyle) => set("keyboard", { keyboardStyle })} />
+          </SettingRow>
+          <SettingRow label="Layout" stacked>
+            <Pills<Groups["keyboard"]["keyboardLayout"]> label="Keyboard layout" value={keyboard.keyboardLayout} onChange={(keyboardLayout) => set("keyboard", { keyboardLayout })}
+              options={[{ value: "qwerty", label: "QWERTY" }, { value: "dvorak", label: "Dvorak" }, { value: "colemak", label: "Colemak" }]} />
+          </SettingRow>
+        </motion.div>
       </RowGroup>
     ),
   };
   const onCount = GROUPS.filter(({ key }) => group(key).enabled).length;
+  const applyKidFriendly = () => onChange({
+    ...overrides,
+    typography: { ...text, ...KID_FRIENDLY.typography },
+    ghost: { ...ghost, ...KID_FRIENDLY.ghost },
+    keyboard: { ...keyboard, ...KID_FRIENDLY.keyboard },
+  });
 
   return (
     <ConnectCard title="Everyone gets" description={`${onCount} of ${GROUPS.length} set for the room. Anything off uses each student's own settings.`}
-      Icon={SlidersHorizontalIcon} tile="bg-(--accent-emphasis) text-background" className={className}>
+      Icon={SlidersHorizontalIcon} tile="bg-(--accent-emphasis) text-background" className={className}
+      action={(
+        <button type="button" onClick={applyKidFriendly} title="Big text, short lines, the finger guide and no ghost for the whole room" className={CHIP}>
+          <SmileyIcon className="size-4" aria-hidden="true" />Kid-friendly
+        </button>
+      )}>
       <ul className="flex flex-col gap-1">
         {GROUPS.map(({ key, ...rest }) => (
           <Group key={key} id={key} {...rest} enabled={group(key).enabled} summary={summaries[key]} onToggle={(enabled) => set(key, { enabled })}>

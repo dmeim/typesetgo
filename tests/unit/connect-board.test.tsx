@@ -13,6 +13,7 @@ import {
   progressDetail,
   reorderIds,
   sortParticipants,
+  stepLine,
   visibleParticipants,
 } from "@/components/connect/board/board-model";
 import { DEFAULT_BOARD_PREFS, type BoardPrefs } from "@/hooks/useConnectBoardPrefs";
@@ -323,5 +324,49 @@ describe("pop-out board page", () => {
     page.view = { state: "ended", room: { _id: "room", name: "Period 3" } };
     renderPage();
     expect(screen.getByRole("heading", { name: "Period 3 has ended" })).toBeInTheDocument();
+  });
+});
+
+describe("word goal on the board", () => {
+  const goalTests: ConnectTest[] = [{ ...DEFAULT_CONNECT_TEST, id: "g1", mode: "goal", wordTarget: 1000 }];
+  const goalRoom = (overrides: Partial<HostRoom> = {}) => makeRoom({ tests: goalTests, goalTally: { runVersion: 1, words: 412, dueAt: 0 }, ...overrides });
+  const meter = () => within(screen.getByRole("region", { name: "Room word goal" }));
+
+  it("shows the tally with or without the summary strip, since the fullscreen host board has none", () => {
+    render(<ParticipantBoard room={goalRoom()} participants={[]} prefs={prefs()} showSummary={false} />);
+    expect(meter().getByRole("progressbar")).toHaveAttribute("aria-valuenow", "412");
+    expect(meter().getByText("41% · 588 to go")).toBeInTheDocument();
+    cleanup();
+    render(<ParticipantBoard room={goalRoom()} participants={[]} prefs={prefs()} />);
+    expect(meter().getByRole("progressbar")).toHaveAttribute("aria-valuenow", "412");
+    expect(screen.getByRole("region", { name: "Room progress" })).toHaveTextContent("412 of 1,000 words");
+  });
+
+  it("stops at the goal and celebrates", () => {
+    render(<ParticipantBoard room={goalRoom({ goalTally: { runVersion: 1, words: 1040, dueAt: 0 } })} participants={[]} prefs={prefs()} showSummary={false} />);
+    expect(meter().getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1000");
+    expect(meter().getByText("Goal reached!")).toBeInTheDocument();
+  });
+
+  it("hides the tally on other tests, in the lobby and after the last test", () => {
+    const { rerender } = render(<ParticipantBoard room={makeRoom()} participants={[]} prefs={prefs()} />);
+    expect(screen.queryByRole("region", { name: "Room word goal" })).not.toBeInTheDocument();
+    rerender(<ParticipantBoard room={goalRoom({ status: "lobby" })} participants={[]} prefs={prefs()} />);
+    expect(screen.queryByRole("region", { name: "Room word goal" })).not.toBeInTheDocument();
+    rerender(<ParticipantBoard room={goalRoom({ status: "complete", currentIndex: 1 })} participants={[]} prefs={prefs()} />);
+    expect(screen.queryByRole("region", { name: "Room word goal" })).not.toBeInTheDocument();
+  });
+
+  it("gives each card that player's words and share of the goal", () => {
+    const room = goalRoom();
+    expect(progressDetail(room, makeParticipant("Ana", { stats: { wordsTyped: 250 } }))).toEqual({ percent: 25, label: "250 words" });
+    expect(progressDetail(room, makeParticipant("Ben", { stats: { wordsTyped: 1 } }))).toEqual({ percent: 0.1, label: "1 word" });
+  });
+
+  it("reads the total in the run summary until results begin, ignoring an earlier run's tally", () => {
+    expect(stepLine(goalRoom(), [], 0)).toBe("412 of 1,000 words");
+    expect(stepLine(goalRoom({ runVersion: 2 }), [], 0)).toBe("0 of 1,000 words");
+    expect(stepLine(goalRoom({ goalTally: { runVersion: 1, words: 1040, dueAt: 0 } }), [], 0)).toBe("1,000 of 1,000 words");
+    expect(stepLine(goalRoom({ stepEndedAt: 0 }), [], 0)).toMatch(/^Results, finishing in/);
   });
 });

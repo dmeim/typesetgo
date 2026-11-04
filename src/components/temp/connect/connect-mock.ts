@@ -1,5 +1,5 @@
 // Mock room, tests and players for the /temp-connect mockup. Nothing is fetched or saved.
-import { CoffeeIcon, FileTextIcon, QuotesIcon, TextAaIcon, TimerIcon, type Icon } from "@phosphor-icons/react";
+import { CoffeeIcon, FileTextIcon, QuotesIcon, TargetIcon, TextAaIcon, TimerIcon, type Icon } from "@phosphor-icons/react";
 import {
   CONNECT_CODE_ALPHABET, CONNECT_CODE_LENGTH, DEFAULT_CONNECT_BREAK, DEFAULT_CONNECT_TEST, isTimedConnectTest,
   type ConnectQuoteLength, type ConnectTest, type ConnectTestMode,
@@ -68,7 +68,7 @@ export const QUICK_ADD: { label: string; test: Omit<ConnectTest, "id"> }[] = [
   { label: "Break · 30s", test: { ...DEFAULT_CONNECT_BREAK } },
 ];
 
-export const MODE_ICONS: Record<TestMode, Icon> = { time: TimerIcon, words: TextAaIcon, quote: QuotesIcon, preset: FileTextIcon, break: CoffeeIcon };
+export const MODE_ICONS: Record<TestMode, Icon> = { time: TimerIcon, words: TextAaIcon, quote: QuotesIcon, preset: FileTextIcon, break: CoffeeIcon, goal: TargetIcon };
 
 export const RECENT_ROOMS = [
   { id: "r2", name: "Period 3 warm-ups", tests: 3, ago: "Ended 2h ago" },

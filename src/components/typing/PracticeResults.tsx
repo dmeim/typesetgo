@@ -33,6 +33,8 @@ interface PracticeResultsProps {
   onLeave?: () => void;
   /** Connect: room-specific actions (waiting message or Next test). */
   connectActions?: ReactNode;
+  /** Connect: names a test the settings alone can't describe, such as a word goal. */
+  testLabelOverride?: string;
   repeatTest?: () => void;
   rankingStatus?: "pending" | "ranked" | "unranked";
   isRepeated?: boolean;
@@ -72,6 +74,7 @@ export default function PracticeResults({
   generateTest,
   onLeave,
   connectActions,
+  testLabelOverride,
   repeatTest,
   timeline = [],
   comparison = null,
@@ -84,7 +87,7 @@ export default function PracticeResults({
   const scope = useId();
   const detail = useResultDetail();
   const scores = buildResultStats(wpm, accuracy, comparison);
-  const testLabel = describeTest(settings);
+  const testLabel = testLabelOverride ?? describeTest(settings);
   const details: ResultDetailsData = {
     correctWords: wordResults.correctWords,
     incorrectWords: wordResults.incorrectWords,
