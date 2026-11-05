@@ -1,2 +1,2 @@
 /** The release shown in the footer: the release date plus a counter for more than one release that day. Keep it in step with package.json. */
-export const APP_VERSION = "2026.11.04.3";
+export const APP_VERSION = "2026.11.05.1";

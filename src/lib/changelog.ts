@@ -36,6 +36,20 @@ export const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = { live: "Live"
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: "connect-student-screen-fit",
+    date: "2026-11-05",
+    title: "Students' Connect screens no longer overlap",
+    kind: "fixed",
+    status: "live",
+    area: "Connect",
+    summary: "In a Connect room, the live stats could land on top of the words being typed, and the keyboard could run off the bottom of the screen. It happened in every test type and was worst with the word goal bar showing. The stats, text and keyboard now each keep their own space, and they size themselves to the room the page actually has.",
+    highlights: [
+      "The text no longer jumps when a student presses their first key",
+      "On small laptops the Finger guide drops its hands to save room, and the caption still names the finger to use",
+      "Word goals lose the sweeping line under the stats, since the goal bar above shows the real progress",
+    ],
+  },
+  {
     id: "connect-long-words-tests",
     date: "2026-11-04",
     title: "Long Words tests in Connect now work at any length",

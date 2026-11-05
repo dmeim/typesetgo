@@ -381,6 +381,49 @@ test.describe("participant room", () => {
     await expect.poll(async () => (await callsNamed(page, "connect:reportProgress")).some((args) => (args.stats as { isFinished: boolean }).isFinished)).toBe(true);
   });
 
+  for (const { fixture, width, height, keyboardStyle, hands } of [
+    { fixture: "room-goal", width: 1815, height: 885, keyboardStyle: "finger", hands: true },
+    { fixture: "room-goal", width: 1366, height: 650, keyboardStyle: "finger", hands: false },
+    { fixture: "room-host", width: 1366, height: 650, keyboardStyle: "spotlight", hands: false },
+  ]) {
+    test(`stats, text and keyboard keep their own space: ${fixture}, ${keyboardStyle}, ${width}x${height}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto(`/connect/room/room-live?fixture=${fixture}`);
+      await hostDoes(page, "updateRoom", { overrides: {
+        typography: { enabled: true, typingFontFamily: "monospace", typingFontSize: 5.5, textAlign: "center", linePreview: 2 },
+        keyboard: { enabled: true, showOnScreenKeyboard: true, keyboardLayout: "qwerty", keyboardStyle },
+      } });
+      const text = page.locator(".cursor-text");
+      const keyboard = page.locator("[aria-label='On-screen keyboard']");
+      const top = async () => Math.round((await text.boundingBox())!.y);
+      // The text eases to its size and place, so wait for it to stop moving.
+      const settled = async () => {
+        await expect.poll(async () => {
+          const first = await top();
+          await page.waitForTimeout(150);
+          return first === await top();
+        }).toBe(true);
+        return top();
+      };
+      await typingInput(page).focus();
+      const before = await settled();
+
+      await page.keyboard.type("qq zz ", { delay: 20 });
+      const wpm = page.getByText("wpm", { exact: true });
+      await expect(wpm).toBeVisible();
+      // Typing's first key changes nothing: the stats already held their place.
+      expect(await settled()).toBe(before);
+
+      const [statsBox, textBox, keyboardBox] = await Promise.all([wpm.boundingBox(), text.boundingBox(), keyboard.boundingBox()]);
+      expect(statsBox!.y + statsBox!.height).toBeLessThanOrEqual(textBox!.y);
+      expect(textBox!.y + textBox!.height).toBeLessThanOrEqual(keyboardBox!.y);
+      expect(keyboardBox!.y + keyboardBox!.height).toBeLessThanOrEqual(height);
+      const scroll = await text.evaluate((element) => { const root = element.closest(".overflow-y-auto")!; return root.scrollHeight - root.clientHeight; });
+      expect(scroll).toBe(0);
+      if (keyboardStyle === "finger") expect(await page.getByText("Left", { exact: true }).isVisible()).toBe(hands);
+    });
+  }
+
   test("word goal: the words keep coming on a long run", async ({ page }) => {
     await page.goto("/connect/room/room-live?fixture=room-goal");
     await expect(typingInput(page)).toBeEnabled();

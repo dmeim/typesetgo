@@ -14,6 +14,8 @@ interface PracticeLiveStatsProps {
   elapsedMs: number;
   timeRemaining: number;
   typedWordCount: number;
+  /** For a word goal, whose own meter shows the real progress right above. */
+  hideProgress?: boolean;
 }
 
 function formatPracticeTime(seconds: number) {
@@ -26,14 +28,14 @@ function formatPracticeTime(seconds: number) {
 }
 
 /** One quiet line of rolling numbers (accuracy, speed, then time or words) over a progress line. */
-export function PracticeLiveStats({ settings, isKidMode, wpm, accuracy, elapsedMs, timeRemaining, typedWordCount }: PracticeLiveStatsProps) {
+export function PracticeLiveStats({ settings, isKidMode, wpm, accuracy, elapsedMs, timeRemaining, typedWordCount, hideProgress = false }: PracticeLiveStatsProps) {
   const shownWpm = useSampledValue(Math.round(wpm), READOUT_INTERVAL_MS);
   const shownAccuracy = useSampledValue(Math.round(accuracy), READOUT_INTERVAL_MS);
   const timed = isTimedPractice(settings);
   const urgent = timed && timeRemaining < 10;
   const elapsed = formatPracticeTime(Math.floor(elapsedMs / 1000));
   const zen = settings.mode === "zen";
-  const showsProgress = !isKidMode && (timed || settings.mode === "words" || zen);
+  const showsProgress = !isKidMode && !hideProgress && (timed || settings.mode === "words" || zen);
   const progress = timed
     ? settings.duration > 0 ? 1 - timeRemaining / settings.duration : 0
     : settings.wordTarget > 0 ? Math.min(typedWordCount / settings.wordTarget, 1) : 0;

@@ -39,7 +39,8 @@ export function FingerKeyboard({ model, bare = false }: { model: KeyboardModel; 
           </div>
         ))}
       </div>
-      <div className="mt-2 flex items-end justify-center gap-6 @min-[30rem]:gap-12" aria-hidden="true">
+      {/* In a practice screen too short to hold them (a Connect room on a small laptop), the caption below still names the finger. */}
+      <div className="mt-2 flex items-end justify-center gap-6 @min-[30rem]:gap-12 [@container(max-height:38rem)]:hidden" aria-hidden="true">
         {HANDS.map(({ side, fingers }) => (
           <div key={side} className="flex flex-col items-center gap-1.5">
             <div className="flex items-end gap-1">

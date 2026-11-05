@@ -19,7 +19,7 @@ import {
   type KidModeSnapshot,
 } from "@/lib/storage-utils";
 import { getTypingFontFamily } from "@/lib/typing-fonts";
-import { PRACTICE_LINE_HEIGHT, PRACTICE_TEXT_SHARE_CLASS, practiceFontSize } from "@/lib/practice-text-size";
+import { PRACTICE_LINE_HEIGHT, PRACTICE_OWN_BOX_CLASS, PRACTICE_OWN_BOX_FINGER_CLASS, PRACTICE_TEXT_SHARE_CLASS, practiceFontSize } from "@/lib/practice-text-size";
 import OnScreenKeyboard from "@/components/typing/keyboard/OnScreenKeyboard";
 import { useAppAuth } from "@/components/layout/useAppAuth";
 import { useAccount } from "@/components/layout/useAccount";
@@ -1073,11 +1073,11 @@ export default function TypingPractice({
   return (
     <div
       ref={rootRef}
-      className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300 ${PRACTICE_TEXT_SHARE_CLASS}`}
+      className={`relative flex ${fitToParentHeight ? "h-full min-h-0" : "h-[100dvh]"} flex-col items-center overflow-y-auto px-4 transition-colors duration-300 ${PRACTICE_TEXT_SHARE_CLASS} ${connectMode ? PRACTICE_OWN_BOX_CLASS : ""} ${connectMode && settings.keyboardStyle === "finger" ? PRACTICE_OWN_BOX_FINGER_CLASS : ""}`}
       style={{ backgroundColor: tv.ui.background, ...(connectMode ? { color: tv.ui.foreground, ...roomThemeStyle } : {}) }}
     >
       {/* While typing, the stats take the pill's place in the same height, so nothing below them moves. */}
-      <div ref={topRef} className="shrink-0 w-full flex flex-col items-center" style={isRunning && !isFinished && idleTopHeight ? { height: idleTopHeight } : undefined}>
+      <div ref={topRef} className="shrink-0 w-full flex flex-col items-center" style={!connectMode && isRunning && !isFinished && idleTopHeight ? { height: idleTopHeight } : undefined}>
       <div className="h-4 shrink-0" />
 
       <PracticeControls
@@ -1088,16 +1088,20 @@ export default function TypingPractice({
         uiOpacity={uiOpacity}
       />
 
-      {isRunning && !isFinished && (
-        <PracticeLiveStats
-          settings={settings}
-          isKidMode={isKidMode}
-          wpm={wpm}
-          accuracy={accuracy}
-          elapsedMs={elapsedMs}
-          timeRemaining={timeRemaining}
-          typedWordCount={shownWordCount}
-        />
+      {/* Connect has no pill to swap with, so its stats hold their own place from the start. */}
+      {(isRunning || connectMode) && !isFinished && (
+        <div className={`w-full ${isRunning ? "" : "invisible"}`}>
+          <PracticeLiveStats
+            settings={settings}
+            isKidMode={isKidMode}
+            wpm={wpm}
+            accuracy={accuracy}
+            elapsedMs={elapsedMs}
+            timeRemaining={timeRemaining}
+            typedWordCount={shownWordCount}
+            hideProgress={isGoal}
+          />
+        </div>
       )}
       </div>
 

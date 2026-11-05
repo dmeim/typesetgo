@@ -54,7 +54,7 @@ function StyledKeyboard({ style, toDelete, nextChar, capsLockOn, layoutId, activ
         animate={{ opacity: visible ? 1 : 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.15 }}
         // Key height follows width, so cap the width by screen height to keep the whole board on short screens.
-        className={`mx-auto w-full max-w-[min(100%,78dvh)] ${visible ? "" : "pointer-events-none"}`}
+        className={`mx-auto w-full max-w-[min(100%,calc(var(--practice-height,100dvh)*0.78))] ${visible ? "" : "pointer-events-none"}`}
       >
         {style === "finger" ? <FingerKeyboard model={model} /> : style === "keycaps" ? <KeycapKeyboard model={model} /> : <SpotlightKeyboard model={model} />}
       </motion.div>

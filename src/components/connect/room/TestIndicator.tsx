@@ -23,7 +23,7 @@ export function TestIndicator({ tests, currentIndex, className }: { tests: Conne
           </div>
         )}
       </div>
-      <p className="truncate text-xs text-muted-foreground">{label.title} · {detailAfterTitle(label.title, test)}</p>
+      <p className="truncate text-xs text-muted-foreground [@media(max-height:44rem)]:hidden">{label.title} · {detailAfterTitle(label.title, test)}</p>
     </div>
   );
 }
